@@ -76,6 +76,28 @@ button:active {
   outline:none;
 }
 
+.resident-labels {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+}
+.resident-label {
+  position:absolute;
+  left:0;
+  top:0;
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:9px;
+  background:rgba(255,252,242,.86);
+  color:#647358;
+  font-size:10px;
+  line-height:1.6;
+  letter-spacing:1px;
+  padding:2px 7px;
+  box-shadow:0 2px 6px #40543f0c;
+  white-space:nowrap;
+  will-change:transform;
+}
 .vignette {
   position:absolute;
   inset:0;

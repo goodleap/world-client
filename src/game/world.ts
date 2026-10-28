@@ -30,7 +30,7 @@ function buildHouse(scene: Scene, p: Palette, b: typeof BUILDINGS[number]) {
   const data = new VertexData();
   data.positions = [-w / 2, 0, -d / 2, w / 2, 0, -d / 2, 0, 1.1, -d / 2,
     -w / 2, 0, d / 2, w / 2, 0, d / 2, 0, 1.1, d / 2];
-  data.indices = [0, 2, 1, 3, 4, 5, 0, 3, 5, 0, 5, 2, 1, 2, 5, 1, 5, 4];
+  data.indices = [0, 1, 2, 3, 5, 4, 0, 5, 3, 0, 2, 5, 1, 5, 2, 1, 4, 5];
   data.uvs = new Array(12).fill(0);
   const normals: number[] = [];
   VertexData.ComputeNormals(data.positions, data.indices, normals);

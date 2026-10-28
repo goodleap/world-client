@@ -11,6 +11,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
 import { buildWorld } from './world.ts';
 import { createCharacter } from './character.ts';
+import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
 import { moveCharacter } from './movement.ts';
 import { LANDMARKS, OBSTACLES, PLAYER_RADIUS, SPAWN, WALK_SPEED, WORLD_BOUNDS } from './world-data.ts';
@@ -43,6 +44,7 @@ export async function createGame(ui: GameUI) {
   const player = createCharacter(scene, palette, shadows);
   player.root.position.set(SPAWN.x, 0, SPAWN.z);
   player.update(0, 0, 0);
+  const residents = createResidents(scene, palette, shadows, ui);
   let zoom = 10.7;
   let overview = false;
   let currentZoom = zoom;
@@ -79,6 +81,7 @@ export async function createGame(ui: GameUI) {
     const vz = dt > 0 ? (next.z - before.z) / dt : 0;
     player.root.position.x = next.x; player.root.position.z = next.z;
     player.update(dt, vx, vz);
+    residents.update(ui.paused ? 0 : dt, next);
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
     currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-dt * 7));
@@ -87,7 +90,7 @@ export async function createGame(ui: GameUI) {
     else target.set(next.x * 0.75, 0.5, next.z * 0.7 + 1.7);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-dt * 5), camera.target);
     ui.setNearby(LANDMARKS.find((landmark) => Math.hypot(next.x - landmark.x, next.z - landmark.z) <= landmark.range));
-    scene.render(); renderedFrames++;
+    scene.render(); residents.updateLabels(camera); renderedFrames++;
   });
   try {
     await scene.whenReadyAsync();
@@ -102,6 +105,7 @@ export async function createGame(ui: GameUI) {
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview },
       landmarks: ui.discoveredCount, frames: renderedFrames,
       bones: player.skeleton.bones.length, meshes: scene.meshes.length,
+      residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),

@@ -1,8 +1,8 @@
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Color3 } from '@babylonjs/core/Maths/math.color.js';
+import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import type { Scene } from '@babylonjs/core/scene';
 
 export function createPalette(scene: Scene) {
@@ -15,6 +15,9 @@ export function createPalette(scene: Scene) {
     stone: '#b7b9a5', stoneLight: '#d0cfb8', soil: '#9a7b5b', water: '#83b9af',
     waterLight: '#b1d4c4', flower: '#e8ba97', linen: '#f2dfb1', shirt: '#788c9c',
     pants: '#5d7069', skin: '#e5b992', hair: '#6d5947', boot: '#705c49', blush: '#ca8d77',
+    flax: '#dfd2ae', sandCloth: '#b99b73', workCloth: '#9b795c', leather: '#a27c58',
+    leatherDark: '#6f5948', metal: '#9da9a4', metalLight: '#c5cdc3', straw: '#c7b17b',
+    horse: '#a48365', dogFur: '#c29a65', dogCream: '#e3d1aa', nose: '#564c40',
   };
   return Object.fromEntries(Object.entries(colors).map(([name, color]) => {
     const material = new StandardMaterial(name, scene);
@@ -71,6 +74,8 @@ export function softBox(scene: Scene, name: string, size: [number, number, numbe
   }
   positions.push(0, -height / 2, 0, 0, height / 2, 0);
   for (let i = 0; i < 8; i++) indices.push(32, i, (i + 1) % 8, 33, 24 + (i + 1) % 8, 24 + i);
+  // Babylon's left-handed mesh convention needs clockwise outward-facing triangles.
+  for (let i = 0; i < indices.length; i += 3) [indices[i + 1], indices[i + 2]] = [indices[i + 2], indices[i + 1]];
   const data = new VertexData();
   data.positions = positions; data.indices = indices;
   data.uvs = new Array(positions.length / 3 * 2).fill(0);

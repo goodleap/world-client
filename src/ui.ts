@@ -20,6 +20,7 @@ function icon(name: keyof typeof icons) {
 export function createUI(app: HTMLElement) {
   app.innerHTML = `
     <canvas id="game" tabindex="0" aria-label="三维家园，使用 WASD 或方向键移动，拖动屏幕也可移动，E 查看附近地标"></canvas>
+    <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
       <div class="brand"><span class="brand-icon">${icon('home')}</span><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
@@ -95,6 +96,12 @@ export function createUI(app: HTMLElement) {
 
   return {
     canvas, joystick: get('joystick'), knob: get('joystick-knob'),
+    addResidentLabel(id: string, name: string) {
+      const label = document.createElement('span');
+      label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
+      get('resident-labels').append(label);
+      return label;
+    },
     get paused() { return help.open || detail.open; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
