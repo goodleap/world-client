@@ -116,6 +116,8 @@ export async function createGame(ui: GameUI) {
       landmarks: ui.discoveredCount, frames: renderedFrames,
       bones: player.skeleton.bones.length, meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
+      farmerWalking: residents.farmerWalking(),
+      farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
