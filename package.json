@@ -1,0 +1,22 @@
+{
+  "name": "world-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test --test-isolation=none tests/movement.test.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": { "@babylonjs/core": "9.32.1" },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^24.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}
