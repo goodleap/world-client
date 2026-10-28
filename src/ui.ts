@@ -34,6 +34,7 @@ export function createUI(app: HTMLElement) {
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
     <nav class="view-controls" aria-label="视角控制">
+      <button id="farmer-preview" class="icon-button" aria-label="查看农民模型" title="查看农民模型" aria-pressed="false">农</button>
       <button id="overview" class="icon-button" aria-label="查看全景" title="查看全景" aria-pressed="false">${icon('compass')}</button>
       <span class="control-divider"></span>
       <button id="zoom-in" class="icon-button" aria-label="放大" title="放大">${icon('plus')}</button>
@@ -106,6 +107,10 @@ export function createUI(app: HTMLElement) {
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
       get(id).addEventListener('click', () => { callback(); focusGame(); }, options);
+    },
+    setFarmerPreview(active: boolean) {
+      get('farmer-preview').setAttribute('aria-pressed', String(active));
+      get('farmer-preview').setAttribute('title', active ? '返回游戏视角' : '查看农民模型');
     },
     setNearby(landmark: Landmark | undefined) {
       if (nearby?.id === landmark?.id) return;

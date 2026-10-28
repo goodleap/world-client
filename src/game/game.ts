@@ -45,8 +45,10 @@ export async function createGame(ui: GameUI) {
   player.root.position.set(SPAWN.x, 0, SPAWN.z);
   player.update(0, 0, 0);
   const residents = createResidents(scene, palette, shadows, ui);
+  await residents.loadFarmerModel();
   let zoom = 10.7;
   let overview = false;
+  let farmerPreview = false;
   let currentZoom = zoom;
   let renderedFrames = 0;
   let disposed = false;
@@ -68,6 +70,10 @@ export async function createGame(ui: GameUI) {
   ui.bind('zoom-in', () => zoomBy(-1.2));
   ui.bind('zoom-out', () => zoomBy(1.2));
   ui.bind('overview', () => { overview = !overview; ui.setOverview(overview); });
+  ui.bind('farmer-preview', () => {
+    farmerPreview = !farmerPreview;
+    ui.setFarmerPreview(farmerPreview);
+  });
   ui.bind('reset', () => {
     player.root.position.set(SPAWN.x, 0, SPAWN.z);
     overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到小路的起点');
@@ -81,12 +87,16 @@ export async function createGame(ui: GameUI) {
     const vz = dt > 0 ? (next.z - before.z) / dt : 0;
     player.root.position.x = next.x; player.root.position.z = next.z;
     player.update(dt, vx, vz);
-    residents.update(ui.paused ? 0 : dt, next);
+    residents.update(ui.paused ? 0 : dt, next, farmerPreview);
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
-    const desiredZoom = overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
+    const desiredZoom = farmerPreview ? 2.2 : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
     currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-dt * 7));
+    camera.beta += ((farmerPreview ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-dt * 7));
     applyProjection();
-    if (overview) target.set(0, 0, 0);
+    if (farmerPreview) {
+      const position = residents.farmerPosition();
+      target.set(position.x, 0.9, position.z);
+    } else if (overview) target.set(0, 0, 0);
     else target.set(next.x * 0.75, 0.5, next.z * 0.7 + 1.7);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-dt * 5), camera.target);
     ui.setNearby(LANDMARKS.find((landmark) => Math.hypot(next.x - landmark.x, next.z - landmark.z) <= landmark.range));
@@ -105,6 +115,7 @@ export async function createGame(ui: GameUI) {
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview },
       landmarks: ui.discoveredCount, frames: renderedFrames,
       bones: player.skeleton.bones.length, meshes: scene.meshes.length,
+      farmerModelLoaded: residents.farmerModelLoaded(),
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },

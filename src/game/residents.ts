@@ -1,4 +1,4 @@
-import { Vector3, Matrix } from '@babylonjs/core/Maths/math.vector';
+import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
@@ -10,6 +10,9 @@ import type { Obstacle, Point } from './movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { PLAYER_RADIUS } from './world-data.ts';
+import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
+import '@babylonjs/loaders/glTF';
+import farmerModelUrl from '../../studies/farmer/farmer-scarf.glb?url';
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
@@ -33,9 +36,24 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
+  const farmer = actors.find((actor) => actor.definition.role === 'farmer')!;
+  let farmerModelLoaded = false;
   return {
-    update(seconds: number, player: Point) {
+    async loadFarmerModel() {
+      const result = await ImportMeshAsync(farmerModelUrl, scene);
+      result.meshes[0].parent = farmer.root;
+      farmer.human!.mesh.setEnabled(false);
+      for (const mesh of result.meshes) mesh.isPickable = false;
+      farmerModelLoaded = true;
+    },
+    farmerPosition: () => farmer.root.position,
+    farmerModelLoaded: () => farmerModelLoaded,
+    update(seconds: number, player: Point, previewFarmer = false) {
       for (const actor of actors) {
+        if (previewFarmer && actor === farmer) {
+          actor.root.rotationQuaternion = Quaternion.RotationYawPitchRoll(Math.PI, 0, 0);
+          continue;
+        }
         if (seconds <= 0) continue;
         const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
