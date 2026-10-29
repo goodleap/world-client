@@ -7,7 +7,7 @@ test('base character runs to a command and returns to idle on arrival', async ({
   expect((await snapshot(page)).baseModelLoaded).toBe(true);
   const loaded = (await snapshot(page)).baseModel;
   expect(loaded.meshes).toContain('Head • shaped cranium cheeks and jaw');
-  expect(loaded.bones).toEqual(expect.arrayContaining(['root', 'pelvis', 'torso', 'head', 'clavicle.L', 'forearm.L', 'hand.L', 'shin.L', 'foot.L']));
+  expect(loaded.bones).toEqual(expect.arrayContaining(['root', 'pelvis', 'torso', 'head', 'clavicle.L', 'forearm.L', 'hand.L', 'shin.L', 'foot.L', 'knee_volume.L', 'knee_volume.R']));
   expect(loaded.animations).toEqual(['Walk', 'Run']);
   const label = await page.locator('[data-resident="base-human"]').boundingBox();
   expect(label).not.toBeNull();

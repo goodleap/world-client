@@ -1,0 +1,297 @@
+{
+  "status": "bone-and-rigid-foot-proxy-study-only",
+  "coordinate_system": {
+    "up": "Z",
+    "front": "-Y",
+    "forward_coordinate": "f=-Y",
+    "positive_world_X_rotation": "downward limb rotates backward; positive shin-relative X bends knee backward"
+  },
+  "units": "Original v9 head height H=1; head 0.92 does not rescale body/skeleton",
+  "lengths": {
+    "thigh_sagittal": 0.16501212076693034,
+    "shin_sagittal": 0.10198039027185571,
+    "thigh_3d": 0.1662197340871414,
+    "shin_3d": 0.10338762014864257
+  },
+  "landmarks": {
+    "hip": [
+      0.143,
+      0.006,
+      0.38
+    ],
+    "knee": [
+      0.163,
+      0.008,
+      0.215
+    ],
+    "ankle": [
+      0.18,
+      -0.012,
+      0.115
+    ]
+  },
+  "foot_proxy": {
+    "outline_forward_z_relative_to_ankle": [
+      [
+        -0.105,
+        -0.04
+      ],
+      [
+        -0.108,
+        -0.075
+      ],
+      [
+        -0.095,
+        -0.103
+      ],
+      [
+        0.1,
+        -0.107
+      ],
+      [
+        0.21,
+        -0.102
+      ],
+      [
+        0.248,
+        -0.084
+      ],
+      [
+        0.245,
+        -0.035
+      ],
+      [
+        0.16,
+        0.002
+      ],
+      [
+        0.065,
+        0.025
+      ],
+      [
+        -0.025,
+        0.035
+      ],
+      [
+        -0.08,
+        0.005
+      ]
+    ],
+    "half_width": 0.15,
+    "explanation": "Conservative rigid foot outline with a low flat sole, rounded toe box and raised instep; no deforming foot mesh."
+  },
+  "joint_design": {
+    "pelvis": "No side rotation in this proxy; applying extra pelvis transforms would change the audited foot path.",
+    "knee": {
+      "physical_flexion_design_degrees": [
+        15,
+        85
+      ],
+      "actual_rest_axis_offset_degrees": 12.004392761569987,
+      "helper": "knee_volume at knee pivot follows half the shin local rotation; never scales bones."
+    },
+    "ankle": {
+      "local_rotation_design_degrees": [
+        -65,
+        20
+      ],
+      "reason": "Large cartoony foot is about .35H long versus .267H sagittal leg reach; low swing-through and relaxed ankle avoid forcing adult heel-to-butt poses."
+    },
+    "torso": {
+      "world_X_forward_lean_radians": [
+        0.19198621771937624,
+        0.22689280275926285
+      ]
+    },
+    "head": {
+      "counter_rotation_X_radians": [
+        -0.07853981633974483,
+        -0.061086523819801536
+      ]
+    },
+    "upper_arm": {
+      "local_X_swing_radians": [
+        -0.46,
+        0.34
+      ]
+    },
+    "forearm": {
+      "local_X_flexion_radians": [
+        -1.117010721276371,
+        -0.9773843811168246
+      ]
+    },
+    "deformation_review": "Only the skeleton and rigid foot proxy are under review here; no mesh/garment approval is implied."
+  },
+  "motion": {
+    "duration_seconds": 0.45,
+    "navigation_speed_reference": 1.6666666666666667,
+    "stance_fraction_per_leg": 0.24,
+    "flight_fraction_total": 0.52,
+    "stance_ankle_path": "f=0.09-speed*duration*phase, z=.115, pitch=0; fixed rigid planted foot, no rotation/sliding",
+    "root_hip_height_keys": [
+      [
+        0,
+        0.355
+      ],
+      [
+        0.12,
+        0.35
+      ],
+      [
+        0.24,
+        0.355
+      ],
+      [
+        0.34,
+        0.395
+      ],
+      [
+        0.4,
+        0.4
+      ],
+      [
+        0.5,
+        0.355
+      ]
+    ],
+    "swing_forward_keys": [
+      [
+        0.24,
+        -0.09
+      ],
+      [
+        0.34,
+        -0.135
+      ],
+      [
+        0.43,
+        -0.075
+      ],
+      [
+        0.54,
+        -0.015
+      ],
+      [
+        0.6,
+        0.03
+      ],
+      [
+        0.66,
+        0.07
+      ],
+      [
+        0.8,
+        0.12
+      ],
+      [
+        0.9,
+        0.115
+      ],
+      [
+        1,
+        0.09
+      ]
+    ],
+    "swing_height_keys": [
+      [
+        0.24,
+        0.115
+      ],
+      [
+        0.34,
+        0.18
+      ],
+      [
+        0.43,
+        0.16
+      ],
+      [
+        0.54,
+        0.12
+      ],
+      [
+        0.6,
+        0.13
+      ],
+      [
+        0.66,
+        0.16
+      ],
+      [
+        0.8,
+        0.18
+      ],
+      [
+        0.9,
+        0.18
+      ],
+      [
+        1,
+        0.115
+      ]
+    ],
+    "swing_world_foot_pitch_keys_radians": [
+      [
+        0.24,
+        0
+      ],
+      [
+        0.34,
+        0.15
+      ],
+      [
+        0.43,
+        0.05
+      ],
+      [
+        0.54,
+        0
+      ],
+      [
+        0.6,
+        0.05
+      ],
+      [
+        0.66,
+        0.1
+      ],
+      [
+        0.8,
+        -0.08
+      ],
+      [
+        0.9,
+        -0.08
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "solver": "Continuous monotone cubic curves + one analytic knee-forward IK branch; no per-frame search or root snapping."
+  },
+  "review": {
+    "sample_count": 241,
+    "unreachable": [],
+    "knee_range_deg": [
+      24.479743794815,
+      82.34609766050112
+    ],
+    "ankle_local_range_deg": [
+      -63.854044529347775,
+      -2.368271431930072
+    ],
+    "foot_floor_range": [
+      0.008000000000000007,
+      0.07121308771142719
+    ],
+    "max_neighbor": {
+      "phase": 0.004166666666666667,
+      "label": "L",
+      "foot_delta": 0.0031250000000000028,
+      "angle_delta_deg": 1.889649232292214
+    },
+    "max_neighbor_foot_delta": 0.004573712547636851
+  }
+}

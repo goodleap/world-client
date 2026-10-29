@@ -1,6 +1,6 @@
 {
-  "revision": "binding-3.1-run",
-  "bone_count": 18,
+  "revision": "binding-4-candidate-6-waist-upper-body",
+  "bone_count": 20,
   "bones": [
     "root",
     "pelvis",
@@ -17,26 +17,55 @@
     "thigh.L",
     "shin.L",
     "foot.L",
+    "knee_volume.L",
     "thigh.R",
     "shin.R",
-    "foot.R"
+    "foot.R",
+    "knee_volume.R"
   ],
   "animations": {
     "Walk": {
       "duration_seconds": 0.5,
       "navigation_speed_reference": 1.15,
-      "starts_at_rest": true
+      "starts_at_rest": true,
+      "change": "Knee flexion sign corrected, knee volume helpers added."
     },
     "Run": {
-      "duration_seconds": 0.3333333333333333,
-      "navigation_speed_reference": 2.1,
+      "duration_seconds": 0.45,
+      "navigation_speed_reference": 1.6666666666666667,
       "starts_at_rest": false,
       "stop_restore": "Stop Run, then reset Walk to its neutral first frame.",
+      "stance_fraction_per_leg": 0.24,
+      "authored_stance_foot_speed": 1.6666666666666667,
       "flight_floor_range_H": [
-        0.008,
-        0.058
+        0.00799531489610672,
+        0.04374278336763382
       ]
     }
+  },
+  "head": {
+    "scale": 0.92,
+    "anchor": [
+      0,
+      0,
+      0.85
+    ],
+    "objects": [
+      "Head \u2022 shaped cranium cheeks and jaw",
+      "Ear.R",
+      "Eye white.R",
+      "Eye iris.R",
+      "Eye glint.R",
+      "Brow.R",
+      "Ear.L",
+      "Eye white.L",
+      "Eye iris.L",
+      "Eye glint.L",
+      "Brow.L",
+      "Small rounded nose",
+      "Smile",
+      "Subtle open smile"
+    ]
   },
   "original_bounds": [
     [
@@ -52,20 +81,588 @@
       1.850000023841858
     ]
   ],
-  "runtime_rest_bounds": [
+  "head_scaled_bounds": [
     [
-      -0.6117444634437561,
-      0.6117444634437561
+      -0.5628049373626709,
+      0.5628049373626709
     ],
     [
-      -0.4379309415817261,
-      0.5219894647598267
+      -0.4028964638710022,
+      0.48023030161857605
+    ],
+    [
+      0.00800000037997961,
+      1.7699999809265137
+    ]
+  ],
+  "runtime_rest_bounds": [
+    [
+      -0.5628049373626709,
+      0.5628049373626709
+    ],
+    [
+      -0.4028964638710022,
+      0.48023030161857605
     ],
     [
       0.00799540150910616,
-      1.850000023841858
+      1.7699999809265137
     ]
   ],
+  "run_phases": [
+    {
+      "phase": 0.0,
+      "frame": 0,
+      "root_z": -0.025000000000000022,
+      "floor_H": 0.007995442487299442,
+      "knees_degrees": {
+        "L": 29.86336207602282,
+        "R": 64.96685636267429
+      }
+    },
+    {
+      "phase": 0.018518518518518517,
+      "frame": 1,
+      "root_z": -0.0253204730158193,
+      "floor_H": 0.007995427586138248,
+      "knees_degrees": {
+        "L": 37.89419223718307,
+        "R": 60.65093823961283
+      }
+    },
+    {
+      "phase": 0.037037037037037035,
+      "frame": 2,
+      "root_z": -0.026134886092717746,
+      "floor_H": 0.007995463907718658,
+      "knees_degrees": {
+        "L": 44.31350480434567,
+        "R": 59.36157298015761
+      }
+    },
+    {
+      "phase": 0.05555555555555555,
+      "frame": 3,
+      "root_z": -0.0272227302748565,
+      "floor_H": 0.007995497435331345,
+      "knees_degrees": {
+        "L": 49.492573552735806,
+        "R": 61.35999898400803
+      }
+    },
+    {
+      "phase": 0.07407407407407407,
+      "frame": 4,
+      "root_z": -0.028363496606396588,
+      "floor_H": 0.007995467633008957,
+      "knees_degrees": {
+        "L": 53.53338695828099,
+        "R": 64.50535583270869
+      }
+    },
+    {
+      "phase": 0.09259259259259259,
+      "frame": 5,
+      "root_z": -0.029336676131499095,
+      "floor_H": 0.00799546018242836,
+      "knees_degrees": {
+        "L": 56.423597006755685,
+        "R": 67.61673914363048
+      }
+    },
+    {
+      "phase": 0.1111111111111111,
+      "frame": 6,
+      "root_z": -0.02992175989432505,
+      "floor_H": 0.007995408959686756,
+      "knees_degrees": {
+        "L": 58.08375144923335,
+        "R": 71.0611091102609
+      }
+    },
+    {
+      "phase": 0.12962962962962962,
+      "frame": 7,
+      "root_z": -0.0299622146060482,
+      "floor_H": 0.007995390333235264,
+      "knees_degrees": {
+        "L": 58.43999802985091,
+        "R": 76.71617233418887
+      }
+    },
+    {
+      "phase": 0.14814814814814814,
+      "frame": 8,
+      "root_z": -0.029685157723360445,
+      "floor_H": 0.007995394058525562,
+      "knees_degrees": {
+        "L": 57.72364683141561,
+        "R": 81.29108874940741
+      }
+    },
+    {
+      "phase": 0.16666666666666666,
+      "frame": 9,
+      "root_z": -0.029156637420089615,
+      "floor_H": 0.007995348423719406,
+      "knees_degrees": {
+        "L": 55.971462848344785,
+        "R": 82.325450638307
+      }
+    },
+    {
+      "phase": 0.18518518518518517,
+      "frame": 10,
+      "root_z": -0.028397456427918466,
+      "floor_H": 0.007995352149009705,
+      "knees_degrees": {
+        "L": 53.13516713996396,
+        "R": 81.82509106791117
+      }
+    },
+    {
+      "phase": 0.2037037037037037,
+      "frame": 11,
+      "root_z": -0.027428417478530198,
+      "floor_H": 0.00799531489610672,
+      "knees_degrees": {
+        "L": 49.10221750851043,
+        "R": 80.70963890541609
+      }
+    },
+    {
+      "phase": 0.2222222222222222,
+      "frame": 12,
+      "root_z": -0.026270323303607512,
+      "floor_H": 0.00799537543207407,
+      "knees_degrees": {
+        "L": 43.63971159007896,
+        "R": 79.09667732263019
+      }
+    },
+    {
+      "phase": 0.24074074074074073,
+      "frame": 13,
+      "root_z": -0.024939119562965018,
+      "floor_H": 0.008001348935067654,
+      "knees_degrees": {
+        "L": 36.24160368871554,
+        "R": 77.15579634971117
+      }
+    },
+    {
+      "phase": 0.25925925925925924,
+      "frame": 14,
+      "root_z": -0.020585975713761973,
+      "floor_H": 0.011117251589894295,
+      "knees_degrees": {
+        "L": 31.721144129417258,
+        "R": 73.27435801499735
+      }
+    },
+    {
+      "phase": 0.2777777777777778,
+      "frame": 15,
+      "root_z": -0.012308259136989463,
+      "floor_H": 0.018385279923677444,
+      "knees_degrees": {
+        "L": 33.392650405058674,
+        "R": 66.84212741788507
+      }
+    },
+    {
+      "phase": 0.2962962962962963,
+      "frame": 16,
+      "root_z": -0.002341136984774117,
+      "floor_H": 0.027470596134662628,
+      "knees_degrees": {
+        "L": 37.55328082742312,
+        "R": 59.04958370771135
+      }
+    },
+    {
+      "phase": 0.3148148148148148,
+      "frame": 17,
+      "root_z": 0.007080223590757995,
+      "floor_H": 0.035800714045763016,
+      "knees_degrees": {
+        "L": 41.117071292567964,
+        "R": 51.189615425203414
+      }
+    },
+    {
+      "phase": 0.3333333333333333,
+      "frame": 18,
+      "root_z": 0.013720655437480411,
+      "floor_H": 0.04078209400177002,
+      "knees_degrees": {
+        "L": 42.09069289686608,
+        "R": 45.109482259541196
+      }
+    },
+    {
+      "phase": 0.35185185185185186,
+      "frame": 19,
+      "root_z": 0.016560903799033355,
+      "floor_H": 0.04143458977341652,
+      "knees_degrees": {
+        "L": 40.37614176667911,
+        "R": 42.64816837840868
+      }
+    },
+    {
+      "phase": 0.37037037037037035,
+      "frame": 20,
+      "root_z": 0.018567849585794383,
+      "floor_H": 0.04232856631278992,
+      "knees_degrees": {
+        "L": 41.04373724875989,
+        "R": 41.154869695763736
+      }
+    },
+    {
+      "phase": 0.3888888888888889,
+      "frame": 21,
+      "root_z": 0.019780354830967406,
+      "floor_H": 0.043332021683454514,
+      "knees_degrees": {
+        "L": 42.74539414639835,
+        "R": 40.65039549252685
+      }
+    },
+    {
+      "phase": 0.4074074074074074,
+      "frame": 22,
+      "root_z": 0.01929583904892551,
+      "floor_H": 0.04370120167732239,
+      "knees_degrees": {
+        "L": 44.74976003152263,
+        "R": 40.95053119632734
+      }
+    },
+    {
+      "phase": 0.42592592592592593,
+      "frame": 23,
+      "root_z": 0.012494284407864653,
+      "floor_H": 0.04264938458800316,
+      "knees_degrees": {
+        "L": 51.35348129576828,
+        "R": 38.055432218631665
+      }
+    },
+    {
+      "phase": 0.4444444444444444,
+      "frame": 24,
+      "root_z": 0.0012345679012346067,
+      "floor_H": 0.039268385618925095,
+      "knees_degrees": {
+        "L": 59.29327520696604,
+        "R": 32.59673568801367
+      }
+    },
+    {
+      "phase": 0.46296296296296297,
+      "frame": 25,
+      "root_z": -0.011053955189757658,
+      "floor_H": 0.025455866008996964,
+      "knees_degrees": {
+        "L": 64.9657874182119,
+        "R": 26.80552052418473
+      }
+    },
+    {
+      "phase": 0.48148148148148145,
+      "frame": 26,
+      "root_z": -0.020941929583904895,
+      "floor_H": 0.013072800822556019,
+      "knees_degrees": {
+        "L": 67.30959674205171,
+        "R": 24.566059236237752
+      }
+    },
+    {
+      "phase": 0.5,
+      "frame": 27,
+      "root_z": -0.025000000000000022,
+      "floor_H": 0.007996630854904652,
+      "knees_degrees": {
+        "L": 64.96685636267429,
+        "R": 29.86336207602282
+      }
+    },
+    {
+      "phase": 0.5185185185185185,
+      "frame": 28,
+      "root_z": -0.025320473015819245,
+      "floor_H": 0.00799662433564663,
+      "knees_degrees": {
+        "L": 60.65093823961277,
+        "R": 37.894192237183006
+      }
+    },
+    {
+      "phase": 0.5370370370370371,
+      "frame": 29,
+      "root_z": -0.026134886092717746,
+      "floor_H": 0.007996644824743271,
+      "knees_degrees": {
+        "L": 59.36157298015758,
+        "R": 44.3135048043457
+      }
+    },
+    {
+      "phase": 0.5555555555555556,
+      "frame": 30,
+      "root_z": -0.027222730274856555,
+      "floor_H": 0.00799653586000204,
+      "knees_degrees": {
+        "L": 61.35999898400808,
+        "R": 49.4925735527359
+      }
+    },
+    {
+      "phase": 0.5740740740740741,
+      "frame": 31,
+      "root_z": -0.028363496606396588,
+      "floor_H": 0.007996594533324242,
+      "knees_degrees": {
+        "L": 64.50535583270869,
+        "R": 53.53338695828099
+      }
+    },
+    {
+      "phase": 0.5925925925925926,
+      "frame": 32,
+      "root_z": -0.029336676131499095,
+      "floor_H": 0.00799658615142107,
+      "knees_degrees": {
+        "L": 67.61673914363048,
+        "R": 56.423597006755685
+      }
+    },
+    {
+      "phase": 0.6111111111111112,
+      "frame": 33,
+      "root_z": -0.029921759894325106,
+      "floor_H": 0.007996534928679466,
+      "knees_degrees": {
+        "L": 71.06110911026096,
+        "R": 58.0837514492334
+      }
+    },
+    {
+      "phase": 0.6296296296296297,
+      "frame": 34,
+      "root_z": -0.029962214606048143,
+      "floor_H": 0.007996587082743645,
+      "knees_degrees": {
+        "L": 76.71617233418884,
+        "R": 58.43999802985086
+      }
+    },
+    {
+      "phase": 0.6481481481481481,
+      "frame": 35,
+      "root_z": -0.029685157723360445,
+      "floor_H": 0.007996627129614353,
+      "knees_degrees": {
+        "L": 81.29108874940741,
+        "R": 57.72364683141561
+      }
+    },
+    {
+      "phase": 0.6666666666666666,
+      "frame": 36,
+      "root_z": -0.029156637420089615,
+      "floor_H": 0.007996571250259876,
+      "knees_degrees": {
+        "L": 82.325450638307,
+        "R": 55.97146284834482
+      }
+    },
+    {
+      "phase": 0.6851851851851852,
+      "frame": 37,
+      "root_z": -0.02839745642791852,
+      "floor_H": 0.007996524684131145,
+      "knees_degrees": {
+        "L": 81.82509106791119,
+        "R": 53.13516713996405
+      }
+    },
+    {
+      "phase": 0.7037037037037037,
+      "frame": 38,
+      "root_z": -0.027428417478530198,
+      "floor_H": 0.007996512576937675,
+      "knees_degrees": {
+        "L": 80.70963890541609,
+        "R": 49.10221750851043
+      }
+    },
+    {
+      "phase": 0.7222222222222222,
+      "frame": 39,
+      "root_z": -0.026270323303607512,
+      "floor_H": 0.007996478118002415,
+      "knees_degrees": {
+        "L": 79.09667732263019,
+        "R": 43.639711590078925
+      }
+    },
+    {
+      "phase": 0.7407407407407407,
+      "frame": 40,
+      "root_z": -0.024939119562965018,
+      "floor_H": 0.008006191812455654,
+      "knees_degrees": {
+        "L": 77.15579634971117,
+        "R": 36.24160368871554
+      }
+    },
+    {
+      "phase": 0.7592592592592593,
+      "frame": 41,
+      "root_z": -0.020585975713761917,
+      "floor_H": 0.011141940951347351,
+      "knees_degrees": {
+        "L": 73.2743580149973,
+        "R": 31.72114412941717
+      }
+    },
+    {
+      "phase": 0.7777777777777778,
+      "frame": 42,
+      "root_z": -0.012308259136989463,
+      "floor_H": 0.018461566418409348,
+      "knees_degrees": {
+        "L": 66.84212741788507,
+        "R": 33.3926504050585
+      }
+    },
+    {
+      "phase": 0.7962962962962963,
+      "frame": 43,
+      "root_z": -0.002341136984774117,
+      "floor_H": 0.027479127049446106,
+      "knees_degrees": {
+        "L": 59.04958370771135,
+        "R": 37.55328082742312
+      }
+    },
+    {
+      "phase": 0.8148148148148148,
+      "frame": 44,
+      "root_z": 0.00708022359075805,
+      "floor_H": 0.03580619394779205,
+      "knees_degrees": {
+        "L": 51.18961542520334,
+        "R": 41.117071292567964
+      }
+    },
+    {
+      "phase": 0.8333333333333334,
+      "frame": 45,
+      "root_z": 0.013720655437480411,
+      "floor_H": 0.040786013007164,
+      "knees_degrees": {
+        "L": 45.109482259541196,
+        "R": 42.09069289686615
+      }
+    },
+    {
+      "phase": 0.8518518518518519,
+      "frame": 46,
+      "root_z": 0.016560903799033355,
+      "floor_H": 0.04143865033984184,
+      "knees_degrees": {
+        "L": 42.64816837840868,
+        "R": 40.37614176667911
+      }
+    },
+    {
+      "phase": 0.8703703703703703,
+      "frame": 47,
+      "root_z": 0.018567849585794383,
+      "floor_H": 0.0423339307308197,
+      "knees_degrees": {
+        "L": 41.154869695763736,
+        "R": 41.04373724875989
+      }
+    },
+    {
+      "phase": 0.8888888888888888,
+      "frame": 48,
+      "root_z": 0.019780354830967406,
+      "floor_H": 0.04333927482366562,
+      "knees_degrees": {
+        "L": 40.65039549252685,
+        "R": 42.74539414639835
+      }
+    },
+    {
+      "phase": 0.9074074074074074,
+      "frame": 49,
+      "root_z": 0.019295839048925456,
+      "floor_H": 0.04374278336763382,
+      "knees_degrees": {
+        "L": 40.95053119632742,
+        "R": 44.74976003152265
+      }
+    },
+    {
+      "phase": 0.9259259259259259,
+      "frame": 50,
+      "root_z": 0.012494284407864653,
+      "floor_H": 0.04273328185081482,
+      "knees_degrees": {
+        "L": 38.055432218631665,
+        "R": 51.35348129576825
+      }
+    },
+    {
+      "phase": 0.9444444444444444,
+      "frame": 51,
+      "root_z": 0.0012345679012346067,
+      "floor_H": 0.039333220571279526,
+      "knees_degrees": {
+        "L": 32.59673568801367,
+        "R": 59.29327520696604
+      }
+    },
+    {
+      "phase": 0.9629629629629629,
+      "frame": 52,
+      "root_z": -0.011053955189757603,
+      "floor_H": 0.02545550838112831,
+      "knees_degrees": {
+        "L": 26.80552052418483,
+        "R": 64.96578741821192
+      }
+    },
+    {
+      "phase": 0.9814814814814815,
+      "frame": 53,
+      "root_z": -0.020941929583904895,
+      "floor_H": 0.013073843903839588,
+      "knees_degrees": {
+        "L": 24.566059236237646,
+        "R": 67.30959674205175
+      }
+    },
+    {
+      "phase": 1.0,
+      "frame": 54,
+      "root_z": -0.025000000000000022,
+      "floor_H": 0.007995442487299442,
+      "knees_degrees": {
+        "L": 29.86336207602282,
+        "R": 64.96685636267429
+      }
+    }
+  ],
+  "motion_source": "rig_motion.py",
+  "ik_reach_clamps": [],
   "triangles": 157130,
   "simplification": [
     {
@@ -129,37 +726,38 @@
       "sampled_surface_distance_max_H": 5.307828905642964e-05
     }
   ],
-  "note": "Static geometry accepted by user for demo; rig is newly positioned from v9, no old mesh or rig imported.",
-  "rest_max_rig_delta_H": 4.768394865038772e-06,
-  "walk_floor_min_H": 0.007999986410140991,
-  "walk_floor_max_H": 0.00800001434981823,
-  "run_floor_min_H": 0.007999993860721588,
-  "run_floor_max_H": 0.05800000578165054,
-  "validated_views": [
-    "rest-front",
-    "rest-side",
-    "walk-side",
-    "walk-game",
-    "run-side",
-    "run-game",
-    "run-landing",
-    "arms-raised",
-    "elbow-knee",
-    "shoulder-coordinated"
-  ],
-  "limitations": [
-    "Large lateral arm raise (~76 degrees) still pulls the short-sleeve shoulder silhouette; this clothing deformation is not approved for production actions.",
-    "Walk and Run are basic in-place loops, with no combat/work animation or full-range garment validation.",
-    "Original v9 face/ear/hand fidelity differences remain as previously reviewed; no new shape redesign was attempted."
-  ],
-  "walk_animation_unchanged_from_binding_2": true,
-  "exported_animations": {
-    "Run": 0.33333332277834415,
-    "Walk": 0.49999997951090336
+  "note": "Head reduced uniformly. Run binds the independently reviewed fixed-branch skeleton/rigid-foot plan, sampled at 120 fps; full skinned-motion review is separate. No dual-quaternion assumption.",
+  "final_asset_sha256": {
+    "base-human-v4-rig.glb": "18c1bf0c81614645baa71c715a3541c88bb04dccf98ccc5a6eb387977176d29b",
+    "base-human-v4-rig.blend": "b4a7190597ccce449fdccbab0de88e7dd43805096c5bdacc3dbbe327e3c1ae82",
+    "bind.py": "56cdffc61b8a544bcab976ca12c5ac6a9da742ecacd9e0fbecd329a9774a5625",
+    "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec"
   },
-  "sha256": {
-    "base-human-v9-rig.glb": "81c6cf3dcb83875b9250db8d444b6231118f93e2483aa2c7481152fafe92e7e2",
-    "base-human-v9-rig.blend": "b8c8578f597a64c808a1843b5e003367296e860e1cc6fa42adf11ebd1722d2ab",
-    "bind.py": "58e80d717e8576a143e34513e9d340b827e07c1695e230cf2ec8cad7b3b08dc5"
+  "runtime_validation": "runtime-validation.json",
+  "visual_review": {
+    "status": "reviewed in actual GLB and integrated demo",
+    "actual_exported_glb": true,
+    "reviewed": [
+      "standing head proportion",
+      "16-phase Run side view",
+      "16-phase Run game view",
+      "maximum ankle-flexion phase 0.472",
+      "waist overlap at phase 0.3125",
+      "sleeves and collar under forward lean and bent elbows"
+    ],
+    "result": "Foot volume and continuous stepping retained; prior waist triangle removed. No candidate-4 branch jumps.",
+    "remaining_scope": "Future work/combat actions and extreme shoulder poses remain unvalidated."
+  },
+  "limitations": [
+    "Large lateral arm raise around 76 degrees still pulls the short-sleeve shoulder silhouette; it is not approved for production actions.",
+    "This is a short-stride cartoon Run suited to the accepted short calves and large feet, not an adult sprint or high-knee motion.",
+    "No combat/work action or full-range garment validation is claimed.",
+    "The accepted original v9 face/ear/hand fidelity differences remain; this revision changes head scale, necessary binding, and movement."
+  ],
+  "game_verification": {
+    "cloud_chromium_e2e": "4 passed: command Run, pause/resume, arrival/idle, desktop preview, wandering role instances and mobile preview",
+    "unit_tests": "16 passed",
+    "build": "TypeScript and Vite passed",
+    "mobile_device_scope": "emulated mobile viewport; not a physical device test"
   }
 }

@@ -1,0 +1,23 @@
+{
+  "revision": "binding-4-candidate-6-waist-upper-body",
+  "animations": {
+    "Walk": {
+      "duration_seconds": 0.5,
+      "navigation_speed_reference": 1.15,
+      "starts_at_rest": true,
+      "change": "Knee flexion sign corrected, knee volume helpers added."
+    },
+    "Run": {
+      "duration_seconds": 0.45,
+      "navigation_speed_reference": 1.6666666666666667,
+      "starts_at_rest": false,
+      "stop_restore": "Stop Run, then reset Walk to its neutral first frame.",
+      "stance_fraction_per_leg": 0.24,
+      "authored_stance_foot_speed": 1.6666666666666667,
+      "flight_floor_range_H": [
+        0.00799531489610672,
+        0.04374278336763382
+      ]
+    }
+  }
+}

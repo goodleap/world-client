@@ -17,10 +17,14 @@ import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loadin
 import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer-scarf.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
+import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Material } from '@babylonjs/core/Materials/material';
+
+const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
+const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
   const placeholderRoles = new Set(['worker', 'infantry', 'archer', 'cavalry']);
@@ -98,7 +102,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }
     if (motion !== 'idle') {
       const clip = motion === 'run' ? clips.run : clips.walk;
-      clip.speedRatio = speed / (motion === 'run' ? 2.1 : 1.15);
+      clip.speedRatio = speed / (motion === 'run' ? runReferenceSpeed : walkReferenceSpeed);
     }
   };
   return {
@@ -203,8 +207,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (actor.route.length) {
           const target = actor.route[0], before = actor.state.position;
           const dx = target.x - before.x, dz = target.z - before.z, distance = Math.hypot(dx, dz);
+          const commandSpeedRatio = locomotion.has(actor.definition.id)
+            ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15;
           const next = moveCharacter(before, { x: dx / (distance || 1), z: dz / (distance || 1) }, seconds,
-            Math.min(actor.settings.speed * (2.1 / 1.15), distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
+            Math.min(actor.settings.speed * commandSpeedRatio, distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
           velocity = { x: (next.x - before.x) / seconds, z: (next.z - before.z) / seconds };
           const moved = Math.hypot(next.x - before.x, next.z - before.z);
           actor.state.position = next; actor.state.distanceTravelled += moved;

@@ -1,0 +1,44 @@
+{
+  "source_revision": "binding-4-candidate-6-waist-upper-body",
+  "saved_actions": {
+    "Run": {
+      "fake_user": true,
+      "frame_range": [
+        0.0,
+        54.0
+      ]
+    },
+    "Walk": {
+      "fake_user": true,
+      "frame_range": [
+        0.0,
+        60.0
+      ]
+    }
+  },
+  "dense_samples": 241,
+  "all_armature_modifiers_use_LBS": true,
+  "rest_max_skin_displacement_H": 4.70879051498353e-06,
+  "run_floor_range_H": [
+    0.007753348909318447,
+    0.0436549112200737
+  ],
+  "max_joint_distance_from_continuous_proxy_H": 0.001519426695970947,
+  "max_rigid_foot_region_deformation_H": 7.068241373080863e-08,
+  "stance_forward_world_ranges": {
+    "L": [
+      0.08996429964900017,
+      0.09001777172088621
+    ],
+    "R": [
+      0.46496429964900016,
+      0.4650177605450154
+    ]
+  },
+  "sha256": {
+    "base-human-v4-rig.glb": "18c1bf0c81614645baa71c715a3541c88bb04dccf98ccc5a6eb387977176d29b",
+    "base-human-v4-rig.blend": "b4a7190597ccce449fdccbab0de88e7dd43805096c5bdacc3dbbe327e3c1ae82",
+    "bind.py": "56cdffc61b8a544bcab976ca12c5ac6a9da742ecacd9e0fbecd329a9774a5625",
+    "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec"
+  }
+}
