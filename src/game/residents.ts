@@ -9,7 +9,9 @@ import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
-import { PLAYER_RADIUS } from './world-data.ts';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { moveCharacter } from './movement.ts';
+import { findPath } from './pathfinding.ts';
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer-scarf.glb?url';
@@ -31,14 +33,20 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       human.root.parent = root; human.root.position.set(0, 0.88, -0.1);
     }
     root.position.set(state.position.x, 0, state.position.z);
+    const hit = MeshBuilder.CreateSphere(`${definition.id}-hit`, { diameter: 1.5 }, scene);
+    hit.parent = root; hit.position.y = definition.role === 'cavalry' ? 1.6 : 1.0; hit.scaling.y = 1.5; hit.visibility = 0;
+    hit.metadata = { selectionKind: 'resident', id: definition.id };
+    const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
+    marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, definition.name);
-    return { definition, random, settings, state, human, animal, root, label };
+    return { definition, random, settings, state, human, animal, root, label, marker, route: [] as Point[] };
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
   const farmer = actors.find((actor) => actor.definition.role === 'farmer')!;
   let farmerModelLoaded = false;
+  let selected: typeof actors[number] | undefined;
   let farmerWalk: AnimationGroup | undefined;
   const setFarmerWalking = (walking: boolean) => {
     if (!farmerWalk) return;
@@ -60,7 +68,21 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     farmerModelLoaded: () => farmerModelLoaded,
     farmerWalking: () => farmerWalk?.isPlaying ?? false,
     farmerLegPose: () => scene.getTransformNodeByName('thigh.L')?.rotationQuaternion?.asArray() ?? [],
-    update(seconds: number, player: Point, previewFarmer = false) {
+    select(id?: string) {
+      selected?.marker.setEnabled(false);
+      selected = actors.find((actor) => actor.definition.id === id && actor.definition.role !== 'dog');
+      selected?.marker.setEnabled(true);
+      return selected?.definition.name;
+    },
+    selectedId: () => selected?.definition.id,
+    command(point: Point) {
+      if (!selected) return false;
+      const path = findPath(selected.state.position, point, selected.settings.bodyRadius, selected.settings.bounds, RESIDENT_OBSTACLES);
+      if (!path) return false;
+      selected.route = path; selected.state.target = undefined; selected.state.pause = 0;
+      return true;
+    },
+    update(seconds: number, previewFarmer = false) {
       for (const actor of actors) {
         if (previewFarmer && actor === farmer) {
           actor.root.rotationQuaternion = Quaternion.RotationYawPitchRoll(Math.PI, 0, 0);
@@ -71,11 +93,27 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
         }));
-        crowd.push({ kind: 'circle', x: player.x, z: player.z, radius: PLAYER_RADIUS + 0.1 });
-        // If the controllable player steps into a resident, let the resident leave the overlap.
         const blockers = crowd.filter((other) => other.kind === 'circle'
           && Math.hypot(other.x - actor.state.position.x, other.z - actor.state.position.z) >= other.radius + actor.settings.bodyRadius - 0.001);
-        const velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
+        let velocity: Point;
+        if (actor.route.length) {
+          const target = actor.route[0], before = actor.state.position;
+          const dx = target.x - before.x, dz = target.z - before.z, distance = Math.hypot(dx, dz);
+          const next = moveCharacter(before, { x: dx / (distance || 1), z: dz / (distance || 1) }, seconds,
+            Math.min(actor.settings.speed, distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
+          velocity = { x: (next.x - before.x) / seconds, z: (next.z - before.z) / seconds };
+          const moved = Math.hypot(next.x - before.x, next.z - before.z);
+          actor.state.position = next; actor.state.distanceTravelled += moved;
+          if (Math.hypot(target.x - next.x, target.z - next.z) < 0.08) actor.route.shift();
+          actor.state.blockedFor = moved < 0.002 ? actor.state.blockedFor + seconds : 0;
+          if (actor.state.blockedFor > 1) {
+            const goal = actor.route[actor.route.length - 1];
+            actor.route = findPath(next, goal, actor.settings.bodyRadius, actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers]) ?? actor.route;
+            actor.state.blockedFor = 0;
+          }
+          if (!actor.route.length) actor.state.pause = 3;
+        } else if (actor === selected) velocity = { x: 0, z: 0 };
+        else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
         if (actor === farmer) setFarmerWalking(Math.hypot(velocity.x, velocity.z) > 0.08);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
         actor.human?.update(seconds, velocity.x, velocity.z);

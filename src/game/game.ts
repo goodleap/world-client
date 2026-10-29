@@ -10,11 +10,11 @@ import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
 import { buildWorld } from './world.ts';
-import { createCharacter } from './character.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
-import { moveCharacter } from './movement.ts';
-import { LANDMARKS, OBSTACLES, PLAYER_RADIUS, SPAWN, WALK_SPEED, WORLD_BOUNDS } from './world-data.ts';
+import { BUILDINGS, WORLD_BOUNDS } from './world-data.ts';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 
 export async function createGame(ui: GameUI) {
@@ -41,11 +41,18 @@ export async function createGame(ui: GameUI) {
   shadows.setDarkness(0.28);
   const palette = createPalette(scene);
   const world = buildWorld(scene, palette, shadows);
-  const player = createCharacter(scene, palette, shadows);
-  player.root.position.set(SPAWN.x, 0, SPAWN.z);
-  player.update(0, 0, 0);
   const residents = createResidents(scene, palette, shadows, ui);
   await residents.loadFarmerModel();
+  const buildingMarkers = new Map<string, ReturnType<typeof MeshBuilder.CreateLines>>();
+  for (const building of BUILDINGS) {
+    const hit = MeshBuilder.CreateBox(`select-${building.id}`, { width: building.width, depth: building.depth, height: building.height + 1.2 }, scene);
+    hit.position.set(building.x, (building.height + 1.2) / 2, building.z); hit.visibility = 0;
+    hit.metadata = { selectionKind: 'building', id: building.id };
+    const x = building.width / 2 + 0.18, z = building.depth / 2 + 0.18;
+    const marker = MeshBuilder.CreateLines(`mark-${building.id}`, { points: [new Vector3(-x, 0.14, -z), new Vector3(x, 0.14, -z), new Vector3(x, 0.14, z), new Vector3(-x, 0.14, z), new Vector3(-x, 0.14, -z)] }, scene);
+    marker.position.set(building.x, 0, building.z); marker.color = Color3.FromHexString('#ffe7a1'); marker.isPickable = false; marker.setEnabled(false);
+    buildingMarkers.set(building.id, marker);
+  }
   let zoom = 10.7;
   let overview = false;
   let farmerPreview = false;
@@ -53,8 +60,38 @@ export async function createGame(ui: GameUI) {
   let renderedFrames = 0;
   let disposed = false;
   const target = new Vector3();
+  const mapCenter = new Vector3(0, 0.5, -2);
+  let selectedBuilding: string | undefined;
   const zoomBy = (delta: number) => { zoom = Math.max(6, Math.min(18, zoom + delta)); };
-  const input = new MovementInput(ui.canvas, ui.joystick, ui.knob, zoomBy);
+  const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
+  const input = new MovementInput(ui.canvas, zoomBy, (dx, dy) => {
+    if (ui.paused) return;
+    farmerPreview = false; ui.setFarmerPreview(false); overview = false; ui.setOverview(false);
+    const units = 2 * currentZoom / Math.max(1, ui.canvas.clientHeight);
+    mapCenter.x -= dx * units; mapCenter.z += dy * units / Math.max(0.2, Math.cos(camera.beta)); clampCenter();
+  }, (clientX, clientY) => {
+    if (ui.paused) return;
+    const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
+    const hit = scene.pick(x, y, (mesh) => !!mesh.metadata?.selectionKind);
+    if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
+      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false);
+      const name = residents.select(hit.pickedMesh.metadata.id); selectedBuilding = undefined;
+      if (name) ui.toast(`已选中${name}，点击空地移动`);
+      return;
+    }
+    if (hit?.pickedMesh?.metadata?.selectionKind === 'building') {
+      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false);
+      residents.select(); selectedBuilding = hit.pickedMesh.metadata.id;
+      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(true);
+      ui.toast('已选中建筑'); return;
+    }
+    const ray = scene.createPickingRay(x, y, null, camera);
+    const distance = -ray.origin.y / ray.direction.y;
+    if (distance <= 0 || !Number.isFinite(distance)) return;
+    const point = ray.origin.add(ray.direction.scale(distance));
+    if (residents.selectedId()) ui.toast(residents.command({ x: point.x, z: point.z }) ? '前往目标位置' : '无法到达该位置');
+    else { if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false); selectedBuilding = undefined; residents.select(); }
+  });
   const applyProjection = () => {
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     camera.orthoTop = currentZoom; camera.orthoBottom = -currentZoom;
@@ -75,19 +112,17 @@ export async function createGame(ui: GameUI) {
     ui.setFarmerPreview(farmerPreview);
   });
   ui.bind('reset', () => {
-    player.root.position.set(SPAWN.x, 0, SPAWN.z);
-    overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到小路的起点');
+    mapCenter.set(0, 0.5, -2); farmerPreview = false; ui.setFarmerPreview(false);
+    overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
   });
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
-    const before = player.root.position;
-    const next = moveCharacter(before, direction, dt, WALK_SPEED, WORLD_BOUNDS, OBSTACLES, PLAYER_RADIUS);
-    const vx = dt > 0 ? (next.x - before.x) / dt : 0;
-    const vz = dt > 0 ? (next.z - before.z) / dt : 0;
-    player.root.position.x = next.x; player.root.position.z = next.z;
-    player.update(dt, vx, vz);
-    residents.update(ui.paused ? 0 : dt, next, farmerPreview);
+    if (direction.x || direction.z) {
+      farmerPreview = false; ui.setFarmerPreview(false); overview = false; ui.setOverview(false);
+      mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
+    }
+    residents.update(ui.paused ? 0 : dt, farmerPreview);
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = farmerPreview ? 2.2 : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
     currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-dt * 7));
@@ -97,9 +132,8 @@ export async function createGame(ui: GameUI) {
       const position = residents.farmerPosition();
       target.set(position.x, 0.9, position.z);
     } else if (overview) target.set(0, 0, 0);
-    else target.set(next.x * 0.75, 0.5, next.z * 0.7 + 1.7);
+    else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-dt * 5), camera.target);
-    ui.setNearby(LANDMARKS.find((landmark) => Math.hypot(next.x - landmark.x, next.z - landmark.z) <= landmark.range));
     scene.render(); residents.updateLabels(camera); renderedFrames++;
   });
   try {
@@ -111,10 +145,10 @@ export async function createGame(ui: GameUI) {
   return {
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
-      player: { x: player.root.position.x, z: player.root.position.z },
-      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview },
+      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, x: mapCenter.x, z: mapCenter.z },
+      selection: { resident: residents.selectedId(), building: selectedBuilding },
       landmarks: ui.discoveredCount, frames: renderedFrames,
-      bones: player.skeleton.bones.length, meshes: scene.meshes.length,
+      meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
       farmerWalking: residents.farmerWalking(),
       farmerLegPose: residents.farmerLegPose(),

@@ -19,14 +19,14 @@ function icon(name: keyof typeof icons) {
 
 export function createUI(app: HTMLElement) {
   app.innerHTML = `
-    <canvas id="game" tabindex="0" aria-label="三维家园，使用 WASD 或方向键移动，拖动屏幕也可移动，E 查看附近地标"></canvas>
+    <canvas id="game" tabindex="0" aria-label="三维家园，点击选中人物或建筑，拖动地图，WASD 移动视角"></canvas>
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
       <div class="brand"><span class="brand-icon">${icon('home')}</span><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
       <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
-    <aside class="journey" aria-label="探索进度">
+    <aside class="journey" aria-label="探索进度" hidden>
       <div class="eyebrow"><span class="status-dot"></span> 初到家园</div>
       <div class="journey-heading"><h2>沿着小路，走一走</h2><span id="progress-count">0<span> / 3</span></span></div>
       <p id="journey-message">去看看小屋、菜园与水井。</p>
@@ -44,10 +44,10 @@ export function createUI(app: HTMLElement) {
     </nav>
     <div class="north" aria-hidden="true"><span>N</span><i></i></div>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
-    <footer class="bottom-bar"><div class="control-hint"><span class="desktop-hint"><span class="key-set"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> 或方向键移动 <span class="hint-dot">·</span> 滚轮缩放</span><span class="touch-hint"><span class="touch-dot"></span>拖动屏幕移动<span class="hint-dot">·</span>双指缩放</span></div><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
+    <footer class="bottom-bar"><div class="control-hint"><span class="desktop-hint"><span class="key-set"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> 移动视角 <span class="hint-dot">·</span> 点击选中</span><span class="touch-hint"><span class="touch-dot"></span>拖动地图<span class="hint-dot">·</span>点击选中</span></div><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">慢慢走，慢慢发现</p><h2>欢迎来到你的家园</h2><p class="dialog-intro">戴上草帽，沿着小路出发。<br>靠近小屋、菜园和水井，发现它们的故事。</p><div class="instruction-row"><b>电脑</b><p>WASD / 方向键移动<br>鼠标滚轮缩放 · E 查看附近地标</p></div><div class="instruction-row"><b>手机</b><p>按住画面并滑动，松手停止<br>双指捏合缩放，点击提示查看地标</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到起点。</p><button class="primary-button" id="start-walking">出发走走 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">探索家园</p><h2>操作说明</h2><p class="dialog-intro">点击人物选中，再点击空地指挥移动。<br>点击建筑可以选中建筑。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到初始视角。</p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
     <div id="loading" class="loading"><span class="loading-icon">${icon('home')}</span><h2>让小世界慢慢醒来</h2><p>正在准备你的家园…</p><span class="loading-line"></span></div>
   `;
@@ -120,8 +120,8 @@ export function createUI(app: HTMLElement) {
     },
     setOverview(active: boolean) {
       get('overview').setAttribute('aria-pressed', String(active));
-      get('overview').setAttribute('aria-label', active ? '跟随人物' : '查看全景');
-      get('overview').title = active ? '跟随人物' : '查看全景';
+      get('overview').setAttribute('aria-label', active ? '返回地图视角' : '查看全景');
+      get('overview').title = active ? '返回地图视角' : '查看全景';
     },
     ready() { get('loading').classList.add('loaded'); focusGame(); },
     error() {
