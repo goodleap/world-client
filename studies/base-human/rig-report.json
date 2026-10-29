@@ -1,5 +1,6 @@
 {
-  "revision": "binding-4-candidate-6-waist-upper-body",
+  "revision": "v10-binding-4-volume",
+  "source_revision": "v10",
   "bone_count": 20,
   "bones": [
     "root",
@@ -73,8 +74,8 @@
       0.6117444634437561
     ],
     [
-      -0.4379309415817261,
-      0.5219894647598267
+      -0.5009164214134216,
+      0.5579910278320312
     ],
     [
       0.00800000037997961,
@@ -87,8 +88,8 @@
       0.5628049373626709
     ],
     [
-      -0.4028964638710022,
-      0.48023030161857605
+      -0.46084311604499817,
+      0.5133517384529114
     ],
     [
       0.00800000037997961,
@@ -101,8 +102,8 @@
       0.5628049373626709
     ],
     [
-      -0.4028964638710022,
-      0.48023030161857605
+      -0.46084311604499817,
+      0.5133517384529114
     ],
     [
       0.00799540150910616,
@@ -663,7 +664,7 @@
   ],
   "motion_source": "rig_motion.py",
   "ik_reach_clamps": [],
-  "triangles": 157130,
+  "triangles": 157110,
   "simplification": [
     {
       "object": "Continuous arm and fist.R",
@@ -691,27 +692,27 @@
     },
     {
       "object": "T-shirt \u2022 connected shoulders",
-      "before_triangles_estimate": 321646,
-      "after_faces": 18108,
-      "sampled_surface_distance_max_H": 0.0003874020476359874
+      "before_triangles_estimate": 344426,
+      "after_faces": 18100,
+      "sampled_surface_distance_max_H": 0.0006774222711101174
     },
     {
       "object": "Neck binding",
       "before_triangles_estimate": 36904,
       "after_faces": 1998,
-      "sampled_surface_distance_max_H": 7.576776260975748e-05
+      "sampled_surface_distance_max_H": 7.913340232335031e-05
     },
     {
       "object": "Shirt hem piping",
       "before_triangles_estimate": 36904,
       "after_faces": 1998,
-      "sampled_surface_distance_max_H": 0.00012587924720719457
+      "sampled_surface_distance_max_H": 0.00013528433919418603
     },
     {
       "object": "Shorts \u2022 shaped hip and separate legs",
-      "before_triangles_estimate": 147256,
-      "after_faces": 18026,
-      "sampled_surface_distance_max_H": 0.00025971035938709974
+      "before_triangles_estimate": 152568,
+      "after_faces": 18014,
+      "sampled_surface_distance_max_H": 0.00017458673391956836
     },
     {
       "object": "Short hem.R",
@@ -726,36 +727,59 @@
       "sampled_surface_distance_max_H": 5.307828905642964e-05
     }
   ],
-  "note": "Head reduced uniformly. Run binds the independently reviewed fixed-branch skeleton/rigid-foot plan, sampled at 120 fps; full skinned-motion review is separate. No dual-quaternion assumption.",
+  "note": "Reference-based rounded head and torso retain the uniform 92% runtime head adjustment. Bone lengths and Run trajectory are unchanged. Run binds the independently reviewed fixed-branch skeleton/rigid-foot plan, sampled at 120 fps; full skinned-motion review is separate. No dual-quaternion assumption.",
   "final_asset_sha256": {
-    "base-human-v4-rig.glb": "18c1bf0c81614645baa71c715a3541c88bb04dccf98ccc5a6eb387977176d29b",
-    "base-human-v4-rig.blend": "b4a7190597ccce449fdccbab0de88e7dd43805096c5bdacc3dbbe327e3c1ae82",
-    "bind.py": "56cdffc61b8a544bcab976ca12c5ac6a9da742ecacd9e0fbecd329a9774a5625",
+    "base-human.glb": "72a1cf474ef68e6b5db050e72f7c44c1848e2b0d4b4f68c955fcf97ef4b0a08a",
+    "base-human.blend": "1246936618fb265f3dbe50b9d731212ef65b0c88ce8f41076d51e2130cc5c22a",
+    "build_model.py": "aae7202ab9a1bc9a6f73f69b18fe3f61a86d4ab2cddf145dc5cbb9a37882b2b9",
+    "bind_model.py": "038b152d4613df3039e417679eb7758e188b9952ecc5efb831f5f8a1723c111e",
     "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec"
   },
   "runtime_validation": "runtime-validation.json",
+  "volume_comparison_H": {
+    "head_width": {
+      "before": 0.940189,
+      "after": 0.940189
+    },
+    "head_height": {
+      "before": 0.92,
+      "after": 0.92
+    },
+    "head_depth": {
+      "before": 0.862947,
+      "after": 0.965984
+    },
+    "torso_skin_depth": {
+      "before": 0.386071,
+      "after": 0.465966
+    },
+    "shirt_depth": {
+      "before": 0.440159,
+      "after": 0.516659
+    }
+  },
   "visual_review": {
-    "status": "reviewed in actual GLB and integrated demo",
+    "status": "reviewed in final exported GLB and integrated demo; focused head/torso refinement",
     "actual_exported_glb": true,
     "reviewed": [
-      "standing head proportion",
-      "16-phase Run side view",
-      "16-phase Run game view",
-      "maximum ankle-flexion phase 0.472",
-      "waist overlap at phase 0.3125",
-      "sleeves and collar under forward lean and bent elbows"
+      "same-camera, same-light before/after comparison",
+      "standing front, orthographic profile, three-quarter and back",
+      "16-phase Run profile and three-quarter views",
+      "collar, waist and arm clearance with fuller torso",
+      "game lighting and 180x240 reduction",
+      "desktop and emulated mobile demo close view"
     ],
-    "result": "Foot volume and continuous stepping retained; prior waist triangle removed. No candidate-4 branch jumps.",
-    "remaining_scope": "Future work/combat actions and extreme shoulder poses remain unvalidated."
+    "result": "Convex forehead, cheek wrap and occiput add depth without enlarging head width/height. Chest, belly and back have fuller curvature; clothes follow the volume. No new visible arm/abdomen or collar intersection in the reviewed Run cycle.",
+    "remaining_scope": "Ear/fist details and extreme shoulder poses remain outside this volume refinement."
   },
   "limitations": [
     "Large lateral arm raise around 76 degrees still pulls the short-sleeve shoulder silhouette; it is not approved for production actions.",
     "This is a short-stride cartoon Run suited to the accepted short calves and large feet, not an adult sprint or high-knee motion.",
     "No combat/work action or full-range garment validation is claimed.",
-    "The accepted original v9 face/ear/hand fidelity differences remain; this revision changes head scale, necessary binding, and movement."
+    "Original ear/hand fidelity differences remain; this revision targets head and torso volume."
   ],
   "game_verification": {
-    "cloud_chromium_e2e": "4 passed: command Run, pause/resume, arrival/idle, desktop preview, wandering role instances and mobile preview",
+    "cloud_chromium_e2e": "3 passed: command Run with pause/resume and arrival/idle; desktop close view; mobile close view",
     "unit_tests": "16 passed",
     "build": "TypeScript and Vite passed",
     "mobile_device_scope": "emulated mobile viewport; not a physical device test"

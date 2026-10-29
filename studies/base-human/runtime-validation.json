@@ -1,5 +1,5 @@
 {
-  "source_revision": "binding-4-candidate-6-waist-upper-body",
+  "source_revision": "v10-binding-4-volume",
   "saved_actions": {
     "Run": {
       "fake_user": true,
@@ -18,7 +18,7 @@
   },
   "dense_samples": 241,
   "all_armature_modifiers_use_LBS": true,
-  "rest_max_skin_displacement_H": 4.70879051498353e-06,
+  "rest_max_skin_displacement_H": 4.708861247458203e-06,
   "run_floor_range_H": [
     0.007753348909318447,
     0.0436549112200737
@@ -36,9 +36,10 @@
     ]
   },
   "sha256": {
-    "base-human-v4-rig.glb": "18c1bf0c81614645baa71c715a3541c88bb04dccf98ccc5a6eb387977176d29b",
-    "base-human-v4-rig.blend": "b4a7190597ccce449fdccbab0de88e7dd43805096c5bdacc3dbbe327e3c1ae82",
-    "bind.py": "56cdffc61b8a544bcab976ca12c5ac6a9da742ecacd9e0fbecd329a9774a5625",
+    "base-human.glb": "72a1cf474ef68e6b5db050e72f7c44c1848e2b0d4b4f68c955fcf97ef4b0a08a",
+    "base-human.blend": "1246936618fb265f3dbe50b9d731212ef65b0c88ce8f41076d51e2130cc5c22a",
+    "build_model.py": "aae7202ab9a1bc9a6f73f69b18fe3f61a86d4ab2cddf145dc5cbb9a37882b2b9",
+    "bind_model.py": "038b152d4613df3039e417679eb7758e188b9952ecc5efb831f5f8a1723c111e",
     "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec"
   }
 }

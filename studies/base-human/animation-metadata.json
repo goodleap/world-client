@@ -1,5 +1,5 @@
 {
-  "revision": "binding-4-candidate-6-waist-upper-body",
+  "revision": "v10-binding-4-volume",
   "animations": {
     "Walk": {
       "duration_seconds": 0.5,

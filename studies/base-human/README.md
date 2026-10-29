@@ -1,6 +1,23 @@
-# 基础人物 · 比例与跑步修订
+# 基础人物 · 头身饱满度与跑步
 
-以用户同意进入 Demo 的 v9 基础人物为形体来源。本次按用户反馈，将头、耳朵及五官以颈部连接处为锚整体缩至 92%，为发型和帽盔留空间；身体的静止形体、服装与配色保留。8% 是本轮取值，不是所有人物的统一比例标准。此前耳廓、拳形等细节与原型仍有差距，不宣称整体还原已最终完成。
+当前为 v10 体积修订。依据设计仓库的基础人物原型及用户关于“头部瘪、身体需要更圆鼓饱满”的反馈，在已进入 Demo 的 v9 基础人物上重新调整头身曲面。头、耳朵及五官仍保留以颈部为锚整体缩至 92% 的比例，为发型和帽盔留空间；8% 是此前选定的取值，不是所有人物的统一比例标准。
+
+## 本次形体调整
+
+- 头部：保留现有高度、正面宽度与五官布局，增加额头、脸颊及后脑的前后体积，让脸部向两侧连续包转。五官跟随新的脸部曲面贴合，脸颊体积直接塑在头部网格内。
+- 躯干：增加胸腹、腰背的厚度，腹部略鼓，向领口和腰部自然收拢。肩关节与四肢位置保持原方案，保留腋下空间。
+- 服装：T 恤、衣摆与短裤腰臀同步贴合身体的新体积，避免仅加厚皮肤造成穿模或衣服悬空。
+
+实际 GLB 静止网格的尺寸对比（H 沿用原始头高单位；不含耳朵和五官凸起）：
+
+| 部位 | 修订前 | 修订后 |
+| --- | --- | --- |
+| 头部宽 × 高 | 0.940 × 0.920 H | 0.940 × 0.920 H |
+| 头部前后厚度 | 0.863 H | 0.966 H |
+| 躯干皮肤前后厚度 | 0.386 H | 0.466 H |
+| T 恤前后厚度 | 0.440 H | 0.517 H |
+
+用同相机、同中性光照对比实际 GLB 的正面、纯侧面、斜侧面、背面及游戏视角，并检查 180 × 240 缩小显示。跑步检查覆盖 16 个相位及 241 个连续运动数值样本，骨段长度与既定运动轨迹保持不变。耳廓、拳形及大幅抬臂时的袖缘仍有原有细节差距；本次头身体积修订不代表所有模型细节最终还原完成。
 
 ## 骨架先行
 
@@ -23,7 +40,7 @@
 
 - `base-human.glb`：游戏实际加载的网格、蒙皮与动作。
 - `base-human.blend`：同版骨架源文件，保留 Walk、Run。
-- `build_model.py`：生成静态 v9 形体。
+- `build_model.py`：生成静态 v10 形体；`MODEL_OUTPUT` 可将候选模型和审查图输出到独立云端目录。
 - `bind_model.py`、`rig_motion.py`：缩头、绑定并按固定运动方案生成动作。
 - `rig-motion-plan.json`、`animation-metadata.json`：骨架运动方案与前端播放参数。
 - `rig-report.json`、`runtime-validation.json`：尺寸、导出信息及实际蒙皮验证记录。
@@ -31,8 +48,8 @@
 参考原型保留在设计仓库，不复制到公开前端仓库。使用 Blender 4.3.2，在云端工作区重建：
 
 ```sh
-REVIEW_VIEWS=front,side blender -b -t 8 --python studies/base-human/build_model.py -- v9
-blender -b -t 8 --python studies/base-human/bind_model.py -- --input studies/base-human/v9.blend --output /tmp/base-human-runtime
+MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python studies/base-human/build_model.py -- v10
+blender -b -t 8 --python studies/base-human/bind_model.py -- --input /tmp/base-human-volume/v10.blend --output /tmp/base-human-runtime
 ```
 
 输出须经过实际 GLB 的完整动作周期、游戏视角及手机显示检查，再替换游戏文件。结构或数值检查不能代替视觉审查。

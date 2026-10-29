@@ -1,15 +1,16 @@
 """Reference-driven base human study. H=1, front -Y, Z up.
 
 Fresh geometry from 基础人物原型图-v1.png; not derived from the old demo.
-Run in Blender: blender -b -t 8 --python build.py -- v1
+Run in Blender: MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python build_model.py -- v10
 """
 import bpy, bmesh, math, os, sys, json
 from math import sin, cos, pi, sqrt, exp
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
-OUT=os.path.dirname(os.path.abspath(__file__))
-REV=sys.argv[sys.argv.index('--')+1] if '--' in sys.argv else 'v1'
+OUT=os.path.abspath(os.environ.get('MODEL_OUTPUT',os.path.dirname(os.path.abspath(__file__))))
+os.makedirs(OUT,exist_ok=True)
+REV=sys.argv[sys.argv.index('--')+1] if '--' in sys.argv else 'v10'
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 for data in bpy.data.materials: bpy.data.materials.remove(data)
 
@@ -86,23 +87,25 @@ def sample(rows,z):
         vals.append((2*t**3-3*t*t+1)*rows[j][k]+(t**3-2*t*t+t)*(x1-x0)*m0+(-2*t**3+3*t*t)*rows[j+1][k]+(t**3-t*t)*(x1-x0)*m1)
     return vals
 
+# Keep the approved front silhouette and reduced runtime head height. Depth is
+# sculpted independently: convex forehead, full cheeks and a rounded occiput.
 head_profile=[
  (.850,.006,.020,.020,.000),(.858,.110,.145,.132,.000),
- (.877,.221,.245,.207,.000),(.908,.310,.307,.284,.000),
- (.956,.371,.354,.350,.000),(1.030,.414,.388,.417,.000),
- (1.130,.458,.404,.474,.000),(1.260,.490,.413,.512,.000),
- (1.400,.511,.416,.522,.000),(1.510,.501,.406,.510,.000),
- (1.610,.458,.376,.475,.000),(1.710,.373,.310,.390,.000),
- (1.785,.262,.220,.277,.000),(1.830,.145,.121,.152,.000),
+ (.877,.221,.250,.217,.000),(.908,.310,.328,.299,.000),
+ (.956,.371,.389,.369,.000),(1.030,.414,.434,.438,.000),
+ (1.130,.458,.458,.504,.000),(1.260,.490,.484,.549,.000),
+ (1.400,.511,.492,.558,.000),(1.510,.501,.474,.543,.000),
+ (1.610,.458,.430,.501,.000),(1.710,.373,.346,.406,.000),
+ (1.785,.262,.239,.286,.000),(1.830,.145,.132,.157,.000),
  (1.849,.024,.020,.025,.000),(1.850,.001,.001,.001,.000)]
 
 def head_front(x,z):
     w,f,b,y=sample(head_profile,z)
     q=min(.999999,abs(x)/max(w,.001)); blend=max(0,min(1,(z-1.06)/.35));blend=blend*blend*(3-2*blend)
-    power=2.40*(1-blend)+2.1*blend
+    power=2.04*(1-blend)+2.0*blend
     depth=f*max(0,1-q**power)**(1/power)
     # Cheek volume is sculpted into one surface, not added cheek spheres.
-    depth+=.029*exp(-((abs(x)-.28)/.15)**2-((z-1.035)/.12)**2)
+    depth+=.052*exp(-((abs(x)-.28)/.15)**2-((z-1.035)/.12)**2)*sqrt(max(0,1-q*q))
     depth-=.007*exp(-((abs(x)-.21)/.085)**2-((z-1.16)/.11)**2)
     return y-depth
 
@@ -230,7 +233,11 @@ def cut(ob,plane_co,plane_no):
     bm.to_mesh(ob.data);bm.free();ob.data.update()
 
 # Anatomical base uses continuous sweeps, with no elbow/knee bead primitives.
-torso=loft('Torso skin',[(.35,0,0,.20,.16),(.44,0,-.006,.25,.19),(.56,0,-.012,.24,.19),(.68,0,0,.22,.18),(.76,0,.006,.21,.16),(.80,0,.01,.15,.13),(.85,0,.015,.12,.12)],skin)
+torso=loft('Torso skin',[
+    (.35,0,0,.20,.17),(.44,0,-.006,.254,.215),
+    (.54,0,-.016,.255,.233),(.64,0,-.010,.235,.215),
+    (.73,0,.003,.217,.186),(.78,0,.008,.173,.145),
+    (.85,0,.015,.12,.12)],skin)
 neck=oval('Neck',(0,.005,.825),(.125,.12,.09),skin)
 bodyparts=[torso,neck]
 arms=[]; feet=[]
@@ -288,7 +295,14 @@ for s,label in [(-1,'R'),(1,'L')]:
     feet.append(leg)
 
 # Build cotton shirt as one continuous shoulder/torso surface; cut clean cuffs.
-shirt=loft('Shirt torso',[(.40,0,-.006,.270,.209),(.445,0,-.010,.273,.214),(.54,0,-.018,.267,.215),(.64,0,-.006,.249,.204),(.73,0,.003,.233,.184),(.785,0,.009,.205,.151),(.824,0,.01,.140,.117),(.837,0,.01,.116,.104)],cloth)
+# A compact, rounded belly and back; the waist and collar taper into them.
+# Keep shoulder/arm placement fixed so fullness does not close the armpit gap.
+shirt_profile=[
+    (.400,0,-.008,.270,.224),(.445,0,-.012,.280,.240),
+    (.535,0,-.020,.283,.257),(.625,0,-.010,.266,.243),
+    (.715,0,.003,.243,.211),(.780,0,.009,.208,.161),
+    (.824,0,.01,.140,.117),(.837,0,.01,.116,.104)]
+shirt=loft('Shirt torso',shirt_profile,cloth)
 parts=[shirt]
 for s in [-1,1]:
     sleeve=loft('Sleeve shaping volume',[
@@ -327,15 +341,16 @@ bev=shirt.modifiers.new('Soft cut edges','BEVEL');bev.width=.002;bev.segments=2
 
 # Thin circular neckline and hem track the actual garment, not large donut trims.
 curve('Neck binding',neckline,.0055,cloth_edge)
-coords=[(.274*cos(2*pi*i/96),-.010+.213*sin(2*pi*i/96),.430) for i in range(97)]
+_,hem_y,hem_w,hem_d=sample(shirt_profile,.430)
+coords=[((hem_w+.001)*cos(2*pi*i/96),hem_y+(hem_d+.001)*sin(2*pi*i/96),.430) for i in range(97)]
 curve('Shirt hem piping',coords,.008,cloth_edge)
 
 # Shorts: join the hip to two real separated leg tubes, then cut each opening.
-hip=oval('Shorts hip',(0,.002,.390),(.276,.193,.116),cloth)
+hip=oval('Shorts hip',(0,.002,.390),(.279,.218,.116),cloth)
 parts=[hip]
 parts.append(loft('Shorts waist overlap',[
-    (.355,0,.002,.249,.173),(.385,0,.001,.267,.201),
-    (.415,0,-.002,.273,.213),(.448,0,-.002,.264,.207)],cloth))
+    (.355,0,.002,.253,.194),(.385,0,.001,.272,.224),
+    (.415,0,-.002,.278,.234),(.448,0,-.002,.270,.229)],cloth))
 for s in [-1,1]:
     parts.append(loft('Short leg tube',[(.208,s*.157,0,.130,.143),(.27,s*.156,.001,.135,.159),(.34,s*.138,.002,.145,.172),(.42,s*.12,0,.13,.157)],cloth))
 shorts=fuse('Shorts • shaped hip and separate legs',parts,.0038,12)
@@ -360,6 +375,7 @@ area('Large soft key',(-3,-4,6),300,3.5,(1,.97,.94))
 area('Front fill',(3,-4,3),65,3,(.96,.98,1))
 area('Soft rear light',(1,3,4),100,3,(1,.97,.93))
 scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=int(os.environ.get('REVIEW_SAMPLES','48'));scene.cycles.use_denoising=False
+scene['model_revision']=REV
 scene.cycles.use_adaptive_sampling=True;scene.cycles.adaptive_threshold=.025;scene.cycles.adaptive_min_samples=16
 scene.cycles.max_bounces=6;scene.cycles.diffuse_bounces=3;scene.cycles.glossy_bounces=3
 scene.view_settings.view_transform='Standard';scene.view_settings.look='None';scene.view_settings.exposure=0;scene.view_settings.gamma=1

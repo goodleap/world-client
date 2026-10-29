@@ -1,6 +1,6 @@
-"""Bind the user-selected v9 geometry to a freshly placed chibi rig.
-blender -b ../v9.blend -t 8 --python bind.py
-All mesh edits are confined to a visually checked game export; v9 is untouched.
+"""Bind the reference-based character to the reviewed chibi motion rig.
+blender -b -t 8 --python bind_model.py -- --input /tmp/base-human-volume/v10.blend --output /tmp/base-human-runtime
+The source mesh is preserved; the runtime head retains its 92% size adjustment.
 """
 import bpy, math, os, json, sys, argparse
 from mathutils import Vector, Quaternion, Matrix
@@ -11,6 +11,7 @@ args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv els
 OUT=os.path.abspath(args.output);os.makedirs(OUT,exist_ok=True)
 if args.input:bpy.ops.wm.open_mainfile(filepath=os.path.abspath(args.input))
 scene=bpy.context.scene
+source_revision=scene.get('model_revision','v9')
 characters=[ob for ob in scene.objects if ob.type in {'MESH','CURVE'} and ob.name!='Review floor']
 bpy.ops.object.select_all(action='DESELECT')
 for ob in characters:ob.select_set(True)
@@ -138,7 +139,7 @@ for ob in characters:
             if w>1e-6:groups[group].add([v.index],w/total,'REPLACE')
     mod=ob.modifiers.new('BaseHuman deformation','ARMATURE');mod.object=rig;mod.use_deform_preserve_volume=False
     ob.parent=rig
-    ob['source_revision']='v9';ob['status']='user-selected demo preview'
+    ob['source_revision']=source_revision;ob['status']='reference-based demo model'
 
 def clear_pose():
     for p in rig.pose.bones:p.rotation_mode='QUATERNION';p.rotation_quaternion=Quaternion();p.location=(0,0,0)
@@ -244,12 +245,12 @@ clear_pose();rig.animation_data.action=walk_action;scene.frame_set(0)
 triangles=0
 for ob in characters:
     ob.data.calc_loop_triangles();triangles+=len(ob.data.loop_triangles)
-report={'revision':'binding-4-candidate-6-waist-upper-body','bone_count':len(arm.bones),'bones':[b.name for b in arm.bones],
+report={'revision':source_revision+'-binding-4-volume','source_revision':source_revision,'bone_count':len(arm.bones),'bones':[b.name for b in arm.bones],
 'animations':{'Walk':{'duration_seconds':.5,'navigation_speed_reference':1.15,'starts_at_rest':True,'change':'Knee flexion sign corrected, knee volume helpers added.'},
 'Run':{'duration_seconds':RUN_DURATION,'navigation_speed_reference':RUN_SPEED,'starts_at_rest':False,'stop_restore':'Stop Run, then reset Walk to its neutral first frame.','stance_fraction_per_leg':motion.SUPPORT,'authored_stance_foot_speed':RUN_SPEED,'flight_floor_range_H':[min(run_floor_samples),max(run_floor_samples)]}},
 'head':{'scale':.92,'anchor':[0,0,.85],'objects':head_objects},'original_bounds':original_bounds,'head_scaled_bounds':head_scaled_bounds,'runtime_rest_bounds':bounds(characters),
 'run_phases':run_phase_report,'motion_source':'rig_motion.py','ik_reach_clamps':[],'triangles':triangles,'simplification':reports,
-'note':'Head reduced uniformly. Run binds the independently reviewed fixed-branch skeleton/rigid-foot plan, sampled at 120 fps; full skinned-motion review is separate. No dual-quaternion assumption.'}
+'note':'Reference-based rounded head and torso retain the uniform 92% runtime head adjustment. Bone lengths and Run trajectory are unchanged. Run binds the independently reviewed fixed-branch skeleton/rigid-foot plan, sampled at 120 fps; full skinned-motion review is separate. No dual-quaternion assumption.'}
 with open(os.path.join(OUT,'rig-report.json'),'w') as f:json.dump(report,f,indent=2)
 with open(os.path.join(OUT,'animation-metadata.json'),'w') as f:json.dump({'revision':report['revision'],'animations':report['animations']},f,indent=2)
 print('RIG_COMPLETE',json.dumps(report))
