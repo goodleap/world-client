@@ -57,18 +57,29 @@ export async function createGame(ui: GameUI) {
   }
   let zoom = 10.7;
   let overview = false;
-  let farmerPreview = false;
+  let previewRole: 'farmer' | 'base' | undefined;
+  let previewZoom = 1;
+  const setPreview = (role?: 'farmer' | 'base') => {
+    previewRole = role;
+    previewZoom = 1;
+    if (role) { overview = false; ui.setOverview(false); }
+    ui.setFarmerPreview(role === 'farmer');
+    ui.setBasePreview(role === 'base');
+  };
   let currentZoom = zoom;
   let renderedFrames = 0;
   let disposed = false;
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
   let selectedBuilding: string | undefined;
-  const zoomBy = (delta: number) => { zoom = Math.max(6, Math.min(18, zoom + delta)); };
+  const zoomBy = (delta: number) => {
+    if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
+    else zoom = Math.max(6, Math.min(18, zoom + delta));
+  };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy) => {
     if (ui.paused) return;
-    farmerPreview = false; ui.setFarmerPreview(false); overview = false; ui.setOverview(false);
+    setPreview(); overview = false; ui.setOverview(false);
     const units = 2 * currentZoom / Math.max(1, ui.canvas.clientHeight);
     mapCenter.x -= dx * units; mapCenter.z += dy * units / Math.max(0.2, Math.cos(camera.beta)); clampCenter();
   }, (clientX, clientY) => {
@@ -91,7 +102,11 @@ export async function createGame(ui: GameUI) {
     const distance = -ray.origin.y / ray.direction.y;
     if (distance <= 0 || !Number.isFinite(distance)) return;
     const point = ray.origin.add(ray.direction.scale(distance));
-    if (residents.selectedId()) ui.toast(residents.command({ x: point.x, z: point.z }) ? '前往目标位置' : '无法到达该位置');
+    if (residents.selectedId()) {
+      const moving = residents.command({ x: point.x, z: point.z });
+      if (moving) setPreview();
+      ui.toast(moving ? '前往目标位置' : '无法到达该位置');
+    }
     else { if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false); selectedBuilding = undefined; residents.select(); }
   });
   const applyProjection = () => {
@@ -108,34 +123,41 @@ export async function createGame(ui: GameUI) {
   resize();
   ui.bind('zoom-in', () => zoomBy(-1.2));
   ui.bind('zoom-out', () => zoomBy(1.2));
-  ui.bind('overview', () => { overview = !overview; ui.setOverview(overview); });
+  ui.bind('overview', () => { setPreview(); overview = !overview; ui.setOverview(overview); });
   ui.bind('farmer-preview', () => {
-    farmerPreview = !farmerPreview;
-    ui.setFarmerPreview(farmerPreview);
+    setPreview(previewRole === 'farmer' ? undefined : 'farmer');
+  });
+  ui.bind('base-preview', () => {
+    setPreview(previewRole === 'base' ? undefined : 'base');
   });
   ui.bind('reset', () => {
-    mapCenter.set(0, 0.5, -2); farmerPreview = false; ui.setFarmerPreview(false);
+    mapCenter.set(0, 0.5, -2); setPreview();
     overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
   });
   engine.runRenderLoop(() => {
-    const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    const elapsed = engine.getDeltaTime() / 1000;
+    const cameraDt = Math.min(elapsed, 0.25);
+    const dt = Math.min(elapsed, 0.05);
+    // Navigation clamps long frames. Keep the skeletal gait on the same clock
+    // so a slow device does not run the feet faster than the character moves.
+    scene.animationTimeScale = elapsed > 0 ? dt / elapsed : 1;
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
     if (direction.x || direction.z) {
-      farmerPreview = false; ui.setFarmerPreview(false); overview = false; ui.setOverview(false);
+      setPreview(); overview = false; ui.setOverview(false);
       mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
     }
-    residents.update(ui.paused ? 0 : dt, farmerPreview);
+    residents.update(ui.paused ? 0 : dt, previewRole);
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
-    const desiredZoom = farmerPreview ? 2.2 : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
-    currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-dt * 7));
-    camera.beta += ((farmerPreview ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-dt * 7));
+    const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
+    currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-cameraDt * 7));
+    camera.beta += ((previewRole === 'base' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
     applyProjection();
-    if (farmerPreview) {
-      const position = residents.farmerPosition();
+    if (previewRole) {
+      const position = previewRole === 'base' ? residents.basePosition() : residents.farmerPosition();
       target.set(position.x, 0.9, position.z);
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
-    Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-dt * 5), camera.target);
+    Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     scene.render(); residents.updateLabels(camera); renderedFrames++;
   });
   try {
@@ -147,13 +169,15 @@ export async function createGame(ui: GameUI) {
   return {
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
-      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, x: mapCenter.x, z: mapCenter.z },
+      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z },
       selection: { resident: residents.selectedId(), building: selectedBuilding },
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
       baseModelLoaded: residents.baseModelLoaded(),
       baseWalking: residents.baseWalking(),
+      baseRunning: residents.baseRunning(),
+      baseModel: residents.baseModelInfo(),
       farmerWalking: residents.farmerWalking(),
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),

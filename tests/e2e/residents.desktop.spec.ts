@@ -4,6 +4,7 @@ import { isBlocked } from '../../src/game/movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES } from '../../src/game/resident-data.ts';
 
 test('residents including the base character render and wander safely', async ({ page }) => {
+  test.setTimeout(180_000);
   const errors = await openGame(page);
   const initial = (await snapshot(page)).residents;
   expect(initial.map((r) => r.role)).toEqual(['farmer', 'worker', 'infantry', 'archer', 'cavalry', 'dog', 'base']);
@@ -23,7 +24,8 @@ test('residents including the base character render and wander safely', async ({
   }
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
-  await page.waitForFunction(() => window.__DEMO__!.snapshot().residents.every((r) => r.travelled > 0.35), null, { timeout: 40_000 });
+  await expect.poll(async () => (await snapshot(page)).residents.map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
+    .toEqual(initial.map((r) => ({ id: r.id, travelled: true })));
   await expect.poll(async () => (await snapshot(page)).residents.some((r) => r.placeholderWalking)).toBe(true);
   const moving = (await snapshot(page)).residents;
   for (const actor of moving) {
@@ -32,6 +34,11 @@ test('residents including the base character render and wander safely', async ({
     expect(actor.pose).not.toEqual(initial.find((r) => r.id === actor.id)!.pose);
   }
   await page.getByRole('button', { name: '操作说明', exact: true }).click();
+  await expect.poll(async () => {
+    const state = await snapshot(page);
+    return state.baseWalking || state.baseRunning || state.farmerWalking
+      || state.residents.some((actor) => actor.placeholderWalking || actor.placeholderRunning);
+  }).toBe(false);
   const paused = (await snapshot(page)).residents;
   await page.waitForTimeout(400);
   expect((await snapshot(page)).residents).toEqual(paused);

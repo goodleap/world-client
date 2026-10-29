@@ -1,0 +1,165 @@
+{
+  "revision": "binding-3.1-run",
+  "bone_count": 18,
+  "bones": [
+    "root",
+    "pelvis",
+    "torso",
+    "head",
+    "clavicle.L",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "clavicle.R",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+  ],
+  "animations": {
+    "Walk": {
+      "duration_seconds": 0.5,
+      "navigation_speed_reference": 1.15,
+      "starts_at_rest": true
+    },
+    "Run": {
+      "duration_seconds": 0.3333333333333333,
+      "navigation_speed_reference": 2.1,
+      "starts_at_rest": false,
+      "stop_restore": "Stop Run, then reset Walk to its neutral first frame.",
+      "flight_floor_range_H": [
+        0.008,
+        0.058
+      ]
+    }
+  },
+  "original_bounds": [
+    [
+      -0.6117444634437561,
+      0.6117444634437561
+    ],
+    [
+      -0.4379309415817261,
+      0.5219894647598267
+    ],
+    [
+      0.00800000037997961,
+      1.850000023841858
+    ]
+  ],
+  "runtime_rest_bounds": [
+    [
+      -0.6117444634437561,
+      0.6117444634437561
+    ],
+    [
+      -0.4379309415817261,
+      0.5219894647598267
+    ],
+    [
+      0.00799540150910616,
+      1.850000023841858
+    ]
+  ],
+  "triangles": 157130,
+  "simplification": [
+    {
+      "object": "Continuous arm and fist.R",
+      "before_triangles_estimate": 78472,
+      "after_faces": 10000,
+      "sampled_surface_distance_max_H": 0.00020479445811361074
+    },
+    {
+      "object": "Continuous leg and foot.R",
+      "before_triangles_estimate": 109032,
+      "after_faces": 10000,
+      "sampled_surface_distance_max_H": 0.0002117264230037108
+    },
+    {
+      "object": "Continuous arm and fist.L",
+      "before_triangles_estimate": 78472,
+      "after_faces": 10000,
+      "sampled_surface_distance_max_H": 0.00023663546016905457
+    },
+    {
+      "object": "Continuous leg and foot.L",
+      "before_triangles_estimate": 109032,
+      "after_faces": 10000,
+      "sampled_surface_distance_max_H": 0.0003464173641987145
+    },
+    {
+      "object": "T-shirt \u2022 connected shoulders",
+      "before_triangles_estimate": 321646,
+      "after_faces": 18108,
+      "sampled_surface_distance_max_H": 0.0003874020476359874
+    },
+    {
+      "object": "Neck binding",
+      "before_triangles_estimate": 36904,
+      "after_faces": 1998,
+      "sampled_surface_distance_max_H": 7.576776260975748e-05
+    },
+    {
+      "object": "Shirt hem piping",
+      "before_triangles_estimate": 36904,
+      "after_faces": 1998,
+      "sampled_surface_distance_max_H": 0.00012587924720719457
+    },
+    {
+      "object": "Shorts \u2022 shaped hip and separate legs",
+      "before_triangles_estimate": 147256,
+      "after_faces": 18026,
+      "sampled_surface_distance_max_H": 0.00025971035938709974
+    },
+    {
+      "object": "Short hem.R",
+      "before_triangles_estimate": 30760,
+      "after_faces": 1998,
+      "sampled_surface_distance_max_H": 5.25197247043252e-05
+    },
+    {
+      "object": "Short hem.L",
+      "before_triangles_estimate": 30760,
+      "after_faces": 1998,
+      "sampled_surface_distance_max_H": 5.307828905642964e-05
+    }
+  ],
+  "note": "Static geometry accepted by user for demo; rig is newly positioned from v9, no old mesh or rig imported.",
+  "rest_max_rig_delta_H": 4.768394865038772e-06,
+  "walk_floor_min_H": 0.007999986410140991,
+  "walk_floor_max_H": 0.00800001434981823,
+  "run_floor_min_H": 0.007999993860721588,
+  "run_floor_max_H": 0.05800000578165054,
+  "validated_views": [
+    "rest-front",
+    "rest-side",
+    "walk-side",
+    "walk-game",
+    "run-side",
+    "run-game",
+    "run-landing",
+    "arms-raised",
+    "elbow-knee",
+    "shoulder-coordinated"
+  ],
+  "limitations": [
+    "Large lateral arm raise (~76 degrees) still pulls the short-sleeve shoulder silhouette; this clothing deformation is not approved for production actions.",
+    "Walk and Run are basic in-place loops, with no combat/work animation or full-range garment validation.",
+    "Original v9 face/ear/hand fidelity differences remain as previously reviewed; no new shape redesign was attempted."
+  ],
+  "walk_animation_unchanged_from_binding_2": true,
+  "exported_animations": {
+    "Run": 0.33333332277834415,
+    "Walk": 0.49999997951090336
+  },
+  "sha256": {
+    "base-human-v9-rig.glb": "81c6cf3dcb83875b9250db8d444b6231118f93e2483aa2c7481152fafe92e7e2",
+    "base-human-v9-rig.blend": "b8c8578f597a64c808a1843b5e003367296e860e1cc6fa42adf11ebd1722d2ab",
+    "bind.py": "58e80d717e8576a143e34513e9d340b827e07c1695e230cf2ec8cad7b3b08dc5"
+  }
+}
