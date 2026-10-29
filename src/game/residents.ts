@@ -59,6 +59,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     root.position.set(state.position.x, 0, state.position.z);
     const hit = MeshBuilder.CreateSphere(`${definition.id}-hit`, { diameter: 1.5 }, scene);
     hit.parent = root; hit.position.y = definition.role === 'cavalry' ? 1.6 : 1.0; hit.scaling.y = 1.5; hit.visibility = 0;
+    if (definition.role === 'dog') { hit.position.y = .65; hit.scaling.set(.9, .8, 1.2); }
     hit.metadata = { selectionKind: 'resident', id: definition.id };
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
     marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
@@ -230,13 +231,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
     select(id?: string) {
       selected?.marker.setEnabled(false);
-      selected = actors.find((actor) => actor.definition.id === id && actor.definition.role !== 'dog');
+      selected = actors.find((actor) => actor.definition.id === id);
       selected?.marker.setEnabled(true);
       return selected?.definition.name;
     },
     selectedId: () => selected?.definition.id,
+    selectedCanMove: () => !!selected && selected.definition.role !== 'dog',
     command(point: Point) {
-      if (!selected) return false;
+      if (!selected || selected.definition.role === 'dog') return false;
       const path = findPath(selected.state.position, point, selected.settings.bodyRadius, selected.settings.bounds, RESIDENT_OBSTACLES);
       if (!path) return false;
       selected.route = path; selected.state.target = undefined; selected.state.pause = 0;
@@ -278,7 +280,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             actor.state.blockedFor = 0;
           }
           if (!actor.route.length) actor.state.pause = 3;
-        } else if (actor === selected) velocity = { x: 0, z: 0 };
+        } else if (actor === selected && actor.definition.role !== 'dog') velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;

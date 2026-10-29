@@ -11,6 +11,8 @@ import type { Palette } from './models';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes';
 import { createReferenceTree, createTreeMaterials } from './tree';
 import { referenceHouse, tiledRoof } from './buildings';
+import { selectionRanges } from './world-selection.ts';
+import type { WorldObject } from './world-selection.ts';
 
 /** Painted ground colors in world coordinates; navigation is separate from the artwork. */
 function meadow(scene: Scene, p: Palette) {
@@ -68,20 +70,39 @@ function daisy(scene: Scene, p: Palette, x: number, z: number, size = 1) {
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
   const before = new Set(scene.meshes), land = createLandGrid();
+  const objects = new Map<string, WorldObject>();
+  const register = (object: WorldObject, firstMesh: number) => {
+    objects.set(object.id, object);
+    for (const mesh of scene.meshes.slice(firstMesh)) mesh.metadata = { worldObjectId: object.id };
+  };
+  const addObject = (object: WorldObject, build: () => void) => {
+    const first = scene.meshes.length; build(); register(object, first);
+  };
   meadow(scene, p);
-  for (const b of BUILDINGS) referenceHouse(scene, p, b);
+  for (const b of BUILDINGS) addObject({
+    id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '小屋',
+    x: b.x, z: b.z, radius: b.width / 2, width: b.width + .4, depth: b.depth + .5,
+    anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
+  }, () => referenceHouse(scene, p, b));
   const treeMaterials = createTreeMaterials(scene);
-  for (const tree of TREES) {
-    createReferenceTree(scene, treeMaterials, tree.x, tree.z, tree.scale, tree.tone);
+  for (const [index, tree] of TREES.entries()) {
+    addObject({ id: `tree-${index}`, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
+      anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale },
+    }, () => createReferenceTree(scene, treeMaterials, tree.x, tree.z, tree.scale, tree.tone));
     grassClump(scene, p, tree.x + .45, tree.z - .3, .95); grassClump(scene, p, tree.x - .35, tree.z - .22, .7);
   }
-  roundedBox(scene, 'garden-border', [4.7, .19, 4.2], [4.8, .12, -2], p.timberLight, .08);
-  roundedBox(scene, 'garden-soil', [4.45, .19, 3.95], [4.8, .15, -2], p.soil, .1);
+  const garden: WorldObject = { id: 'garden', kind: 'scenery', name: '青青菜园', x: 4.8, z: -2, radius: 2.4,
+    width: 4.8, depth: 4.3, markerY: .26, anchor: { x: 4.8, y: .25, z: -2 } };
+  addObject(garden, () => {
+    roundedBox(scene, 'garden-border', [4.7, .19, 4.2], [4.8, .12, -2], p.timberLight, .08);
+    roundedBox(scene, 'garden-soil', [4.45, .19, 3.95], [4.8, .15, -2], p.soil, .1);
+  });
   const carrot = new StandardMaterial('carrot-orange', scene); carrot.diffuseColor = Color3.FromHexString('#f28328'); carrot.specularColor = Color3.Black();
   for (let row = 0; row < 3; row++) {
-    roundedBox(scene, 'soil-ridge', [4.22, .15, .7], [4.8, .28, -3.25 + row * 1.22], p.soil, .07);
+    addObject(garden, () => roundedBox(scene, 'soil-ridge', [4.22, .15, .7], [4.8, .28, -3.25 + row * 1.22], p.soil, .07));
     for (let col = 0; col < 5; col++) {
       const x = 3.15 + col * .82, z = -3.25 + row * 1.22;
+      const firstCropMesh = scene.meshes.length;
       if (row < 2) {
         ellipsoid(scene, 'carrot', [.37, .4, .37], [x, .48, z], carrot);
         for (let i = -1; i <= 1; i++) {
@@ -96,8 +117,12 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
           ear.rotation.z = (k % 2 - .5) * .7;
         }
       }
+      register({ id: `crop-${row}-${col}`, kind: 'crop', name: row < 2 ? '胡萝卜' : '小麦', x, z, radius: .34,
+        markerY: .37, anchor: { x, y: row < 2 ? .64 : .94, z },
+      }, firstCropMesh);
     }
   }
+  const firstPondMesh = scene.meshes.length;
   const water = MeshBuilder.CreateDisc('pond-water', { radius: 2.13, tessellation: 64 }, scene);
   water.rotation.x = Math.PI / 2; water.position.set(-7.2, .035, -3.7); water.material = p.water;
   for (let i = 0; i < 20; i++) {
@@ -113,6 +138,10 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     const pad = ellipsoid(scene, 'lily-pad', [.55, .025, .43], [x, .06, z], p.leaf); pad.rotation.y = x;
     ellipsoid(scene, 'lily-vein', [.3, .018, .025], [x, .078, z], p.leafLight);
   }
+  register({ id: 'pond', kind: 'scenery', name: '小池塘', x: -7.2, z: -3.7, radius: 2.5,
+    anchor: { x: -7.2, y: .05, z: -3.7 },
+  }, firstPondMesh);
+  const firstWellMesh = scene.meshes.length;
   for (let row = 0; row < 3; row++) for (let i = 0; i < 12; i++) {
     const a = (i + row % 2 * .5) * Math.PI / 6;
     const stone = roundedBox(scene, 'well-stone', [.39, .25, .3], [1.5 + Math.sin(a) * .75, .16 + row * .24, 7.2 + Math.cos(a) * .75], i % 2 ? p.stoneLight : p.stone, .055);
@@ -122,10 +151,17 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
   wellWater.rotation.x = Math.PI / 2; wellWater.position.set(1.5, .2, 7.2); wellWater.material = p.water;
   for (const x of [.6, 2.4]) roundedBox(scene, 'well-post', [.2, 2.4, .22], [x, 1.2, 7.2], p.timber, .04);
   tiledRoof(scene, p, 1.5, 7.2, 2.1, 1.45, 2.35, .55);
-  for (const { x, z } of FENCES) {
+  register({ id: 'well', kind: 'building', name: '石砌水井', x: 1.5, z: 7.2, radius: 1.1,
+    anchor: { x: 1.5, y: 2.9, z: 7.2 },
+  }, firstWellMesh);
+  for (const [index, { x, z }] of FENCES.entries()) {
+    const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);
     for (const y of [.33, .63]) roundedBox(scene, 'fence-rail', [1.82, .15, .14], [x + .86, y, z], p.timber, .045);
     ellipsoid(scene, 'fence-peg', [.055, .055, .035], [x, .67, z - .13], p.woodDark);
+    register({ id: `fence-${index}`, kind: 'scenery', name: '木栅栏', x: x + .86, z, radius: 1,
+      width: 2, depth: .4, anchor: { x: x + .86, y: .63, z },
+    }, firstFenceMesh);
   }
   for (let i = 0; i < 175; i++) {
     const x = Math.sin(i * 19.31) * 11.4, z = Math.cos(i * 7.73) * 12.4;
@@ -144,16 +180,27 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     const group = groups.get(mesh.material) ?? []; group.push(mesh); groups.set(mesh.material, group);
   }
   for (const [material, meshes] of groups) {
-    const merged = meshes.length > 1 ? Mesh.MergeMeshes(meshes, true, true) : meshes[0];
-    if (merged) merged.name = `world-${material.name}`;
+    // Keep decorative grass/flowers out of selectable batches so their closest
+    // triangle cannot intercept a click intended for an object behind them.
+    const selectable = meshes.filter(mesh => mesh.metadata?.worldObjectId);
+    const decoration = meshes.filter(mesh => !mesh.metadata?.worldObjectId);
+    for (const batch of [selectable, decoration]) {
+      if (!batch.length) continue;
+      const ranges = selectionRanges(batch);
+      const merged = batch.length > 1 ? Mesh.MergeMeshes(batch, true, true) : batch[0];
+      if (merged) {
+        merged.name = `world-${material.name}${batch === decoration && selectable.length ? '-detail' : ''}`;
+        merged.metadata = { worldFaceRanges: ranges };
+      }
+    }
   }
   for (const mesh of scene.meshes) {
     if (before.has(mesh)) continue;
-    mesh.isPickable = false;
+    mesh.isPickable = !!mesh.metadata?.worldFaceRanges?.length;
     // Ground, walls, roofs and plants all participate in the same soft daylight.
     mesh.receiveShadows = true;
     mesh.freezeWorldMatrix();
     if (mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24 && mesh.material?.name !== 'earth') shadows.addShadowCaster(mesh);
   }
-  return { land };
+  return { land, objects };
 }

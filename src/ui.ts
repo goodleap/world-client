@@ -20,7 +20,7 @@ function icon(name: keyof typeof icons) {
 
 export function createUI(app: HTMLElement) {
   app.innerHTML = `
-    <canvas id="game" tabindex="0" aria-label="三维家园，点击选中人物或建筑，拖动地图，WASD 移动视角"></canvas>
+    <canvas id="game" tabindex="0" aria-label="三维家园，点击选中人物、建筑、树木或作物，拖动地图，WASD 移动视角"></canvas>
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
@@ -52,7 +52,11 @@ export function createUI(app: HTMLElement) {
     <footer class="bottom-bar"><div class="control-hint"><span class="desktop-hint"><span class="key-set"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> 移动视角 <span class="hint-dot">·</span> 点击选中</span><span class="touch-hint"><span class="touch-dot"></span>拖动地图<span class="hint-dot">·</span>点击选中</span></div><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">探索家园</p><h2>操作说明</h2><p class="dialog-intro">点击人物选中，再点击空地指挥移动。<br>点击建筑可以选中建筑。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到初始视角。</p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
+    <section id="selection-card" class="selection-card" aria-label="当前选中对象" hidden>
+      <div role="status" aria-live="polite"><small id="selection-kind"></small><h2 id="selection-name"></h2><p id="selection-hint"></p></div>
+      <button id="clear-selection" aria-label="取消选中">${icon('close')}</button>
+    </section>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">探索家园</p><h2>操作说明</h2><p class="dialog-intro">点击人物选中，再点击空地指挥移动。<br>建筑、树木、作物和动物也可点击查看名称。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到初始视角。</p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -133,6 +137,13 @@ export function createUI(app: HTMLElement) {
       get('overview').title = active ? '返回地图视角' : '查看全景';
     },
     ready() { loading = false; focusGame(); },
+    setSelection(details?: { name: string; kind: string; hint: string }) {
+      get('selection-card').hidden = !details;
+      if (!details) return;
+      get('selection-name').textContent = details.name;
+      get('selection-kind').textContent = details.kind;
+      get('selection-hint').textContent = details.hint;
+    },
     setPerformance(sample?: FrameSample) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
       get('cpu-value').textContent = sample ? sample.cpuMs.toFixed(2) : '—';

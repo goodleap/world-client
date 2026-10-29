@@ -3,19 +3,21 @@ import { Scene } from '@babylonjs/core/scene';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
 import { createDaylight } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
-import { BUILDINGS, WORLD_BOUNDS } from './world-data.ts';
+import { WORLD_BOUNDS } from './world-data.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 import { nextPaint } from '../launcher.ts';
 import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
+import { objectAtFace } from './world-selection.ts';
+import type { WorldObject } from './world-selection.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -48,16 +50,26 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   } catch (error) {
     scene.dispose(); engine.dispose(); throw error;
   }
-  const buildingMarkers = new Map<string, ReturnType<typeof MeshBuilder.CreateLines>>();
-  for (const building of BUILDINGS) {
-    const hit = MeshBuilder.CreateBox(`select-${building.id}`, { width: building.width, depth: building.depth, height: building.height + 1.2 }, scene);
-    hit.position.set(building.x, (building.height + 1.2) / 2, building.z); hit.visibility = 0;
-    hit.metadata = { selectionKind: 'building', id: building.id };
-    const x = building.width / 2 + 0.18, z = building.depth / 2 + 0.18;
-    const marker = MeshBuilder.CreateLines(`mark-${building.id}`, { points: [new Vector3(-x, 0.14, -z), new Vector3(x, 0.14, -z), new Vector3(x, 0.14, z), new Vector3(-x, 0.14, z), new Vector3(-x, 0.14, -z)] }, scene);
-    marker.position.set(building.x, 0, building.z); marker.color = Color3.FromHexString('#ffe7a1'); marker.isPickable = false; marker.setEnabled(false);
-    buildingMarkers.set(building.id, marker);
+  const roundMarker = MeshBuilder.CreateLines('selected-object-ring', { points: Array.from({ length: 65 }, (_, i) =>
+    new Vector3(Math.cos(i * Math.PI / 32), 0, Math.sin(i * Math.PI / 32))) }, scene);
+  const boxMarker = MeshBuilder.CreateLines('selected-object-outline', { points: [
+    new Vector3(-.5, 0, -.5), new Vector3(.5, 0, -.5), new Vector3(.5, 0, .5), new Vector3(-.5, 0, .5), new Vector3(-.5, 0, -.5),
+  ] }, scene);
+  for (const marker of [roundMarker, boxMarker]) {
+    marker.color = Color3.FromHexString('#fff0a6'); marker.isPickable = false; marker.setEnabled(false);
   }
+  let selectedWorld: WorldObject | undefined;
+  const clearWorld = () => { roundMarker.setEnabled(false); boxMarker.setEnabled(false); selectedWorld = undefined; };
+  const clearSelection = () => { clearWorld(); residents.select(); ui.setSelection(); };
+  const selectWorld = (object: WorldObject) => {
+    clearWorld(); residents.select(); selectedWorld = object;
+    const marker = object.width && object.depth ? boxMarker : roundMarker;
+    marker.scaling.set(object.width ?? object.radius, 1, object.depth ?? object.radius);
+    marker.position.set(object.x, object.markerY ?? .035, object.z); marker.setEnabled(true);
+    const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物' };
+    ui.setSelection({ name: object.name, kind: kinds[object.kind], hint: '暂无可用操作' });
+  };
+  const projectionIdentity = Matrix.Identity();
   let zoom = 10.7;
   let overview = false;
   let previewRole: 'farmer' | 'base' | undefined;
@@ -81,7 +93,6 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const lifecycle = new AbortController();
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
-  let selectedBuilding: string | undefined;
   const zoomBy = (delta: number) => {
     if (suspended) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
@@ -100,29 +111,29 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   }, (clientX, clientY) => {
     if (ui.paused || suspended) return;
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
-    const hit = scene.pick(x, y, (mesh) => !!mesh.metadata?.selectionKind);
+    const hit = scene.pick(x, y, mesh => mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldFaceRanges?.length);
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
-      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false);
-      const name = residents.select(hit.pickedMesh.metadata.id); selectedBuilding = undefined;
-      if (name) ui.toast(`已选中${name}，点击空地移动`);
+      clearWorld();
+      const name = residents.select(hit.pickedMesh.metadata.id);
+      if (name) ui.setSelection({ name, kind: residents.selectedCanMove() ? '居民' : '动物',
+        hint: residents.selectedCanMove() ? '点击空地，指挥移动' : '自由活动中，暂不可指挥' });
       return;
     }
-    if (hit?.pickedMesh?.metadata?.selectionKind === 'building') {
-      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false);
-      residents.select(); selectedBuilding = hit.pickedMesh.metadata.id;
-      if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(true);
-      ui.toast('已选中建筑'); return;
+    if (hit?.pickedMesh?.metadata?.worldFaceRanges) {
+      const id = objectAtFace(hit.pickedMesh.metadata.worldFaceRanges, hit.faceId);
+      const object = id && world.objects.get(id);
+      if (object) { selectWorld(object); return; }
     }
     const ray = scene.createPickingRay(x, y, null, camera);
     const distance = -ray.origin.y / ray.direction.y;
     if (distance <= 0 || !Number.isFinite(distance)) return;
     const point = ray.origin.add(ray.direction.scale(distance));
-    if (residents.selectedId()) {
+    if (residents.selectedCanMove()) {
       const moving = residents.command({ x: point.x, z: point.z });
       if (moving) setPreview();
       ui.toast(moving ? '前往目标位置' : '无法到达该位置');
     }
-    else { if (selectedBuilding) buildingMarkers.get(selectedBuilding)?.setEnabled(false); selectedBuilding = undefined; residents.select(); }
+    else clearSelection();
   });
   const applyProjection = () => {
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
@@ -136,6 +147,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(ui.canvas);
   resize();
+  ui.bind('clear-selection', clearSelection);
   ui.bind('zoom-in', () => zoomBy(-1.2));
   ui.bind('zoom-out', () => zoomBy(1.2));
   ui.bind('overview', () => { setPreview(); overview = !overview; ui.setOverview(overview); });
@@ -228,7 +240,13 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
         target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
       input: { dragging: input.isDragging },
       suspended, manualPaused: ui.paused, simulationSeconds,
-      selection: { resident: residents.selectedId(), building: selectedBuilding },
+      selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
+        object: selectedWorld && { id: selectedWorld.id, name: selectedWorld.name, kind: selectedWorld.kind } },
+      objects: [...world.objects.values()].map(object => {
+        const point = Vector3.Project(new Vector3(object.anchor.x, object.anchor.y, object.anchor.z), projectionIdentity,
+          scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
+        return { id: object.id, name: object.name, kind: object.kind, screen: { x: point.x, y: point.y } };
+      }),
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
