@@ -13,8 +13,10 @@ import { BUILDINGS, WORLD_BOUNDS } from './world-data.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
+import { nextPaint } from '../launcher.ts';
+import type { ReportProgress } from '../launcher.ts';
 
-export async function createGame(ui: GameUI) {
+export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
@@ -25,12 +27,26 @@ export async function createGame(ui: GameUI) {
   camera.minZ = 0.1; camera.maxZ = 120;
   const shadows = createDaylight(scene);
   const palette = createPalette(scene);
-  const world = buildWorld(scene, palette, shadows);
-  const residents = createResidents(scene, palette, shadows, ui);
-  await residents.loadFarmerModel();
-  await residents.loadBaseModel();
-  await residents.loadSoldierModels();
-  await residents.loadRolePlaceholders();
+  let world: ReturnType<typeof buildWorld>;
+  let residents: ReturnType<typeof createResidents>;
+  try {
+    report(10, '正在铺好小路、布置房屋与树木…');
+    await nextPaint();
+    world = buildWorld(scene, palette, shadows);
+    residents = createResidents(scene, palette, shadows, ui);
+    report(20, '正在迎接农民…');
+    await residents.loadFarmerModel(fraction => report(20 + 15 * fraction, '正在迎接农民…'));
+    report(35, '正在准备家园居民…');
+    await residents.loadBaseModel(fraction => report(35 + 12 * fraction, '正在准备家园居民…'));
+    report(47, '正在迎接步兵、骑兵与弓兵…');
+    await residents.loadSoldierModels(fraction => report(47 + 33 * fraction, '正在迎接步兵、骑兵与弓兵…'));
+    report(80, '正在准备其他居民…');
+    await residents.loadRolePlaceholders(fraction => report(80 + 8 * fraction, '正在准备其他居民…'));
+    report(90, '正在准备光影与地图画面…');
+    await nextPaint();
+  } catch (error) {
+    scene.dispose(); engine.dispose(); throw error;
+  }
   const buildingMarkers = new Map<string, ReturnType<typeof MeshBuilder.CreateLines>>();
   for (const building of BUILDINGS) {
     const hit = MeshBuilder.CreateBox(`select-${building.id}`, { width: building.width, depth: building.depth, height: building.height + 1.2 }, scene);
@@ -194,7 +210,8 @@ export async function createGame(ui: GameUI) {
   if (!suspended) engine.runRenderLoop(render);
   try {
     await scene.whenReadyAsync();
-    if (!disposed) ui.ready();
+    report(98, '正在打开家园…');
+    if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
     lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }

@@ -13,6 +13,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { moveCharacter } from './movement.ts';
 import { findPath } from './pathfinding.ts';
 import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
@@ -28,6 +29,11 @@ import type { Material } from '@babylonjs/core/Materials/material';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
+type ResourceProgress = (fraction: number) => void;
+const downloadProgress = (report?: ResourceProgress) => (event: ISceneLoaderProgressEvent) => {
+  // Reserve the final tenth for decoding, skinning and attaching the asset.
+  if (event.lengthComputable && event.total > 0) report?.(Math.min(.9, .9 * event.loaded / event.total));
+};
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
   const placeholderRoles = new Set(['worker']);
@@ -113,8 +119,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }
   };
   return {
-    async loadFarmerModel() {
-      const result = await ImportMeshAsync(farmerModelUrl, scene);
+    async loadFarmerModel(report?: ResourceProgress) {
+      const result = await ImportMeshAsync(farmerModelUrl, scene, { onProgress: downloadProgress(report) });
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
@@ -128,9 +134,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
       }
       farmerModelLoaded = true;
+      report?.(1);
     },
-    async loadBaseModel() {
-      const result = await ImportMeshAsync(baseModelUrl, scene);
+    async loadBaseModel(report?: ResourceProgress) {
+      const result = await ImportMeshAsync(baseModelUrl, scene, { onProgress: downloadProgress(report) });
       // Preserve the approved model's own skin, face vertex colors and cotton.
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       baseBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
@@ -146,11 +153,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
       }
       baseModelLoaded = true;
+      report?.(1);
     },
-    async loadSoldierModels() {
-      for (const asset of soldierAssets) {
+    async loadSoldierModels(report?: ResourceProgress) {
+      for (const [index, asset] of soldierAssets.entries()) {
         const actor = actors.find(entry => entry.definition.role === asset.role)!;
-        const result = await ImportMeshAsync(asset.url, scene);
+        const result = await ImportMeshAsync(asset.url, scene, {
+          onProgress: downloadProgress(fraction => report?.((index + fraction) / soldierAssets.length)),
+        });
         prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
         result.animationGroups.forEach(group => group.stop());
         const walk = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideWalk' : 'Walk'));
@@ -173,10 +183,11 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           animations: result.animationGroups.map(group => group.name),
         });
         soldierBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
+        report?.((index + 1) / soldierAssets.length);
       }
     },
-    async loadRolePlaceholders() {
-      const container = await LoadAssetContainerAsync(baseModelUrl, scene);
+    async loadRolePlaceholders(report?: ResourceProgress) {
+      const container = await LoadAssetContainerAsync(baseModelUrl, scene, { onProgress: downloadProgress(report) });
       prepareBaseMaterials(container.materials);
       for (const actor of actors.filter((entry) => placeholderRoles.has(entry.definition.role))) {
         const instance = container.instantiateModelsToScene((name) => `${actor.definition.id}-${name}`, false, { doNotInstantiate: true });
@@ -194,6 +205,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.human?.mesh.setEnabled(false);
         if (actor.definition.role === 'cavalry') actor.animal?.mesh.setEnabled(false);
       }
+      report?.(1);
     },
     farmerPosition: () => farmer.root.position,
     basePosition: () => baseHuman.root.position,

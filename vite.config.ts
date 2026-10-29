@@ -6,7 +6,9 @@ export default defineConfig({
   build: {
     target: 'es2022',
     rolldownOptions: { output: { codeSplitting: { groups: [
-      { name: 'engine', test: /node_modules\/@babylonjs/ },
+      // Keep Vite's shared import helper outside the engine chunk, otherwise
+      // the small menu entry imports the whole 3D engine before Start is clicked.
+      { name: 'engine', test: /node_modules\/@babylonjs/, includeDependenciesRecursively: false },
     ] } } },
   },
 });

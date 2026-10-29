@@ -50,7 +50,6 @@ export function createUI(app: HTMLElement) {
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">探索家园</p><h2>操作说明</h2><p class="dialog-intro">点击人物选中，再点击空地指挥移动。<br>点击建筑可以选中建筑。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到初始视角。</p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
-    <div id="loading" class="loading"><span class="loading-icon">${icon('home')}</span><h2>让小世界慢慢醒来</h2><p>正在准备你的家园…</p><span class="loading-line"></span></div>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const canvas = get<HTMLCanvasElement>('game');
@@ -60,6 +59,7 @@ export function createUI(app: HTMLElement) {
   const abort = new AbortController();
   const options = { signal: abort.signal };
   let nearby: Landmark | undefined;
+  let loading = true;
   let toastTimer: ReturnType<typeof setTimeout>;
   function focusGame() { canvas.focus({ preventScroll: true }); }
   for (const dialog of [help, detail]) {
@@ -104,7 +104,7 @@ export function createUI(app: HTMLElement) {
       get('resident-labels').append(label);
       return label;
     },
-    get paused() { return help.open || detail.open; },
+    get paused() { return loading || help.open || detail.open; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
       get(id).addEventListener('click', () => { callback(); focusGame(); }, options);
@@ -128,13 +128,7 @@ export function createUI(app: HTMLElement) {
       get('overview').setAttribute('aria-label', active ? '返回地图视角' : '查看全景');
       get('overview').title = active ? '返回地图视角' : '查看全景';
     },
-    ready() { get('loading').classList.add('loaded'); focusGame(); },
-    error() {
-      const loading = get('loading'); loading.classList.remove('loaded');
-      loading.querySelector('h2')!.textContent = '暂时无法打开这个小世界';
-      loading.querySelector('p')!.textContent = '请使用支持 WebGL 的浏览器，并开启硬件加速后刷新页面。';
-      loading.querySelector('.loading-line')?.remove();
-    },
+    ready() { loading = false; focusGame(); },
     toast(message: string) {
       clearTimeout(toastTimer);
       get('toast').textContent = message; get('toast').classList.add('visible');

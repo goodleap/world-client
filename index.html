@@ -7,9 +7,39 @@
     <meta name="description" content="在柔和的三维小院中漫步，探索小屋、菜园与水井。" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>家园漫游</title>
+    <style>
+      body{margin:0;background:#f3f1e5;color:#40543f;font-family:system-ui,sans-serif}
+      .loading{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:28px}
+      [hidden]{display:none!important}
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main id="loading" class="loading boot-loading" data-phase="boot">
+        <div class="launch-landscape" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="launch-content">
+          <span class="launch-emblem" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/></svg></span>
+          <p class="launch-eyebrow">A LITTLE PLACE TO GROW</p>
+          <section id="loading-panel" aria-labelledby="loading-title">
+            <h1 id="loading-title">准备一段小小的旅程</h1>
+            <p id="loading-description" role="status">正在加载基础界面…</p>
+            <div id="loading-meter">
+              <div class="loading-caption"><span id="loading-stage">基础加载</span><output id="loading-percent" aria-hidden="true">0%</output></div>
+              <progress id="loading-progress" max="100" value="0" aria-label="基础加载进度">0%</progress>
+            </div>
+            <button id="retry-loading" class="primary-button" hidden>重新加载</button>
+          </section>
+          <section id="menu-panel" aria-labelledby="menu-title" hidden>
+            <h1 id="menu-title">家园漫游</h1>
+            <p>一个小小的家园，等你来走走。</p>
+            <button id="start-game" class="primary-button">开始游戏 <span aria-hidden="true">→</span></button>
+            <p class="menu-hint">点击探索 · 拖动地图 · 自由漫游</p>
+          </section>
+        </div>
+        <p class="launch-footer">把日子放慢一点。</p>
+      </main>
+      <div id="game-page" hidden></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
