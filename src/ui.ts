@@ -1,4 +1,5 @@
 import type { Landmark } from './game/world-data.ts';
+import type { FrameSample } from './game/frame-metrics.ts';
 
 const icons = {
   home: '<path d="m3 11 9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>',
@@ -26,6 +27,9 @@ export function createUI(app: HTMLElement) {
       <div class="brand"><span class="brand-icon">${icon('home')}</span><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
       <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
+    <aside id="performance" class="performance-hud" aria-label="性能信息" title="最近约半秒的平均帧率与每帧 CPU 处理耗时。CPU 统计游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。">
+      <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
+    </aside>
     <aside class="journey" aria-label="探索进度" hidden>
       <div class="eyebrow"><span class="status-dot"></span> 初到家园</div>
       <div class="journey-heading"><h2>沿着小路，走一走</h2><span id="progress-count">0<span> / 3</span></span></div>
@@ -129,6 +133,10 @@ export function createUI(app: HTMLElement) {
       get('overview').title = active ? '返回地图视角' : '查看全景';
     },
     ready() { loading = false; focusGame(); },
+    setPerformance(sample?: FrameSample) {
+      get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
+      get('cpu-value').textContent = sample ? sample.cpuMs.toFixed(2) : '—';
+    },
     toast(message: string) {
       clearTimeout(toastTimer);
       get('toast').textContent = message; get('toast').classList.add('visible');

@@ -15,6 +15,7 @@ import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 import { nextPaint } from '../launcher.ts';
 import type { ReportProgress } from '../launcher.ts';
+import { FrameMetrics } from './frame-metrics.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -76,6 +77,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   let suspended = document.hidden || focusLost;
   let freshFrame = true;
   let simulationSeconds = 0;
+  const metrics = new FrameMetrics();
   const lifecycle = new AbortController();
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
@@ -149,6 +151,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   });
   const render = () => {
     if (disposed || suspended) return;
+    const cpuStart = performance.now();
     const resuming = freshFrame;
     freshFrame = false;
     const elapsed = resuming ? 0 : engine.getDeltaTime() / 1000;
@@ -182,6 +185,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     scene.render(); residents.updateLabels(camera); renderedFrames++;
+    const sample = metrics.record(cpuStart, performance.now());
+    if (sample) ui.setPerformance(sample);
   };
   const reconcileVisibility = () => {
     const next = document.hidden || pageHidden || focusLost;
@@ -193,6 +198,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       if (!previewRole && !overview) mapCenter.copyFrom(camera.target);
     } else {
       freshFrame = true;
+      metrics.reset(); ui.setPerformance();
       engine.performanceMonitor.reset();
       engine.runRenderLoop(render);
     }
@@ -236,6 +242,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
+      performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),
     dispose() {
