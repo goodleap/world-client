@@ -8,6 +8,9 @@ export interface ResidentDefinition {
   areaRadius: number; bodyRadius: number; speed: number; labelHeight: number;
 }
 
+// Raise command movement by 50%; wandering and authored asset strides stay intact.
+export const COMMAND_RUN_SPEED_MULTIPLIER = 1.5;
+
 export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'farmer', role: 'farmer', name: '农民', spawn: { x: 1.8, z: -2.3 }, home: { x: 1.8, z: -2 }, areaRadius: 3.6, bodyRadius: 0.29, speed: 1.15, labelHeight: 2.35 },
   { id: 'worker', role: 'worker', name: '工人', spawn: { x: -2.3, z: -0.7 }, home: { x: -3, z: 0 }, areaRadius: 3.6, bodyRadius: 0.34, speed: 1.25, labelHeight: 2.2 },

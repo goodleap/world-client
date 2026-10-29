@@ -7,7 +7,7 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
-import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
+import { COMMAND_RUN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { moveCharacter } from './movement.ts';
@@ -64,7 +64,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
-    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, route: [] as Point[] };
+    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0, route: [] as Point[] };
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
@@ -244,6 +244,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     update(seconds: number, previewRole?: 'farmer' | 'base') {
       for (const actor of actors) {
+        actor.movementSpeed = 0;
         if (previewRole === actor.definition.role && (actor === farmer || actor === baseHuman)) {
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(Math.PI, 0, 0, actor.root.rotationQuaternion);
@@ -265,7 +266,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           const commandSpeedRatio = locomotion.has(actor.definition.id)
             ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15;
           const next = moveCharacter(before, { x: dx / (distance || 1), z: dz / (distance || 1) }, seconds,
-            Math.min(actor.settings.speed * commandSpeedRatio, distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
+            Math.min(actor.settings.speed * commandSpeedRatio * COMMAND_RUN_SPEED_MULTIPLIER, distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
           velocity = { x: (next.x - before.x) / seconds, z: (next.z - before.z) / seconds };
           const moved = Math.hypot(next.x - before.x, next.z - before.z);
           actor.state.position = next; actor.state.distanceTravelled += moved;
@@ -280,6 +281,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         } else if (actor === selected) velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
+        actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
         if (soldierModels.has(actor.definition.id)) {
@@ -315,6 +317,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       modelPose: soldierBones.get(actor.definition.id)?.map(bone =>
         (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       motion: locomotion.get(actor.definition.id)?.motion,
+      movementSpeed: actor.movementSpeed,
+      runPlaybackRate: locomotion.get(actor.definition.id)?.run.speedRatio,
+      runReferenceSpeed: locomotion.get(actor.definition.id)?.runSpeed,
       walking: locomotion.get(actor.definition.id)?.walk.isPlaying ?? false,
       running: locomotion.get(actor.definition.id)?.run.isPlaying ?? false,
       placeholder: placeholderRoles.has(actor.definition.role) && locomotion.has(actor.definition.id),
