@@ -1,0 +1,39 @@
+{
+  "source": "../base-human/base-human.blend",
+  "skeleton": "shared 20-bone BaseHumanRig",
+  "animations": {
+    "Walk": {
+      "rendered_phases": 60,
+      "skinned_samples": 61,
+      "all_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_range_H": [
+        0.0031202060636132956,
+        0.0031235937494784594
+      ]
+    },
+    "Run": {
+      "rendered_phases": 60,
+      "skinned_samples": 61,
+      "all_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_range_H": [
+        0.0029211656656116247,
+        0.04161776974797249
+      ]
+    }
+  },
+  "views": [
+    "front",
+    "side",
+    "back",
+    "game",
+    "180x240 mobile"
+  ],
+  "game_check": "command Run, arrival idle; shared skeleton, bind matrices and every animation channel match base asset in tests/assets.test.ts",
+  "sha256": {
+    "farmer.glb": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
+    "farmer.blend": "1b9166656d9b662dc5ae48339a713c16a4cb2a8160682c5c3c33f1c566b7d335",
+    "build_farmer.py": "f5d869955808d597b3dc1c467d26c8a7de45050971cd7fd5027f64152d08ae57"
+  }
+}

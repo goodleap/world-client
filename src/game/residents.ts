@@ -5,7 +5,6 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import type { GameUI } from '../ui.ts';
 import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
-import { applyCharacterColors } from './models.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
@@ -15,7 +14,7 @@ import { moveCharacter } from './movement.ts';
 import { findPath } from './pathfinding.ts';
 import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
-import farmerModelUrl from '../../studies/farmer/farmer-scarf.glb?url';
+import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -60,6 +59,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   let baseModelLoaded = false;
   let selected: typeof actors[number] | undefined;
   let farmerWalk: AnimationGroup | undefined;
+  let farmerRun: AnimationGroup | undefined;
+  let farmerBones: Bone[] = [];
   let baseWalk: AnimationGroup | undefined;
   let baseRun: AnimationGroup | undefined;
   let baseBones: Bone[] = [];
@@ -76,14 +77,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         material.directIntensity = cotton ? 1 : 1.12;
       }
     }
-  };
-  const setWalking = (group: AnimationGroup | undefined, walking: boolean) => {
-    if (!group) return;
-    if (walking && !group.isPlaying) group.play(true);
-    if (!walking && group.isPlaying) { group.stop(); group.reset(); }
-  };
-  const setFarmerWalking = (walking: boolean) => {
-    setWalking(farmerWalk, walking);
   };
   const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup) => {
     walk.stop(); run.stop(); walk.reset();
@@ -108,13 +101,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   return {
     async loadFarmerModel() {
       const result = await ImportMeshAsync(farmerModelUrl, scene);
-      applyCharacterColors(result.meshes.map((mesh) => mesh.material));
-      for (const material of new Set(result.meshes.map(mesh => mesh.material))) {
-        if (material instanceof PBRMaterial) material.directIntensity = 1.12;
-      }
+      prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
+      farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
-      if (!farmerWalk) throw new Error('Farmer model is missing its walk animation');
-      farmerWalk.stop(); farmerWalk.reset();
+      farmerRun = result.animationGroups.find((group) => group.name === 'Run');
+      if (!farmerWalk || !farmerRun) throw new Error('Farmer model needs the shared Walk and Run animations');
+      registerLocomotion(farmer.definition.id, farmerWalk, farmerRun);
       result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
       for (const mesh of result.meshes) {
@@ -175,7 +167,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     baseWalking: () => baseWalk?.isPlaying ?? false,
     baseRunning: () => baseRun?.isPlaying ?? false,
     farmerWalking: () => farmerWalk?.isPlaying ?? false,
-    farmerLegPose: () => scene.getTransformNodeByName('thigh.L')?.rotationQuaternion?.asArray() ?? [],
+    farmerRunning: () => farmerRun?.isPlaying ?? false,
+    farmerModelInfo: () => ({
+      bones: farmerBones.map(bone => bone.name),
+      animations: [farmerWalk?.name, farmerRun?.name].filter(Boolean),
+      motion: locomotion.get(farmer.definition.id)?.motion ?? 'idle',
+    }),
+    farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
     select(id?: string) {
       selected?.marker.setEnabled(false);
       selected = actors.find((actor) => actor.definition.id === id && actor.definition.role !== 'dog');
@@ -195,14 +193,11 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (previewRole === actor.definition.role && (actor === farmer || actor === baseHuman)) {
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(Math.PI, 0, 0, actor.root.rotationQuaternion);
-          if (actor === farmer) {
-            if (farmerWalk) farmerWalk.speedRatio = 1;
-            setFarmerWalking(seconds > 0);
-          }
+          if (actor === farmer) setMotion(actor.definition.id, seconds > 0 ? 'walk' : 'idle', walkReferenceSpeed);
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
-        if (seconds <= 0) { if (actor === farmer) setFarmerWalking(false); setMotion(actor.definition.id, 'idle'); continue; }
+        if (seconds <= 0) { setMotion(actor.definition.id, 'idle'); continue; }
         const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
         }));
@@ -231,10 +226,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         } else if (actor === selected) velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
-        if (actor === farmer) {
-          if (farmerWalk) farmerWalk.speedRatio = speed / 1.15;
-          setFarmerWalking(speed > 0.08);
-        }
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
         actor.human?.update(seconds, velocity.x, velocity.z);

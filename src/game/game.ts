@@ -164,6 +164,8 @@ export async function createGame(ui: GameUI) {
       baseRunning: residents.baseRunning(),
       baseModel: residents.baseModelInfo(),
       farmerWalking: residents.farmerWalking(),
+      farmerRunning: residents.farmerRunning(),
+      farmerModel: residents.farmerModelInfo(),
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
