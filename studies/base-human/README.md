@@ -1,8 +1,10 @@
 # 基础人物 · 头身饱满度与跑步
 
-当前为 v10 体积修订。依据设计仓库的基础人物原型及用户关于“头部瘪、身体需要更圆鼓饱满”的反馈，在已进入 Demo 的 v9 基础人物上重新调整头身曲面。头、耳朵及五官仍保留以颈部为锚整体缩至 92% 的比例，为发型和帽盔留空间；8% 是此前选定的取值，不是所有人物的统一比例标准。
+当前为 v11 手脚细化，保留 v10 体积修订。依据设计仓库的基础人物原型及用户关于“头部瘪、身体需要更圆鼓饱满”的反馈，在已进入 Demo 的 v9 基础人物上重新调整头身曲面。头、耳朵及五官仍保留以颈部为锚整体缩至 92% 的比例，为发型和帽盔留空间；8% 是此前选定的取值，不是所有人物的统一比例标准。
 
-## 本次形体调整
+本轮手脚：拇指与掌部连续连接，卷指仅保留局部浅褶；五趾大小、长度递减，趾根融入脚背。头部与躯干顶点保持 v10 数据，骨架与 Walk／Run 轨道不变。实际导出检查页为 `studies/review.html`，当前资源验证见 `runtime-validation.json`。
+
+## 保留的头身体积调整
 
 - 头部：保留现有高度、正面宽度与五官布局，增加额头、脸颊及后脑的前后体积，让脸部向两侧连续包转。五官跟随新的脸部曲面贴合，脸颊体积直接塑在头部网格内。
 - 躯干：增加胸腹、腰背的厚度，腹部略鼓，向领口和腰部自然收拢。肩关节与四肢位置保持原方案，保留腋下空间。
@@ -40,7 +42,7 @@
 
 - `base-human.glb`：游戏实际加载的网格、蒙皮与动作。
 - `base-human.blend`：同版骨架源文件，保留 Walk、Run。
-- `build_model.py`：生成静态 v10 形体；`MODEL_OUTPUT` 可将候选模型和审查图输出到独立云端目录。
+- `build_model.py`：生成静态 v11 形体；`MODEL_OUTPUT` 可将候选模型和审查图输出到独立云端目录。
 - `bind_model.py`、`rig_motion.py`：缩头、绑定并按固定运动方案生成动作。
 - `rig-motion-plan.json`、`animation-metadata.json`：骨架运动方案与前端播放参数。
 - `rig-report.json`、`runtime-validation.json`：尺寸、导出信息及实际蒙皮验证记录。
@@ -48,8 +50,8 @@
 参考原型保留在设计仓库，不复制到公开前端仓库。使用 Blender 4.3.2，在云端工作区重建：
 
 ```sh
-MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python studies/base-human/build_model.py -- v10
-blender -b -t 8 --python studies/base-human/bind_model.py -- --input /tmp/base-human-volume/v10.blend --output /tmp/base-human-runtime
+MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python studies/base-human/build_model.py -- v11
+blender -b -t 8 --python studies/base-human/bind_model.py -- --input /tmp/base-human-volume/v11.blend --output /tmp/base-human-runtime
 ```
 
 输出须经过实际 GLB 的完整动作周期、游戏视角及手机显示检查，再替换游戏文件。结构或数值检查不能代替视觉审查。

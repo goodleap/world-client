@@ -1,7 +1,7 @@
 """Reference-driven base human study. H=1, front -Y, Z up.
 
 Fresh geometry from 基础人物原型图-v1.png; not derived from the old demo.
-Run in Blender: MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python build_model.py -- v10
+Run in Blender: MODEL_OUTPUT=/tmp/base-human-volume REVIEW_VIEWS=front,profile,game blender -b -t 8 --python build_model.py -- v11
 """
 import bpy, bmesh, math, os, sys, json
 from math import sin, cos, pi, sqrt, exp
@@ -10,7 +10,7 @@ from mathutils.bvhtree import BVHTree
 
 OUT=os.path.abspath(os.environ.get('MODEL_OUTPUT',os.path.dirname(os.path.abspath(__file__))))
 os.makedirs(OUT,exist_ok=True)
-REV=sys.argv[sys.argv.index('--')+1] if '--' in sys.argv else 'v10'
+REV=sys.argv[sys.argv.index('--')+1] if '--' in sys.argv else 'v11'
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 for data in bpy.data.materials: bpy.data.materials.remove(data)
 
@@ -254,19 +254,26 @@ for s,label in [(-1,'R'),(1,'L')]:
       (.450,s*.400,-.009,.087,.082),(.490,s*.397,-.004,.060,.060),
       (.508,s*.394,0,.020,.025)],skin)
     handparts=[arm,palm]
-    thumb=oval('Thumb volume',(s*.337,-.066,.403),(.035,.045,.047),skin,32,24)
-    thumb.rotation_euler.y=s*.38;handparts.append(thumb)
-    arm=fuse('Continuous arm and fist.'+label,handparts,.0035,3)
+    # A swept, tapering thumb: the broad thenar root grows out of the palm,
+    # and the tip curls across the fingers. No separate spherical thumb joint.
+    thumb=loft('Curled thumb.'+label,[
+      (.363,s*.364,-.076,.004,.005),(.376,s*.356,-.078,.025,.030),
+      (.395,s*.339,-.077,.031,.037),(.421,s*.342,-.054,.038,.045),
+      (.447,s*.363,-.027,.045,.047),(.468,s*.389,-.014,.038,.039),
+      (.483,s*.401,-.008,.020,.025)],skin,step=8)
+    handparts.append(thumb)
+    arm=fuse('Continuous arm and fist.'+label,handparts,.0028,5)
     # Curl the lower palm edge into soft knuckle lobes in side view. Displace
     # the existing surface continuously instead of attaching finger spheres.
     for v in arm.data.vertices:
         x,y,z=v.co
         if z<.380 and s*x>.355:
             weight=exp(-((z-.337)/.031)**2)*min(1,(s*x-.355)/.045)
-            lobes=sum(exp(-((y-center)/.017)**2) for center in [-.070,-.030,.010,.047])
-            v.co.z-=.012*weight*lobes
+            lobes=sum(height*exp(-((y-center)/width)**2) for center,width,height in [
+                (-.069,.021,.010),(-.028,.023,.013),(.014,.022,.011),(.050,.019,.007)])
+            v.co.z-=weight*lobes
     # A shallow sculpted fold around the curled thumb, not a seam between beads.
-    fold=[(.343,.421),(.351,.405),(.363,.384),(.382,.382)]
+    fold=[(.333,.425),(.337,.408),(.351,.390),(.367,.380),(.386,.383)]
     for v in arm.data.vertices:
         x,y,z=v.co
         if y>-.045 or z>.46 or z<.35:continue
@@ -275,7 +282,14 @@ for s,label in [(-1,'R'),(1,'L')]:
             dx,dz=b[0]-a[0],b[1]-a[1]
             t=max(0,min(1,((s*x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)))
             distance=min(distance,math.hypot(s*x-a[0]-t*dx,z-a[1]-t*dz))
-        v.co.y+=.008*exp(-(distance/.005)**2)*min(1,(-y-.045)/.025)
+        v.co.y+=.003*exp(-(distance/.008)**2)*min(1,(-y-.045)/.025)
+    # Three short creases in the curled underside, fading into the broad hand
+    # back. They never circle the fingers or cut the fist into separate beads.
+    for v in arm.data.vertices:
+        x,y,z=v.co
+        if z<.374 and s*x>.397:
+            creases=sum(exp(-((y-c)/.0045)**2) for c in [-.049,-.006,.033])
+            v.co.z+=.0035*creases*exp(-((z-.341)/.023)**2)*min(1,(s*x-.397)/.045)
     arms.append(arm)
     # Feet: broad instep taper, integrated toes, shallow dorsum transition.
     leg=loft('Leg volume.'+label,[
@@ -286,9 +300,20 @@ for s,label in [(-1,'R'),(1,'L')]:
       (.33,s*.143,.002,.124,.116),(.40,s*.128,.000,.120,.125)],skin)
     parts=[leg]
     for j in range(5):
-        rad=[.046,.041,.035,.030,.025][j]
-        parts.append(oval('Toe volume',(s*(.105+j*.052),-.190+j*.013,.043), (rad,.073-j*.003,.044-j*.003),skin,32,20))
-    leg=fuse('Continuous leg and foot.'+label,parts,.0034,8)
+        # Tapered digits extend from deep within the forefoot. Wide embedded
+        # roots make one dorsum, with only the rounded tips separating.
+        rad=[.046,.039,.034,.029,.025][j]
+        cx=s*[.102,.176,.237,.289,.331][j]
+        tip=[-.264,-.251,-.235,-.215,-.193][j]
+        toe=loft('Integrated toe.'+label,[
+          (0,0,0,.001,.001),(.08,0,0,rad*.62,rad*.54),
+          (.22,0,0,rad*.96,rad*.79),(.48,0,0,rad,rad*.86),
+          (.78,0,0,rad*1.09,rad*.93),(1,0,0,rad*1.12,rad*.93)],skin,step=8)
+        for v in toe.data.vertices:
+            x,y,t=v.co
+            v.co=(cx+x,tip+t*(-.085-tip),.040+y)
+        parts.append(toe)
+    leg=fuse('Continuous leg and foot.'+label,parts,.0028,6)
     # Flat weight-bearing soles (only below the contact plane).
     for v in leg.data.vertices:
         if v.co.z+leg.location.z<.008:v.co.z=.008-leg.location.z

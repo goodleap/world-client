@@ -37,7 +37,8 @@ head_scaled_bounds=bounds(characters)
 for ob in characters:
     # Face and all facial details remain exact. Only dense voxel surfaces and
     # high-resolution trim tubes are simplified using quadric error collapse.
-    if ob.name.startswith('Continuous'):target=10000
+    # Retain the curved thumb web and graded toe roots at export resolution.
+    if ob.name.startswith('Continuous'):target=20000
     elif ob.name.startswith(('T-shirt','Shorts •')):target=18000
     elif ob.name.startswith(('Short hem','Shirt hem','Neck binding')):target=2000
     else:continue

@@ -1,5 +1,5 @@
 {
-  "revision": "v10-binding-4-volume",
+  "revision": "v11-binding-4-volume",
   "animations": {
     "Walk": {
       "duration_seconds": 0.5,
@@ -15,8 +15,8 @@
       "stance_fraction_per_leg": 0.24,
       "authored_stance_foot_speed": 1.6666666666666667,
       "flight_floor_range_H": [
-        0.00799531489610672,
-        0.04374278336763382
+        0.007991570979356766,
+        0.04336109757423401
       ]
     }
   }
