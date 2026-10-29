@@ -18,7 +18,7 @@ const params = new URLSearchParams(location.search);
 const asset = params.get('asset') || '/studies/base-human/base-human.glb';
 const loaded = await ImportMeshAsync(asset, scene);
 const groups = loaded.animationGroups;
-function pose(name = 'Walk', phase = 0) {
+function pose(name = params.get('clip') || 'Walk', phase = 0) {
   groups.forEach(g => g.stop());
   const group = groups.find(g => g.name === name)!;
   group.start(true); group.pause(); group.goToFrame(group.from + phase * (group.to - group.from));

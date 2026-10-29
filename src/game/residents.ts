@@ -17,6 +17,8 @@ import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
 import infantryModelUrl from '../../studies/soldiers/infantry/infantry.glb?url';
+import cavalryModelUrl from '../../studies/soldiers/cavalry/cavalry.glb?url';
+import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
@@ -27,8 +29,11 @@ const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_re
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
-  const placeholderRoles = new Set(['worker', 'archer', 'cavalry']);
-  const soldierAssets = [{ role: 'infantry', url: infantryModelUrl }] as const;
+  const placeholderRoles = new Set(['worker', 'archer']);
+  const soldierAssets = [
+    { role: 'infantry', url: infantryModelUrl, mounted: false },
+    { role: 'cavalry', url: cavalryModelUrl, mounted: true },
+  ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
@@ -51,7 +56,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
-    return { definition, random, settings, state, human, animal, root, label, marker, route: [] as Point[] };
+    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, route: [] as Point[] };
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
@@ -68,7 +73,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   let baseBones: Bone[] = [];
   let baseMeshNames: string[] = [];
   type Motion = 'idle' | 'walk' | 'run';
-  type Locomotion = { walk: AnimationGroup; run: AnimationGroup; motion: Motion };
+  type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup;
+    walkSpeed: number; runSpeed: number; motion: Motion };
   const locomotion = new Map<string, Locomotion>();
   const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
   const soldierBones = new Map<string, Bone[]>();
@@ -82,24 +88,26 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     }
   };
-  const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup) => {
-    walk.stop(); run.stop(); walk.reset();
-    locomotion.set(id, { walk, run, motion: 'idle' });
+  const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup,
+    options: { idle?: AnimationGroup; walkSpeed?: number; runSpeed?: number } = {}) => {
+    walk.stop(); run.stop(); options.idle?.stop(); (options.idle ?? walk).reset();
+    locomotion.set(id, { walk, run, idle: options.idle, motion: 'idle',
+      walkSpeed: options.walkSpeed ?? walkReferenceSpeed, runSpeed: options.runSpeed ?? runReferenceSpeed });
   };
   const setMotion = (id: string, motion: Motion, speed = 0) => {
     const clips = locomotion.get(id);
     if (!clips) return;
     if (motion !== clips.motion) {
-      clips.walk.stop(); clips.run.stop();
+      clips.walk.stop(); clips.run.stop(); clips.idle?.stop();
       // Run starts at a running phase. Walk's first frame carries the complete
       // neutral pose, so stopping Run must reset Walk rather than reset Run.
-      if (motion === 'idle') clips.walk.reset();
+      if (motion === 'idle') (clips.idle ?? clips.walk).reset();
       else (motion === 'run' ? clips.run : clips.walk).play(true);
       clips.motion = motion;
     }
     if (motion !== 'idle') {
       const clip = motion === 'run' ? clips.run : clips.walk;
-      clip.speedRatio = speed / (motion === 'run' ? runReferenceSpeed : walkReferenceSpeed);
+      clip.speedRatio = speed / (motion === 'run' ? clips.runSpeed : clips.walkSpeed);
     }
   };
   return {
@@ -142,10 +150,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const actor = actors.find(entry => entry.definition.role === asset.role)!;
         const result = await ImportMeshAsync(asset.url, scene);
         prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
-        const walk = result.animationGroups.find(group => group.name === 'Walk');
-        const run = result.animationGroups.find(group => group.name === 'Run');
-        if (!walk || !run) throw new Error(`${asset.role} needs Walk and Run animations`);
-        registerLocomotion(actor.definition.id, walk, run);
+        result.animationGroups.forEach(group => group.stop());
+        const walk = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideWalk' : 'Walk'));
+        const run = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideRun' : 'Run'));
+        const idle = result.animationGroups.find(group => group.name === 'RideIdle');
+        if (!walk || !run || (asset.mounted && !idle)) throw new Error(`${asset.role} is missing its locomotion clips`);
+        registerLocomotion(actor.definition.id, walk, run, asset.mounted ? {
+          idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountMetadata.gaits.RideRun.speed,
+        } : {});
         result.meshes[0].parent = actor.root;
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
@@ -256,8 +268,20 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const speed = Math.hypot(velocity.x, velocity.z);
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
-        actor.human?.update(seconds, velocity.x, velocity.z);
-        actor.animal?.update(seconds, velocity.x, velocity.z);
+        if (soldierModels.has(actor.definition.id)) {
+          // The dressed GLB owns every visible animation. Only navigation
+          // heading is updated here; hidden legacy rigs do not drive soldiers.
+          if (speed > 0.08) {
+            const target = Math.atan2(velocity.x, velocity.z);
+            const difference = Math.atan2(Math.sin(target - actor.facing), Math.cos(target - actor.facing));
+            actor.facing += difference * (1 - Math.exp(-seconds * (actor.definition.role === 'cavalry' ? 7 : 14)));
+          }
+          actor.root.rotationQuaternion ??= Quaternion.Identity();
+          Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
+        } else {
+          actor.human?.update(seconds, velocity.x, velocity.z);
+          actor.animal?.update(seconds, velocity.x, velocity.z);
+        }
       }
     },
     updateLabels(camera: Camera) {

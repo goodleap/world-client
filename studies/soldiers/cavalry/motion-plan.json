@@ -1,0 +1,65 @@
+{
+  "coordinates": {
+    "up": "Z",
+    "front": "-Y"
+  },
+  "upper_leg_length": 0.3,
+  "lower_leg_length": 0.25,
+  "hip_z": 0.6,
+  "ankle_z": 0.12,
+  "rider_root_offset": [
+    0,
+    0.1,
+    0.68
+  ],
+  "human_bone_lengths": "unchanged base-human",
+  "hoof_proxy": {
+    "half_width": 0.105,
+    "half_depth": 0.15,
+    "bottom_z": 0.008
+  },
+  "gaits": {
+    "RideWalk": {
+      "duration": 0.6,
+      "speed": 0.9,
+      "stance": 0.65,
+      "lift": 0.1,
+      "offsets": {
+        "FL": 0,
+        "FR": 0.5,
+        "HL": 0.25,
+        "HR": 0.75
+      }
+    },
+    "RideRun": {
+      "duration": 0.5,
+      "speed": 1.8,
+      "stance": 0.4,
+      "lift": 0.145,
+      "offsets": {
+        "FL": 0,
+        "FR": 0.5,
+        "HL": 0.5,
+        "HR": 0
+      }
+    }
+  },
+  "checks": {
+    "RideWalk": {
+      "samples": 241,
+      "all_targets_reachable": true,
+      "max_bone_length_error": 1.3877787807814457e-16,
+      "min_ankle_z": 0.12,
+      "max_body_bob": 0,
+      "loop_pose_equal": true
+    },
+    "RideRun": {
+      "samples": 241,
+      "all_targets_reachable": true,
+      "max_bone_length_error": 1.942890293094024e-16,
+      "min_ankle_z": 0.12,
+      "max_body_bob": 0.035,
+      "loop_pose_equal": true
+    }
+  }
+}

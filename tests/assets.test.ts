@@ -120,3 +120,52 @@ for (const role of ['infantry']) {
     }
   });
 }
+
+const cavalry = asset('../studies/soldiers/cavalry/cavalry.glb');
+test('mounted cavalry retains all original human bones, geometry and source Walk/Run channels', () => {
+  const humanNames = new Set(base.json.skins[0].joints.map(i => base.json.nodes[i].name));
+  const humanSkeleton = (a: typeof base) => a.json.skins[0].joints.filter(i => humanNames.has(a.json.nodes[i].name)).map(i => {
+    const n = a.json.nodes[i];
+    return { name: n.name, matrix: n.matrix, translation: n.translation, rotation: n.rotation, scale: n.scale,
+      children: n.children?.map(j => a.json.nodes[j].name) };
+  });
+  assert.deepEqual(humanSkeleton(cavalry), humanSkeleton(base));
+  assert.equal(cavalry.json.skins[0].joints.filter(i => cavalry.json.nodes[i].name.startsWith('Horse.')).length, 17);
+  assert.deepEqual(cavalry.bytes(cavalry.json.skins[0].inverseBindMatrices).subarray(0, 20*16*4),
+    base.bytes(base.json.skins[0].inverseBindMatrices));
+  for (const name of ['Head • shaped cranium cheeks and jaw', 'Torso skin', 'Continuous arm and fist.L',
+    'Continuous arm and fist.R', 'T-shirt • connected shoulders', 'Shorts • shaped hip and separate legs']) {
+    const positions = (a: typeof base) => a.bytes(a.json.meshes[a.json.nodes.find(n => n.name === name)!.mesh!].primitives[0].attributes.POSITION);
+    assert.deepEqual(positions(cavalry), positions(base), name);
+  }
+  for (const original of base.json.animations) {
+    const retained = cavalry.json.animations.find(a => a.name === original.name)!;
+    for (const channel of original.channels) {
+      const name = base.json.nodes[channel.target.node].name;
+      const match = retained.channels.find(c => cavalry.json.nodes[c.target.node].name === name && c.target.path === channel.target.path)!;
+      const a = original.samplers[channel.sampler], b = retained.samplers[match.sampler];
+      assert.deepEqual(cavalry.bytes(b.input), base.bytes(a.input));
+      assert.deepEqual(cavalry.bytes(b.output), base.bytes(a.output), original.name + '/' + name);
+      assert.equal(b.interpolation, a.interpolation);
+    }
+  }
+});
+
+test('cavalry adds distinct mounted idle, four-beat walk and airborne trot clips', () => {
+  assert.deepEqual(cavalry.json.animations.map(c => c.name).sort(), ['RideIdle', 'RideRun', 'RideWalk', 'Run', 'Walk']);
+  for (const [name, duration] of [['RideWalk', .60], ['RideRun', .50]] as const) {
+    const clip = cavalry.json.animations.find(a => a.name === name)!;
+    const time = cavalry.bytes(clip.samplers[0].input);
+    assert.equal(time.readFloatLE(0), 0);
+    assert.ok(Math.abs(time.readFloatLE(time.length - 4) - duration) < 1e-6);
+    for (const bone of ['root', 'Horse.root', 'Horse.upper.FL', 'Horse.lower.FR', 'Horse.hoof.HL']) {
+      assert.ok(clip.channels.some(c => cavalry.json.nodes[c.target.node].name === bone));
+    }
+  }
+  const root = (clipName: string) => {
+    const clip = cavalry.json.animations.find(a => a.name === clipName)!;
+    const channel = clip.channels.find(c => cavalry.json.nodes[c.target.node].name === 'Horse.root' && c.target.path === 'translation')!;
+    return cavalry.bytes(clip.samplers[channel.sampler].output);
+  };
+  assert.notDeepEqual(root('RideRun'), root('RideWalk'));
+});

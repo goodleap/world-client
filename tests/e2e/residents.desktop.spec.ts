@@ -17,7 +17,7 @@ test('residents including the base character render and wander safely', async ({
   expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(8);
   const parts = Object.fromEntries(initial.map((r) => [r.role, r.parts]));
   expect(parts.farmer).toContain('straw-sandal');
-  for (const role of ['worker', 'archer', 'cavalry']) {
+  for (const role of ['worker', 'archer']) {
     expect(initial.find((r) => r.role === role)!.placeholder).toBe(true);
     expect(initial.find((r) => r.role === role)!.legacyVisible).toBe(false);
     await expect(page.locator(`[data-resident="${role}"]`)).toContainText('占位');
@@ -28,6 +28,12 @@ test('residents including the base character render and wander safely', async ({
   expect(infantry.model?.bones).toHaveLength(20);
   expect(infantry.model?.meshes).toEqual(expect.arrayContaining(['Helmet • rounded steel crown', 'Sword • broad steel blade', 'Shield • convex blue face']));
   await expect(page.locator('[data-resident="infantry"]')).toHaveText('步兵');
+  const cavalry = initial.find(r => r.role === 'cavalry')!;
+  expect(cavalry.placeholder).toBe(false);
+  expect(cavalry.legacyVisible).toBe(false);
+  expect(cavalry.model?.bones.filter(name => name.startsWith('Horse.'))).toHaveLength(17);
+  expect(cavalry.model?.meshes).toEqual(expect.arrayContaining(['Horse • continuous body neck head and legs', 'Lance • leaf steel point']));
+  await expect(page.locator('[data-resident="cavalry"]')).toHaveText('骑兵');
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
   await expect.poll(async () => (await snapshot(page)).residents.map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
@@ -37,7 +43,9 @@ test('residents including the base character render and wander safely', async ({
   for (const actor of moving) {
     const definition = RESIDENTS.find((r) => r.id === actor.id)!;
     expect(isBlocked(actor.position, definition.bodyRadius, RESIDENT_OBSTACLES)).toBe(false);
-    expect(actor.pose).not.toEqual(initial.find((r) => r.id === actor.id)!.pose);
+    if (actor.model) {
+      if (actor.walking || actor.running) expect(actor.modelPose).not.toEqual(initial.find(r => r.id === actor.id)!.modelPose);
+    } else expect(actor.pose).not.toEqual(initial.find((r) => r.id === actor.id)!.pose);
   }
   await page.getByRole('button', { name: '操作说明', exact: true }).click();
   await expect.poll(async () => {
