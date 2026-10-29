@@ -5,6 +5,7 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import type { GameUI } from '../ui.ts';
 import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
+import { applyCharacterColors } from './models.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
@@ -65,6 +66,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   return {
     async loadFarmerModel() {
       const result = await ImportMeshAsync(farmerModelUrl, scene);
+      applyCharacterColors(result.meshes.map((mesh) => mesh.material));
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
       if (!farmerWalk) throw new Error('Farmer model is missing its walk animation');
       farmerWalk.stop(); farmerWalk.reset();
@@ -75,6 +77,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     async loadBaseModel() {
       const result = await ImportMeshAsync(baseModelUrl, scene);
+      applyCharacterColors(result.meshes.map((mesh) => mesh.material));
       baseWalk = result.animationGroups.find((group) => group.name === 'Walk');
       if (!baseWalk) throw new Error('Base character model is missing its walk animation');
       baseWalk.stop(); baseWalk.reset();
@@ -85,6 +88,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     async loadRolePlaceholders() {
       const container = await LoadAssetContainerAsync(baseModelUrl, scene);
+      applyCharacterColors(container.materials);
       for (const actor of actors.filter((entry) => placeholderRoles.has(entry.definition.role))) {
         const instance = container.instantiateModelsToScene((name) => `${actor.definition.id}-${name}`, false, { doNotInstantiate: true });
         const walk = instance.animationGroups.find((group) => group.name.endsWith('-Walk'));

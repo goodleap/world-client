@@ -3,21 +3,23 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial.js';
+import type { Material } from '@babylonjs/core/Materials/material.js';
 import type { Scene } from '@babylonjs/core/scene';
 
 export function createPalette(scene: Scene) {
   const colors = {
-    grass: '#a8bd7b', grassLight: '#b6c78b', grassDark: '#97af72', earth: '#b19b7c',
-    path: '#ddc79c', pathLight: '#ebd8ae', cream: '#f4e6c8', plaster: '#ead9b5',
-    terracotta: '#ba765d', roofLight: '#cf8a6c', roofDark: '#9e624e', sage: '#718d79',
-    timber: '#947558', timberLight: '#b49570', woodDark: '#665948', window: '#7f9d9a',
-    leaf: '#789b65', leafLight: '#9db776', leafDark: '#608566', golden: '#c4b46b',
-    stone: '#b7b9a5', stoneLight: '#d0cfb8', soil: '#9a7b5b', water: '#83b9af',
-    waterLight: '#b1d4c4', flower: '#e8ba97', linen: '#f2dfb1', shirt: '#788c9c',
-    pants: '#5d7069', skin: '#e5b992', hair: '#6d5947', boot: '#705c49', blush: '#ca8d77',
-    flax: '#dfd2ae', sandCloth: '#b99b73', workCloth: '#9b795c', leather: '#a27c58',
-    leatherDark: '#6f5948', metal: '#9da9a4', metalLight: '#c5cdc3', straw: '#c7b17b',
-    horse: '#a48365', dogFur: '#c29a65', dogCream: '#e3d1aa', nose: '#564c40',
+    grass: '#78b438', grassLight: '#a1d34c', grassDark: '#579329', earth: '#a77942',
+    path: '#e8b04f', pathLight: '#f9d273', cream: '#ffe0a0', plaster: '#ffd18a',
+    terracotta: '#d94c21', roofLight: '#f96f35', roofDark: '#b7351d', sage: '#418464',
+    timber: '#92501d', timberLight: '#b87532', woodDark: '#553019', window: '#18877e',
+    leaf: '#268f2c', leafLight: '#60c83b', leafDark: '#176b29', golden: '#e2a72d',
+    stone: '#a9aaa0', stoneLight: '#ded3bb', soil: '#a85c2f', water: '#1da9b8',
+    waterLight: '#8be5dc', flower: '#fff0b3', linen: '#ffe3a0', shirt: '#3475b6',
+    pants: '#425b64', skin: '#f9ae78', hair: '#63371e', boot: '#75401f', blush: '#e77d60',
+    flax: '#f6dca6', sandCloth: '#d6a765', workCloth: '#ad6c34', leather: '#a85d27',
+    leatherDark: '#6f3619', metal: '#9daab3', metalLight: '#d9e1dc', straw: '#e4ba61',
+    horse: '#bd7132', dogFur: '#e49a3d', dogCream: '#ffe0a0', nose: '#342721',
   };
   return Object.fromEntries(Object.entries(colors).map(([name, color]) => {
     const material = new StandardMaterial(name, scene);
@@ -26,6 +28,22 @@ export function createPalette(scene: Scene) {
     material.freeze();
     return [name, material];
   })) as Record<keyof typeof colors, StandardMaterial>;
+}
+
+/** GLB materials are independent of the procedural palette and need their own color tuning. */
+export function applyCharacterColors(materials: readonly (Material | null | undefined)[]) {
+  const colors: Record<string, [number, number, number]> = {
+    skin: [0.98, 0.50, 0.28], 'warm white fabric': [0.95, 0.88, 0.72],
+    'farmer shirt blue': [0.07, 0.24, 0.49], 'farmer trousers': [0.08, 0.13, 0.18],
+    'brown hair': [0.12, 0.035, 0.012], 'head scarf linen': [0.94, 0.68, 0.38],
+    'warm leather': [0.47, 0.20, 0.065], 'dark leather': [0.25, 0.075, 0.025],
+    'buckle brass': [0.95, 0.46, 0.08], mouth: [0.65, 0.075, 0.035],
+  };
+  for (const material of new Set(materials)) {
+    if (!(material instanceof PBRMaterial)) continue;
+    const color = colors[material.name];
+    if (color) material.albedoColor.set(...color);
+  }
 }
 
 export type Palette = ReturnType<typeof createPalette>;
