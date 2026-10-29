@@ -54,16 +54,23 @@ export async function createGame(ui: GameUI) {
   let currentZoom = zoom;
   let renderedFrames = 0;
   let disposed = false;
+  let focusLost = !document.hasFocus();
+  let pageHidden = false;
+  let suspended = document.hidden || focusLost;
+  let freshFrame = true;
+  let simulationSeconds = 0;
+  const lifecycle = new AbortController();
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
   let selectedBuilding: string | undefined;
   const zoomBy = (delta: number) => {
+    if (suspended) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
     else zoom = Math.max(6, Math.min(18, zoom + delta));
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
-    if (ui.paused) return;
+    if (ui.paused || suspended) return;
     // Take over from the currently visible center, including an unfinished
     // preview/reset transition. Pointer motion is direct manipulation.
     if (started) mapCenter.copyFrom(camera.target);
@@ -72,7 +79,7 @@ export async function createGame(ui: GameUI) {
     mapCenter.x -= dx * units; mapCenter.z += dy * units / Math.max(0.2, Math.cos(camera.beta)); clampCenter();
     camera.target.copyFrom(mapCenter);
   }, (clientX, clientY) => {
-    if (ui.paused) return;
+    if (ui.paused || suspended) return;
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
     const hit = scene.pick(x, y, (mesh) => !!mesh.metadata?.selectionKind);
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
@@ -123,19 +130,29 @@ export async function createGame(ui: GameUI) {
     mapCenter.set(0, 0.5, -2); setPreview();
     overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
   });
-  engine.runRenderLoop(() => {
-    const elapsed = engine.getDeltaTime() / 1000;
+  const render = () => {
+    if (disposed || suspended) return;
+    const resuming = freshFrame;
+    freshFrame = false;
+    const elapsed = resuming ? 0 : engine.getDeltaTime() / 1000;
     const cameraDt = Math.min(elapsed, 0.25);
     const dt = Math.min(elapsed, 0.05);
     // Navigation clamps long frames. Keep the skeletal gait on the same clock
     // so a slow device does not run the feet faster than the character moves.
-    scene.animationTimeScale = elapsed > 0 ? dt / elapsed : 1;
+    // Babylon's animation clock also uses wall time between scene renders.
+    // A zero-scale first frame refreshes that clock without advancing a clip.
+    scene.animationTimeScale = resuming || ui.paused ? 0 : elapsed > 0 ? dt / elapsed : 1;
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
     if (direction.x || direction.z) {
       setPreview(); overview = false; ui.setOverview(false);
       mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
     }
-    residents.update(ui.paused ? 0 : dt, previewRole);
+    // Do not send update(0) on resume: that would reset an interrupted Run to
+    // idle for one frame. Keep the exact frozen pose until normal time resumes.
+    if (!resuming) {
+      residents.update(ui.paused ? 0 : dt, previewRole);
+      if (!ui.paused) simulationSeconds += dt;
+    }
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
     currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-cameraDt * 7));
@@ -148,12 +165,37 @@ export async function createGame(ui: GameUI) {
     else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     scene.render(); residents.updateLabels(camera); renderedFrames++;
-  });
+  };
+  const reconcileVisibility = () => {
+    const next = document.hidden || pageHidden || focusLost;
+    if (disposed || next === suspended) return;
+    suspended = next;
+    input.reset();
+    if (suspended) {
+      engine.stopRenderLoop(render);
+      if (!previewRole && !overview) mapCenter.copyFrom(camera.target);
+    } else {
+      freshFrame = true;
+      engine.performanceMonitor.reset();
+      engine.runRenderLoop(render);
+    }
+  };
+  const lifecycleOptions = { signal: lifecycle.signal };
+  document.addEventListener('visibilitychange', reconcileVisibility, lifecycleOptions);
+  window.addEventListener('blur', () => { focusLost = true; reconcileVisibility(); }, lifecycleOptions);
+  window.addEventListener('focus', () => { focusLost = false; reconcileVisibility(); }, lifecycleOptions);
+  window.addEventListener('pagehide', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
+  window.addEventListener('pageshow', () => {
+    pageHidden = false; focusLost = !document.hasFocus(); reconcileVisibility();
+  }, lifecycleOptions);
+  document.addEventListener('freeze', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
+  document.addEventListener('resume', () => { pageHidden = false; reconcileVisibility(); }, lifecycleOptions);
+  if (!suspended) engine.runRenderLoop(render);
   try {
     await scene.whenReadyAsync();
     if (!disposed) ui.ready();
   } catch (error) {
-    input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
+    lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   return {
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
@@ -161,6 +203,7 @@ export async function createGame(ui: GameUI) {
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
         target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
       input: { dragging: input.isDragging },
+      suspended, manualPaused: ui.paused, simulationSeconds,
       selection: { resident: residents.selectedId(), building: selectedBuilding },
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,
@@ -178,7 +221,7 @@ export async function createGame(ui: GameUI) {
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),
     dispose() {
-      disposed = true; input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop();
+      disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       scene.dispose(); engine.dispose();
     },
   };

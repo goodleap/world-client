@@ -14,22 +14,22 @@
     "Walk": {
       "rendered_phases": 60,
       "skinned_samples": 61,
-      "all_vertices_finite": true,
       "sampled_loop_seam_max_H": 0.0,
       "feet_min_y_range_H": [
         0.007999985478818417,
         0.008000236935913563
-      ]
+      ],
+      "all_sampled_vertices_finite": true
     },
     "Run": {
       "rendered_phases": 60,
       "skinned_samples": 61,
-      "all_vertices_finite": true,
       "sampled_loop_seam_max_H": 0.0,
       "feet_min_y_range_H": [
         0.007800208404660225,
         0.04301508888602257
-      ]
+      ],
+      "all_sampled_vertices_finite": true
     }
   },
   "sha256": {
@@ -39,5 +39,11 @@
     "bind_model.py": "b5fae12fefee5c93e13488b0576e742970d6477d6b291895d944c22b142c5c11",
     "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec"
   },
-  "note": "GLB reviewed with 12 side-view phases and 60 game-view phases per complete Walk/Run loop. Head and torso POSITION buffers are unchanged from remote 3517daf; skeleton and motion plan unchanged. Visual inspection is separate from finite-vertex and loop-seam checks."
+  "note": "GLB reviewed with 12 side-view phases and 60 game-view phases per complete Walk/Run loop. Head and torso POSITION buffers are unchanged from remote 3517daf; skeleton and motion plan unchanged. Visual inspection is separate from finite-vertex and loop-seam checks.",
+  "sampled_meshes": [
+    "Continuous arm and fist.L",
+    "Continuous arm and fist.R",
+    "Continuous leg and foot.L",
+    "Continuous leg and foot.R"
+  ]
 }
