@@ -18,6 +18,7 @@ import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
 import infantryModelUrl from '../../studies/soldiers/infantry/infantry.glb?url';
 import cavalryModelUrl from '../../studies/soldiers/cavalry/cavalry.glb?url';
+import archerModelUrl from '../../studies/soldiers/archer/archer.glb?url';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -29,10 +30,11 @@ const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_re
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
-  const placeholderRoles = new Set(['worker', 'archer']);
+  const placeholderRoles = new Set(['worker']);
   const soldierAssets = [
     { role: 'infantry', url: infantryModelUrl, mounted: false },
     { role: 'cavalry', url: cavalryModelUrl, mounted: true },
+    { role: 'archer', url: archerModelUrl, mounted: false },
   ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {

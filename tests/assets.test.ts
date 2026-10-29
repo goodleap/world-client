@@ -70,7 +70,7 @@ test('soldier production leaves every base-human source and asset unchanged', ()
   }
 });
 
-for (const role of ['infantry']) {
+for (const role of ['infantry', 'archer']) {
   const soldier = asset(`../studies/soldiers/${role}/${role}.glb`);
   test(`${role} retains the base human skin, skeleton and body geometry`, () => {
     const skeleton = (a: typeof base) => a.json.skins[0].joints.map(i => {

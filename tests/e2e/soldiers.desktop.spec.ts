@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openGame, snapshot } from './helpers.ts';
 
-for (const role of ['infantry', 'cavalry']) {
+for (const role of ['infantry', 'cavalry', 'archer']) {
 test(`${role} uses the dressed shared rig for wandering, commanded running, and arrival`, async ({ page }, info) => {
   test.setTimeout(240_000);
   const errors = await openGame(page);

@@ -17,7 +17,7 @@ test('residents including the base character render and wander safely', async ({
   expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(8);
   const parts = Object.fromEntries(initial.map((r) => [r.role, r.parts]));
   expect(parts.farmer).toContain('straw-sandal');
-  for (const role of ['worker', 'archer']) {
+  for (const role of ['worker']) {
     expect(initial.find((r) => r.role === role)!.placeholder).toBe(true);
     expect(initial.find((r) => r.role === role)!.legacyVisible).toBe(false);
     await expect(page.locator(`[data-resident="${role}"]`)).toContainText('占位');
@@ -34,6 +34,17 @@ test('residents including the base character render and wander safely', async ({
   expect(cavalry.model?.bones.filter(name => name.startsWith('Horse.'))).toHaveLength(17);
   expect(cavalry.model?.meshes).toEqual(expect.arrayContaining(['Horse • continuous body neck head and legs', 'Lance • leaf steel point']));
   await expect(page.locator('[data-resident="cavalry"]')).toHaveText('骑兵');
+  const archer = initial.find(r => r.role === 'archer')!;
+  expect(archer.placeholder).toBe(false);
+  expect(archer.legacyVisible).toBe(false);
+  expect(archer.model?.bones).toHaveLength(20);
+  // Babylon imports the quiver's leather and inner lining as two primitives.
+  expect(archer.model?.meshes).toEqual(expect.arrayContaining([
+    'Bow • continuous curved wooden limbs',
+    'Quiver • rounded hollow leather shell_primitive0',
+    'Quiver • rounded hollow leather shell_primitive1',
+  ]));
+  await expect(page.locator('[data-resident="archer"]')).toHaveText('弓兵');
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
   await expect.poll(async () => (await snapshot(page)).residents.map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })

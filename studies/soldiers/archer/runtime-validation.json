@@ -1,0 +1,64 @@
+{
+  "base_source": "../base-source.json",
+  "human_bones": 20,
+  "unchanged_geometry": [
+    "head",
+    "torso",
+    "arms",
+    "shirt",
+    "shorts"
+  ],
+  "shared_motion": "Same held-arm Walk and Run as infantry, with unchanged base root, torso, head, pelvis and leg channels and original timing",
+  "visual_review": {
+    "views": [
+      "front",
+      "side",
+      "back",
+      "game",
+      "180x240 mobile"
+    ],
+    "status": "self-reviewed; user review pending",
+    "findings": "Shared uniform and helmet; continuous wooden bow, taut string, hollow diagonal quiver, ivory arrow fletching and fitted shoulder strap. Held arrow clears the rounded belly; quiver clears the head during Run."
+  },
+  "cycles": {
+    "Walk": {
+      "duration_seconds": 0.5,
+      "rendered_phases": 60,
+      "side_view_phases": 12,
+      "sampled_meshes": [
+        "Boot.L",
+        "Boot.R",
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.R",
+        "Leather shoulder strap.-1",
+        "Leather shoulder strap.1",
+        "Leather vest \u2022 rounded belly"
+      ],
+      "all_sampled_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_H": 0.0031202060636132956
+    },
+    "Run": {
+      "duration_seconds": 0.45,
+      "rendered_phases": 60,
+      "side_view_phases": 12,
+      "sampled_meshes": [
+        "Boot.L",
+        "Boot.R",
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.R",
+        "Leather shoulder strap.-1",
+        "Leather shoulder strap.1",
+        "Leather vest \u2022 rounded belly"
+      ],
+      "all_sampled_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_H": 0.0029211656656116247
+    }
+  },
+  "sha256": {
+    "archer.blend": "f33b1cd00fa078c74de8a589c7401a2cf27a6047ebb009559a06ba8af8b750c7",
+    "archer.glb": "a0e020166b6c3247dbc50f1c815a32e0f213ca899917ee4d9ade1acf93d8da0d",
+    "preview.png": "ce45b0e31e587b0c3c79f40d322011752fc8bf61170fb157e260bb8310e31bf4"
+  }
+}

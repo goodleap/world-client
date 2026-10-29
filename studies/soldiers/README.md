@@ -28,3 +28,13 @@ blender -b -t 8 --python studies/soldiers/build_soldier.py -- --role cavalry
 
 `cavalry/preview.png` 同样来自实际导出 GLB；已检查四个主要视角、180×240 缩小图、
 每个动作的 60 帧完整游戏视角周期及 12 帧侧面姿态，并验证 Demo 中的慢行、快步和骑乘待机。
+
+弓兵复用步兵的制服、钢盔和持械 Walk／Run，并添加木弓、弓弦、斜背箭筒、羽箭、肩带与手持箭。
+身体网格、20 根骨骼、身体／腿部动作及其时序继续与基础资源保持一致。
+`archer/preview.png` 是实际 GLB 多视角渲染，已检查手机缩小视图和完整 Walk／Run 周期。
+
+```sh
+blender -b -t 8 --python studies/soldiers/build_soldier.py -- --role archer
+```
+
+[三兵种同一世界尺度的实际 GLB 总览](preview.png)。

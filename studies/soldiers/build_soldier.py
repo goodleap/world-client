@@ -12,7 +12,7 @@ sys.path.insert(0,str(ROOT))
 import dressing
 
 parser=argparse.ArgumentParser()
-parser.add_argument('--role',choices=['infantry','cavalry'],required=True)
+parser.add_argument('--role',choices=['infantry','cavalry','archer'],required=True)
 parser.add_argument('--output')
 parser.add_argument('--proxy',action='store_true',help='Review mounted bones and full-size hoof proxies first')
 args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
@@ -40,7 +40,10 @@ if args.role=='cavalry':
 else:
     mats=dressing.uniform(rig)
     dressing.helmet(mats)
-    dressing.sword_and_shield(mats)
+    if args.role=='infantry':dressing.sword_and_shield(mats)
+    else:
+        import archer
+        archer.equipment(mats)
     dressing.held_arm_poses()
 dressing.export(out,args.role)
 print('EXPORTED',args.role,len(rig.data.bones),[a.name for a in bpy.data.actions])
