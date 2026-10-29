@@ -62,11 +62,15 @@ export async function createGame(ui: GameUI) {
     else zoom = Math.max(6, Math.min(18, zoom + delta));
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
-  const input = new MovementInput(ui.canvas, zoomBy, (dx, dy) => {
+  const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
     if (ui.paused) return;
+    // Take over from the currently visible center, including an unfinished
+    // preview/reset transition. Pointer motion is direct manipulation.
+    if (started) mapCenter.copyFrom(camera.target);
     setPreview(); overview = false; ui.setOverview(false);
     const units = 2 * currentZoom / Math.max(1, ui.canvas.clientHeight);
     mapCenter.x -= dx * units; mapCenter.z += dy * units / Math.max(0.2, Math.cos(camera.beta)); clampCenter();
+    camera.target.copyFrom(mapCenter);
   }, (clientX, clientY) => {
     if (ui.paused) return;
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
@@ -154,7 +158,9 @@ export async function createGame(ui: GameUI) {
   return {
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
-      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z },
+      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
+        target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
+      input: { dragging: input.isDragging },
       selection: { resident: residents.selectedId(), building: selectedBuilding },
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,

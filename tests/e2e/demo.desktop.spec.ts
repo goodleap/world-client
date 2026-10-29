@@ -10,7 +10,14 @@ test('WASD and drag pan the camera and release stops movement', async ({ page })
   const stopped = (await snapshot(page)).camera.x;
   await page.waitForTimeout(250); expect((await snapshot(page)).camera.x).toBe(stopped);
   await page.mouse.move(600, 500); await page.mouse.down(); await page.mouse.move(670, 500, { steps: 4 }); await page.mouse.up();
-  await expect.poll(async () => (await snapshot(page)).camera.x).toBeLessThan(stopped - 0.4);
+  const afterDrag = await snapshot(page);
+  expect(afterDrag.camera.x).toBeLessThan(stopped - 0.4);
+  expect(afterDrag.camera.target.x).toBe(afterDrag.camera.x);
+  expect(afterDrag.camera.target.z).toBe(afterDrag.camera.z);
+  expect(afterDrag.selection.resident).toBeUndefined();
+  expect(afterDrag.selection.building).toBeUndefined();
+  await page.waitForTimeout(300);
+  expect((await snapshot(page)).camera.target).toEqual(afterDrag.camera.target);
   expect(errors).toEqual([]);
 });
 

@@ -10,12 +10,14 @@ export class MovementInput {
   private pinched = false;
   private pinchDistance = 0;
   private abort = new AbortController();
+  private canvas: HTMLCanvasElement;
 
   constructor(canvas: HTMLCanvasElement, onZoom: (amount: number) => void,
-    onPan: (dx: number, dy: number) => void, onTap: (x: number, y: number) => void) {
+    onPan: (dx: number, dy: number, started: boolean) => void, onTap: (x: number, y: number) => void) {
+    this.canvas = canvas;
     const options = { signal: this.abort.signal };
     const keys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
-    const reset = () => { this.keys.clear(); this.pointers.clear(); this.pinchDistance = 0; this.pinched = false; };
+    const reset = () => this.reset();
     window.addEventListener('keydown', (event) => {
       if (!keys.includes(event.code) || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.target instanceof HTMLElement && event.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
@@ -41,9 +43,9 @@ export class MovementInput {
       }
       if (this.pinched) return;
       if (!this.dragged && Math.hypot(event.clientX - this.origin.x, event.clientY - this.origin.y) >= 8) {
-        this.dragged = true; onPan(event.clientX - this.origin.x, event.clientY - this.origin.y); return;
+        this.dragged = true; onPan(event.clientX - this.origin.x, event.clientY - this.origin.y, true); return;
       }
-      if (this.dragged) onPan(event.clientX - last.x, event.clientY - last.y);
+      if (this.dragged) onPan(event.clientX - last.x, event.clientY - last.y, false);
     }, options);
     const release = (event: PointerEvent) => {
       if (!this.pointers.has(event.pointerId)) return;
@@ -62,5 +64,12 @@ export class MovementInput {
     const z = Number(this.keys.has('KeyW') || this.keys.has('ArrowUp')) - Number(this.keys.has('KeyS') || this.keys.has('ArrowDown'));
     return normalizeInput(x, z);
   }
-  dispose() { this.abort.abort(); this.keys.clear(); this.pointers.clear(); }
+  get isDragging() { return this.dragged && this.pointers.size > 0; }
+  reset() {
+    const ids = [...this.pointers.keys()];
+    this.keys.clear(); this.pointers.clear(); this.pinchDistance = 0;
+    this.pinched = false; this.dragged = false; this.origin = { x: 0, y: 0 };
+    for (const id of ids) if (this.canvas.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
+  }
+  dispose() { this.reset(); this.abort.abort(); }
 }

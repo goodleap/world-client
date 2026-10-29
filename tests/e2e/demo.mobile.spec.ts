@@ -7,8 +7,14 @@ test('touch drag pans map; pinch zooms', async ({ page }) => {
   const touch = await page.context().newCDPSession(page);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 120, y: 550, id: 1 }] });
   await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 190, y: 500, id: 1 }] });
+  const dragging = await snapshot(page);
+  expect(dragging.camera.target.x).toBe(dragging.camera.x);
+  expect(dragging.camera.target.z).toBe(dragging.camera.z);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   expect((await snapshot(page)).camera.x).toBeLessThan(before.x - 0.4);
+  await page.waitForTimeout(300);
+  expect((await snapshot(page)).camera.target).toEqual(dragging.camera.target);
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
   const zoom = (await snapshot(page)).camera.zoom;
   await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 140, y: 500, id: 1 }, { x: 240, y: 500, id: 2 }] });
   await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 100, y: 500, id: 1 }, { x: 280, y: 500, id: 2 }] });
