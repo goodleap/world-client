@@ -25,12 +25,12 @@ function pose(name = 'Walk', phase = 0) {
   scene.render();
 }
 function view(name: string) {
-  camera.target.set(0, .89, 0);
+  camera.target.set(0, Number(params.get('center') || .89), 0);
   camera.alpha = Math.PI / 2; camera.beta = Math.PI / 2;
-  let height = 2.1;
+  let height = Number(params.get('height') || 2.1);
   if (name === 'side') camera.alpha = 0;
   if (name === 'back') camera.alpha = -Math.PI / 2;
-  if (name === 'game' || name === 'mobile') { camera.alpha = 1.13; camera.beta = 1.03; height = 2.25; }
+  if (name === 'game' || name === 'mobile') { camera.alpha = 1.13; camera.beta = 1.03; height *= 2.25 / 2.1; }
   if (name === 'hands') { camera.target.set(-.40, .405, .015); camera.alpha = 2.25; camera.beta = 1.35; height = .32; }
   if (name === 'feet') { camera.target.set(0, .080, .080); camera.alpha = 1.35; camera.beta = .97; height = .88; }
   camera.orthoTop = height / 2; camera.orthoBottom = -height / 2;

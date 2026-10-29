@@ -1,0 +1,16 @@
+{
+  "source_commit": "613904a",
+  "base_directory": "studies/base-human",
+  "sha256": {
+    "README.md": "409cc1291663b30a1c81651497a5dc36e4073573dcf5fc54dd4f5d0fdfc41f03",
+    "animation-metadata.json": "be55c621599d95ffd94a94f1cd7e73bee35c9489bc7c603a4585337e0754fd55",
+    "base-human.blend": "a6942046504057b6cdee5e32f4d130c6fb1d40a941df38cfb23ba0d91261a2e3",
+    "base-human.glb": "124e6a1c91039c8f15f790f8d6220c95ff9c3dec5094603c89afb8986022ebb7",
+    "bind_model.py": "b5fae12fefee5c93e13488b0576e742970d6477d6b291895d944c22b142c5c11",
+    "build_model.py": "beb4c942fb4b2b7e14eaf939292c8d3113765dbad6f689bbadcbd6b9c9a2e7ea",
+    "rig-motion-plan.json": "c4a5cc891aac0d629f2ebac6f505698022a9117cefed39dce0198d2639259baf",
+    "rig-report.json": "3995a5c94e7293ae89eb37dc4aa0b5049a8c5bf843a787ac24bcca30fc5b6f8f",
+    "rig_motion.py": "d6aa5fbf66de7ee32581c1e716d5f98e0f1a84a6d6204bb85893dcba901b0cec",
+    "runtime-validation.json": "2d28f9f4d0a1be42897fab21995896d680a69513f5b62fbf50cfb52273a78e5f"
+  }
+}

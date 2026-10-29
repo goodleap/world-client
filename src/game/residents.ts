@@ -16,6 +16,7 @@ import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loadin
 import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
 import baseModelUrl from '../../studies/base-human/base-human.glb?url';
+import infantryModelUrl from '../../studies/soldiers/infantry/infantry.glb?url';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
@@ -26,7 +27,8 @@ const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_re
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
-  const placeholderRoles = new Set(['worker', 'infantry', 'archer', 'cavalry']);
+  const placeholderRoles = new Set(['worker', 'archer', 'cavalry']);
+  const soldierAssets = [{ role: 'infantry', url: infantryModelUrl }] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
@@ -68,6 +70,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   type Motion = 'idle' | 'walk' | 'run';
   type Locomotion = { walk: AnimationGroup; run: AnimationGroup; motion: Motion };
   const locomotion = new Map<string, Locomotion>();
+  const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
+  const soldierBones = new Map<string, Bone[]>();
   const prepareBaseMaterials = (materials: readonly (Material | null)[]) => {
     for (const material of new Set(materials)) {
       // Match the new PBR asset to this scene's light levels, retaining its
@@ -132,6 +136,30 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
       }
       baseModelLoaded = true;
+    },
+    async loadSoldierModels() {
+      for (const asset of soldierAssets) {
+        const actor = actors.find(entry => entry.definition.role === asset.role)!;
+        const result = await ImportMeshAsync(asset.url, scene);
+        prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
+        const walk = result.animationGroups.find(group => group.name === 'Walk');
+        const run = result.animationGroups.find(group => group.name === 'Run');
+        if (!walk || !run) throw new Error(`${asset.role} needs Walk and Run animations`);
+        registerLocomotion(actor.definition.id, walk, run);
+        result.meshes[0].parent = actor.root;
+        actor.human!.mesh.setEnabled(false);
+        actor.animal?.mesh.setEnabled(false);
+        for (const mesh of result.meshes) {
+          mesh.isPickable = false;
+          if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+        }
+        soldierModels.set(actor.definition.id, {
+          bones: result.skeletons.flatMap(skeleton => skeleton.bones.map(bone => bone.name)),
+          meshes: result.meshes.map(mesh => mesh.name),
+          animations: result.animationGroups.map(group => group.name),
+        });
+        soldierBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
+      }
     },
     async loadRolePlaceholders() {
       const container = await LoadAssetContainerAsync(baseModelUrl, scene);
@@ -245,6 +273,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     snapshot: () => actors.map((actor) => ({
       id: actor.definition.id, role: actor.definition.role,
+      model: soldierModels.get(actor.definition.id),
+      modelPose: soldierBones.get(actor.definition.id)?.map(bone =>
+        (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
+      motion: locomotion.get(actor.definition.id)?.motion,
+      walking: locomotion.get(actor.definition.id)?.walk.isPlaying ?? false,
+      running: locomotion.get(actor.definition.id)?.run.isPlaying ?? false,
       placeholder: placeholderRoles.has(actor.definition.role) && locomotion.has(actor.definition.id),
       placeholderWalking: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.walk.isPlaying ?? false),
       placeholderRunning: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.run.isPlaying ?? false),

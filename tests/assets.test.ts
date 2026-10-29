@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 type Accessor = { bufferView: number; byteOffset?: number; count: number; componentType: number; type: string };
 type GLTF = {
@@ -60,3 +61,62 @@ test('farmer reuses every Walk and Run channel, including timing, instead of spe
     assert.ok(Math.abs(times.readFloatLE(times.length - 4) - duration) < 1e-6);
   }
 });
+
+test('soldier production leaves every base-human source and asset unchanged', () => {
+  const record = JSON.parse(readFileSync(new URL('../studies/soldiers/base-source.json', import.meta.url), 'utf8'));
+  for (const [name, expected] of Object.entries(record.sha256)) {
+    const source = readFileSync(new URL('../studies/base-human/' + name, import.meta.url));
+    assert.equal(createHash('sha256').update(source).digest('hex'), expected, name);
+  }
+});
+
+for (const role of ['infantry']) {
+  const soldier = asset(`../studies/soldiers/${role}/${role}.glb`);
+  test(`${role} retains the base human skin, skeleton and body geometry`, () => {
+    const skeleton = (a: typeof base) => a.json.skins[0].joints.map(i => {
+      const n = a.json.nodes[i];
+      return { name: n.name, matrix: n.matrix, translation: n.translation, rotation: n.rotation, scale: n.scale,
+        children: n.children?.map(j => a.json.nodes[j].name) };
+    });
+    assert.equal(skeleton(soldier).length, 20);
+    assert.deepEqual(skeleton(soldier), skeleton(base));
+    assert.deepEqual(soldier.bytes(soldier.json.skins[0].inverseBindMatrices), base.bytes(base.json.skins[0].inverseBindMatrices));
+    for (const name of ['Head • shaped cranium cheeks and jaw', 'Torso skin', 'Continuous arm and fist.L',
+      'Continuous arm and fist.R', 'T-shirt • connected shoulders', 'Shorts • shaped hip and separate legs']) {
+      const positions = (a: typeof base) => a.bytes(a.json.meshes[a.json.nodes.find(n => n.name === name)!.mesh!].primitives[0].attributes.POSITION);
+      assert.deepEqual(positions(soldier), positions(base), name);
+    }
+  });
+  test(`${role} preserves the complete shared gait and timing with only carried-weapon arm adaptation`, () => {
+    assert.deepEqual(soldier.json.animations.map(c => c.name).sort(), ['Run', 'Walk']);
+    for (const clip of base.json.animations) {
+      const target = soldier.json.animations.find(c => c.name === clip.name)!;
+      assert.equal(target.channels.length, clip.channels.length);
+      for (const channel of clip.channels) {
+        const name = base.json.nodes[channel.target.node].name;
+        const match = target.channels.find(c => soldier.json.nodes[c.target.node].name === name && c.target.path === channel.target.path)!;
+        const original = clip.samplers[channel.sampler], adapted = target.samplers[match.sampler];
+        const carriedArm = /^(upper_arm|forearm|hand)\./.test(name);
+        const oldTimes = base.bytes(original.input), newTimes = soldier.bytes(adapted.input);
+        if (!carriedArm) assert.deepEqual(newTimes, oldTimes);
+        else {
+          // Constant carry channels may be reduced to their two endpoints.
+          assert.equal(newTimes.readFloatLE(0), oldTimes.readFloatLE(0));
+          assert.equal(newTimes.readFloatLE(newTimes.length - 4), oldTimes.readFloatLE(oldTimes.length - 4));
+        }
+        if (!carriedArm) {
+          assert.equal(adapted.interpolation, original.interpolation);
+          assert.deepEqual(soldier.bytes(adapted.output), base.bytes(original.output), clip.name + '/' + name + '/' + channel.target.path);
+        } else if (channel.target.path !== 'rotation') {
+          // glTF decomposes the rotated joint matrices; preserve translation
+          // and scale to float32 rounding rather than comparing their bytes.
+          const expected = base.bytes(original.output), actual = soldier.bytes(adapted.output);
+          assert.equal(actual.length, expected.length);
+          for (let i = 0; i < actual.length; i += 4) {
+            assert.ok(Math.abs(actual.readFloatLE(i) - expected.readFloatLE(i)) < 1e-6);
+          }
+        }
+      }
+    }
+  });
+}

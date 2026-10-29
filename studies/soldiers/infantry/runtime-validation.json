@@ -1,0 +1,90 @@
+{
+  "base_source": "../base-source.json",
+  "human_bones": 20,
+  "unchanged_geometry": [
+    "head",
+    "torso",
+    "arms",
+    "shirt",
+    "shorts"
+  ],
+  "shared_motion": "Walk and Run root, torso, head, pelvis and leg channels; source timing preserved",
+  "adapted_copy_only": [
+    "upper_arm.L",
+    "upper_arm.R",
+    "forearm.L",
+    "forearm.R",
+    "hand.L",
+    "hand.R"
+  ],
+  "visual_review": {
+    "views": [
+      "front",
+      "side",
+      "back",
+      "game",
+      "180x240 mobile"
+    ],
+    "status": "self-reviewed; user review pending",
+    "findings": "Rounded crown, blue crest, fitted leather/blue uniform and sword/shield match the reference direction. Relaxed carry avoids shield roll and fist compression; no head/body changes."
+  },
+  "cycles": {
+    "Walk": {
+      "duration_seconds": 0.5,
+      "rendered_phases": 60,
+      "side_view_phases": 12,
+      "sampled_meshes": [
+        "Boot.L",
+        "Boot.R",
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.R",
+        "Leather shoulder strap.-1",
+        "Leather shoulder strap.1",
+        "Leather vest \u2022 rounded belly",
+        "Shield \u2022 central boss",
+        "Shield \u2022 convex blue face",
+        "Shield \u2022 metal brace 0",
+        "Shield \u2022 metal brace 2",
+        "Shield \u2022 steel rim",
+        "Sword \u2022 brass pommel",
+        "Sword \u2022 broad steel blade",
+        "Sword \u2022 leather grip",
+        "Sword \u2022 rounded crossguard"
+      ],
+      "all_sampled_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_H": 0.0031202060636132956
+    },
+    "Run": {
+      "duration_seconds": 0.45,
+      "rendered_phases": 60,
+      "side_view_phases": 12,
+      "sampled_meshes": [
+        "Boot.L",
+        "Boot.R",
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.R",
+        "Leather shoulder strap.-1",
+        "Leather shoulder strap.1",
+        "Leather vest \u2022 rounded belly",
+        "Shield \u2022 central boss",
+        "Shield \u2022 convex blue face",
+        "Shield \u2022 metal brace 0",
+        "Shield \u2022 metal brace 2",
+        "Shield \u2022 steel rim",
+        "Sword \u2022 brass pommel",
+        "Sword \u2022 broad steel blade",
+        "Sword \u2022 leather grip",
+        "Sword \u2022 rounded crossguard"
+      ],
+      "all_sampled_vertices_finite": true,
+      "sampled_loop_seam_max_H": 0.0,
+      "boots_min_y_H": 0.0029211656656116247
+    }
+  },
+  "sha256": {
+    "infantry.blend": "53eda3fc8fd39625c71609698a3929a02ccc64745e296b541e58383965be8afe",
+    "infantry.glb": "9ea726151b79821ae27b589b1d9ee1af98582382fcc0f63df52069dc3d020e4f",
+    "preview.png": "f637363ffe62e71161aaf2508413cbf278e0ccd622e44ea35c9e2f9c6d841f9e"
+  }
+}

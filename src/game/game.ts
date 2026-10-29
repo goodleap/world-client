@@ -29,6 +29,7 @@ export async function createGame(ui: GameUI) {
   const residents = createResidents(scene, palette, shadows, ui);
   await residents.loadFarmerModel();
   await residents.loadBaseModel();
+  await residents.loadSoldierModels();
   await residents.loadRolePlaceholders();
   const buildingMarkers = new Map<string, ReturnType<typeof MeshBuilder.CreateLines>>();
   for (const building of BUILDINGS) {

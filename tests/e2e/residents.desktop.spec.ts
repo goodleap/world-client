@@ -17,11 +17,17 @@ test('residents including the base character render and wander safely', async ({
   expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(8);
   const parts = Object.fromEntries(initial.map((r) => [r.role, r.parts]));
   expect(parts.farmer).toContain('straw-sandal');
-  for (const role of ['worker', 'infantry', 'archer', 'cavalry']) {
+  for (const role of ['worker', 'archer', 'cavalry']) {
     expect(initial.find((r) => r.role === role)!.placeholder).toBe(true);
     expect(initial.find((r) => r.role === role)!.legacyVisible).toBe(false);
     await expect(page.locator(`[data-resident="${role}"]`)).toContainText('占位');
   }
+  const infantry = initial.find(r => r.role === 'infantry')!;
+  expect(infantry.placeholder).toBe(false);
+  expect(infantry.legacyVisible).toBe(false);
+  expect(infantry.model?.bones).toHaveLength(20);
+  expect(infantry.model?.meshes).toEqual(expect.arrayContaining(['Helmet • rounded steel crown', 'Sword • broad steel blade', 'Shield • convex blue face']));
+  await expect(page.locator('[data-resident="infantry"]')).toHaveText('步兵');
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
   await expect.poll(async () => (await snapshot(page)).residents.map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
@@ -37,7 +43,7 @@ test('residents including the base character render and wander safely', async ({
   await expect.poll(async () => {
     const state = await snapshot(page);
     return state.baseWalking || state.baseRunning || state.farmerWalking
-      || state.residents.some((actor) => actor.placeholderWalking || actor.placeholderRunning);
+      || state.residents.some((actor) => actor.walking || actor.running);
   }).toBe(false);
   const paused = (await snapshot(page)).residents;
   await page.waitForTimeout(400);
