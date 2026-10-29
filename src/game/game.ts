@@ -243,6 +243,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
+      shadows: {
+        filter: shadows.filter,
+        casters: (shadows.getShadowMap()?.renderList ?? []).filter(mesh => mesh.isEnabled() && mesh.isVisible)
+          .map(mesh => ({ name: mesh.name, receive: mesh.receiveShadows })),
+        groundReceives: scene.getMeshByName('world-meadow')?.receiveShadows ?? false,
+      },
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),
     dispose() {

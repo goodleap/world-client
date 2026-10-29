@@ -150,9 +150,8 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
   for (const mesh of scene.meshes) {
     if (before.has(mesh)) continue;
     mesh.isPickable = false;
-    // Painted crowns/roof tiles carry their own volume shading. Receiving their
-    // own shadow map creates false hard bands across these small curved parts.
-    mesh.receiveShadows = ['meadow', 'soil', 'stone', 'stoneLight', 'water'].includes(mesh.material?.name ?? '');
+    // Ground, walls, roofs and plants all participate in the same soft daylight.
+    mesh.receiveShadows = true;
     mesh.freezeWorldMatrix();
     if (mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24 && mesh.material?.name !== 'earth') shadows.addShadowCaster(mesh);
   }

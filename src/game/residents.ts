@@ -131,7 +131,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       farmer.human!.mesh.setEnabled(false);
       for (const mesh of result.meshes) {
         mesh.isPickable = false;
-        if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+        if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
       }
       farmerModelLoaded = true;
       report?.(1);
@@ -150,7 +150,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       baseHuman.human!.mesh.setEnabled(false);
       for (const mesh of result.meshes) {
         mesh.isPickable = false;
-        if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+        if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
       }
       baseModelLoaded = true;
       report?.(1);
@@ -175,7 +175,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.animal?.mesh.setEnabled(false);
         for (const mesh of result.meshes) {
           mesh.isPickable = false;
-          if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+          if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
         }
         soldierModels.set(actor.definition.id, {
           bones: result.skeletons.flatMap(skeleton => skeleton.bones.map(bone => bone.name)),
@@ -199,7 +199,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           root.parent = actor.root;
           for (const mesh of root.getChildMeshes()) {
             mesh.isPickable = false;
-            if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+            if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
           }
         }
         actor.human?.mesh.setEnabled(false);

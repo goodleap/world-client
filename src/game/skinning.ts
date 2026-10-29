@@ -31,8 +31,7 @@ export function createSkinAssembly() {
       if (!mesh) throw new Error(`Cannot assemble ${name}.`);
       mesh.name = name; mesh.parent = root; mesh.skeleton = skeleton;
       mesh.numBoneInfluencers = 1; mesh.isPickable = false;
-      // Cast ground shadows while keeping small faces readable with scene-light shading.
-      mesh.alwaysSelectAsActiveMesh = true; mesh.receiveShadows = false;
+      mesh.alwaysSelectAsActiveMesh = true; mesh.receiveShadows = true;
       shadows.addShadowCaster(mesh);
       return { mesh, partNames };
     },
