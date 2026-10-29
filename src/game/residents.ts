@@ -73,7 +73,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       // original albedo and facial vertex colors rather than recoloring it.
       if (material instanceof PBRMaterial) {
         const cotton = material.name === 'Warm ivory cotton' || material.name === 'Cotton hems';
-        material.directIntensity = cotton ? 1.35 : 1.65;
+        material.directIntensity = cotton ? 1 : 1.12;
       }
     }
   };
@@ -109,12 +109,18 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     async loadFarmerModel() {
       const result = await ImportMeshAsync(farmerModelUrl, scene);
       applyCharacterColors(result.meshes.map((mesh) => mesh.material));
+      for (const material of new Set(result.meshes.map(mesh => mesh.material))) {
+        if (material instanceof PBRMaterial) material.directIntensity = 1.12;
+      }
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
       if (!farmerWalk) throw new Error('Farmer model is missing its walk animation');
       farmerWalk.stop(); farmerWalk.reset();
       result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
-      for (const mesh of result.meshes) mesh.isPickable = false;
+      for (const mesh of result.meshes) {
+        mesh.isPickable = false;
+        if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh, false);
+      }
       farmerModelLoaded = true;
     },
     async loadBaseModel() {

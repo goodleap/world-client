@@ -37,7 +37,7 @@ export const LANDMARKS: readonly Landmark[] = [
 
 export const OBSTACLES: readonly Obstacle[] = [
   ...BUILDINGS.map((b): Obstacle => ({ kind: 'box', x: b.x, z: b.z, halfWidth: b.width / 2 + 0.08, halfDepth: b.depth / 2 + 0.08 })),
-  ...TREES.map((t): Obstacle => ({ kind: 'circle', x: t.x, z: t.z, radius: 0.25 * t.scale })),
+  ...TREES.map((t): Obstacle => ({ kind: 'circle', x: t.x, z: t.z, radius: 0.5 * t.scale })),
   ...FENCES.map((f): Obstacle => ({ kind: 'box', x: f.x + 0.86, z: f.z, halfWidth: 1.0, halfDepth: 0.09 })),
   { kind: 'circle', x: 1.5, z: 7.2, radius: 0.95 },
   { kind: 'circle', x: -7.2, z: -3.7, radius: 2.15 },

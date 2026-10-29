@@ -9,13 +9,13 @@ import type { Scene } from '@babylonjs/core/scene';
 
 export function createPalette(scene: Scene) {
   const colors = {
-    grass: '#78b438', grassLight: '#a1d34c', grassDark: '#579329', earth: '#a77942',
-    path: '#e8b04f', pathLight: '#f9d273', cream: '#ffe0a0', plaster: '#ffd18a',
-    terracotta: '#d94c21', roofLight: '#f96f35', roofDark: '#b7351d', sage: '#418464',
-    timber: '#92501d', timberLight: '#b87532', woodDark: '#553019', window: '#18877e',
-    leaf: '#268f2c', leafLight: '#60c83b', leafDark: '#176b29', golden: '#e2a72d',
-    stone: '#a9aaa0', stoneLight: '#ded3bb', soil: '#a85c2f', water: '#1da9b8',
-    waterLight: '#8be5dc', flower: '#fff0b3', linen: '#ffe3a0', shirt: '#3475b6',
+    grass: '#83ba38', grassLight: '#a5cc44', grassDark: '#5b9e2d', earth: '#b47b3f',
+    path: '#e9ba68', pathLight: '#f1ce88', cream: '#f9e6c0', plaster: '#f9e6c0',
+    terracotta: '#db512b', roofLight: '#ee6634', roofDark: '#ad3c25', sage: '#247f72',
+    timber: '#aa6b30', timberLight: '#c48b43', woodDark: '#784521', window: '#1b777e',
+    leaf: '#4ca244', leafLight: '#87bf36', leafDark: '#2f8643', golden: '#e9b73e',
+    stone: '#b4b0a3', stoneLight: '#d7d0bb', soil: '#a86637', water: '#26b1ce',
+    waterLight: '#90d8df', flower: '#fff5d4', linen: '#f7d182', shirt: '#3475b6',
     pants: '#425b64', skin: '#f9ae78', hair: '#63371e', boot: '#75401f', blush: '#e77d60',
     flax: '#f6dca6', sandCloth: '#d6a765', workCloth: '#ad6c34', leather: '#a85d27',
     leatherDark: '#6f3619', metal: '#9daab3', metalLight: '#d9e1dc', straw: '#e4ba61',
