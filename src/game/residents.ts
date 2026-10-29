@@ -12,13 +12,14 @@ import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { moveCharacter } from './movement.ts';
 import { findPath } from './pathfinding.ts';
-import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader';
+import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import farmerModelUrl from '../../studies/farmer/farmer-scarf.glb?url';
 import baseModelUrl from '../../studies/farmer/base-human-rig.glb?url';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
+  const placeholderRoles = new Set(['worker', 'infantry', 'archer', 'cavalry']);
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
@@ -40,7 +41,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
     marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
-    const label = ui.addResidentLabel(definition.id, definition.name);
+    const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
     return { definition, random, settings, state, human, animal, root, label, marker, route: [] as Point[] };
   });
   const labelPoint = new Vector3();
@@ -52,6 +53,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   let selected: typeof actors[number] | undefined;
   let farmerWalk: AnimationGroup | undefined;
   let baseWalk: AnimationGroup | undefined;
+  const placeholderWalks = new Map<string, AnimationGroup>();
   const setWalking = (group: AnimationGroup | undefined, walking: boolean) => {
     if (!group) return;
     if (walking && !group.isPlaying) group.play(true);
@@ -81,6 +83,22 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const mesh of result.meshes) mesh.isPickable = false;
       baseModelLoaded = true;
     },
+    async loadRolePlaceholders() {
+      const container = await LoadAssetContainerAsync(baseModelUrl, scene);
+      for (const actor of actors.filter((entry) => placeholderRoles.has(entry.definition.role))) {
+        const instance = container.instantiateModelsToScene((name) => `${actor.definition.id}-${name}`, false, { doNotInstantiate: true });
+        const walk = instance.animationGroups.find((group) => group.name.endsWith('-Walk'));
+        if (!walk) throw new Error(`Missing placeholder walk animation for ${actor.definition.id}`);
+        walk.stop(); walk.reset();
+        for (const root of instance.rootNodes) {
+          root.parent = actor.root;
+          for (const mesh of root.getChildMeshes()) mesh.isPickable = false;
+        }
+        actor.human?.mesh.setEnabled(false);
+        if (actor.definition.role === 'cavalry') actor.animal?.mesh.setEnabled(false);
+        placeholderWalks.set(actor.definition.id, walk);
+      }
+    },
     farmerPosition: () => farmer.root.position,
     farmerModelLoaded: () => farmerModelLoaded,
     baseModelLoaded: () => baseModelLoaded,
@@ -108,7 +126,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           setFarmerWalking(seconds > 0);
           continue;
         }
-        if (seconds <= 0) { if (actor === farmer) setFarmerWalking(false); if (actor === baseHuman) setWalking(baseWalk, false); continue; }
+        if (seconds <= 0) { if (actor === farmer) setFarmerWalking(false); if (actor === baseHuman) setWalking(baseWalk, false); setWalking(placeholderWalks.get(actor.definition.id), false); continue; }
         const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
         }));
@@ -135,6 +153,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
         if (actor === farmer) setFarmerWalking(Math.hypot(velocity.x, velocity.z) > 0.08);
         if (actor === baseHuman) setWalking(baseWalk, Math.hypot(velocity.x, velocity.z) > 0.08);
+        setWalking(placeholderWalks.get(actor.definition.id), Math.hypot(velocity.x, velocity.z) > 0.08);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
         actor.human?.update(seconds, velocity.x, velocity.z);
         actor.animal?.update(seconds, velocity.x, velocity.z);
@@ -153,6 +172,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     snapshot: () => actors.map((actor) => ({
       id: actor.definition.id, role: actor.definition.role,
+      placeholder: placeholderWalks.has(actor.definition.id),
+      placeholderWalking: placeholderWalks.get(actor.definition.id)?.isPlaying ?? false,
+      legacyVisible: !!actor.human?.mesh.isEnabled() || (actor.definition.role === 'cavalry' && !!actor.animal?.mesh.isEnabled()),
       position: { ...actor.state.position }, state: actor.state.target ? 'walking' : 'idle',
       travelled: actor.state.distanceTravelled, reached: actor.state.destinationsReached,
       bodyRadius: actor.definition.bodyRadius,
