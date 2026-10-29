@@ -3,13 +3,14 @@ import { openGame, snapshot } from './helpers.ts';
 import { isBlocked } from '../../src/game/movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES } from '../../src/game/resident-data.ts';
 
-test('six equipped residents render, use independent shared human rigs, and wander safely', async ({ page }) => {
+test('residents including the base character render and wander safely', async ({ page }) => {
   const errors = await openGame(page);
   const initial = (await snapshot(page)).residents;
-  expect(initial.map((r) => r.role)).toEqual(['farmer', 'worker', 'infantry', 'archer', 'cavalry', 'dog']);
+  expect(initial.map((r) => r.role)).toEqual(['farmer', 'worker', 'infantry', 'archer', 'cavalry', 'dog', 'base']);
+  expect((await snapshot(page)).baseModelLoaded).toBe(true);
   const humans = initial.filter((r) => r.humanBones.length > 0);
-  expect(humans).toHaveLength(5);
-  expect(new Set(humans.map((r) => r.humanRigId)).size).toBe(5);
+  expect(humans).toHaveLength(6);
+  expect(new Set(humans.map((r) => r.humanRigId)).size).toBe(6);
   for (const human of humans) expect(human.humanBones).toEqual(initial[0].humanBones);
   expect(initial.find((r) => r.role === 'cavalry')!.animalBones).toHaveLength(8);
   expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(8);
@@ -20,7 +21,7 @@ test('six equipped residents render, use independent shared human rigs, and wand
   expect(parts.archer).toEqual(expect.arrayContaining(['wooden-bow', 'quiver', 'archer-arrow-fletching']));
   expect(parts.cavalry).toEqual(expect.arrayContaining(['lance-shaft', 'saddle', 'horse-head']));
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
-  await expect(page.locator('[data-resident]')).toHaveCount(6);
+  await expect(page.locator('[data-resident]')).toHaveCount(7);
   await page.waitForFunction(() => window.__DEMO__!.snapshot().residents.every((r) => r.travelled > 0.35), null, { timeout: 40_000 });
   const moving = (await snapshot(page)).residents;
   for (const actor of moving) {

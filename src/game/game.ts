@@ -43,6 +43,7 @@ export async function createGame(ui: GameUI) {
   const world = buildWorld(scene, palette, shadows);
   const residents = createResidents(scene, palette, shadows, ui);
   await residents.loadFarmerModel();
+  await residents.loadBaseModel();
   const buildingMarkers = new Map<string, ReturnType<typeof MeshBuilder.CreateLines>>();
   for (const building of BUILDINGS) {
     const hit = MeshBuilder.CreateBox(`select-${building.id}`, { width: building.width, depth: building.depth, height: building.height + 1.2 }, scene);
@@ -150,6 +151,8 @@ export async function createGame(ui: GameUI) {
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
+      baseModelLoaded: residents.baseModelLoaded(),
+      baseWalking: residents.baseWalking(),
       farmerWalking: residents.farmerWalking(),
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),

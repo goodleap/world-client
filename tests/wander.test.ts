@@ -11,8 +11,8 @@ const settings: WanderSettings = {
   bounds: { minX: -5, maxX: 5, minZ: -5, maxZ: 5 },
 };
 
-test('all six residents spawn on traversable land without overlapping each other', () => {
-  assert.equal(RESIDENTS.length, 6);
+test('all residents spawn on traversable land without overlapping each other', () => {
+  assert.equal(RESIDENTS.length, 7);
   for (let i = 0; i < RESIDENTS.length; i++) {
     const actor = RESIDENTS[i];
     const state = createWanderState(actor.spawn, wanderSettings(actor), RESIDENT_OBSTACLES, seededRandom(i));
@@ -30,7 +30,7 @@ test('targets with clear endpoints are rejected if a wall crosses their route', 
   assert.equal(segmentIsClear({ x: 0, z: 0 }, { x: 4.9, z: 0 }, 0.3, settings.bounds, []), false);
 });
 
-test('six seeded residents wander for two simulated minutes without crossing solids or teleporting', () => {
+test('seeded residents wander for two simulated minutes without crossing solids or teleporting', () => {
   for (let index = 0; index < RESIDENTS.length; index++) {
     const definition = RESIDENTS[index], config = wanderSettings(definition);
     const random = seededRandom(624 + (index + 1) * 1337);
