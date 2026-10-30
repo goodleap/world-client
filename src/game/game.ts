@@ -21,6 +21,7 @@ import type { WorldObject } from './world-selection.ts';
 import { Economy, decodeEconomy, encodeEconomy } from './economy.ts';
 import { economySelection, updateEconomyUI } from './economy-ui.ts';
 import { createEconomyController } from './economy-controller.ts';
+import type { UnitCommand } from './economy-controller.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -41,8 +42,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   try { const saved = localStorage.getItem(saveKey); if (saved) economy = decodeEconomy(saved); }
   catch { startupNotice = '未能读取经营进度，已开始新的家园'; }
   const save = () => {
-    try { localStorage.setItem(saveKey, encodeEconomy(economy)); }
-    catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } }
+    try { localStorage.setItem(saveKey, encodeEconomy(economy)); return true; }
+    catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
   };
   let world: ReturnType<typeof buildWorld>;
   let residents: ReturnType<typeof createResidents>;
@@ -74,32 +75,55 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     marker.color = Color3.FromHexString('#fff0a6'); marker.isPickable = false; marker.setEnabled(false);
   }
   let selectedWorld: WorldObject | undefined;
-  const clearWorld = () => { roundMarker.setEnabled(false); boxMarker.setEnabled(false); selectedWorld = undefined; };
-  const clearSelection = () => { clearWorld(); residents.select(); ui.setSelection(); };
+  const clearWorld = () => { roundMarker.setEnabled(false); boxMarker.setEnabled(false); selectedWorld = undefined; ui.setSelection(); };
+  const clearSelection = () => { clearWorld(); residents.select(); ui.setResident(); };
+  const showObjectActions = (object: WorldObject) => {
+    const details = economySelection(economy, object), unit = residents.selectedId();
+    const task = economy.taskFor(object.id);
+    if (unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
+    if (unit && !residents.canWork(unit) && details.actions?.some(action => action.id !== 'cancel')) {
+      details.hint = '此作业需要农民';
+      details.actions = details.actions.map(action => ({ ...action, disabled: action.id !== 'cancel' }));
+    }
+    ui.setSelection(details);
+  };
   const selectWorld = (object: WorldObject) => {
-    clearWorld(); residents.select(); selectedWorld = object;
+    clearWorld(); selectedWorld = object;
     const marker = object.width && object.depth ? boxMarker : roundMarker;
     marker.scaling.set(object.width ?? object.radius, 1, object.depth ?? object.radius);
     marker.position.set(object.x, object.markerY ?? .035, object.z); marker.setEnabled(true);
-    ui.setSelection(economySelection(economy, object));
+    showObjectActions(object);
   };
   const refreshEconomy = () => {
     updateEconomyUI(ui, economy);
     if (selectedWorld) {
       const object = world.objects.get(selectedWorld.id);
-      if (object) { selectedWorld = object; ui.setSelection(economySelection(economy, object)); }
-      else clearSelection();
+      if (object) { selectedWorld = object; showObjectActions(object); }
+      else clearWorld();
     }
   };
-  ui.bindEconomy(action => {
+  const performAction = (action: string) => {
     if (!selectedWorld || ui.paused || suspended) return;
     const target = selectedWorld.id;
     if (action === 'cancel') {
       const task = economy.taskFor(target); if (task) economy.cancel(task.id);
-    } else if (action === 'sow-carrot' || action === 'sow-wheat') ui.toast(economy.request('sow', target, action === 'sow-carrot' ? 'carrot' : 'wheat').message);
-    else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build') ui.toast(economy.request(action, target).message);
+    } else {
+      let instruction: Extract<UnitCommand, { kind: 'work' }> | undefined;
+      if (action === 'assign') {
+        const task = economy.taskFor(target);
+        if (task) instruction = { kind: 'work', work: task.kind, target, crop: task.crop };
+      } else if (action === 'sow-carrot' || action === 'sow-wheat') instruction = { kind: 'work', work: 'sow', target, crop: action === 'sow-carrot' ? 'carrot' : 'wheat' };
+      else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build') instruction = { kind: 'work', work: action, target };
+      if (instruction) {
+        const id = residents.selectedId();
+        const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);
+        if (result.ok && id) setPreview();
+        ui.toast(result.message);
+      }
+    }
     world.sync(); refreshEconomy(); save();
-  }, id => {
+  };
+  ui.bindEconomy(performAction, id => {
     if (ui.paused || suspended) return;
     if (economy.cancel(id)) { ui.toast('已取消作业'); world.sync(); refreshEconomy(); save(); }
   });
@@ -133,7 +157,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
   const zoomBy = (delta: number) => {
-    if (suspended) return;
+    if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
     else zoom = Math.max(6, Math.min(18, zoom + delta));
   };
@@ -154,23 +178,30 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
       clearWorld();
       const name = residents.select(hit.pickedMesh.metadata.id);
-      if (name) ui.setSelection({ name, kind: residents.selectedId() === 'dog' ? '动物' : '居民',
-        hint: residents.selectedId() === 'farmer' ? '自动接取作业；点击土地或资源下达任务' : residents.selectedCanMove() ? '点击空地，指挥移动' : '自由活动中，暂不可指挥' });
+      ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!));
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
       const id = hit.pickedMesh.metadata.worldObjectId ?? objectAtFace(hit.pickedMesh.metadata.worldFaceRanges, hit.faceId);
       const object = id && world.objects.get(id);
-      if (object) { selectWorld(object); return; }
+      if (object) {
+        selectWorld(object);
+        if (residents.selectedId()) {
+          const task = economy.taskFor(object.id), actions = economySelection(economy, object).actions ?? [];
+          const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
+          if (action) performAction(action);
+        }
+        return;
+      }
     }
     const ray = scene.createPickingRay(x, y, null, camera);
     const distance = -ray.origin.y / ray.direction.y;
     if (distance <= 0 || !Number.isFinite(distance)) return;
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
-      const moving = residents.command({ x: point.x, z: point.z });
-      if (moving) setPreview();
-      ui.toast(moving ? '前往目标位置' : '无法到达该位置');
+      const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
+      if (result.ok) { clearWorld(); setPreview(); refreshEconomy(); save(); }
+      ui.toast(result.message);
     }
     else clearSelection();
   });
@@ -187,6 +218,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   resizeObserver.observe(ui.canvas);
   resize();
   ui.bind('clear-selection', clearSelection);
+  ui.bind('clear-object', clearWorld);
+  ui.bindPause(() => {
+    input.reset(); freshFrame = true;
+    scene.resetLastAnimationTimeFrame();
+    if (!disposed) refreshEconomy();
+  });
   ui.bind('zoom-in', () => zoomBy(-1.2));
   ui.bind('zoom-out', () => zoomBy(1.2));
   ui.bind('overview', () => { setPreview(); overview = !overview; ui.setOverview(overview); });
@@ -252,7 +289,14 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     // Babylon accumulates this counter unless instrumentation starts a frame.
     engine._drawCalls.fetchNewFrame();
-    scene.render(); residents.updateLabels(camera); renderedFrames++;
+    scene.render(); residents.updateLabels(camera);
+    if (selectedWorld) {
+      const { anchor } = selectedWorld;
+      const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
+        scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
+      ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
+    }
+    renderedFrames++;
     const sample = metrics.record(cpuStart, performance.now());
     if (sample) ui.setPerformance(sample);
   };
@@ -291,6 +335,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   return {
+    save,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,

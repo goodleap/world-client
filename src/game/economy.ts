@@ -96,6 +96,23 @@ export class Economy {
       task.status = 'travelling'; task.reason = ''; this.changed(); return task;
     }
   }
+  /** A player command pauses work, preserving progress and reserved materials. */
+  interrupt() {
+    const task = this.active();
+    if (!task) return;
+    task.status = 'waiting'; task.reason = '等待恢复'; task.retryAt = 0; this.changed();
+  }
+  assign(id: number): { ok: boolean; message: string } {
+    const task = this.state.tasks.find(t => t.id === id);
+    if (!task || !['waiting', 'travelling', 'working'].includes(task.status)) return { ok: false, message: '该作业暂不可执行' };
+    const invalid = this.invalidReason(task.kind, task.target, task.crop);
+    if (invalid) return { ok: false, message: invalid };
+    if (!this.reserve(task)) { this.changed(); return { ok: false, message: `已排队，${task.reason}` }; }
+    if (this.active()?.id !== id) this.interrupt();
+    if (task.status !== 'working') task.status = 'travelling';
+    task.reason = ''; task.retryAt = 0; this.changed();
+    return { ok: true, message: `优先${WORK_NAMES[task.kind]}` };
+  }
   arrive(id: number) {
     const task = this.state.tasks.find(t => t.id === id);
     if (task?.status !== 'travelling') return;
@@ -103,7 +120,7 @@ export class Economy {
   }
   defer(id: number, reason: string) {
     const task = this.state.tasks.find(t => t.id === id);
-    if (!task || !['travelling', 'working'].includes(task.status)) return;
+    if (!task || !['waiting', 'travelling', 'working'].includes(task.status)) return;
     task.status = 'waiting'; task.reason = reason; task.retryAt = this.state.seconds + C.retrySeconds; this.changed();
   }
   cancel(id: number): boolean {

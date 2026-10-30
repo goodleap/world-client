@@ -11,11 +11,24 @@ const launcher = createLauncher();
 let ui: GameUI | undefined;
 let game: Game | undefined;
 let disposed = false;
+let makeUI: typeof import('./ui.ts')['createUI'];
+
+function leave(destination: 'menu' | 'exit') {
+  if (!game || !ui) return;
+  if (!game.save()) { ui.saveFailed(); return; }
+  game.dispose(); ui.dispose(); game = undefined; ui = undefined; delete window.__DEMO__;
+  const page = document.querySelector<HTMLElement>('#game-page')!;
+  page.hidden = true; page.inert = true; page.replaceChildren();
+  const menu = () => launcher.menu(() => { void start(makeUI); }, true);
+  if (destination === 'exit') launcher.exit(menu);
+  else menu();
+}
 
 async function boot() {
   try {
     launcher.report(25, '正在准备界面…');
     const { createUI } = await import('./ui.ts');
+    makeUI = createUI;
     launcher.report(75, '正在准备文字与按钮…');
     await document.fonts.ready;
     if (disposed) return;
@@ -37,6 +50,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI']) {
     const page = document.querySelector<HTMLElement>('#game-page')!;
     page.hidden = false; page.inert = true;
     ui = createUI(page);
+    ui.bindLeave(leave);
     game = await createGame(ui, launcher.report);
     if (disposed) { game.dispose(); return; }
     if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {

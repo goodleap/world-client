@@ -17,6 +17,7 @@ const icons = {
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  settings: '<path d="m10 3-.5 2-2 .9-1.9-.5-2 3.4L5 10v2l-1.4 1.2 2 3.5 1.9-.5 2 .9.5 2h4l.5-2 2-.9 1.9.5 2-3.5L19 12v-2l1.4-1.2-2-3.4-1.9.5-2-.9L14 3Z"/><circle cx="12" cy="11" r="3"/>',
 };
 function icon(name: keyof typeof icons) {
   return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
@@ -31,6 +32,7 @@ export function createUI(app: HTMLElement) {
       <div class="brand"><span class="brand-icon">${icon('home')}</span><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
       <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
+    <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="最近约半秒的平均帧率与每帧 CPU 处理耗时。CPU 统计游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。">
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
     </aside>
@@ -67,22 +69,29 @@ export function createUI(app: HTMLElement) {
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="当前选中对象" hidden>
       <div><small id="selection-kind"></small><h2 id="selection-name"></h2><p id="selection-hint"></p><div id="selection-actions" class="selection-actions"></div></div>
-      <button id="clear-selection" aria-label="取消选中">${icon('close')}</button>
+      <button id="clear-object" aria-label="关闭对象操作">${icon('close')}</button>
     </section>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">点击土地、作物、树木、石材或建设用地，下达作业。农民会自动前往并完成任务。<br>其他居民选中后，可以点击空地指挥移动。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开本说明会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
+    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
+    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">点击土地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const canvas = get<HTMLCanvasElement>('game');
   const help = get<HTMLDialogElement>('help-dialog');
   const detail = get<HTMLDialogElement>('landmark-dialog');
+  const settings = get<HTMLDialogElement>('settings-dialog');
+  const dialogs = [settings, help, detail];
   const discovered = new Set<string>();
   const abort = new AbortController();
   const options = { signal: abort.signal };
   let nearby: Landmark | undefined;
   let loading = true;
   let toastTimer: ReturnType<typeof setTimeout>;
-  function focusGame() { canvas.focus({ preventScroll: true }); }
+  function focusGame() { if (!dialogs.some(dialog => dialog.open)) canvas.focus({ preventScroll: true }); }
+  let onPauseChange = () => {};
+  let onLeave: (destination: 'menu' | 'exit') => void = () => {};
+  const showDialog = (dialog: HTMLDialogElement) => { if (!dialog.open) dialog.showModal(); onPauseChange(); };
   let onAction: (id: string) => void = () => {};
   let onCancel: (id: number) => void = () => {};
   let actionsKey = '', inventoryKey = '', queueKey = '';
@@ -101,20 +110,25 @@ export function createUI(app: HTMLElement) {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-cancel]');
     if (button) { onCancel(Number(button.dataset.cancel)); focusGame(); }
   }, options);
-  for (const dialog of [help, detail]) {
+  for (const dialog of dialogs) {
     dialog.querySelector('button')!.addEventListener('click', () => dialog.close(), options);
-    dialog.addEventListener('close', focusGame, options);
+    dialog.addEventListener('close', () => { onPauseChange(); focusGame(); }, options);
     dialog.addEventListener('click', (event) => {
       if (event.target !== dialog) return;
       const bounds = dialog.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
     }, options);
   }
-  get('help').addEventListener('click', () => help.showModal(), options);
+  get('help').addEventListener('click', () => showDialog(help), options);
+  get('settings').addEventListener('click', () => showDialog(settings), options);
+  get('settings-help').addEventListener('click', () => showDialog(help), options);
+  get('continue-game').addEventListener('click', () => settings.close(), options);
+  get('return-menu').addEventListener('click', () => onLeave('menu'), options);
+  get('exit-game').addEventListener('click', () => onLeave('exit'), options);
   get('start-walking').addEventListener('click', () => help.close(), options);
   get('keep-walking').addEventListener('click', () => detail.close(), options);
   const inspect = () => {
-    if (!nearby || help.open || detail.open) return;
+    if (!nearby || dialogs.some(dialog => dialog.open)) return;
     get('landmark-title').textContent = nearby.name;
     get('landmark-label').textContent = nearby.label;
     get('landmark-description').textContent = nearby.description;
@@ -128,12 +142,52 @@ export function createUI(app: HTMLElement) {
         get('journey-message').textContent = '每一处小风景，都已留下你的足迹。';
       }
     }
-    detail.showModal();
+    showDialog(detail);
   };
   get('inspect').addEventListener('click', inspect, options);
   window.addEventListener('keydown', (event) => {
     if (event.code === 'KeyE' && !event.repeat && !event.ctrlKey && !event.metaKey && event.target === canvas) inspect();
   }, options);
+
+  // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
+  const card = get('selection-card');
+  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection')];
+  let layoutDirty = true;
+  let layout = { width: 0, height: 0, cardWidth: 0, cardHeight: 0, left: 12, right: 12, top: 12, bottom: 12,
+    blockers: [] as { x: number; y: number; width: number; height: number }[] };
+  const layoutObserver = new ResizeObserver(() => { layoutDirty = true; });
+  for (const element of [app, card, ...fixedControls]) layoutObserver.observe(element);
+  const positionSelection = (x: number, y: number, visible: boolean) => {
+    if (card.hidden) return;
+    card.style.visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
+    if (card.style.visibility === 'hidden') return;
+    if (layoutDirty) {
+      const bounds = app.getBoundingClientRect(), style = getComputedStyle(app);
+      const inset = (edge: string) => Math.max(12, parseFloat(style.getPropertyValue(`--safe-${edge}`)) || 0);
+      layout = { width: bounds.width, height: bounds.height, cardWidth: card.offsetWidth, cardHeight: card.offsetHeight,
+        left: inset('left'), right: inset('right'), top: inset('top'), bottom: inset('bottom'),
+        blockers: fixedControls.filter(element => !element.hidden).map(element => {
+          const r = element.getBoundingClientRect(); return { x: r.left - bounds.left, y: r.top - bounds.top, width: r.width, height: r.height };
+        }) };
+      layoutDirty = false;
+    }
+    const { width, height, cardWidth: w, cardHeight: h, blockers } = layout;
+    const candidates = [{ x: x - w / 2, y: y - h - 18 }, { x: x - w / 2, y: y + 18 },
+      { x: x + 18, y: y - h / 2 }, { x: x - w - 18, y: y - h / 2 }];
+    for (const b of blockers) candidates.push({ x: x - w / 2, y: b.y - h - 8 }, { x: x - w / 2, y: b.y + b.height + 8 },
+      { x: b.x - w - 8, y: y - h / 2 }, { x: b.x + b.width + 8, y: y - h / 2 });
+    let best = { x: layout.left, y: layout.top }, score = Infinity;
+    for (const candidate of candidates) {
+      const p = { x: Math.max(layout.left, Math.min(width - w - layout.right, candidate.x)),
+        y: Math.max(layout.top, Math.min(height - h - layout.bottom, candidate.y)) };
+      const overlap = blockers.reduce((sum, b) => sum + Math.max(0, Math.min(p.x + w + 4, b.x + b.width) - Math.max(p.x - 4, b.x))
+        * Math.max(0, Math.min(p.y + h + 4, b.y + b.height) - Math.max(p.y - 4, b.y)), 0);
+      const distance = (p.x + w / 2 - x) ** 2 + (p.y + h / 2 - y) ** 2;
+      const value = overlap * 1e6 + distance;
+      if (value < score) { score = value; best = p; }
+    }
+    card.style.transform = `translate(${Math.round(best.x)}px, ${Math.round(best.y)}px)`;
+  };
 
   return {
     canvas, joystick: get('joystick'), knob: get('joystick-knob'),
@@ -143,7 +197,10 @@ export function createUI(app: HTMLElement) {
       get('resident-labels').append(label);
       return label;
     },
-    get paused() { return loading || help.open || detail.open; },
+    get paused() { return loading || dialogs.some(dialog => dialog.open); },
+    bindPause(callback: () => void) { onPauseChange = callback; },
+    bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
+    saveFailed() { get('settings-notice').textContent = '未能保存进度，请检查浏览器存储后重试。当前游戏已保留。'; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
       get(id).addEventListener('click', () => { callback(); focusGame(); }, options);
@@ -167,7 +224,7 @@ export function createUI(app: HTMLElement) {
       get('overview').setAttribute('aria-label', active ? '返回地图视角' : '查看全景');
       get('overview').title = active ? '返回地图视角' : '查看全景';
     },
-    ready() { loading = false; focusGame(); },
+    ready() { loading = false; onPauseChange(); focusGame(); },
     bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
     setResources(values: { name: string; amount: number; capacity: number; reserved: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
@@ -203,7 +260,8 @@ export function createUI(app: HTMLElement) {
       }
     },
     setSelection(details?: SelectionDetails) {
-      get('selection-card').hidden = !details;
+      if (card.hidden && details) card.style.visibility = 'hidden';
+      card.hidden = !details;
       if (!details) return;
       get('selection-name').textContent = details.name;
       get('selection-kind').textContent = details.kind;
@@ -216,6 +274,13 @@ export function createUI(app: HTMLElement) {
         }));
       }
     },
+    positionSelection,
+    setResident(name?: string, canWork = false) {
+      get('resident-selection').hidden = !name;
+      get('resident-name').textContent = name ?? '';
+      get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
+      layoutDirty = true;
+    },
     setPerformance(sample?: FrameSample) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
       get('cpu-value').textContent = sample ? sample.cpuMs.toFixed(2) : '—';
@@ -225,7 +290,7 @@ export function createUI(app: HTMLElement) {
       get('toast').textContent = message; get('toast').classList.add('visible');
       toastTimer = setTimeout(() => get('toast').classList.remove('visible'), 2200);
     },
-    dispose() { abort.abort(); clearTimeout(toastTimer); },
+    dispose() { abort.abort(); layoutObserver.disconnect(); clearTimeout(toastTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }
 

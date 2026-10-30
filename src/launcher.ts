@@ -6,6 +6,7 @@ export function createLauncher() {
   const screen = get('loading');
   const panel = get('loading-panel');
   const menu = get('menu-panel');
+  const exit = get('exit-panel');
   const progress = get<HTMLProgressElement>('loading-progress');
   const start = get<HTMLButtonElement>('start-game');
   const abort = new AbortController();
@@ -20,19 +21,28 @@ export function createLauncher() {
   get('retry-loading').addEventListener('click', () => location.reload(), { signal: abort.signal });
   return {
     report,
-    menu(onStart: () => void) {
+    menu(onStart: () => void, returning = false) {
       screen.className = 'loading menu-screen'; screen.dataset.phase = 'menu';
-      panel.hidden = true; menu.hidden = false;
+      panel.hidden = true; exit.hidden = true; menu.hidden = false;
+      start.disabled = false; start.textContent = returning ? '继续游戏' : '开始游戏';
       start.addEventListener('click', () => {
         if (start.disabled) return;
         start.disabled = true; onStart();
       }, { once: true, signal: abort.signal });
       start.focus({ preventScroll: true });
     },
+    exit(onMenu: () => void) {
+      screen.className = 'loading menu-screen'; screen.dataset.phase = 'exited';
+      panel.hidden = true; menu.hidden = true; exit.hidden = false;
+      const button = get('exit-to-menu');
+      button.addEventListener('click', onMenu, { once: true, signal: abort.signal });
+      button.focus({ preventScroll: true });
+    },
     beginGame() {
       percent = 0;
       screen.className = 'loading game-loading'; screen.dataset.phase = 'game-loading';
-      menu.hidden = true; panel.hidden = false;
+      menu.hidden = true; exit.hidden = true; panel.hidden = false;
+      get('loading-meter').hidden = false; get('retry-loading').hidden = true;
       get('loading-title').textContent = '正在走进家园';
       get('loading-stage').textContent = '游戏资源加载';
       progress.setAttribute('aria-label', '游戏资源加载进度');

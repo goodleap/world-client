@@ -16,20 +16,20 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
   }
   const plot = economy.plot(object.id);
   if (plot) {
-    if (!plot.tilled) { details.hint = '开垦后可以播种'; details.actions = [{ id: 'till', label: '开垦' }]; }
+    if (!plot.tilled) { details.hint = '未开垦'; details.actions = [{ id: 'till', label: '开垦' }]; }
     else if (!plot.crop) {
-      details.hint = '选择一种作物，农民会自动前来播种';
+      details.hint = '选择作物';
       details.actions = [{ id: 'sow-carrot', label: '种胡萝卜' }, { id: 'sow-wheat', label: '种小麦' }];
     } else if (plot.growth >= C.crops[plot.crop].growthSeconds) {
-      details.hint = `已成熟 · 收获可得粮食 ${C.crops[plot.crop].yield}`;
+      details.hint = `已成熟 · 粮食 +${C.crops[plot.crop].yield}`;
       details.actions = [{ id: 'harvest', label: '收获' }];
     } else details.hint = `生长中 · 还需 ${Math.ceil(C.crops[plot.crop].growthSeconds - plot.growth)} 秒`;
   } else if (object.kind === 'tree' || object.kind === 'rock') {
     const node = RESOURCE_NODES.find(n => n.id === object.id)!;
-    details.hint = `采集可得${RESOURCE_NAMES[node.kind]} ${node.yield}`;
+    details.hint = `${RESOURCE_NAMES[node.kind]} +${node.yield}`;
     details.actions = [{ id: object.kind === 'tree' ? 'chop' : 'mine', label: object.kind === 'tree' ? '伐木' : '采石' }];
   } else if (object.kind === 'site') {
-    details.hint = `建造民房 · 木材 ${C.houseCost.wood}、石材 ${C.houseCost.stone} · 完工扣除`;
+    details.hint = `需木材 ${C.houseCost.wood}、石材 ${C.houseCost.stone}`;
     details.actions = [{ id: 'build', label: '建设民房' }];
   } else if (object.id.startsWith('site-')) details.hint = '民房已建成';
   return details;

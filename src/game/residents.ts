@@ -274,23 +274,29 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       return selected?.definition.name;
     },
     selectedId: () => selected?.definition.id,
-    selectedCanMove: () => !!selected && !['dog', 'farmer'].includes(selected.definition.role),
-    command(point: Point) {
-      if (!selected || ['dog', 'farmer'].includes(selected.definition.role)) return false;
-      const path = findPath(selected.state.position, point, selected.settings.bodyRadius, selected.settings.bounds, obstaclesFor(selected.definition.role));
+    selectedCanMove: () => !!selected,
+    canWork: (id: string) => id === farmer.definition.id,
+    hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && (actor !== farmer || !work)),
+    command(point: Point, id = selected?.definition.id) {
+      const actor = actors.find(entry => entry.definition.id === id);
+      if (!actor) return false;
+      const path = findPath(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role));
       if (!path) return false;
-      selected.route = path; selected.state.target = undefined; selected.state.pause = 0;
+      if (actor === farmer) work = undefined;
+      actor.route = path; actor.state.target = undefined; actor.state.pause = 0; actor.state.blockedFor = 0;
       return true;
     },
-    startFarmerWork(id: number, points: readonly Point[], target: Point) {
+    planFarmerWork(points: readonly Point[]): Point[] | undefined {
       const crowd: Obstacle[] = actors.filter(a => a !== farmer).map(a => ({ kind: 'circle', ...a.state.position, radius: a.definition.bodyRadius }));
       const obstacles = [...worldObstacles(), ...crowd];
       const paths = points.map(point => findPath(farmer.state.position, point, farmer.settings.bodyRadius, farmer.settings.bounds, obstacles)).filter((path): path is Point[] => !!path);
       const length = (path: Point[]) => path.reduce((sum, p, i) => { const prev = i ? path[i - 1] : farmer.state.position; return sum + Math.hypot(p.x - prev.x, p.z - prev.z); }, 0);
       paths.sort((a, b) => length(a) - length(b));
-      if (!paths.length) return false;
-      farmer.route = paths[0]; farmer.state.target = undefined;
-      work = { id, target, status: 'travelling', stuck: 0 }; return true;
+      return paths[0];
+    },
+    startFarmerWork(id: number, path: Point[], target: Point) {
+      farmer.route = path; farmer.state.target = undefined;
+      work = { id, target, status: 'travelling', stuck: 0 };
     },
     farmerWorkState: () => work && { id: work.id, status: work.status },
     beginFarmerWork(id: number) { if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
@@ -363,7 +369,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             actor.state.blockedFor = 0;
           }
           if (!actor.route.length) actor.state.pause = 3;
-        } else if (actor === farmer || actor === selected && actor.definition.role !== 'dog') velocity = { x: 0, z: 0 };
+        } else if (actor === farmer) velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
@@ -416,6 +422,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       position: { ...actor.state.position }, state: actor.state.target ? 'walking' : 'idle',
       facing: actor.root.rotationQuaternion?.asArray() ?? [],
       routeRemaining: actor.route.length,
+      moveCommand: !!actor.route.length && (actor !== farmer || !work),
       travelled: actor.state.distanceTravelled, reached: actor.state.destinationsReached,
       bodyRadius: actor.definition.bodyRadius,
       humanBones: actor.human?.skeleton.bones.map((bone) => bone.name) ?? [],
