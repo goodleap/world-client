@@ -10,7 +10,7 @@ test('touch commands the farmer, then creates and cancels automatic jobs using c
   await page.touchscreen.tap(label!.x + label!.width / 2, label!.y + label!.height + 18);
   await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('farmer');
   await expect(page.locator('#resident-hint')).toContainText('点空地移动');
-  await clickGround(page, { x: .5, z: -3.2 }, true);
+  await clickGround(page, { x: 1.3, z: -5 }, true);
   await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'farmer')!.moveCommand).toBe(true);
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
   await page.getByRole('button', { name: '取消选中', exact: true }).tap();
@@ -34,6 +34,24 @@ test('touch commands the farmer, then creates and cancels automatic jobs using c
   const actions = await page.locator('#selection-card').boundingBox();
   expect(actions!.width).toBeLessThanOrEqual(300); expect(actions!.height).toBeLessThan(160);
   await page.screenshot({ path: info.outputPath('phone-actions.png'), scale: 'css' });
+  const harvestButton = await page.getByRole('button', { name: '收获', exact: true }).boundingBox();
+  expect(harvestButton!.height).toBeGreaterThanOrEqual(44);
+  await page.getByRole('button', { name: '设置', exact: true }).tap();
+  const frozen = await snapshot(page);
+  expect(frozen.manualPaused).toBe(true);
+  expect(await page.evaluate(p => document.elementFromPoint(p.x, p.y)?.closest('dialog')?.id,
+    { x: harvestButton!.x + harvestButton!.width / 2, y: harvestButton!.y + harvestButton!.height / 2 })).toBe('settings-dialog');
+  await page.screenshot({ path: info.outputPath('phone-settings.png'), scale: 'css' });
+  expect((await snapshot(page)).economy).toEqual(frozen.economy);
+  await page.getByRole('button', { name: '继续游戏', exact: true }).tap();
+  expect((await snapshot(page)).selection.object?.id).toBe('plot-0');
+  await page.setViewportSize({ width: 320, height: 568 });
+  await expect.poll(async () => {
+    const bounds = await page.locator('#selection-card').boundingBox();
+    return !!bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= 320 && bounds.y + bounds.height <= 568;
+  }).toBe(true);
+  await page.screenshot({ path: info.outputPath('compact-320-actions.png'), scale: 'css' });
+  await page.setViewportSize({ width: 393, height: 852 });
   await page.getByRole('button', { name: '收获', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).farmerModel.motion, { timeout: 45_000 }).toBe('work');
   await page.screenshot({ path: info.outputPath('phone-work.png'), scale: 'css' });
