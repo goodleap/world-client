@@ -67,6 +67,12 @@ export function stepWander(state: WanderState, settings: WanderSettings, seconds
     return { x: 0, z: 0 };
   }
   const speed = Math.min(settings.speed, distance / dt);
+  const ahead = Math.min(distance, speed * dt + .2);
+  if (!segmentIsClear(state.position, { x: state.position.x + dx / distance * ahead, z: state.position.z + dz / distance * ahead },
+    settings.bodyRadius, settings.bounds, obstacles)) {
+    state.target = undefined; state.pause = .4 + random() * .4;
+    return { x: 0, z: 0 };
+  }
   const next = moveCharacter(state.position, { x: dx / distance, z: dz / distance }, dt, speed, settings.bounds, obstacles, settings.bodyRadius);
   const moved = Math.hypot(next.x - state.position.x, next.z - state.position.z);
   const velocity = { x: (next.x - state.position.x) / dt, z: (next.z - state.position.z) / dt };
