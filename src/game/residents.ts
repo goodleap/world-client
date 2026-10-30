@@ -128,6 +128,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     };
   };
   const prepareBaseMaterials = createCharacterMaterialSetup(scene);
+  const destinationSpeed = (actor: typeof actors[number]) => actor.settings.speed
+    * (locomotion.has(actor.definition.id) ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15)
+    * COMMAND_RUN_SPEED_MULTIPLIER;
   const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup,
     options: { idle?: AnimationGroup; work?: AnimationGroup; walkSpeed?: number; runSpeed?: number } = {}) => {
     walk.stop(); run.stop(); options.work?.stop(); options.idle?.stop(); (options.idle ?? walk).reset();
@@ -315,7 +318,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
               const step = Math.min(remaining, .05), goal = actor.route[0], pos = actor.state.position;
               const dx = goal.x - pos.x, dz = goal.z - pos.z, distance = Math.hypot(dx, dz);
               actor.state.position = moveCharacter(pos, { x: dx / (distance || 1), z: dz / (distance || 1) }, step,
-                Math.min(actor.settings.speed, distance / step), actor.settings.bounds, [...worldObstacles(), ...crowd], actor.settings.bodyRadius);
+                Math.min(destinationSpeed(actor), distance / step), actor.settings.bounds, [...worldObstacles(), ...crowd], actor.settings.bodyRadius);
               if (Math.hypot(actor.state.position.x - goal.x, actor.state.position.z - goal.z) < .04) actor.route.shift();
               remaining -= step;
             }
@@ -333,7 +336,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
-          setMotion(actor.definition.id, work.status === 'working' ? 'work' : moved > .001 ? 'walk' : 'idle',
+          setMotion(actor.definition.id, work.status === 'working' ? 'work' : moved > .001 ? 'run' : 'idle',
             work.status === 'working' ? activeElapsed / seconds : moved / seconds);
           continue;
         }
@@ -354,10 +357,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (actor.route.length) {
           const target = actor.route[0], before = actor.state.position;
           const dx = target.x - before.x, dz = target.z - before.z, distance = Math.hypot(dx, dz);
-          const commandSpeedRatio = locomotion.has(actor.definition.id)
-            ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15;
           const next = moveCharacter(before, { x: dx / (distance || 1), z: dz / (distance || 1) }, seconds,
-            Math.min(actor.settings.speed * commandSpeedRatio * COMMAND_RUN_SPEED_MULTIPLIER, distance / seconds), actor.settings.bounds, [...obstaclesFor(actor.definition.role), ...blockers], actor.settings.bodyRadius);
+            Math.min(destinationSpeed(actor), distance / seconds), actor.settings.bounds, [...obstaclesFor(actor.definition.role), ...blockers], actor.settings.bodyRadius);
           velocity = { x: (next.x - before.x) / seconds, z: (next.z - before.z) / seconds };
           const moved = Math.hypot(next.x - before.x, next.z - before.z);
           actor.state.position = next; actor.state.distanceTravelled += moved;
@@ -387,7 +388,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
         } else {
           actor.human?.update(seconds, velocity.x, velocity.z);
-          actor.animal?.update(seconds, velocity.x, velocity.z);
+          actor.animal?.update(seconds, velocity.x, velocity.z, commanded);
         }
       }
     },
@@ -408,12 +409,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       lod: lodInfo(actor.definition.id),
       modelPose: soldierBones.get(actor.definition.id)?.map(bone =>
         (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
-      motion: locomotion.get(actor.definition.id)?.motion,
+      motion: locomotion.get(actor.definition.id)?.motion ?? actor.animal?.motion,
       movementSpeed: actor.movementSpeed,
-      runPlaybackRate: locomotion.get(actor.definition.id)?.run.speedRatio,
-      runReferenceSpeed: locomotion.get(actor.definition.id)?.runSpeed,
-      walking: locomotion.get(actor.definition.id)?.walk.isPlaying ?? false,
-      running: locomotion.get(actor.definition.id)?.run.isPlaying ?? false,
+      runPlaybackRate: locomotion.get(actor.definition.id)?.run.speedRatio ?? actor.animal?.runPlaybackRate,
+      runReferenceSpeed: locomotion.get(actor.definition.id)?.runSpeed ?? actor.animal?.runReferenceSpeed,
+      walking: locomotion.get(actor.definition.id)?.walk.isPlaying ?? actor.animal?.motion === 'walk',
+      running: locomotion.get(actor.definition.id)?.run.isPlaying ?? actor.animal?.motion === 'run',
       working: locomotion.get(actor.definition.id)?.work?.isPlaying ?? false,
       placeholder: placeholderRoles.has(actor.definition.role) && locomotion.has(actor.definition.id),
       placeholderWalking: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.walk.isPlaying ?? false),

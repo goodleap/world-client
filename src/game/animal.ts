@@ -8,6 +8,7 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import { cylinder, softBox, sphere } from './models.ts';
 import type { Palette } from './models.ts';
 import { createSkinAssembly } from './skinning.ts';
+import { createDogRun } from './dog-run.ts';
 
 export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator, kind: 'horse' | 'dog', id: string) {
   const horse = kind === 'horse';
@@ -81,13 +82,26 @@ export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator,
     skin(sphere(scene, 'tail-tip', [0.14, 0.14, 0.14], [0, 0.99, -0.39], p.dogCream), tailTip);
   }
   const { mesh, partNames } = assembly.finish(`${id}-${kind}`, root, skeleton, shadows);
+  const run = horse ? undefined : createDogRun(scene, body, legs);
   const rotation = new Vector3();
   const rootRotation = Quaternion.Identity(); root.rotationQuaternion = rootRotation;
   let phase = horse ? 1 : 2.3, blend = 0, facing = Math.PI;
+  let motion: 'idle' | 'walk' | 'run' = 'idle';
   return {
     root, skeleton, mesh, partNames,
-    update(seconds: number, vx: number, vz: number) {
+    get motion() { return motion; },
+    get runPlaybackRate() { return run?.group.speedRatio; },
+    get runReferenceSpeed() { return run?.referenceSpeed; },
+    update(seconds: number, vx: number, vz: number, purposeful = false) {
       const speed = Math.hypot(vx, vz);
+      const nextMotion = speed <= .06 ? 'idle' : purposeful && run ? 'run' : 'walk';
+      if (nextMotion === 'run' && run) {
+        if (motion !== 'run') run.group.start(true);
+        run.group.speedRatio = speed / run.referenceSpeed;
+      } else if (motion === 'run') {
+        run?.group.stop(); body.position = Vector3.Zero();
+      }
+      motion = nextMotion;
       blend += (Number(speed > 0.06) - blend) * (1 - Math.exp(-seconds * 9));
       phase += seconds * (speed > 0.06 ? speed * (horse ? 4 : 6) : 1.8);
       if (speed > 0.06) {
@@ -95,7 +109,7 @@ export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator,
         facing += Math.atan2(Math.sin(target - facing), Math.cos(target - facing)) * (1 - Math.exp(-seconds * 7));
       }
       Quaternion.RotationYawPitchRollToRef(facing, 0, 0, rootRotation);
-      for (let i = 0; i < legs.length; i++) {
+      for (let i = 0; motion !== 'run' && i < legs.length; i++) {
         const offset = [0, Math.PI, Math.PI * 0.7, Math.PI * 1.7][i];
         rotation.set(Math.sin(phase + offset) * (horse ? 0.3 : 0.48) * blend, 0, 0);
         legs[i].setRotation(rotation);

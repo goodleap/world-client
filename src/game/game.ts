@@ -190,7 +190,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
           const task = economy.taskFor(object.id), actions = economySelection(economy, object).actions ?? [];
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
           if (action) performAction(action);
+          else if (actions.length && !residents.canWork(residents.selectedId()!)) ui.toast('此作业需要农民');
         }
+        const details = economySelection(economy, object);
+        if (!details.actions?.length) ui.toast(details.hint === '暂无可用操作' ? object.name : details.hint);
         return;
       }
     }
@@ -218,7 +221,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   resizeObserver.observe(ui.canvas);
   resize();
   ui.bind('clear-selection', clearSelection);
-  ui.bind('clear-object', clearWorld);
+  window.addEventListener('keydown', event => {
+    if (event.code === 'Escape' && !ui.paused && !suspended) clearWorld();
+  }, { signal: lifecycle.signal });
   ui.bindPause(() => {
     input.reset(); freshFrame = true;
     scene.resetLastAnimationTimeFrame();
@@ -245,7 +250,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     const resuming = freshFrame;
     freshFrame = false;
     const elapsed = resuming ? 0 : engine.getDeltaTime() / 1000;
-    const cameraDt = Math.min(elapsed, 0.25);
+    const cameraDt = ui.paused ? 0 : Math.min(elapsed, 0.25);
     const dt = Math.min(elapsed, 0.05);
     // Navigation clamps long frames. Keep the skeletal gait on the same clock
     // so a slow device does not run the feet faster than the character moves.

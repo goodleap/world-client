@@ -16,19 +16,19 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
   const ids = touch ? ['plot-0', 'plot-6', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8', 'pond'];
   await page.getByRole('button', { name: '取消选中', exact: true }).click();
   for (const id of ids) {
-    if (await page.locator('#selection-card').isVisible()) await page.getByRole('button', { name: '关闭对象操作', exact: true }).click();
+    await page.keyboard.press('Escape');
     const object = (await snapshot(page)).objects.find(object => object.id === id)!;
     await tap(object.screen.x, object.screen.y);
     await expect.poll(async () => (await snapshot(page)).selection.object?.id).toBe(id);
-    await expect(page.locator('#selection-name')).toHaveText(object.name);
+    expect((await snapshot(page)).selection.object?.name).toBe(object.name);
     expect((await snapshot(page)).selection.resident).toBeUndefined();
-    if (['building', 'scenery'].includes(object.kind)) await expect(page.locator('#selection-hint')).toHaveText('暂无可用操作');
+    if (['building', 'scenery'].includes(object.kind)) await expect(page.locator('#selection-card')).toBeHidden();
     else await expect(page.locator('#selection-actions button').first()).toBeVisible();
     if (id === 'plot-0' || id.startsWith('tree')) await page.screenshot({ path: info.outputPath(id + '.png') });
   }
   expect((await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining).toBe(routeBefore);
   expect((await snapshot(page)).economy.tasks).toHaveLength(0); // Selection must not click through into a new action button.
-  await page.getByRole('button', { name: '关闭对象操作', exact: true }).click();
+  await page.keyboard.press('Escape');
   await expect(page.locator('#selection-card')).toBeHidden();
   expect((await snapshot(page)).selection.object).toBeUndefined();
   await selectResident('dog');

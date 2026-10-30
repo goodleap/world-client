@@ -67,10 +67,7 @@ export function createUI(app: HTMLElement) {
     <footer class="bottom-bar"><div class="control-hint"><span class="desktop-hint"><span class="key-set"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> 移动视角 <span class="hint-dot">·</span> 点击选中</span><span class="touch-hint"><span class="touch-dot"></span>拖动地图<span class="hint-dot">·</span>点击选中</span></div><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <section id="selection-card" class="selection-card" aria-label="当前选中对象" hidden>
-      <div><small id="selection-kind"></small><h2 id="selection-name"></h2><p id="selection-hint"></p><div id="selection-actions" class="selection-actions"></div></div>
-      <button id="clear-object" aria-label="关闭对象操作">${icon('close')}</button>
-    </section>
+    <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
     <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">点击土地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
@@ -260,12 +257,11 @@ export function createUI(app: HTMLElement) {
       }
     },
     setSelection(details?: SelectionDetails) {
-      if (card.hidden && details) card.style.visibility = 'hidden';
-      card.hidden = !details;
-      if (!details) return;
-      get('selection-name').textContent = details.name;
-      get('selection-kind').textContent = details.kind;
-      get('selection-hint').textContent = details.hint;
+      const visible = !!details?.actions?.length;
+      if (card.hidden && visible) card.style.visibility = 'hidden';
+      card.hidden = !visible;
+      if (!details || !visible) return;
+      card.setAttribute('aria-label', `${details.name}的操作`);
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {
         actionsKey = key;
