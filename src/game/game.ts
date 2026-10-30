@@ -243,6 +243,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
+  let keyboardPanning = false;
   const render = () => {
     if (disposed || suspended) return;
     if (!ui.paused && startupNotice) { ui.toast(startupNotice); startupNotice = undefined; }
@@ -264,9 +265,14 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     if (!scene.animationsEnabled) scene.resetLastAnimationTimeFrame();
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
     if (direction.x || direction.z) {
+      // Keyboard pan takes over at the visible position, just like dragging.
+      // Keep the camera and destination together so keyup leaves no follow tail.
+      if (!keyboardPanning) mapCenter.copyFrom(camera.target);
       setPreview(); overview = false; ui.setOverview(false);
       mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
+      camera.target.copyFrom(mapCenter);
     }
+    keyboardPanning = !!(direction.x || direction.z);
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     if (!resuming) {
