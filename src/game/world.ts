@@ -12,6 +12,7 @@ import { ellipsoid, roundedBox, tintHeight } from './environment-shapes';
 import { createReferenceTree, createTreeMaterials } from './tree';
 import { referenceHouse, tiledRoof } from './buildings';
 import { selectionRanges } from './world-selection.ts';
+import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
 
 /** Painted ground colors in world coordinates; navigation is separate from the artwork. */
@@ -188,11 +189,21 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     const decoration = meshes.filter(mesh => !mesh.metadata?.worldObjectId);
     for (const batch of [selectable, decoration]) {
       if (!batch.length) continue;
-      const ranges = selectionRanges(batch);
-      const merged = batch.length > 1 ? Mesh.MergeMeshes(batch, true, true) : batch[0];
-      if (merged) {
-        merged.name = `world-${material.name}${batch === decoration && selectable.length ? '-detail' : ''}`;
-        merged.metadata = { worldFaceRanges: ranges };
+      for (const mesh of batch) mesh.computeWorldMatrix(true);
+      // Preserve the original caster membership when splitting a batch. A
+      // short piece must keep its shadow if the old material batch cast one.
+      const castsShadow = material.name !== 'earth' && batch.some(mesh => mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24);
+      const triangles = batch.reduce((sum, mesh) => sum + mesh.getTotalIndices() / 3, 0);
+      // Small batches already cost little vertex work; splitting them would
+      // add draw calls without a useful reduction in submitted geometry.
+      const cells = triangles > 100_000 ? spatialBatches(batch) : new Map([['', batch]]);
+      for (const [cell, parts] of cells) {
+        const ranges = selectionRanges(parts);
+        const merged = parts.length > 1 ? Mesh.MergeMeshes(parts, true, true) : parts[0];
+        if (merged) {
+          merged.name = `world-${material.name}${batch === decoration && selectable.length ? '-detail' : ''}${cell ? `-${cell}` : ''}`;
+          merged.metadata = { worldFaceRanges: ranges, castsShadow };
+        }
       }
     }
   }
@@ -202,7 +213,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     // Ground, walls, roofs and plants all participate in the same soft daylight.
     mesh.receiveShadows = true;
     mesh.freezeWorldMatrix();
-    if (mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24 && mesh.material?.name !== 'earth') shadows.addShadowCaster(mesh);
+    if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
   return { land, objects };
 }

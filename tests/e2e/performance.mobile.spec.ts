@@ -10,7 +10,7 @@ test('high-DPI touch viewport keeps bounded geometry, batching and visible shado
   // Check actual submitted work, not FPS on CI's software GPU.
   expect(state.rendering.drawCalls).toBeLessThan(400);
   expect(state.rendering.visibleGeometryTriangles).toBeLessThan(1_800_000);
-  expect(state.rendering.activeTriangles).toBeLessThan(3_000_000);
+  expect(state.rendering.activeTriangles).toBeLessThan(2_650_000);
   const residents = state.residents.filter(resident => resident.lod);
   expect(residents).toHaveLength(6);
   for (const resident of residents) {
