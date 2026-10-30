@@ -37,8 +37,8 @@ export function roundedBox(scene: Scene, name: string, size: XYZ, at: XYZ, mater
   return mesh;
 }
 
-export function ellipsoid(scene: Scene, name: string, size: XYZ, at: XYZ, material: StandardMaterial) {
-  const mesh = MeshBuilder.CreateSphere(name, { diameter: 1, segments: 16 }, scene);
+export function ellipsoid(scene: Scene, name: string, size: XYZ, at: XYZ, material: StandardMaterial, segments = 16) {
+  const mesh = MeshBuilder.CreateSphere(name, { diameter: 1, segments }, scene);
   mesh.scaling.set(...size); mesh.position.set(...at); mesh.material = material;
   return mesh;
 }

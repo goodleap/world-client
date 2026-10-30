@@ -26,6 +26,7 @@ import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Material } from '@babylonjs/core/Materials/material';
+import { batchSkinnedMeshes } from './mesh-batching.ts';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
@@ -130,7 +131,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       registerLocomotion(farmer.definition.id, farmerWalk, farmerRun);
       result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
-      for (const mesh of result.meshes) {
+      for (const mesh of batchSkinnedMeshes(result.meshes)) {
         mesh.isPickable = false;
         if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
       }
@@ -149,7 +150,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       registerLocomotion(baseHuman.definition.id, baseWalk, baseRun);
       result.meshes[0].parent = baseHuman.root;
       baseHuman.human!.mesh.setEnabled(false);
-      for (const mesh of result.meshes) {
+      for (const mesh of batchSkinnedMeshes(result.meshes)) {
         mesh.isPickable = false;
         if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
       }
@@ -174,7 +175,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         result.meshes[0].parent = actor.root;
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
-        for (const mesh of result.meshes) {
+        for (const mesh of batchSkinnedMeshes(result.meshes)) {
           mesh.isPickable = false;
           if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
         }
@@ -198,7 +199,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         registerLocomotion(actor.definition.id, walk, run);
         for (const root of instance.rootNodes) {
           root.parent = actor.root;
-          for (const mesh of root.getChildMeshes()) {
+          for (const mesh of batchSkinnedMeshes(root.getChildMeshes())) {
             mesh.isPickable = false;
             if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
           }

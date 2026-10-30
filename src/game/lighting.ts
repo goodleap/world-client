@@ -8,7 +8,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { Engine } from '@babylonjs/core/Engines/engine';
 
 /** Shared by the single-asset review and the demo; no exposure/saturation filter. */
-export function createDaylight(scene: Scene) {
+export function createDaylight(scene: Scene, mobile = false) {
   const sky = new HemisphericLight('sky', new Vector3(0, 1, 0), scene);
   sky.intensity = 0.82;
   sky.diffuse = Color3.FromHexString('#fffdf6');
@@ -18,7 +18,7 @@ export function createDaylight(scene: Scene) {
   sun.position.set(-18, 26, -6); sun.intensity = 0.42;
   sun.diffuse = Color3.FromHexString('#fff8ed');
   sun.autoCalcShadowZBounds = true;
-  const shadows = new ShadowGenerator(2048, sun);
+  const shadows = new ShadowGenerator(mobile ? 1024 : 2048, sun);
   // Large exponential blur erased small characters' contact shadows. PCF
   // preserves their shape; WebGL 1 uses Babylon's supported Poisson fallback.
   const engine = scene.getEngine();

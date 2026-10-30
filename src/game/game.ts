@@ -28,7 +28,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 36, new Vector3(0, 0.6, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 120;
-  const shadows = createDaylight(scene);
+  const mobile = window.matchMedia('(pointer: coarse)').matches;
+  const shadows = createDaylight(scene, mobile);
   const palette = createPalette(scene);
   let world: ReturnType<typeof buildWorld>;
   let residents: ReturnType<typeof createResidents>;
@@ -77,6 +78,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const setPreview = (role?: 'farmer' | 'base') => {
     previewRole = role;
     previewZoom = 1;
+    // Keep close-up self-shadows at full detail; the ordinary touch map uses
+    // the smaller target. Babylon retains the caster list when resizing.
+    const shadowSize = role || !mobile ? 2048 : 1024;
+    if (shadows.mapSize !== shadowSize) shadows.mapSize = shadowSize;
     if (role) { overview = false; ui.setOverview(false); }
     ui.setFarmerPreview(role === 'farmer');
     ui.setBasePreview(role === 'base');
@@ -196,6 +201,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
+    // Babylon accumulates this counter unless instrumentation starts a frame.
+    engine._drawCalls.fetchNewFrame();
     scene.render(); residents.updateLabels(camera); renderedFrames++;
     const sample = metrics.record(cpuStart, performance.now());
     if (sample) ui.setPerformance(sample);
@@ -261,8 +268,18 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
+      rendering: {
+        drawCalls: engine._drawCalls.current,
+        activeTriangles: scene.getActiveIndices() / 3,
+        visibleGeometryTriangles: scene.meshes.filter(mesh => mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0 && mesh.getTotalVertices())
+          .reduce((count, mesh) => count + mesh.getTotalIndices() / 3, 0),
+        batchedParts: scene.meshes.reduce((count, mesh) => count + (mesh.metadata?.batchedParts?.length ?? 0), 0),
+      },
       shadows: {
         filter: shadows.filter,
+        mapSize: shadows.getShadowMap()?.getSize().width,
+        mapId: shadows.getShadowMap()?.uniqueId,
+        quality: shadows.filteringQuality,
         casters: (shadows.getShadowMap()?.renderList ?? []).filter(mesh => mesh.isEnabled() && mesh.isVisible)
           .map(mesh => ({ name: mesh.name, receive: mesh.receiveShadows })),
         groundReceives: scene.getMeshByName('world-meadow')?.receiveShadows ?? false,

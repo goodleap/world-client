@@ -53,8 +53,10 @@ function meadow(scene: Scene, p: Palette) {
 }
 
 function grassClump(scene: Scene, p: Palette, x: number, z: number, size = 1) {
+  // These tiny rounded decorations need smooth normals, not 1,296 triangles
+  // per blade/petal. Eight latitude steps retain their shape at game distance.
   for (let i = 0; i < 4; i++) {
-    const blade = ellipsoid(scene, 'round-grass-leaf', [.14 * size, (.4 + i % 2 * .16) * size, .09 * size], [x + (i - 1.5) * .075 * size, .17 * size, z + Math.sin(i * 2) * .07 * size], i % 2 ? p.leafLight : p.leaf);
+    const blade = ellipsoid(scene, 'round-grass-leaf', [.14 * size, (.4 + i % 2 * .16) * size, .09 * size], [x + (i - 1.5) * .075 * size, .17 * size, z + Math.sin(i * 2) * .07 * size], i % 2 ? p.leafLight : p.leaf, 6);
     blade.rotation.z = (i - 1.5) * -.27; tintHeight(blade, '#63934b', '#ffffff');
   }
 }
@@ -62,10 +64,10 @@ function grassClump(scene: Scene, p: Palette, x: number, z: number, size = 1) {
 function daisy(scene: Scene, p: Palette, x: number, z: number, size = 1) {
   for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5;
-    const petal = ellipsoid(scene, 'daisy-petal', [.15 * size, .075 * size, .22 * size], [x + Math.sin(angle) * .12 * size, .13, z + Math.cos(angle) * .12 * size], p.flower);
+    const petal = ellipsoid(scene, 'daisy-petal', [.15 * size, .075 * size, .22 * size], [x + Math.sin(angle) * .12 * size, .13, z + Math.cos(angle) * .12 * size], p.flower, 6);
     petal.rotation.y = angle;
   }
-  ellipsoid(scene, 'daisy-center', [.14 * size, .08 * size, .14 * size], [x, .17, z], p.golden);
+  ellipsoid(scene, 'daisy-center', [.14 * size, .08 * size, .14 * size], [x, .17, z], p.golden, 6);
 }
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
