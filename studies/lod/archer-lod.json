@@ -1,0 +1,436 @@
+{
+  "source": "studies/soldiers/archer/archer.glb",
+  "sourceSha256": "a0e020166b6c3247dbc50f1c815a32e0f213ca899917ee4d9ade1acf93d8da0d",
+  "lodSha256": "ba80c0c51601013f97cc4993ebc201dee161f4eeef45093e66dbfe29908be178",
+  "jointOrderMatches": true,
+  "bindPoseMatches": true,
+  "sourceTriangles": 340890,
+  "lodTriangles": 88322,
+  "parts": [
+    {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 35068,
+      "lodTriangles": 12272
+    },
+    {
+      "name": "Ear.R",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.R",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Ear.L",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.L",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Small rounded nose",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Smile",
+      "sourceTriangles": 2324,
+      "lodTriangles": 510
+    },
+    {
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "lodTriangles": 128
+    },
+    {
+      "name": "Torso skin",
+      "sourceTriangles": 3196,
+      "lodTriangles": 702
+    },
+    {
+      "name": "Neck",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 18100,
+      "lodTriangles": 3982
+    },
+    {
+      "name": "Neck binding",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shirt hem piping",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 18014,
+      "lodTriangles": 3962
+    },
+    {
+      "name": "Leather vest • rounded belly",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Leather shoulder strap.-1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Leather shoulder strap.1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 5376,
+      "lodTriangles": 1182
+    },
+    {
+      "name": "Brass belt buckle",
+      "sourceTriangles": 1936,
+      "lodTriangles": 424
+    },
+    {
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.R",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.R",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.L",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.L",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hair • fitted scalp",
+      "sourceTriangles": 14204,
+      "lodTriangles": 3124
+    },
+    {
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Helmet • rounded steel crown",
+      "sourceTriangles": 14204,
+      "lodTriangles": 4970
+    },
+    {
+      "name": "Helmet • rounded brow rim",
+      "sourceTriangles": 2560,
+      "lodTriangles": 896
+    },
+    {
+      "name": "Helmet reinforcing band 0",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band -1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 3.141592653589793",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet front rivet",
+      "sourceTriangles": 1840,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Helmet • curled blue plume",
+      "sourceTriangles": 6656,
+      "lodTriangles": 2328
+    },
+    {
+      "name": "Bow • continuous curved wooden limbs",
+      "sourceTriangles": 7680,
+      "lodTriangles": 1688
+    },
+    {
+      "name": "Bow • taut linen string",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Bow • leather grip",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Bow grip binding -0.062",
+      "sourceTriangles": 5776,
+      "lodTriangles": 1270
+    },
+    {
+      "name": "Bow grip binding 0.062",
+      "sourceTriangles": 5776,
+      "lodTriangles": 1270
+    },
+    {
+      "name": "Quiver • rounded hollow leather shell",
+      "sourceTriangles": 3840,
+      "lodTriangles": 844
+    },
+    {
+      "name": "Quiver • leather band 0.055",
+      "sourceTriangles": 2560,
+      "lodTriangles": 562
+    },
+    {
+      "name": "Quiver • leather band 0.515",
+      "sourceTriangles": 2560,
+      "lodTriangles": 562
+    },
+    {
+      "name": "Quiver • brass fastening",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Quiver arrow shaft 0",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Quiver ivory feathers 0.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 0.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 0.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver arrow shaft 1",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Quiver ivory feathers 1.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 1.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 1.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver arrow shaft 2",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Quiver ivory feathers 2.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 2.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 2.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver arrow shaft 3",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Quiver ivory feathers 3.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 3.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 3.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver arrow shaft 4",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Quiver ivory feathers 4.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 4.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver ivory feathers 4.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Quiver • fitted diagonal shoulder strap",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Quiver • back harness",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Held arrow • wooden shaft",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Held arrow • ivory feathers.0",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Held arrow • ivory feathers.1",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Held arrow • ivory feathers.2",
+      "sourceTriangles": 32,
+      "lodTriangles": 32
+    },
+    {
+      "name": "Held arrow • steel point",
+      "sourceTriangles": 188,
+      "lodTriangles": 188
+    }
+  ]
+}

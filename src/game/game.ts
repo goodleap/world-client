@@ -271,8 +271,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       rendering: {
         drawCalls: engine._drawCalls.current,
         activeTriangles: scene.getActiveIndices() / 3,
-        visibleGeometryTriangles: scene.meshes.filter(mesh => mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0 && mesh.getTotalVertices())
-          .reduce((count, mesh) => count + mesh.getTotalIndices() / 3, 0),
+        visibleGeometryTriangles: scene.meshes.filter(mesh => !mesh.isBlocked && mesh.isEnabled() && mesh.isVisible && mesh.visibility > 0 && mesh.getTotalVertices())
+          .reduce((count, mesh) => count + (mesh.getLOD(camera)?.getTotalIndices() ?? 0) / 3, 0),
         batchedParts: scene.meshes.reduce((count, mesh) => count + (mesh.metadata?.batchedParts?.length ?? 0), 0),
       },
       shadows: {

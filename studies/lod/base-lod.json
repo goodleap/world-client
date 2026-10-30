@@ -1,0 +1,141 @@
+{
+  "source": "studies/base-human/base-human.glb",
+  "sourceSha256": "124e6a1c91039c8f15f790f8d6220c95ff9c3dec5094603c89afb8986022ebb7",
+  "lodSha256": "c72468a5cee484962bd371a5995e0b7ddbaecd68dc59faff2dbbecef012a9c99",
+  "jointOrderMatches": true,
+  "bindPoseMatches": true,
+  "sourceTriangles": 197110,
+  "lodTriangles": 47996,
+  "parts": [
+    {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 35068,
+      "lodTriangles": 12272
+    },
+    {
+      "name": "Ear.R",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.R",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Ear.L",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.L",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Small rounded nose",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Smile",
+      "sourceTriangles": 2324,
+      "lodTriangles": 510
+    },
+    {
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "lodTriangles": 128
+    },
+    {
+      "name": "Torso skin",
+      "sourceTriangles": 3196,
+      "lodTriangles": 702
+    },
+    {
+      "name": "Neck",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous leg and foot.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous leg and foot.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 18100,
+      "lodTriangles": 3982
+    },
+    {
+      "name": "Neck binding",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shirt hem piping",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 18014,
+      "lodTriangles": 3962
+    },
+    {
+      "name": "Short hem.R",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Short hem.L",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    }
+  ]
+}

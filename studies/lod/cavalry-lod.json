@@ -1,0 +1,461 @@
+{
+  "source": "studies/soldiers/cavalry/cavalry.glb",
+  "sourceSha256": "ae354870ab20f788e79260ea655ff2e20d6fedc8a8b057e34752e24fd835c129",
+  "lodSha256": "aa2294ab5cded66a491716492c5000c7fa26935e31b27f07232922374a46fcda",
+  "jointOrderMatches": true,
+  "bindPoseMatches": true,
+  "sourceTriangles": 532090,
+  "lodTriangles": 136338,
+  "parts": [
+    {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 35068,
+      "lodTriangles": 12272
+    },
+    {
+      "name": "Ear.R",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.R",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Ear.L",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.L",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Small rounded nose",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Smile",
+      "sourceTriangles": 2324,
+      "lodTriangles": 510
+    },
+    {
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "lodTriangles": 128
+    },
+    {
+      "name": "Torso skin",
+      "sourceTriangles": 3196,
+      "lodTriangles": 702
+    },
+    {
+      "name": "Neck",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 18100,
+      "lodTriangles": 3982
+    },
+    {
+      "name": "Neck binding",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shirt hem piping",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 18014,
+      "lodTriangles": 3962
+    },
+    {
+      "name": "Leather vest • rounded belly",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Leather shoulder strap.-1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Leather shoulder strap.1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 5376,
+      "lodTriangles": 1182
+    },
+    {
+      "name": "Brass belt buckle",
+      "sourceTriangles": 1936,
+      "lodTriangles": 424
+    },
+    {
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.R",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.R",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.L",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.L",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hair • fitted scalp",
+      "sourceTriangles": 14204,
+      "lodTriangles": 3124
+    },
+    {
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Helmet • rounded steel crown",
+      "sourceTriangles": 14204,
+      "lodTriangles": 4970
+    },
+    {
+      "name": "Helmet • rounded brow rim",
+      "sourceTriangles": 2560,
+      "lodTriangles": 896
+    },
+    {
+      "name": "Helmet reinforcing band 0",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band -1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 3.141592653589793",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet front rivet",
+      "sourceTriangles": 1840,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Helmet • curled blue plume",
+      "sourceTriangles": 6656,
+      "lodTriangles": 2328
+    },
+    {
+      "name": "Horse • continuous body neck head and legs",
+      "sourceTriangles": 90092,
+      "lodTriangles": 19820
+    },
+    {
+      "name": "Hoof.FL",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hoof.FR",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hoof.HL",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hoof.HR",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Horse eye.-1",
+      "sourceTriangles": 814,
+      "lodTriangles": 814
+    },
+    {
+      "name": "Horse eye glint.-1",
+      "sourceTriangles": 814,
+      "lodTriangles": 814
+    },
+    {
+      "name": "Horse nostril.-1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Horse ear.-1",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Horse inner ear.-1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Horse eye.1",
+      "sourceTriangles": 814,
+      "lodTriangles": 814
+    },
+    {
+      "name": "Horse eye glint.1",
+      "sourceTriangles": 814,
+      "lodTriangles": 814
+    },
+    {
+      "name": "Horse nostril.1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Horse ear.1",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Horse inner ear.1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Horse muzzle smile",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Horse • flowing mane",
+      "sourceTriangles": 5632,
+      "lodTriangles": 1238
+    },
+    {
+      "name": "Horse • swept forelock 0",
+      "sourceTriangles": 3584,
+      "lodTriangles": 788
+    },
+    {
+      "name": "Horse • swept forelock 1",
+      "sourceTriangles": 3584,
+      "lodTriangles": 788
+    },
+    {
+      "name": "Horse • continuous flowing tail",
+      "sourceTriangles": 5632,
+      "lodTriangles": 1238
+    },
+    {
+      "name": "Horse cheek strap.-1",
+      "sourceTriangles": 736,
+      "lodTriangles": 736
+    },
+    {
+      "name": "Horse bit ring.-1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Horse cheek strap.1",
+      "sourceTriangles": 736,
+      "lodTriangles": 736
+    },
+    {
+      "name": "Horse bit ring.1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Horse brow band",
+      "sourceTriangles": 976,
+      "lodTriangles": 976
+    },
+    {
+      "name": "Horse noseband",
+      "sourceTriangles": 976,
+      "lodTriangles": 976
+    },
+    {
+      "name": "Saddle • blue fitted blanket",
+      "sourceTriangles": 15872,
+      "lodTriangles": 3490
+    },
+    {
+      "name": "Saddle • curved leather seat",
+      "sourceTriangles": 15872,
+      "lodTriangles": 3490
+    },
+    {
+      "name": "Saddle • rounded cantle",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Saddle • rounded pommel",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Saddle • belly girth",
+      "sourceTriangles": 1152,
+      "lodTriangles": 1152
+    },
+    {
+      "name": "Rider • curved blue cape",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Lance • wooden shaft",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Lance • steel socket",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Lance • leaf steel point",
+      "sourceTriangles": 92,
+      "lodTriangles": 92
+    },
+    {
+      "name": "Rider stirrup.L",
+      "sourceTriangles": 1216,
+      "lodTriangles": 266
+    },
+    {
+      "name": "Rider stirrup.R",
+      "sourceTriangles": 1216,
+      "lodTriangles": 266
+    },
+    {
+      "name": "Rein • near hand",
+      "sourceTriangles": 736,
+      "lodTriangles": 736
+    },
+    {
+      "name": "Rein • far hand",
+      "sourceTriangles": 976,
+      "lodTriangles": 976
+    },
+    {
+      "name": "Saddle stirrup strap.L",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Saddle stirrup strap.R",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    }
+  ]
+}

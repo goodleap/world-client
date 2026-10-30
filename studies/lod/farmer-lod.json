@@ -1,0 +1,276 @@
+{
+  "source": "studies/farmer/farmer.glb",
+  "sourceSha256": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
+  "lodSha256": "ce4a6cb1506910b5b52b9ab94e2849b039b3e73d43b510458afdf3ba3279cdfd",
+  "jointOrderMatches": true,
+  "bindPoseMatches": true,
+  "sourceTriangles": 350982,
+  "lodTriangles": 101518,
+  "parts": [
+    {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 35068,
+      "lodTriangles": 12272
+    },
+    {
+      "name": "Ear.R",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.R",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Ear.L",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.L",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Small rounded nose",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Smile",
+      "sourceTriangles": 2324,
+      "lodTriangles": 510
+    },
+    {
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "lodTriangles": 128
+    },
+    {
+      "name": "Torso skin",
+      "sourceTriangles": 3196,
+      "lodTriangles": 702
+    },
+    {
+      "name": "Neck",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 18100,
+      "lodTriangles": 3982
+    },
+    {
+      "name": "Neck binding",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shirt hem piping",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 18014,
+      "lodTriangles": 3962
+    },
+    {
+      "name": "Apron • curved skirt",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Apron • fitted bib",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Suspender.-1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Brass suspender rivet",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Brass suspender rivet.001",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Suspender.1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Brass suspender rivet.002",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Brass suspender rivet.003",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Belt buckle",
+      "sourceTriangles": 1936,
+      "lodTriangles": 424
+    },
+    {
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.R",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.R",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Tool pouch.R",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.L",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.L",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Tool pouch.L",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Hair • wrapped scalp",
+      "sourceTriangles": 20988,
+      "lodTriangles": 4616
+    },
+    {
+      "name": "Headwrap • complete folded crown",
+      "sourceTriangles": 20988,
+      "lodTriangles": 20988
+    },
+    {
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Headwrap knot",
+      "sourceTriangles": 1840,
+      "lodTriangles": 1840
+    },
+    {
+      "name": "Linen tie.-1",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Linen tie.1",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Hoe • wooden handle",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Hoe • iron socket",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Hoe • broad blade",
+      "sourceTriangles": 188,
+      "lodTriangles": 188
+    }
+  ]
+}

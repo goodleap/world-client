@@ -9,7 +9,15 @@ test('high-DPI touch viewport keeps bounded geometry, batching and visible shado
   const state = await snapshot(page);
   // Check actual submitted work, not FPS on CI's software GPU.
   expect(state.rendering.drawCalls).toBeLessThan(400);
-  expect(state.rendering.visibleGeometryTriangles).toBeLessThan(3_100_000);
+  expect(state.rendering.visibleGeometryTriangles).toBeLessThan(1_800_000);
+  expect(state.rendering.activeTriangles).toBeLessThan(3_000_000);
+  const residents = state.residents.filter(resident => resident.lod);
+  expect(residents).toHaveLength(6);
+  for (const resident of residents) {
+    expect(resident.lod!.mapParts).toBe(resident.lod!.parts);
+    expect(resident.lod!.sharedSkeletonAndMaterials).toBe(true);
+    expect(resident.lod!.mapTriangles).toBeLessThan(resident.lod!.sourceTriangles * .4);
+  }
   expect(state.rendering.batchedParts).toBeGreaterThan(200);
   expect(state.shadows.mapSize).toBe(1024);
   expect(state.shadows.groundReceives).toBe(true);
@@ -21,11 +29,16 @@ test('high-DPI touch viewport keeps bounded geometry, batching and visible shado
   expect((await snapshot(page)).farmerModelLoaded).toBe(true);
   expect((await snapshot(page)).shadows.mapSize).toBe(2048);
   expect((await snapshot(page)).shadows.casters.length).toBe(state.shadows.casters.length);
+  for (const resident of (await snapshot(page)).residents.filter(resident => resident.lod)) {
+    expect(resident.lod!.mapParts).toBe(0);
+  }
   await page.screenshot({ path: info.outputPath('character.png'), scale: 'css' });
   await page.getByRole('button', { name: '回到起点', exact: true }).tap();
   expect((await snapshot(page)).shadows.mapSize).toBe(1024);
   expect((await snapshot(page)).shadows.casters.length).toBe(state.shadows.casters.length);
   const mapId = (await snapshot(page)).shadows.mapId;
+  await expect.poll(async () => (await snapshot(page)).residents.find(resident => resident.id === 'farmer')!.lod!.mapParts,
+    { timeout: 40_000 }).toBe(residents.find(resident => resident.id === 'farmer')!.lod!.parts);
   await page.getByRole('button', { name: '回到起点', exact: true }).tap();
   expect((await snapshot(page)).shadows.mapId).toBe(mapId);
   expect(errors).toEqual([]);

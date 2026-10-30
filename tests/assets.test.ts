@@ -8,7 +8,7 @@ type GLTF = {
   accessors: Accessor[];
   bufferViews: { byteOffset?: number; byteStride?: number }[];
   nodes: { name: string; children?: number[]; matrix?: number[]; translation?: number[]; rotation?: number[]; scale?: number[]; mesh?: number }[];
-  meshes: { primitives: { attributes: Record<string, number> }[] }[];
+  meshes: { primitives: { attributes: Record<string, number>; indices: number }[] }[];
   skins: { joints: number[]; inverseBindMatrices: number }[];
   animations: { name: string; channels: { sampler: number; target: { node: number; path: string } }[]; samplers: { input: number; output: number; interpolation: string }[] }[];
 };
@@ -25,7 +25,7 @@ function asset(path: string) {
     const start = (v.byteOffset ?? 0) + (a.byteOffset ?? 0);
     return Buffer.concat(Array.from({ length: a.count }, (_, i) => binary.subarray(start + i * (v.byteStride ?? size), start + i * (v.byteStride ?? size) + size)));
   };
-  return { json, bytes };
+  return { json, bytes, data };
 }
 const base = asset('../studies/base-human/base-human.glb');
 const farmer = asset('../studies/farmer/farmer.glb');
@@ -169,3 +169,45 @@ test('cavalry adds distinct mounted idle, four-beat walk and airborne trot clips
   };
   assert.notDeepEqual(root('RideRun'), root('RideWalk'));
 });
+
+for (const role of ['base', 'farmer', 'infantry', 'cavalry', 'archer']) {
+  test(`${role} map LOD preserves source binding and valid skin weights without duplicate animations`, () => {
+    const manifest = JSON.parse(readFileSync(new URL(`../studies/lod/${role}-lod.json`, import.meta.url), 'utf8'));
+    const high = asset('../' + manifest.source), low = asset(`../studies/lod/${role}-lod.glb`);
+    assert.equal(createHash('sha256').update(high.data).digest('hex'), manifest.sourceSha256, 'authored source remains unchanged');
+    assert.equal(createHash('sha256').update(low.data).digest('hex'), manifest.lodSha256);
+    assert.equal(low.json.animations?.length ?? 0, 0);
+    const joints = (a: typeof low) => a.json.skins.map(s => s.joints.map(i => a.json.nodes[i].name));
+    assert.deepEqual(joints(low), joints(high));
+    for (const [i, skin] of low.json.skins.entries()) {
+      assert.deepEqual(low.bytes(skin.inverseBindMatrices), high.bytes(high.json.skins[i].inverseBindMatrices));
+    }
+    const parts = (a: typeof low) => a.json.nodes.filter(n => n.mesh !== undefined).map(n => n.name);
+    assert.deepEqual(parts(low), parts(high));
+    const triangles = (a: typeof low) => a.json.meshes.reduce((sum, m) => sum + m.primitives.reduce((n, p) => n + a.json.accessors[p.indices].count / 3, 0), 0);
+    assert.ok(triangles(low) < triangles(high) * .4, 'map geometry must materially reduce vertex processing');
+    for (const mesh of low.json.meshes) for (const primitive of mesh.primitives) {
+      const attributes = primitive.attributes;
+      const weightBytes = low.bytes(attributes.WEIGHTS_0), jointBytes = low.bytes(attributes.JOINTS_0);
+      const componentType = low.json.accessors[attributes.JOINTS_0].componentType;
+      assert.equal(low.json.accessors[attributes.WEIGHTS_0].componentType, 5126);
+      assert.ok(componentType === 5121 || componentType === 5123);
+      const stride = componentType === 5121 ? 1 : 2;
+      for (let v = 0; v < weightBytes.length / 16; v++) {
+        let sum = 0;
+        for (let j = 0; j < 4; j++) {
+          const weight = weightBytes.readFloatLE(v * 16 + j * 4);
+          const index = jointBytes.readUIntLE((v * 4 + j) * stride, stride);
+          assert.ok(Number.isFinite(weight) && weight >= 0 && weight <= 1);
+          assert.ok(index < low.json.skins[0].joints.length);
+          sum += weight;
+        }
+        assert.ok(Math.abs(sum - 1) < .001, 'all exported vertices have normalized skin weights');
+      }
+      for (const kind of ['POSITION', 'NORMAL']) {
+        const data = low.bytes(attributes[kind]);
+        for (let i = 0; i < data.length; i += 4) assert.ok(Number.isFinite(data.readFloatLE(i)));
+      }
+    }
+  });
+}

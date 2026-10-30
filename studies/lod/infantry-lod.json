@@ -1,0 +1,301 @@
+{
+  "source": "studies/soldiers/infantry/infantry.glb",
+  "sourceSha256": "9ea726151b79821ae27b589b1d9ee1af98582382fcc0f63df52069dc3d020e4f",
+  "lodSha256": "eedfe411efd49d8d67665f580a032075a1aaf5c6fae0e924f53be1e626bcf838",
+  "jointOrderMatches": true,
+  "bindPoseMatches": true,
+  "sourceTriangles": 332294,
+  "lodTriangles": 84070,
+  "parts": [
+    {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 35068,
+      "lodTriangles": 12272
+    },
+    {
+      "name": "Ear.R",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.R",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.R",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Ear.L",
+      "sourceTriangles": 7196,
+      "lodTriangles": 1582
+    },
+    {
+      "name": "Eye white.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye iris.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Eye glint.L",
+      "sourceTriangles": 1472,
+      "lodTriangles": 322
+    },
+    {
+      "name": "Brow.L",
+      "sourceTriangles": 1556,
+      "lodTriangles": 342
+    },
+    {
+      "name": "Small rounded nose",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Smile",
+      "sourceTriangles": 2324,
+      "lodTriangles": 510
+    },
+    {
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "lodTriangles": 128
+    },
+    {
+      "name": "Torso skin",
+      "sourceTriangles": 3196,
+      "lodTriangles": 702
+    },
+    {
+      "name": "Neck",
+      "sourceTriangles": 2976,
+      "lodTriangles": 654
+    },
+    {
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 20000,
+      "lodTriangles": 4400
+    },
+    {
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 18100,
+      "lodTriangles": 3982
+    },
+    {
+      "name": "Neck binding",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shirt hem piping",
+      "sourceTriangles": 1998,
+      "lodTriangles": 438
+    },
+    {
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 18014,
+      "lodTriangles": 3962
+    },
+    {
+      "name": "Leather vest • rounded belly",
+      "sourceTriangles": 12736,
+      "lodTriangles": 2800
+    },
+    {
+      "name": "Leather shoulder strap.-1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Leather shoulder strap.1",
+      "sourceTriangles": 644,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Strap rivet.1",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "lodTriangles": 96
+    },
+    {
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 5376,
+      "lodTriangles": 1182
+    },
+    {
+      "name": "Brass belt buckle",
+      "sourceTriangles": 1936,
+      "lodTriangles": 424
+    },
+    {
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.R",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.R",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 9216,
+      "lodTriangles": 2026
+    },
+    {
+      "name": "Boot.L",
+      "sourceTriangles": 15360,
+      "lodTriangles": 3378
+    },
+    {
+      "name": "Boot sole.L",
+      "sourceTriangles": 7168,
+      "lodTriangles": 1576
+    },
+    {
+      "name": "Hair • fitted scalp",
+      "sourceTriangles": 14204,
+      "lodTriangles": 3124
+    },
+    {
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 8032,
+      "lodTriangles": 1766
+    },
+    {
+      "name": "Helmet • rounded steel crown",
+      "sourceTriangles": 14204,
+      "lodTriangles": 4970
+    },
+    {
+      "name": "Helmet • rounded brow rim",
+      "sourceTriangles": 2560,
+      "lodTriangles": 896
+    },
+    {
+      "name": "Helmet reinforcing band 0",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band -1.5707963267948966",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet reinforcing band 3.141592653589793",
+      "sourceTriangles": 388,
+      "lodTriangles": 388
+    },
+    {
+      "name": "Helmet front rivet",
+      "sourceTriangles": 1840,
+      "lodTriangles": 644
+    },
+    {
+      "name": "Helmet • curled blue plume",
+      "sourceTriangles": 6656,
+      "lodTriangles": 2328
+    },
+    {
+      "name": "Sword • leather grip",
+      "sourceTriangles": 256,
+      "lodTriangles": 256
+    },
+    {
+      "name": "Sword • brass pommel",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    },
+    {
+      "name": "Sword • rounded crossguard",
+      "sourceTriangles": 496,
+      "lodTriangles": 496
+    },
+    {
+      "name": "Sword • broad steel blade",
+      "sourceTriangles": 156,
+      "lodTriangles": 156
+    },
+    {
+      "name": "Shield • convex blue face",
+      "sourceTriangles": 1536,
+      "lodTriangles": 336
+    },
+    {
+      "name": "Shield • steel rim",
+      "sourceTriangles": 11536,
+      "lodTriangles": 2536
+    },
+    {
+      "name": "Shield • metal brace 0",
+      "sourceTriangles": 3856,
+      "lodTriangles": 848
+    },
+    {
+      "name": "Shield • metal brace 2",
+      "sourceTriangles": 3856,
+      "lodTriangles": 848
+    },
+    {
+      "name": "Shield • central boss",
+      "sourceTriangles": 1840,
+      "lodTriangles": 404
+    }
+  ]
+}

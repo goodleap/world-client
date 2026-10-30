@@ -20,6 +20,11 @@ import baseModelUrl from '../../studies/base-human/base-human.glb?url';
 import infantryModelUrl from '../../studies/soldiers/infantry/infantry.glb?url';
 import cavalryModelUrl from '../../studies/soldiers/cavalry/cavalry.glb?url';
 import archerModelUrl from '../../studies/soldiers/archer/archer.glb?url';
+import baseLODUrl from '../../studies/lod/base-lod.glb?url';
+import farmerLODUrl from '../../studies/lod/farmer-lod.glb?url';
+import infantryLODUrl from '../../studies/lod/infantry-lod.glb?url';
+import cavalryLODUrl from '../../studies/lod/cavalry-lod.glb?url';
+import archerLODUrl from '../../studies/lod/archer-lod.glb?url';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -27,6 +32,9 @@ import type { Bone } from '@babylonjs/core/Bones/bone';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Material } from '@babylonjs/core/Materials/material';
 import { batchSkinnedMeshes } from './mesh-batching.ts';
+import { loadCharacterLOD } from './character-lod.ts';
+import type { CharacterLOD } from './character-lod.ts';
+import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
@@ -39,9 +47,9 @@ const downloadProgress = (report?: ResourceProgress) => (event: ISceneLoaderProg
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
   const placeholderRoles = new Set(['worker']);
   const soldierAssets = [
-    { role: 'infantry', url: infantryModelUrl, mounted: false },
-    { role: 'cavalry', url: cavalryModelUrl, mounted: true },
-    { role: 'archer', url: archerModelUrl, mounted: false },
+    { role: 'infantry', url: infantryModelUrl, lod: infantryLODUrl, mounted: false },
+    { role: 'cavalry', url: cavalryModelUrl, lod: cavalryLODUrl, mounted: true },
+    { role: 'archer', url: archerModelUrl, lod: archerLODUrl, mounted: false },
   ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {
@@ -88,6 +96,32 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const locomotion = new Map<string, Locomotion>();
   const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
   const soldierBones = new Map<string, Bone[]>();
+  const characterLODs = new Map<string, CharacterLOD[]>();
+  const attachGeometry = async (id: string, meshes: readonly AbstractMesh[], lodUrl: string, report?: ResourceProgress, namePrefix?: string) => {
+    const sources = batchSkinnedMeshes(meshes);
+    for (const mesh of sources) {
+      mesh.isPickable = false;
+      if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
+    }
+    report?.(0);
+    characterLODs.set(id, await loadCharacterLOD(scene, sources, lodUrl, {
+      namePrefix, onProgress: downloadProgress(report),
+    }));
+    // The native shadow renderer selects the same LOD as the main camera;
+    // only the source meshes belong in its caster list.
+    report?.(1);
+  };
+  const lodInfo = (id: string) => {
+    const pairs = characterLODs.get(id);
+    if (!pairs) return;
+    return {
+      parts: pairs.length,
+      mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length,
+      sourceTriangles: pairs.reduce((sum, pair) => sum + pair.source.getTotalIndices() / 3, 0),
+      mapTriangles: pairs.reduce((sum, pair) => sum + pair.detail.getTotalIndices() / 3, 0),
+      sharedSkeletonAndMaterials: pairs.every(({ source, detail }) => source.skeleton === detail.skeleton && source.material === detail.material),
+    };
+  };
   const prepareBaseMaterials = (materials: readonly (Material | null)[]) => {
     for (const material of new Set(materials)) {
       // Match the new PBR asset to this scene's light levels, retaining its
@@ -122,7 +156,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   return {
     async loadFarmerModel(report?: ResourceProgress) {
-      const result = await ImportMeshAsync(farmerModelUrl, scene, { onProgress: downloadProgress(report) });
+      const result = await ImportMeshAsync(farmerModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
@@ -131,15 +165,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       registerLocomotion(farmer.definition.id, farmerWalk, farmerRun);
       result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
-      for (const mesh of batchSkinnedMeshes(result.meshes)) {
-        mesh.isPickable = false;
-        if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
-      }
+      await attachGeometry(farmer.definition.id, result.meshes, farmerLODUrl, fraction => report?.(.8 + .2 * fraction));
       farmerModelLoaded = true;
       report?.(1);
     },
     async loadBaseModel(report?: ResourceProgress) {
-      const result = await ImportMeshAsync(baseModelUrl, scene, { onProgress: downloadProgress(report) });
+      const result = await ImportMeshAsync(baseModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
       // Preserve the approved model's own skin, face vertex colors and cotton.
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       baseBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
@@ -150,18 +181,16 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       registerLocomotion(baseHuman.definition.id, baseWalk, baseRun);
       result.meshes[0].parent = baseHuman.root;
       baseHuman.human!.mesh.setEnabled(false);
-      for (const mesh of batchSkinnedMeshes(result.meshes)) {
-        mesh.isPickable = false;
-        if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
-      }
+      await attachGeometry(baseHuman.definition.id, result.meshes, baseLODUrl, fraction => report?.(.8 + .2 * fraction));
       baseModelLoaded = true;
       report?.(1);
     },
     async loadSoldierModels(report?: ResourceProgress) {
       for (const [index, asset] of soldierAssets.entries()) {
+        const roleProgress = (fraction: number) => report?.((index + fraction) / soldierAssets.length);
         const actor = actors.find(entry => entry.definition.role === asset.role)!;
         const result = await ImportMeshAsync(asset.url, scene, {
-          onProgress: downloadProgress(fraction => report?.((index + fraction) / soldierAssets.length)),
+          onProgress: downloadProgress(fraction => roleProgress(.8 * fraction)),
         });
         prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
         result.animationGroups.forEach(group => group.stop());
@@ -175,10 +204,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         result.meshes[0].parent = actor.root;
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
-        for (const mesh of batchSkinnedMeshes(result.meshes)) {
-          mesh.isPickable = false;
-          if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
-        }
+        await attachGeometry(actor.definition.id, result.meshes, asset.lod, fraction => roleProgress(.8 + .2 * fraction));
         soldierModels.set(actor.definition.id, {
           bones: result.skeletons.flatMap(skeleton => skeleton.bones.map(bone => bone.name)),
           meshes: result.meshes.map(mesh => mesh.name),
@@ -189,9 +215,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     },
     async loadRolePlaceholders(report?: ResourceProgress) {
-      const container = await LoadAssetContainerAsync(baseModelUrl, scene, { onProgress: downloadProgress(report) });
+      const container = await LoadAssetContainerAsync(baseModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
       prepareBaseMaterials(container.materials);
-      for (const actor of actors.filter((entry) => placeholderRoles.has(entry.definition.role))) {
+      const placeholders = actors.filter(entry => placeholderRoles.has(entry.definition.role));
+      for (const [index, actor] of placeholders.entries()) {
         const instance = container.instantiateModelsToScene((name) => `${actor.definition.id}-${name}`, false, { doNotInstantiate: true });
         const walk = instance.animationGroups.find((group) => group.name.endsWith('-Walk'));
         const run = instance.animationGroups.find((group) => group.name.endsWith('-Run'));
@@ -199,11 +226,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         registerLocomotion(actor.definition.id, walk, run);
         for (const root of instance.rootNodes) {
           root.parent = actor.root;
-          for (const mesh of batchSkinnedMeshes(root.getChildMeshes())) {
-            mesh.isPickable = false;
-            if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
-          }
         }
+        await attachGeometry(actor.definition.id, instance.rootNodes.flatMap(root => root.getChildMeshes()), baseLODUrl,
+          fraction => report?.(.8 + .2 * (index + fraction) / placeholders.length), `${actor.definition.id}-`);
         actor.human?.mesh.setEnabled(false);
         if (actor.definition.role === 'cavalry') actor.animal?.mesh.setEnabled(false);
       }
@@ -317,6 +342,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     snapshot: () => actors.map((actor) => ({
       id: actor.definition.id, role: actor.definition.role,
       model: soldierModels.get(actor.definition.id),
+      lod: lodInfo(actor.definition.id),
       modelPose: soldierBones.get(actor.definition.id)?.map(bone =>
         (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       motion: locomotion.get(actor.definition.id)?.motion,
