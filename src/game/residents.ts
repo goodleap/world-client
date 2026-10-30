@@ -15,16 +15,8 @@ import { findPath } from './pathfinding.ts';
 import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
-import farmerModelUrl from '../../studies/farmer/farmer.glb?url';
-import baseModelUrl from '../../studies/base-human/base-human.glb?url';
-import infantryModelUrl from '../../studies/soldiers/infantry/infantry.glb?url';
-import cavalryModelUrl from '../../studies/soldiers/cavalry/cavalry.glb?url';
-import archerModelUrl from '../../studies/soldiers/archer/archer.glb?url';
-import baseLODUrl from '../../studies/lod/base-lod.glb?url';
-import farmerLODUrl from '../../studies/lod/farmer-lod.glb?url';
-import infantryLODUrl from '../../studies/lod/infantry-lod.glb?url';
-import cavalryLODUrl from '../../studies/lod/cavalry-lod.glb?url';
-import archerLODUrl from '../../studies/lod/archer-lod.glb?url';
+import { modelAssets } from './model-assets.ts';
+import { modelData, modelOptions } from './asset-cache.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -37,6 +29,8 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
+const { farmer: farmerModelUrl, base: baseModelUrl, infantry: infantryModelUrl, cavalry: cavalryModelUrl, archer: archerModelUrl,
+  baseLOD: baseLODUrl, farmerLOD: farmerLODUrl, infantryLOD: infantryLODUrl, cavalryLOD: cavalryLODUrl, archerLOD: archerLODUrl } = modelAssets;
 type ResourceProgress = (fraction: number) => void;
 const downloadProgress = (report?: ResourceProgress) => (event: ISceneLoaderProgressEvent) => {
   // Reserve the final tenth for decoding, skinning and attaching the asset.
@@ -159,7 +153,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   return {
     async loadFarmerModel(report?: ResourceProgress) {
-      const result = await ImportMeshAsync(farmerModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
+      const data = await modelData(farmerModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
+      const result = await ImportMeshAsync(data, scene, modelOptions(farmerModelUrl));
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
@@ -183,7 +178,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       report?.(1);
     },
     async loadBaseModel(report?: ResourceProgress) {
-      const result = await ImportMeshAsync(baseModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
+      const data = await modelData(baseModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
+      const result = await ImportMeshAsync(data, scene, modelOptions(baseModelUrl));
       // Preserve the approved model's own skin, face vertex colors and cotton.
       prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
       baseBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
@@ -202,9 +198,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const [index, asset] of soldierAssets.entries()) {
         const roleProgress = (fraction: number) => report?.((index + fraction) / soldierAssets.length);
         const actor = actors.find(entry => entry.definition.role === asset.role)!;
-        const result = await ImportMeshAsync(asset.url, scene, {
-          onProgress: downloadProgress(fraction => roleProgress(.8 * fraction)),
-        });
+        const data = await modelData(asset.url, downloadProgress(fraction => roleProgress(.8 * fraction)));
+        const result = await ImportMeshAsync(data, scene, modelOptions(asset.url));
         prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
         result.animationGroups.forEach(group => group.stop());
         const walk = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideWalk' : 'Walk'));
@@ -228,7 +223,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     },
     async loadRolePlaceholders(report?: ResourceProgress) {
-      const container = await LoadAssetContainerAsync(baseModelUrl, scene, { onProgress: downloadProgress(fraction => report?.(.8 * fraction)) });
+      const data = await modelData(baseModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
+      const container = await LoadAssetContainerAsync(data, scene, modelOptions(baseModelUrl));
       prepareBaseMaterials(container.materials);
       const placeholders = actors.filter(entry => placeholderRoles.has(entry.definition.role));
       for (const [index, actor] of placeholders.entries()) {

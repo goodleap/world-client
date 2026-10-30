@@ -12,6 +12,16 @@ let ui: GameUI | undefined;
 let game: Game | undefined;
 let disposed = false;
 let makeUI: typeof import('./ui.ts')['createUI'];
+let gameModule: Promise<typeof import('./game/game.ts')> | undefined;
+function prepareGame() {
+  return gameModule ??= import('./game/game.ts').catch(error => { gameModule = undefined; throw error; });
+}
+function menu(returning = false) {
+  launcher.menu(() => { void start(makeUI); }, returning);
+  // Load code and GLBs after the menu is visible; no engine, scene or simulation
+  // runs until Start. Entry shares these promises even while downloads continue.
+  void nextPaint().then(() => disposed ? undefined : prepareGame().then(module => module.preloadGameAssets())).catch(() => {});
+}
 
 function leave(destination: 'menu' | 'exit') {
   if (!game || !ui) return;
@@ -19,9 +29,8 @@ function leave(destination: 'menu' | 'exit') {
   game.dispose(); ui.dispose(); game = undefined; ui = undefined; delete window.__DEMO__;
   const page = document.querySelector<HTMLElement>('#game-page')!;
   page.hidden = true; page.inert = true; page.replaceChildren();
-  const menu = () => launcher.menu(() => { void start(makeUI); }, true);
-  if (destination === 'exit') launcher.exit(menu);
-  else menu();
+  if (destination === 'exit') launcher.exit(() => menu(true));
+  else menu(true);
 }
 
 async function boot() {
@@ -34,7 +43,7 @@ async function boot() {
     if (disposed) return;
     launcher.report(100, '界面已准备好');
     await nextPaint();
-    launcher.menu(() => { void start(createUI); });
+    menu();
   } catch (error) {
     console.error('Unable to prepare the menu:', error);
     launcher.error();
@@ -44,7 +53,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI']) {
   try {
     launcher.beginGame();
     await nextPaint();
-    const { createGame } = await import('./game/game.ts');
+    const { createGame } = await prepareGame();
     if (disposed) return;
     launcher.report(8, '正在布置家园…');
     const page = document.querySelector<HTMLElement>('#game-page')!;

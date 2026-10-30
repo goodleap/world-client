@@ -20,7 +20,7 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     releaseUI();
     await expect(screen).toHaveAttribute('data-phase', 'menu');
     await expect(page.getByRole('button', { name: '开始游戏', exact: true })).toBeVisible();
-    expect(requests.filter(url => /\.glb(?:\?|$)|\/assets\/engine-/.test(url))).toEqual([]);
+    await expect.poll(() => requests.some(url => /farmer-.*\.glb/.test(url))).toBe(true);
     expect(await page.locator('#game').count()).toBe(0);
     await page.screenshot({ path: info.outputPath('menu.png') });
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
@@ -37,6 +37,11 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect((await page.evaluate(() => window.__DEMO__!.snapshot())).residents).toHaveLength(7);
+    // Pending farmer download was reused after Start; base/LOD downloads were
+    // also reused for the worker, even with HTTP caching disabled by routing.
+    const models = requests.filter(url => /\.glb(?:\?|$)/.test(url));
+    expect(models).toHaveLength(10);
+    expect(new Set(models).size).toBe(10);
     await page.screenshot({ path: info.outputPath('game.png') });
     expect(errors).toEqual([]);
   } finally { releaseUI(); releaseModel(); }

@@ -22,6 +22,8 @@ import { Economy, decodeEconomy, encodeEconomy } from './economy.ts';
 import { economySelection, updateEconomyUI } from './economy-ui.ts';
 import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
+import { releaseModelDownloads } from './asset-cache.ts';
+export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -60,6 +62,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     await residents.loadSoldierModels(fraction => report(47 + 33 * fraction, '正在迎接步兵、骑兵与弓兵…'));
     report(80, '正在准备其他居民…');
     await residents.loadRolePlaceholders(fraction => report(80 + 8 * fraction, '正在准备其他居民…'));
+    releaseModelDownloads();
     report(90, '正在准备光影与地图画面…');
     await nextPaint();
   } catch (error) {
