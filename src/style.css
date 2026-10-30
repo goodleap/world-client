@@ -700,9 +700,13 @@ kbd {
 #loading-progress::-webkit-progress-value { background:#79965d; border-radius:20px; }
 #loading-progress::-moz-progress-bar { background:#79965d; border-radius:20px; }
 #menu-title { font-size:clamp(36px,9vw,48px); letter-spacing:7px; }
-#start-game { margin:34px auto 0; width:220px; min-height:54px; background:#627f4a; box-shadow:0 8px 20px #51673920; }
-#start-game span { font-size:22px; margin-left:24px; }
+#menu-panel .menu-actions { margin:28px auto 0; width:min(100%,280px); }
 .loading .menu-hint { margin-top:24px; font-size:11px; letter-spacing:1px; }
+.menu-actions { display:grid; gap:12px; }
+.menu-actions .primary-button { justify-content:center; min-height:48px; }
+.menu-actions .secondary-button { background:#e0e7d5; color:#40543f; }
+.menu-actions button:disabled { background:#e4e6dd; color:#8b9282; cursor:default; }
+.loading .menu-save-status { font-size:12px; margin:16px 0 0; line-height:1.6; }
 .launch-landscape { position:absolute; inset:0; pointer-events:none; }
 .launch-landscape i { position:absolute; border-radius:50%; }
 .launch-landscape i:nth-child(1) { width:140px; height:140px; background:#edcd7a4d; top:12%; left:calc(50% + 150px); }
@@ -723,7 +727,7 @@ kbd {
   .launch-emblem svg { width:26px; height:26px; }
   .loading .launch-eyebrow { margin-bottom:8px; }
   .loading .launch-footer { display:none; }
-  #start-game { margin-top:15px; }
+  #menu-panel .menu-actions { margin-top:15px; }
   .loading .menu-hint { margin-top:12px; }
 }
 

@@ -18,7 +18,8 @@ import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
-import { Economy, decodeEconomy, encodeEconomy } from './economy.ts';
+import { Economy, encodeEconomy } from './economy.ts';
+import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
 import { economySelection, updateEconomyUI } from './economy-ui.ts';
 import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
@@ -26,7 +27,7 @@ import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
-export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
+export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
@@ -38,14 +39,11 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const mobile = window.matchMedia('(pointer: coarse)').matches;
   const shadows = createDaylight(scene, mobile);
   const palette = createPalette(scene);
-  const saveKey = 'world-basic-economy-v1';
-  let economy = new Economy();
   let saveWarning = false;
-  let startupNotice: string | undefined;
-  try { const saved = localStorage.getItem(saveKey); if (saved) economy = decodeEconomy(saved); }
-  catch { startupNotice = '未能读取经营进度，已开始新的家园'; }
+  let canSave = false;
   const save = () => {
-    try { localStorage.setItem(saveKey, encodeEconomy(economy)); return true; }
+    if (!canSave) return false;
+    try { localStorage.setItem(ECONOMY_SAVE_KEY, encodeEconomy(economy)); return true; }
     catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
   };
   let world: ReturnType<typeof buildWorld>;
@@ -251,7 +249,6 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   let keyboardPanning = false;
   const render = () => {
     if (disposed || suspended) return;
-    if (!ui.paused && startupNotice) { ui.toast(startupNotice); startupNotice = undefined; }
     const cpuStart = performance.now();
     const resuming = freshFrame;
     freshFrame = false;
@@ -350,6 +347,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   } catch (error) {
     lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
+  canSave = true;
   return {
     save,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */

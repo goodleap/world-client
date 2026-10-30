@@ -45,7 +45,7 @@ test('six jobs run through automatic navigation, shared work, inventory and cons
   await page.screenshot({ path: info.outputPath('completed-village.png') });
   // Reload uses the browser save and cannot repeat output or advance crops offline.
   const before = (await snapshot(page)).economy.inventory;
-  await page.reload(); await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+  await page.reload(); await page.getByRole('button', { name: '继续游戏', exact: true }).click();
   await expect(page.locator('#loading')).toHaveClass(/\bloaded\b/, { timeout: 60_000 });
   expect((await snapshot(page)).economy.inventory).toEqual(before);
   expect((await snapshot(page)).economy.buildings).toEqual(['site-1']);

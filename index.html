@@ -32,7 +32,11 @@
           <section id="menu-panel" aria-labelledby="menu-title" hidden>
             <h1 id="menu-title">家园漫游</h1>
             <p>一个小小的家园，等你来走走。</p>
-            <button id="start-game" class="primary-button">开始游戏 <span aria-hidden="true">→</span></button>
+            <div class="menu-actions">
+              <button id="continue-save" class="primary-button" disabled>继续游戏</button>
+              <button id="start-game" class="primary-button">开始游戏</button>
+            </div>
+            <p id="menu-save-status" class="menu-save-status" role="status"></p>
             <p class="menu-hint">点击探索 · 拖动地图 · 自由漫游</p>
           </section>
           <section id="exit-panel" aria-labelledby="exit-title" hidden>
@@ -43,6 +47,14 @@
         </div>
         <p class="launch-footer">把日子放慢一点。</p>
       </main>
+      <dialog id="new-game-dialog" class="paper-dialog" aria-labelledby="new-game-title" aria-describedby="new-game-description">
+        <h2 id="new-game-title">开始新的家园？</h2>
+        <p id="new-game-description" class="dialog-intro">开始新游戏会覆盖此浏览器中原有的经营进度。取消可以保留进度并继续游戏。</p>
+        <form method="dialog" class="menu-actions">
+          <button class="primary-button secondary-button" value="cancel" autofocus>取消</button>
+          <button class="primary-button" value="new">开始新游戏</button>
+        </form>
+      </dialog>
       <div id="game-page" hidden></div>
     </div>
     <script type="module" src="/src/main.ts"></script>

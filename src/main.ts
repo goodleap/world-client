@@ -2,6 +2,9 @@ import './style.css';
 import { createLauncher, nextPaint } from './launcher.ts';
 import type { GameUI } from './ui.ts';
 import type { Game } from './game/game.ts';
+import { Economy } from './game/economy.ts';
+import { readSavedGame } from './game/economy-storage.ts';
+import type { StartMode } from './launcher.ts';
 
 declare global {
   interface Window { __DEMO__?: { snapshot: Game['snapshot'] } }
@@ -16,8 +19,8 @@ let gameModule: Promise<typeof import('./game/game.ts')> | undefined;
 function prepareGame() {
   return gameModule ??= import('./game/game.ts').catch(error => { gameModule = undefined; throw error; });
 }
-function menu(returning = false) {
-  launcher.menu(() => { void start(makeUI); }, returning);
+function menu() {
+  launcher.menu(mode => { void start(makeUI, mode); }, readSavedGame().status);
   // Load code and GLBs after the menu is visible; no engine, scene or simulation
   // runs until Start. Entry shares these promises even while downloads continue.
   void nextPaint().then(() => disposed ? undefined : prepareGame().then(module => module.preloadGameAssets())).catch(() => {});
@@ -29,8 +32,8 @@ function leave(destination: 'menu' | 'exit') {
   game.dispose(); ui.dispose(); game = undefined; ui = undefined; delete window.__DEMO__;
   const page = document.querySelector<HTMLElement>('#game-page')!;
   page.hidden = true; page.inert = true; page.replaceChildren();
-  if (destination === 'exit') launcher.exit(() => menu(true));
-  else menu(true);
+  if (destination === 'exit') launcher.exit(menu);
+  else menu();
 }
 
 async function boot() {
@@ -49,8 +52,12 @@ async function boot() {
     launcher.error();
   }
 }
-async function start(createUI: typeof import('./ui.ts')['createUI']) {
+async function start(createUI: typeof import('./ui.ts')['createUI'], mode: StartMode) {
   try {
+    // Re-read when Continue is clicked, in case another tab changed the save.
+    const saved = mode === 'continue' ? readSavedGame() : undefined;
+    if (saved && saved.status !== 'ready') { menu(); return; }
+    const economy = saved?.status === 'ready' ? saved.economy : new Economy();
     launcher.beginGame();
     await nextPaint();
     const { createGame } = await prepareGame();
@@ -60,13 +67,13 @@ async function start(createUI: typeof import('./ui.ts')['createUI']) {
     page.hidden = false; page.inert = true;
     ui = createUI(page);
     ui.bindLeave(leave);
-    game = await createGame(ui, launcher.report);
+    game = await createGame(ui, launcher.report, economy);
     if (disposed) { game.dispose(); return; }
     if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {
       window.__DEMO__ = { snapshot: game.snapshot };
     }
     page.inert = false;
-    launcher.ready(); ui.ready();
+    launcher.ready(); ui.ready(); game.save();
   } catch (error) {
     console.error('Unable to initialize the game:', error);
     launcher.error();
