@@ -34,9 +34,9 @@ for obj in meshes:
     before = len(obj.data.loop_triangles)
     # Keep small facial details, thin straps and fittings intact. Give the
     # large head more geometry than the less exposed clothing/body surfaces.
-    # The farmer's closely spaced crown folds show shading changes before
-    # the overall silhouette changes. Keep that surface exactly as authored.
-    ratio = 1 if before < 1200 or obj.name.startswith('Headwrap ') else .35 if obj.name.startswith(('Head ', 'Helmet ')) else .22
+    # Close-set cloth folds and the joined helmet straps need their authored
+    # surface separation; collapsing them can expose jagged intersections.
+    ratio = 1 if before < 1200 or obj.name.startswith('Headwrap ') or obj.name == 'Helmet • broad joined reinforcement' else .35 if obj.name.startswith(('Head ', 'Helmet ')) else .22
     if ratio < 1:
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)

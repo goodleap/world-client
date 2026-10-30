@@ -152,17 +152,17 @@ def uniform(base_rig):
     global rig
     rig = base_rig
     mats = {
-        'blue': material('Soldier • blue cotton', (.25, .43, .66)),
-        'seam': material('Soldier • blue seams', (.21, .34, .54)),
-        'plume': material('Soldier • royal blue plume', (.22, .37, .72)),
-        'pants': material('Soldier • charcoal trousers', (.19, .23, .28)),
-        'leather': material('Soldier • chestnut leather', (.49, .32, .20)),
-        'edge': material('Soldier • dark leather', (.34, .21, .12)),
-        'boots': material('Soldier • brown boots', (.31, .19, .11)),
+        'blue': material('Soldier • blue cotton', (.29, .51, .78)),
+        'seam': material('Soldier • blue seams', (.23, .40, .64)),
+        'plume': material('Soldier • royal blue plume', (.24, .44, .84)),
+        'pants': material('Soldier • charcoal trousers', (.22, .26, .31)),
+        'leather': material('Soldier • chestnut leather', (.61, .42, .27)),
+        'edge': material('Soldier • dark leather', (.43, .29, .18)),
+        'boots': material('Soldier • brown boots', (.40, .26, .16)),
         'sole': material('Soldier • dark soles', (.19, .125, .08)),
-        'gold': material('Soldier • warm brass', (.78, .53, .23), .48, .35),
-        'steel': material('Soldier • slate steel', (.39, .44, .51), .43, .45),
-        'silver': material('Soldier • steel edging', (.69, .71, .73), .43, .5),
+        'gold': material('Soldier • warm brass', (.84, .62, .31), .50, .35),
+        'steel': material('Soldier • slate steel', (.52, .60, .70), .52, .40),
+        'silver': material('Soldier • steel edging', (.84, .87, .90), .48, .45),
         'hair': material('Soldier • deep brown hair', (.23, .13, .075)),
     }
     shirt = bpy.data.objects['T-shirt • connected shoulders']
@@ -283,25 +283,58 @@ def helmet(mats):
         bind(mesh('Hair • swept fringe '+str(k),vertices,faces,mats['hair'],sub=1,thick=.014),bone='head')
     limit=lambda t:1.30+.40*(1-cos(t))*.5
     cap('Helmet • rounded steel crown',limit,.066,mats['steel'])
+    # Broad, shallow metal straps follow the crown. Fuse their intersections
+    # with Blender's solid Boolean so the top and brow have no overlapping skins.
     vertices,faces,n=[],[],128
-    for j in range(5):
+    for j in range(9):
+        u=-1+j/4
         for i in range(n):
             t=2*pi*i/n
-            vertices.append(scalp(t,limit(t)-.12+j*.032,.081))
-    for j in range(4):
+            vertices.append(scalp(t,limit(t)-.245+j*.0325,.080+.008*(1-u*u)))
+    for j in range(8):
         for i in range(n):
             faces.append((j*n+i,j*n+(i+1)%n,(j+1)*n+(i+1)%n,(j+1)*n+i))
-    bind(mesh('Helmet • rounded brow rim',vertices,faces,mats['silver'],thick=.014),bone='head')
+    reinforcement=mesh('Helmet • broad joined reinforcement',vertices,faces,mats['silver'],thick=.016)
+    straps=[]
     for theta in [0,pi/2,-pi/2,pi]:
         vertices,faces=[],[]
-        for j in range(49):
-            phi=.015+(limit(theta)-.04)*j/48
-            # A constant-width strip over the actual spherical crown.
-            angular=.034/max(.12,sin(phi))
-            for u in [-1,1]:vertices.append(scalp(theta+u*angular,phi,.084))
-        for j in range(48):k=2*j;faces.append((k,k+1,k+3,k+2))
-        bind(mesh('Helmet reinforcing band '+str(theta),vertices,faces,mats['silver'],thick=.008),bone='head')
-    point=scalp(0,limit(0)-.035,.099)
+        for j in range(65):
+            phi=.18+(limit(theta)-.25)*j/64
+            angular=.100/max(.12,sin(phi))
+            for k in range(9):
+                u=-1+k/4
+                vertices.append(scalp(theta+u*angular,phi,.080+.008*(1-u*u)))
+        for j in range(64):
+            for k in range(8):
+                a=j*9+k;faces.append((a,a+1,a+10,a+9))
+        straps.append(mesh('Helmet reinforcing band '+str(theta),vertices,faces,mats['silver'],thick=.016))
+    # Terminate the four strips before the polar singularity. A curved crown
+    # plate closes their junction without self-intersecting solidified tips.
+    vertices=[scalp(0,0,.088)];faces=[];n=64
+    for j in range(1,17):
+        for i in range(n):vertices.append(scalp(2*pi*i/n,.25*j/16,.088))
+    for i in range(n):faces.append((0,1+i,1+(i+1)%n))
+    for j in range(15):
+        for i in range(n):
+            a=1+j*n+i;b=1+j*n+(i+1)%n;faces.append((a,b,b+n,a+n))
+    straps.append(mesh('Helmet crown junction',vertices,faces,mats['silver'],thick=.016))
+    for part in [reinforcement,*straps]:
+        bpy.context.view_layer.objects.active=part
+        for mod in list(part.modifiers):bpy.ops.object.modifier_apply(modifier=mod.name)
+    probes=[v.co.copy() for part in [reinforcement,*straps]
+            for v in list(part.data.vertices)[::max(1,len(part.data.vertices)//40)]]
+    bpy.context.view_layer.objects.active=reinforcement
+    for strap in straps:
+        union=reinforcement.modifiers.new('Joined metal intersection','BOOLEAN')
+        union.operation='UNION';union.solver='EXACT';union.object=strap
+        bpy.ops.object.modifier_apply(modifier=union.name)
+        bpy.data.objects.remove(strap,do_unlink=True)
+    for polygon in reinforcement.data.polygons:polygon.use_smooth=True
+    joined=surface_tree(reinforcement)
+    if any(joined.find_nearest(point)[3] > .04 for point in probes):
+        raise RuntimeError('Helmet union lost a strip or part of the brow; inspect the solid intersections')
+    bind(reinforcement,bone='head')
+    point=scalp(0,limit(0)-.105,.103)
     bind(oval('Helmet front rivet',point,(.024,.012,.024),mats['steel']),bone='head')
     # Curled blue crest, with a continuous tapered cross-section.
     path=[((0,.04,1.802),.075),((0,.055,1.88),.085),((0,.14,1.94),.088),
@@ -386,7 +419,7 @@ def held_arm_poses():
 
 def export(out, role):
     scene=bpy.context.scene
-    scene['model_revision']=role+'-shared-base-v11'
+    scene['model_revision']=role+'-shared-base-v12'
     scene.frame_set(0)
     bpy.ops.object.select_all(action='DESELECT')
     for obj in scene.objects:

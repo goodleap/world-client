@@ -1,11 +1,11 @@
 {
   "source": "studies/soldiers/cavalry/cavalry.glb",
-  "sourceSha256": "ae354870ab20f788e79260ea655ff2e20d6fedc8a8b057e34752e24fd835c129",
-  "lodSha256": "aa2294ab5cded66a491716492c5000c7fa26935e31b27f07232922374a46fcda",
+  "sourceSha256": "bb3cab27c794c63e4a136dd8679cf38bbe1727198ee1270392ad6c06d62d7ceb",
+  "lodSha256": "090ce2720d8b765efbb236ac61b204d03d032bb1efd78c112830b6a70007e620",
   "jointOrderMatches": true,
   "bindPoseMatches": true,
-  "sourceTriangles": 532090,
-  "lodTriangles": 136338,
+  "sourceTriangles": 546668,
+  "lodTriangles": 152580,
   "parts": [
     {
       "name": "Head • shaped cranium cheeks and jaw",
@@ -218,29 +218,9 @@
       "lodTriangles": 4970
     },
     {
-      "name": "Helmet • rounded brow rim",
-      "sourceTriangles": 2560,
-      "lodTriangles": 896
-    },
-    {
-      "name": "Helmet reinforcing band 0",
-      "sourceTriangles": 388,
-      "lodTriangles": 388
-    },
-    {
-      "name": "Helmet reinforcing band 1.5707963267948966",
-      "sourceTriangles": 388,
-      "lodTriangles": 388
-    },
-    {
-      "name": "Helmet reinforcing band -1.5707963267948966",
-      "sourceTriangles": 388,
-      "lodTriangles": 388
-    },
-    {
-      "name": "Helmet reinforcing band 3.141592653589793",
-      "sourceTriangles": 388,
-      "lodTriangles": 388
+      "name": "Helmet • broad joined reinforcement",
+      "sourceTriangles": 18690,
+      "lodTriangles": 18690
     },
     {
       "name": "Helmet front rivet",

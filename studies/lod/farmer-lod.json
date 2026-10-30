@@ -1,11 +1,11 @@
 {
   "source": "studies/farmer/farmer.glb",
-  "sourceSha256": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
-  "lodSha256": "ce4a6cb1506910b5b52b9ab94e2849b039b3e73d43b510458afdf3ba3279cdfd",
+  "sourceSha256": "a299057dcf67547d6b4965e388ac32c34110695bb6d8b204225dcc764ecc9796",
+  "lodSha256": "e4bb299468e2fece929d9e2c397fc47863eb2a2ac4ef65adaf5b6807b5c2b34e",
   "jointOrderMatches": true,
   "bindPoseMatches": true,
-  "sourceTriangles": 350982,
-  "lodTriangles": 101518,
+  "sourceTriangles": 352518,
+  "lodTriangles": 103054,
   "parts": [
     {
       "name": "Head • shaped cranium cheeks and jaw",
@@ -224,8 +224,8 @@
     },
     {
       "name": "Headwrap • complete folded crown",
-      "sourceTriangles": 20988,
-      "lodTriangles": 20988
+      "sourceTriangles": 22524,
+      "lodTriangles": 22524
     },
     {
       "name": "Hair • swept fringe 0",

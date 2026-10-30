@@ -1,45 +1,89 @@
 {
   "source": "../base-human/base-human.blend",
   "skeleton": "shared 20-bone BaseHumanRig",
-  "animations": {
-    "Walk": {
-      "rendered_phases": 60,
-      "skinned_samples": 61,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_range_H": [
-        0.0031202060636132956,
-        0.0031235937494784594
-      ],
-      "all_sampled_vertices_finite": true
+  "visual_review": {
+    "revision": "farmer-appearance-v12",
+    "renderer": "Babylon.js 9.32.1, exported GLB, production createDaylight and createCharacterMaterialSetup; no image color correction",
+    "views": [
+      "front",
+      "side",
+      "back",
+      "top",
+      "game",
+      "phone-size figure at one-third linear scale"
+    ],
+    "viewport_px": [
+      360,
+      420
+    ],
+    "status": "self-reviewed; user review pending",
+    "findings": "Cream linen crown remains closed at front, sides and back; broader uneven diagonal folds gather at the rear tie. Brighter blue cotton and warm brown leather. Original head, body, rig and all motion channels retained.",
+    "cycles": {
+      "Walk": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      },
+      "Run": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      }
     },
-    "Run": {
-      "rendered_phases": 60,
-      "skinned_samples": 61,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_range_H": [
-        0.0029211656656116247,
-        0.04161776974797249
-      ],
-      "all_sampled_vertices_finite": true
+    "map_lod": "Reviewed static silhouette, colors and phone-size view; original shared materials, skeleton and animation playback.",
+    "map_lod_cycles": {
+      "Walk": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      },
+      "Run": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      }
     }
   },
-  "views": [
-    "front",
-    "side",
-    "back",
-    "game",
-    "180x240 mobile"
-  ],
-  "game_check": "command Run, arrival idle; shared skeleton, bind matrices and every animation channel match base asset in tests/assets.test.ts",
-  "sha256": {
-    "farmer.glb": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
-    "farmer.blend": "1b9166656d9b662dc5ae48339a713c16a4cb2a8160682c5c3c33f1c566b7d335",
-    "build_farmer.py": "f5d869955808d597b3dc1c467d26c8a7de45050971cd7fd5027f64152d08ae57"
+  "motion_preservation": {
+    "baselineSha256": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
+    "currentSha256": "a299057dcf67547d6b4965e388ac32c34110695bb6d8b204225dcc764ecc9796",
+    "allAnimationChannelBytesUnchanged": true,
+    "clips": {
+      "Run": 60,
+      "Walk": 60
+    }
   },
-  "sampled_meshes": [
-    "Continuous arm and fist.L",
-    "Continuous arm and fist.R",
-    "Boot.L",
-    "Boot.R"
-  ]
+  "baseline_motion_validation": {
+    "revision": "d351a99",
+    "asset_sha256": "c1f2d64568a30d9313a1997a551968dc67c2b26c3f65e3bc66de8da34b5a8b09",
+    "note": "Historical motion checks on the previous asset; not a new 60-phase review of this appearance revision.",
+    "cycles": {
+      "Walk": {
+        "rendered_phases": 60,
+        "skinned_samples": 61,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_range_H": [
+          0.0031202060636132956,
+          0.0031235937494784594
+        ],
+        "all_sampled_vertices_finite": true
+      },
+      "Run": {
+        "rendered_phases": 60,
+        "skinned_samples": 61,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_range_H": [
+          0.0029211656656116247,
+          0.04161776974797249
+        ],
+        "all_sampled_vertices_finite": true
+      }
+    }
+  },
+  "sha256": {
+    "farmer.blend": "add1fcd9663d3f073f12b35fab85310c6b0de9053dbf1099a3bfbdef12ff5970",
+    "farmer.glb": "a299057dcf67547d6b4965e388ac32c34110695bb6d8b204225dcc764ecc9796",
+    "preview.png": "7edf4e37d9c263f1f991af095e5de8aec2519c2b21563888f3a2cb0a66696b99",
+    "build_farmer.py": "30448187ed1f52e85461233f5f60426bb902d1254ebae065460dcc33b0c8cafd"
+  }
 }

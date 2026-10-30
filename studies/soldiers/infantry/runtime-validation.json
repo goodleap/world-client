@@ -18,73 +18,120 @@
     "hand.R"
   ],
   "visual_review": {
+    "revision": "infantry-appearance-v12",
+    "renderer": "Babylon.js 9.32.1, exported GLB, production createDaylight and createCharacterMaterialSetup; no image color correction",
     "views": [
       "front",
       "side",
       "back",
+      "top",
       "game",
-      "180x240 mobile"
+      "phone-size figure at one-third linear scale"
+    ],
+    "viewport_px": [
+      360,
+      420
     ],
     "status": "self-reviewed; user review pending",
-    "findings": "Rounded crown, blue crest, fitted leather/blue uniform and sword/shield match the reference direction. Relaxed carry avoids shield roll and fist compression; no head/body changes."
-  },
-  "cycles": {
-    "Walk": {
-      "duration_seconds": 0.5,
-      "rendered_phases": 60,
-      "side_view_phases": 12,
-      "sampled_meshes": [
-        "Boot.L",
-        "Boot.R",
-        "Continuous arm and fist.L",
-        "Continuous arm and fist.R",
-        "Leather shoulder strap.-1",
-        "Leather shoulder strap.1",
-        "Leather vest \u2022 rounded belly",
-        "Shield \u2022 central boss",
-        "Shield \u2022 convex blue face",
-        "Shield \u2022 metal brace 0",
-        "Shield \u2022 metal brace 2",
-        "Shield \u2022 steel rim",
-        "Sword \u2022 brass pommel",
-        "Sword \u2022 broad steel blade",
-        "Sword \u2022 leather grip",
-        "Sword \u2022 rounded crossguard"
-      ],
-      "all_sampled_vertices_finite": true,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_H": 0.0031202060636132956
+    "findings": "Brighter blue-gray steel, silver reinforcement, blue cotton and warm brown leather. All four broad helmet strips join the widened brow and curved top plate. Original head/body, rig and all existing motion channels retained.",
+    "cycles": {
+      "Walk": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      },
+      "Run": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      }
     },
-    "Run": {
-      "duration_seconds": 0.45,
-      "rendered_phases": 60,
-      "side_view_phases": 12,
-      "sampled_meshes": [
-        "Boot.L",
-        "Boot.R",
-        "Continuous arm and fist.L",
-        "Continuous arm and fist.R",
-        "Leather shoulder strap.-1",
-        "Leather shoulder strap.1",
-        "Leather vest \u2022 rounded belly",
-        "Shield \u2022 central boss",
-        "Shield \u2022 convex blue face",
-        "Shield \u2022 metal brace 0",
-        "Shield \u2022 metal brace 2",
-        "Shield \u2022 steel rim",
-        "Sword \u2022 brass pommel",
-        "Sword \u2022 broad steel blade",
-        "Sword \u2022 leather grip",
-        "Sword \u2022 rounded crossguard"
-      ],
-      "all_sampled_vertices_finite": true,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_H": 0.0029211656656116247
+    "map_lod": "Reviewed static silhouette, colors and phone-size view; original shared materials, skeleton and animation playback.",
+    "map_lod_cycles": {
+      "Walk": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      },
+      "Run": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      }
+    }
+  },
+  "motion_preservation": {
+    "baselineSha256": "9ea726151b79821ae27b589b1d9ee1af98582382fcc0f63df52069dc3d020e4f",
+    "currentSha256": "386d042c33934dcee2fad1bbf0b675e270d6f2c92fccd6034877ff52ba576443",
+    "allAnimationChannelBytesUnchanged": true,
+    "clips": {
+      "Run": 60,
+      "Walk": 60
+    }
+  },
+  "baseline_motion_validation": {
+    "revision": "d351a99",
+    "asset_sha256": "9ea726151b79821ae27b589b1d9ee1af98582382fcc0f63df52069dc3d020e4f",
+    "note": "Historical motion checks on the previous asset; not a new 60-phase review of this appearance revision.",
+    "cycles": {
+      "Walk": {
+        "duration_seconds": 0.5,
+        "rendered_phases": 60,
+        "side_view_phases": 12,
+        "sampled_meshes": [
+          "Boot.L",
+          "Boot.R",
+          "Continuous arm and fist.L",
+          "Continuous arm and fist.R",
+          "Leather shoulder strap.-1",
+          "Leather shoulder strap.1",
+          "Leather vest • rounded belly",
+          "Shield • central boss",
+          "Shield • convex blue face",
+          "Shield • metal brace 0",
+          "Shield • metal brace 2",
+          "Shield • steel rim",
+          "Sword • brass pommel",
+          "Sword • broad steel blade",
+          "Sword • leather grip",
+          "Sword • rounded crossguard"
+        ],
+        "all_sampled_vertices_finite": true,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_H": 0.0031202060636132956
+      },
+      "Run": {
+        "duration_seconds": 0.45,
+        "rendered_phases": 60,
+        "side_view_phases": 12,
+        "sampled_meshes": [
+          "Boot.L",
+          "Boot.R",
+          "Continuous arm and fist.L",
+          "Continuous arm and fist.R",
+          "Leather shoulder strap.-1",
+          "Leather shoulder strap.1",
+          "Leather vest • rounded belly",
+          "Shield • central boss",
+          "Shield • convex blue face",
+          "Shield • metal brace 0",
+          "Shield • metal brace 2",
+          "Shield • steel rim",
+          "Sword • brass pommel",
+          "Sword • broad steel blade",
+          "Sword • leather grip",
+          "Sword • rounded crossguard"
+        ],
+        "all_sampled_vertices_finite": true,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_H": 0.0029211656656116247
+      }
     }
   },
   "sha256": {
-    "infantry.blend": "53eda3fc8fd39625c71609698a3929a02ccc64745e296b541e58383965be8afe",
-    "infantry.glb": "9ea726151b79821ae27b589b1d9ee1af98582382fcc0f63df52069dc3d020e4f",
-    "preview.png": "f637363ffe62e71161aaf2508413cbf278e0ccd622e44ea35c9e2f9c6d841f9e"
+    "infantry.blend": "de964daf6f8c65e56db4f28a78f8bfeee1e764bf4035f842841d91a00f0556b9",
+    "infantry.glb": "386d042c33934dcee2fad1bbf0b675e270d6f2c92fccd6034877ff52ba576443",
+    "preview.png": "698ed27856f5dd16ee004b6bd149a74bb648309d2afa74e4567e1b1ff1b42e97",
+    "../dressing.py": "88ca7fc328639e17c4c95a5b721be5f7e9b217b7b3fd57f30921bdbce6587015"
   }
 }

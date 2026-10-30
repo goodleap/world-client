@@ -10,55 +10,90 @@
   ],
   "shared_motion": "Same held-arm Walk and Run as infantry, with unchanged base root, torso, head, pelvis and leg channels and original timing",
   "visual_review": {
+    "revision": "archer-appearance-v12",
+    "renderer": "Babylon.js 9.32.1, exported GLB, production createDaylight and createCharacterMaterialSetup; no image color correction",
     "views": [
       "front",
       "side",
       "back",
+      "top",
       "game",
-      "180x240 mobile"
+      "phone-size figure at one-third linear scale"
+    ],
+    "viewport_px": [
+      360,
+      420
     ],
     "status": "self-reviewed; user review pending",
-    "findings": "Shared uniform and helmet; continuous wooden bow, taut string, hollow diagonal quiver, ivory arrow fletching and fitted shoulder strap. Held arrow clears the rounded belly; quiver clears the head during Run."
-  },
-  "cycles": {
-    "Walk": {
-      "duration_seconds": 0.5,
-      "rendered_phases": 60,
-      "side_view_phases": 12,
-      "sampled_meshes": [
-        "Boot.L",
-        "Boot.R",
-        "Continuous arm and fist.L",
-        "Continuous arm and fist.R",
-        "Leather shoulder strap.-1",
-        "Leather shoulder strap.1",
-        "Leather vest \u2022 rounded belly"
-      ],
-      "all_sampled_vertices_finite": true,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_H": 0.0031202060636132956
+    "findings": "Brighter blue-gray steel, silver reinforcement, blue cotton and warm brown leather. All four broad helmet strips join the widened brow and curved top plate. Original head/body, rig and all existing motion channels retained.",
+    "cycles": {
+      "Walk": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      },
+      "Run": {
+        "rendered_phases": 24,
+        "view": "game",
+        "covers": "complete looping cycle"
+      }
     },
-    "Run": {
-      "duration_seconds": 0.45,
-      "rendered_phases": 60,
-      "side_view_phases": 12,
-      "sampled_meshes": [
-        "Boot.L",
-        "Boot.R",
-        "Continuous arm and fist.L",
-        "Continuous arm and fist.R",
-        "Leather shoulder strap.-1",
-        "Leather shoulder strap.1",
-        "Leather vest \u2022 rounded belly"
-      ],
-      "all_sampled_vertices_finite": true,
-      "sampled_loop_seam_max_H": 0.0,
-      "boots_min_y_H": 0.0029211656656116247
+    "map_lod": "Reviewed static silhouette, colors and phone-size view; original shared materials, skeleton and animation playback."
+  },
+  "motion_preservation": {
+    "baselineSha256": "a0e020166b6c3247dbc50f1c815a32e0f213ca899917ee4d9ade1acf93d8da0d",
+    "currentSha256": "e6ce5075703e493021cf4d9e82c404139cd0eafec057617c6dc55d07cf0492c7",
+    "allAnimationChannelBytesUnchanged": true,
+    "clips": {
+      "Run": 60,
+      "Walk": 60
+    }
+  },
+  "baseline_motion_validation": {
+    "revision": "d351a99",
+    "asset_sha256": "a0e020166b6c3247dbc50f1c815a32e0f213ca899917ee4d9ade1acf93d8da0d",
+    "note": "Historical motion checks on the previous asset; not a new 60-phase review of this appearance revision.",
+    "cycles": {
+      "Walk": {
+        "duration_seconds": 0.5,
+        "rendered_phases": 60,
+        "side_view_phases": 12,
+        "sampled_meshes": [
+          "Boot.L",
+          "Boot.R",
+          "Continuous arm and fist.L",
+          "Continuous arm and fist.R",
+          "Leather shoulder strap.-1",
+          "Leather shoulder strap.1",
+          "Leather vest • rounded belly"
+        ],
+        "all_sampled_vertices_finite": true,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_H": 0.0031202060636132956
+      },
+      "Run": {
+        "duration_seconds": 0.45,
+        "rendered_phases": 60,
+        "side_view_phases": 12,
+        "sampled_meshes": [
+          "Boot.L",
+          "Boot.R",
+          "Continuous arm and fist.L",
+          "Continuous arm and fist.R",
+          "Leather shoulder strap.-1",
+          "Leather shoulder strap.1",
+          "Leather vest • rounded belly"
+        ],
+        "all_sampled_vertices_finite": true,
+        "sampled_loop_seam_max_H": 0.0,
+        "boots_min_y_H": 0.0029211656656116247
+      }
     }
   },
   "sha256": {
-    "archer.blend": "f33b1cd00fa078c74de8a589c7401a2cf27a6047ebb009559a06ba8af8b750c7",
-    "archer.glb": "a0e020166b6c3247dbc50f1c815a32e0f213ca899917ee4d9ade1acf93d8da0d",
-    "preview.png": "ce45b0e31e587b0c3c79f40d322011752fc8bf61170fb157e260bb8310e31bf4"
+    "archer.blend": "c7cf35c6daa25d43a6113ce2892fa8eb733e1f574c700f967a977727d42b46bb",
+    "archer.glb": "e6ce5075703e493021cf4d9e82c404139cd0eafec057617c6dc55d07cf0492c7",
+    "preview.png": "4339a7866d1f730f318bd39fecdd9dacce193a628b8788603dd883acfdb285a3",
+    "../dressing.py": "88ca7fc328639e17c4c95a5b721be5f7e9b217b7b3fd57f30921bdbce6587015"
   }
 }

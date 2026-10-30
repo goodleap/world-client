@@ -16,9 +16,9 @@ added=[]
 def linear(c):return c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4
 def material(name,rgb,rough=.8,metal=0):
  m=bpy.data.materials.new(name);m.use_nodes=True;q=m.node_tree.nodes['Principled BSDF'];rgba=tuple(linear(c) for c in rgb)+(1,);q.inputs['Base Color'].default_value=rgba;q.inputs['Roughness'].default_value=rough;q.inputs['Metallic'].default_value=metal;q.inputs['Specular IOR Level'].default_value=.25;m.diffuse_color=rgba;return m
-blue=material('Farmer • indigo cotton',(.27,.43,.63));blue_edge=material('Farmer • blue seams',(.23,.36,.54))
-pants=material('Farmer • charcoal trousers',(.18,.21,.25));leather=material('Farmer • chestnut apron',(.48,.32,.20));edge=material('Farmer • leather edges',(.38,.24,.14));boots=material('Farmer • brown boots',(.30,.18,.10));sole=material('Farmer • dark soles',(.19,.125,.08))
-beige=material('Farmer • linen headwrap',(.94,.82,.66));hair=material('Farmer • deep brown hair',(.22,.12,.067),.8);gold=material('Farmer • aged brass',(.64,.43,.19),.6,.25);wood=material('Farmer • ash handle',(.39,.23,.12));iron=material('Farmer • forged hoe',(.37,.39,.40),.7,.4)
+blue=material('Farmer • indigo cotton',(.30,.51,.75));blue_edge=material('Farmer • blue seams',(.24,.40,.61))
+pants=material('Farmer • charcoal trousers',(.21,.25,.29));leather=material('Farmer • chestnut apron',(.61,.43,.28));edge=material('Farmer • leather edges',(.45,.30,.18));boots=material('Farmer • brown boots',(.40,.26,.16));sole=material('Farmer • dark soles',(.19,.125,.08))
+beige=material('Farmer • linen headwrap',(.98,.91,.79),.88);hair=material('Farmer • deep brown hair',(.22,.12,.067),.8);gold=material('Farmer • aged brass',(.79,.57,.28),.55,.25);wood=material('Farmer • ash handle',(.46,.29,.15));iron=material('Farmer • forged hoe',(.48,.52,.56),.65,.35)
 
 def mesh(name,vs,fs,mat,sub=0,thick=0):
  me=bpy.data.meshes.new(name);me.from_pydata(vs,[],fs);me.update();o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);me.materials.append(mat)
@@ -154,13 +154,24 @@ def cap(name,limit,offset,mat):
    t=2*pi*i/n;phi=.001+(limit(t)-.001)*j/m;vs.append(scalp(t,phi,offset(t,phi) if callable(offset) else offset))
  for j in range(m):
   for i in range(n):fs.append((j*n+i,j*n+(i+1)%n,(j+1)*n+(i+1)%n,(j+1)*n+i))
- fs.append(tuple(reversed(range(n))));o=mesh(name,vs,fs,mat,thick=.012);bind(o,bone='head');return o
+ fs.append(tuple(reversed(range(n))));o=mesh(name,vs,fs,mat,thick=.016 if mat==beige else .012)
+ if mat==beige:
+  bevel=o.modifiers.new('Soft linen hem','BEVEL');bevel.width=.003;bevel.segments=3
+ bind(o,bone='head');return o
 cap('Hair • wrapped scalp',lambda t:1.22+.82*(1-cos(t))*.5,.028,hair)
 limit=lambda t:1.12+.56*(1-cos(t))*.5+.045*sin(t)
-# Sculpt the folds into one continuous cloth surface, so the crown has no
-# overlapping coplanar layers or exposed scalp between strips.
+# Broad diagonal cloth folds converge toward the back knot. Their unequal
+# spacing leaves a clean crown instead of three uniform concentric ridges.
 def cloth_offset(t,phi):
- return .066+sum(.011*math.exp(-((phi-(limit(t)-.11-band*.24+.075*sin(t+band*.6)))/.075)**2) for band in range(3))
+ rear=((1-cos(t))*.5)**2
+ folds=[(limit(t)-.12+.12*sin(t),.015,.115),
+        (.76+.24*sin(t-.35)+.06*sin(2*t),.020,.13),
+        (.43-.13*sin(t+.6)+.03*cos(2*t),.012,.16)]
+ offset=.063+.006*sin(t+.4)*sin(phi)**2
+ for center,height,width in folds:
+  center=center*(1-rear)+(limit(t)-.12)*rear
+  offset+=height*math.exp(-((phi-center)/width)**2)
+ return offset
 cap('Headwrap • complete folded crown',limit,cloth_offset,beige)
 # Curved tapered fringe patches rooted beneath the linen edge.
 for k,(x0,x1,bottom) in enumerate([(-.38,-.13,1.348),(-.17,.13,1.305),(.12,.37,1.36)]):
@@ -186,7 +197,7 @@ m=o.modifiers.new('Forged rounded edge','BEVEL');m.width=.012;m.segments=3;bind(
 # from the dressed export so they cannot poke through the opaque boots.
 for label in ['L','R']:
  o=bpy.data.objects['Continuous leg and foot.'+label];o.hide_render=True;o.hide_set(True)
-scene['model_revision']='farmer-shared-v11';scene.frame_set(0)
+scene['model_revision']='farmer-shared-v12';scene.frame_set(0)
 bpy.ops.object.select_all(action='DESELECT')
 for o in scene.objects:
  if o==rig or (o.parent==rig and not o.name.startswith('Continuous leg')):o.select_set(True)

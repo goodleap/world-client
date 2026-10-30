@@ -2,6 +2,7 @@
 // hiding its silhouette. Kept separate from the game's entry point.
 import { Engine, Scene, ArcRotateCamera, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, ImportMeshAsync } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
+import { createCharacterMaterialSetup } from '../src/game/character-materials';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -17,6 +18,8 @@ const key = new DirectionalLight('key', new Vector3(.5, -1, -.8), scene); key.in
 const params = new URLSearchParams(location.search);
 const asset = params.get('asset') || '/studies/base-human/base-human.glb';
 const loaded = await ImportMeshAsync(asset, scene);
+createCharacterMaterialSetup(scene)(loaded.meshes.map(mesh => mesh.material));
+await scene.whenReadyAsync();
 const groups = loaded.animationGroups;
 function pose(name = params.get('clip') || 'Walk', phase = 0) {
   groups.forEach(g => g.stop());

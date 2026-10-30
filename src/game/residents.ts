@@ -29,8 +29,7 @@ import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
-import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
-import type { Material } from '@babylonjs/core/Materials/material';
+import { createCharacterMaterialSetup } from './character-materials.ts';
 import { batchSkinnedMeshes } from './mesh-batching.ts';
 import { loadCharacterLOD } from './character-lod.ts';
 import type { CharacterLOD } from './character-lod.ts';
@@ -122,16 +121,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       sharedSkeletonAndMaterials: pairs.every(({ source, detail }) => source.skeleton === detail.skeleton && source.material === detail.material),
     };
   };
-  const prepareBaseMaterials = (materials: readonly (Material | null)[]) => {
-    for (const material of new Set(materials)) {
-      // Match the new PBR asset to this scene's light levels, retaining its
-      // original albedo and facial vertex colors rather than recoloring it.
-      if (material instanceof PBRMaterial) {
-        const cotton = material.name === 'Warm ivory cotton' || material.name === 'Cotton hems';
-        material.directIntensity = cotton ? 1 : 1.12;
-      }
-    }
-  };
+  const prepareBaseMaterials = createCharacterMaterialSetup(scene);
   const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup,
     options: { idle?: AnimationGroup; walkSpeed?: number; runSpeed?: number } = {}) => {
     walk.stop(); run.stop(); options.idle?.stop(); (options.idle ?? walk).reset();

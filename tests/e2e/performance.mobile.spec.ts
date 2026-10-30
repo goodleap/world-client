@@ -5,7 +5,12 @@ test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile
 
 test('high-DPI touch viewport keeps bounded geometry, batching and visible shadows', async ({ page }, info) => {
   test.setTimeout(180_000);
+  const environmentResponses: number[] = [];
+  page.on('response', response => {
+    if (/\/studio-[^/]+\.env$/.test(response.url())) environmentResponses.push(response.status());
+  });
   const errors = await openGame(page);
+  expect(environmentResponses).toEqual([200]); // All metallic materials share one local prefiltered texture.
   const state = await snapshot(page);
   // Check actual submitted work, not FPS on CI's software GPU.
   expect(state.rendering.drawCalls).toBeLessThan(400);
