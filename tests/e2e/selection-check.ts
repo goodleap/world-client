@@ -13,8 +13,11 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
   await selectResident('farmer');
   await expect(page.locator('#selection-name')).toHaveText('农民');
   const routeBefore = (await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining;
-  const ids = touch ? ['plot-0', 'plot-2', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8', 'pond'];
+  const ids = touch ? ['plot-0', 'plot-6', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8', 'pond'];
   for (const id of ids) {
+    // The expanded mobile action card covers the foreground; dismiss it before
+    // choosing an object behind it, as a player would.
+    await page.getByRole('button', { name: '取消选中', exact: true }).click();
     const object = (await snapshot(page)).objects.find(object => object.id === id)!;
     await tap(object.screen.x, object.screen.y);
     await expect.poll(async () => (await snapshot(page)).selection.object?.id).toBe(id);
@@ -25,6 +28,7 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
     if (id === 'plot-0' || id.startsWith('tree')) await page.screenshot({ path: info.outputPath(id + '.png') });
   }
   expect((await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining).toBe(routeBefore);
+  expect((await snapshot(page)).economy.tasks).toHaveLength(0); // Selection must not click through into a new action button.
   await page.getByRole('button', { name: '取消选中', exact: true }).click();
   await expect(page.locator('#selection-card')).toBeHidden();
   expect((await snapshot(page)).selection.object).toBeUndefined();

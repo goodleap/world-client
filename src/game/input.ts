@@ -9,6 +9,7 @@ export class MovementInput {
   private dragged = false;
   private pinched = false;
   private pinchDistance = 0;
+  private tap: { x: number; y: number } | undefined;
   private abort = new AbortController();
   private canvas: HTMLCanvasElement;
 
@@ -28,6 +29,7 @@ export class MovementInput {
     document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); }, options);
     canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
+      this.tap = undefined;
       event.preventDefault(); canvas.focus({ preventScroll: true });
       this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       canvas.setPointerCapture(event.pointerId);
@@ -49,13 +51,20 @@ export class MovementInput {
     }, options);
     const release = (event: PointerEvent) => {
       if (!this.pointers.has(event.pointerId)) return;
-      if (event.type === 'pointerup' && this.pointers.size === 1 && !this.dragged && !this.pinched) onTap(event.clientX, event.clientY);
+      if (event.type === 'pointerup' && this.pointers.size === 1 && !this.dragged && !this.pinched) this.tap = { x: event.clientX, y: event.clientY };
       this.pointers.delete(event.pointerId);
       if (this.pointers.size === 0) { this.pinched = false; this.pinchDistance = 0; }
     };
     canvas.addEventListener('pointerup', release, options);
     canvas.addEventListener('pointercancel', release, options);
     canvas.addEventListener('lostpointercapture', release, options);
+    // Change the selection after the browser has dispatched its click. Opening
+    // the card on pointerup can put a new button under the finger, allowing the
+    // same touch's synthesized click to close it or submit an unintended job.
+    canvas.addEventListener('click', () => {
+      const tap = this.tap; this.tap = undefined;
+      if (tap) onTap(tap.x, tap.y);
+    }, options);
     canvas.addEventListener('wheel', (event) => { event.preventDefault(); onZoom(Math.max(-2, Math.min(2, event.deltaY * 0.01))); }, { ...options, passive: false });
   }
   private distance() { const [a, b] = [...this.pointers.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0; }
@@ -67,7 +76,7 @@ export class MovementInput {
   get isDragging() { return this.dragged && this.pointers.size > 0; }
   reset() {
     const ids = [...this.pointers.keys()];
-    this.keys.clear(); this.pointers.clear(); this.pinchDistance = 0;
+    this.keys.clear(); this.pointers.clear(); this.pinchDistance = 0; this.tap = undefined;
     this.pinched = false; this.dragged = false; this.origin = { x: 0, y: 0 };
     for (const id of ids) if (this.canvas.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
   }
