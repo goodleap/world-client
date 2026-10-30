@@ -11,3 +11,17 @@ export async function openGame(page: Page) {
   return errors;
 }
 export async function snapshot(page: Page) { return page.evaluate(() => window.__DEMO__!.snapshot()); }
+
+export async function clickGround(page: Page, point: { x: number; z: number }, touch = false, y = 0) {
+  const { camera } = await snapshot(page), viewport = page.viewportSize()!;
+  const scale = viewport.height / (2 * camera.zoom);
+  const x = viewport.width / 2 + (point.x - camera.target.x) * scale;
+  const screenY = viewport.height / 2 + ((camera.target.y - y) * Math.sin(camera.beta) - (point.z - camera.target.z) * Math.cos(camera.beta)) * scale;
+  if (touch) await page.touchscreen.tap(x, screenY); else await page.mouse.click(x, screenY);
+}
+
+export async function selectUnit(page: Page, id: string, touch = false) {
+  const unit = (await snapshot(page)).residents.find(r => r.id === id)!;
+  await clickGround(page, unit.position, touch, id === 'dog' ? .65 : id === 'cavalry' ? 1.6 : 1);
+  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe(id);
+}

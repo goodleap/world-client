@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
-import { openGame, snapshot } from './helpers.ts';
+import { clickGround, openGame, snapshot } from './helpers.ts';
 
 test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 
-test('touch creates and cancels jobs without issuing direct farmer movement', async ({ page }, info) => {
+test('touch commands the farmer, then creates and cancels automatic jobs using compact actions', async ({ page }, info) => {
   test.setTimeout(180_000);
   const errors = await openGame(page);
   const label = await page.locator('[data-resident="farmer"]').boundingBox();
   await page.touchscreen.tap(label!.x + label!.width / 2, label!.y + label!.height + 18);
   await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('farmer');
-  await expect(page.locator('#selection-hint')).toContainText('自动接取作业');
-  const before = (await snapshot(page)).residents.find(r => r.id === 'farmer')!.position;
-  await page.touchscreen.tap(195, 590);
-  expect((await snapshot(page)).residents.find(r => r.id === 'farmer')!.position).toEqual(before);
+  await expect(page.locator('#resident-hint')).toContainText('点空地移动');
+  await clickGround(page, { x: .5, z: -3.2 }, true);
+  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'farmer')!.moveCommand).toBe(true);
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
+  await page.getByRole('button', { name: '取消选中', exact: true }).tap();
   await page.getByRole('button', { name: '查看全景', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(29);
   const site = (await snapshot(page)).objects.find(o => o.id === 'site-1')!;
@@ -31,6 +31,9 @@ test('touch creates and cancels jobs without issuing direct farmer movement', as
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);
+  const actions = await page.locator('#selection-card').boundingBox();
+  expect(actions!.width).toBeLessThanOrEqual(300); expect(actions!.height).toBeLessThan(160);
+  await page.screenshot({ path: info.outputPath('phone-actions.png'), scale: 'css' });
   await page.getByRole('button', { name: '收获', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).farmerModel.motion, { timeout: 45_000 }).toBe('work');
   await page.screenshot({ path: info.outputPath('phone-work.png'), scale: 'css' });
