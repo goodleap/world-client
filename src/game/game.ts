@@ -23,6 +23,7 @@ import { economySelection, updateEconomyUI } from './economy-ui.ts';
 import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
+import { createMoveFeedback } from './move-feedback.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
@@ -69,6 +70,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     scene.dispose(); engine.dispose(); throw error;
   }
   const controller = createEconomyController(economy, world, residents);
+  const moveFeedback = createMoveFeedback(scene);
   const roundMarker = MeshBuilder.CreateLines('selected-object-ring', { points: Array.from({ length: 65 }, (_, i) =>
     new Vector3(Math.cos(i * Math.PI / 32), 0, Math.sin(i * Math.PI / 32))) }, scene);
   const boxMarker = MeshBuilder.CreateLines('selected-object-outline', { points: [
@@ -206,7 +208,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
       const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
-      if (result.ok) { clearWorld(); setPreview(); refreshEconomy(); save(); }
+      if (result.ok) { clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
       ui.toast(result.message);
     }
     else clearSelection();
@@ -355,6 +357,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
         target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
       input: { dragging: input.isDragging },
+      moveFeedback: moveFeedback.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
