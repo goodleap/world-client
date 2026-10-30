@@ -58,6 +58,7 @@ test('working and crop clocks freeze in background and manual pause; resume does
   await expect.poll(async () => (await snapshot(page)).farmerModel.motion, { timeout: 45_000 }).toBe('work');
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   const frozen = await snapshot(page); await page.waitForTimeout(1500);
+  expect(frozen.farmerModel.effectiveWorkPlaybackRate).toBeCloseTo(2, 6);
   expect((await snapshot(page)).economy).toEqual(frozen.economy);
   expect((await snapshot(page)).farmerModel).toEqual(frozen.farmerModel);
   const first = await page.evaluate(() => new Promise<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>(resolve => {
@@ -73,6 +74,7 @@ test('working and crop clocks freeze in background and manual pause; resume does
   await page.getByRole('button', { name: '关闭操作说明' }).click();
   await expect.poll(async () => (await snapshot(page)).economy.inventory.food, { timeout: 25_000 }).toBe(8);
   await expect.poll(async () => (await snapshot(page)).farmerModel.motion).toBe('idle');
+  expect((await snapshot(page)).economy.tasks[0].progress).toBe(3);
   expect((await snapshot(page)).residents.find(r => r.id === 'farmer')!.facing).toEqual(frozen.residents.find(r => r.id === 'farmer')!.facing);
   expect(errors).toEqual([]);
 });

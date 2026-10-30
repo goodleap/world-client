@@ -8,7 +8,9 @@ export interface ResidentDefinition {
   areaRadius: number; bodyRadius: number; speed: number; labelHeight: number;
 }
 
-// Raise command movement by 50%; wandering and authored asset strides stay intact.
+// Runtime human tempo; authored strides and economy clocks stay unchanged.
+export const HUMAN_SPEED_MULTIPLIER = 2;
+// Preserve the existing command-to-wander speed relationship.
 export const COMMAND_RUN_SPEED_MULTIPLIER = 1.5;
 
 export const RESIDENTS: readonly ResidentDefinition[] = [
@@ -28,5 +30,8 @@ export const RESIDENT_OBSTACLES: readonly Obstacle[] = [
 ];
 
 export function wanderSettings(resident: ResidentDefinition): WanderSettings {
-  return { home: resident.home, areaRadius: resident.areaRadius, bodyRadius: resident.bodyRadius, speed: resident.speed, bounds: WORLD_BOUNDS };
+  return {
+    home: resident.home, areaRadius: resident.areaRadius, bodyRadius: resident.bodyRadius,
+    speed: resident.speed * (resident.role === 'dog' ? 1 : HUMAN_SPEED_MULTIPLIER), bounds: WORLD_BOUNDS,
+  };
 }

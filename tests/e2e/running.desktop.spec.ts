@@ -4,7 +4,7 @@ import { openGame, snapshot } from './helpers.ts';
 test('faster human and mounted runs keep their actual displacement synchronized with the gait', async ({ page }, info) => {
   test.setTimeout(240_000);
   const errors = await openGame(page);
-  for (const [id, speed] of [['base-human', 2.5], ['cavalry', 1.6 / 1.15 * 2.5]] as const) {
+  for (const [id, speed] of [['base-human', 5], ['cavalry', 1.6 / 1.15 * 5]] as const) {
     const actor = async () => (await snapshot(page)).residents.find(entry => entry.id === id)!;
     const label = await page.locator(`[data-resident="${id}"]`).boundingBox();
     await page.mouse.click(label!.x + label!.width / 2, label!.y + label!.height + 22);

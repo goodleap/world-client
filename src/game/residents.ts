@@ -7,7 +7,7 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
-import { COMMAND_RUN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
+import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { moveCharacter } from './movement.ts';
@@ -148,7 +148,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       } else (motion === 'work' ? clips.work : motion === 'run' ? clips.run : clips.walk)?.play(true);
       clips.motion = motion;
     }
-    if (motion === 'work' && clips.work) clips.work.speedRatio = speed || 1;
+    if (motion === 'work' && clips.work) clips.work.speedRatio = (speed || 1) * HUMAN_SPEED_MULTIPLIER;
     else if (motion !== 'idle') {
       const clip = motion === 'run' ? clips.run : clips.walk;
       clip.speedRatio = speed / (motion === 'run' ? clips.runSpeed : clips.walkSpeed);
@@ -264,6 +264,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       pose: farmerBones.map(bone => (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       animations: [farmerWalk?.name, farmerRun?.name, farmerHammer?.name].filter(Boolean),
       motion: locomotion.get(farmer.definition.id)?.motion ?? 'idle',
+      effectiveWorkPlaybackRate: farmerHammer ? farmerHammer.speedRatio * scene.animationTimeScale : undefined,
     }),
     farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
     select(id?: string) {
@@ -308,7 +309,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
               const step = Math.min(remaining, .05), goal = actor.route[0], pos = actor.state.position;
               const dx = goal.x - pos.x, dz = goal.z - pos.z, distance = Math.hypot(dx, dz);
               actor.state.position = moveCharacter(pos, { x: dx / (distance || 1), z: dz / (distance || 1) }, step,
-                Math.min(walkReferenceSpeed, distance / step), actor.settings.bounds, [...worldObstacles(), ...crowd], actor.settings.bodyRadius);
+                Math.min(actor.settings.speed, distance / step), actor.settings.bounds, [...worldObstacles(), ...crowd], actor.settings.bodyRadius);
               if (Math.hypot(actor.state.position.x - goal.x, actor.state.position.z - goal.z) < .04) actor.route.shift();
               remaining -= step;
             }
@@ -333,7 +334,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (previewRole === actor.definition.role && (actor === farmer || actor === baseHuman)) {
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(Math.PI, 0, 0, actor.root.rotationQuaternion);
-          if (actor === farmer) setMotion(actor.definition.id, seconds > 0 ? 'walk' : 'idle', walkReferenceSpeed);
+          if (actor === farmer) setMotion(actor.definition.id, seconds > 0 ? 'walk' : 'idle', walkReferenceSpeed * HUMAN_SPEED_MULTIPLIER);
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
