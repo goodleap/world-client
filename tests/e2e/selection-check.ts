@@ -13,15 +13,16 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
   await selectResident('farmer');
   await expect(page.locator('#selection-name')).toHaveText('农民');
   const routeBefore = (await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining;
-  const ids = touch ? ['crop-0-0', 'crop-2-0', 'tree-11'] : ['cottage', 'well', 'tree-6', 'crop-0-0', 'crop-2-2', 'pond'];
+  const ids = touch ? ['plot-0', 'plot-2', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8', 'pond'];
   for (const id of ids) {
     const object = (await snapshot(page)).objects.find(object => object.id === id)!;
     await tap(object.screen.x, object.screen.y);
     await expect.poll(async () => (await snapshot(page)).selection.object?.id).toBe(id);
     await expect(page.locator('#selection-name')).toHaveText(object.name);
     expect((await snapshot(page)).selection.resident).toBeUndefined();
-    await expect(page.locator('#selection-hint')).toHaveText('暂无可用操作');
-    if (id === 'crop-0-0' || id.startsWith('tree')) await page.screenshot({ path: info.outputPath(id + '.png') });
+    if (['building', 'scenery'].includes(object.kind)) await expect(page.locator('#selection-hint')).toHaveText('暂无可用操作');
+    else await expect(page.locator('#selection-actions button').first()).toBeVisible();
+    if (id === 'plot-0' || id.startsWith('tree')) await page.screenshot({ path: info.outputPath(id + '.png') });
   }
   expect((await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining).toBe(routeBefore);
   await page.getByRole('button', { name: '取消选中', exact: true }).click();

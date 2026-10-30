@@ -18,6 +18,9 @@ import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
+import { Economy, decodeEconomy, encodeEconomy } from './economy.ts';
+import { economySelection, updateEconomyUI } from './economy-ui.ts';
+import { createEconomyController } from './economy-controller.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}) {
   const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -31,13 +34,22 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const mobile = window.matchMedia('(pointer: coarse)').matches;
   const shadows = createDaylight(scene, mobile);
   const palette = createPalette(scene);
+  const saveKey = 'world-basic-economy-v1';
+  let economy = new Economy();
+  let saveWarning = false;
+  try { const saved = localStorage.getItem(saveKey); if (saved) economy = decodeEconomy(saved); }
+  catch { ui.toast('未能读取经营进度，已开始新的家园'); }
+  const save = () => {
+    try { localStorage.setItem(saveKey, encodeEconomy(economy)); }
+    catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } }
+  };
   let world: ReturnType<typeof buildWorld>;
   let residents: ReturnType<typeof createResidents>;
   try {
     report(10, '正在铺好小路、布置房屋与树木…');
     await nextPaint();
-    world = buildWorld(scene, palette, shadows);
-    residents = createResidents(scene, palette, shadows, ui);
+    world = buildWorld(scene, palette, shadows, economy);
+    residents = createResidents(scene, palette, shadows, ui, world.obstacles);
     report(20, '正在迎接农民…');
     await residents.loadFarmerModel(fraction => report(20 + 15 * fraction, '正在迎接农民…'));
     report(35, '正在准备家园居民…');
@@ -51,6 +63,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   } catch (error) {
     scene.dispose(); engine.dispose(); throw error;
   }
+  const controller = createEconomyController(economy, world, residents);
   const roundMarker = MeshBuilder.CreateLines('selected-object-ring', { points: Array.from({ length: 65 }, (_, i) =>
     new Vector3(Math.cos(i * Math.PI / 32), 0, Math.sin(i * Math.PI / 32))) }, scene);
   const boxMarker = MeshBuilder.CreateLines('selected-object-outline', { points: [
@@ -67,9 +80,29 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     const marker = object.width && object.depth ? boxMarker : roundMarker;
     marker.scaling.set(object.width ?? object.radius, 1, object.depth ?? object.radius);
     marker.position.set(object.x, object.markerY ?? .035, object.z); marker.setEnabled(true);
-    const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物' };
-    ui.setSelection({ name: object.name, kind: kinds[object.kind], hint: '暂无可用操作' });
+    ui.setSelection(economySelection(economy, object));
   };
+  const refreshEconomy = () => {
+    updateEconomyUI(ui, economy);
+    if (selectedWorld) {
+      const object = world.objects.get(selectedWorld.id);
+      if (object) { selectedWorld = object; ui.setSelection(economySelection(economy, object)); }
+      else clearSelection();
+    }
+  };
+  ui.bindEconomy(action => {
+    if (!selectedWorld || ui.paused || suspended) return;
+    const target = selectedWorld.id;
+    if (action === 'cancel') {
+      const task = economy.taskFor(target); if (task) economy.cancel(task.id);
+    } else if (action === 'sow-carrot' || action === 'sow-wheat') ui.toast(economy.request('sow', target, action === 'sow-carrot' ? 'carrot' : 'wheat').message);
+    else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build') ui.toast(economy.request(action, target).message);
+    world.sync(); refreshEconomy(); save();
+  }, id => {
+    if (ui.paused || suspended) return;
+    if (economy.cancel(id)) { ui.toast('已取消作业'); world.sync(); refreshEconomy(); save(); }
+  });
+  refreshEconomy();
   const projectionIdentity = Matrix.Identity();
   let zoom = 10.7;
   let overview = false;
@@ -116,16 +149,16 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   }, (clientX, clientY) => {
     if (ui.paused || suspended) return;
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
-    const hit = scene.pick(x, y, mesh => mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldFaceRanges?.length);
+    const hit = scene.pick(x, y, mesh => mesh.isVisible && (mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldObjectId || !!mesh.metadata?.worldFaceRanges?.length));
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
       clearWorld();
       const name = residents.select(hit.pickedMesh.metadata.id);
-      if (name) ui.setSelection({ name, kind: residents.selectedCanMove() ? '居民' : '动物',
-        hint: residents.selectedCanMove() ? '点击空地，指挥移动' : '自由活动中，暂不可指挥' });
+      if (name) ui.setSelection({ name, kind: residents.selectedId() === 'dog' ? '动物' : '居民',
+        hint: residents.selectedId() === 'farmer' ? '自动接取作业；点击土地或资源下达任务' : residents.selectedCanMove() ? '点击空地，指挥移动' : '自由活动中，暂不可指挥' });
       return;
     }
-    if (hit?.pickedMesh?.metadata?.worldFaceRanges) {
-      const id = objectAtFace(hit.pickedMesh.metadata.worldFaceRanges, hit.faceId);
+    if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
+      const id = hit.pickedMesh.metadata.worldObjectId ?? objectAtFace(hit.pickedMesh.metadata.worldFaceRanges, hit.faceId);
       const object = id && world.objects.get(id);
       if (object) { selectWorld(object); return; }
     }
@@ -166,6 +199,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     mapCenter.set(0, 0.5, -2); setPreview();
     overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
   });
+  let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   const render = () => {
     if (disposed || suspended) return;
     const cpuStart = performance.now();
@@ -187,8 +221,16 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     if (!resuming) {
-      residents.update(ui.paused ? 0 : dt, previewRole);
-      if (!ui.paused) simulationSeconds += dt;
+      if (!ui.paused) {
+        controller.update(elapsed);
+        residents.update(dt, previewRole, elapsed);
+        simulationSeconds += elapsed;
+        uiElapsed += elapsed; saveElapsed += elapsed;
+        if (uiElapsed >= .25) { refreshEconomy(); uiElapsed = 0; }
+        if (savedRevision !== economy.revision || saveElapsed >= 5) {
+          save(); savedRevision = economy.revision; saveElapsed = 0;
+        }
+      }
     }
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
@@ -214,6 +256,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     input.reset();
     if (suspended) {
       engine.stopRenderLoop(render);
+      save();
       if (!previewRole && !overview) mapCenter.copyFrom(camera.target);
     } else {
       freshFrame = true;
@@ -247,6 +290,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
         target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
       input: { dragging: input.isDragging },
       suspended, manualPaused: ui.paused, simulationSeconds,
+      economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
         object: selectedWorld && { id: selectedWorld.id, name: selectedWorld.name, kind: selectedWorld.kind } },
       objects: [...world.objects.values()].map(object => {
@@ -287,6 +331,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),
     dispose() {
+      save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       scene.dispose(); engine.dispose();
     },

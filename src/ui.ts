@@ -1,6 +1,10 @@
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 
+export interface SelectionAction { id: string; label: string; disabled?: boolean }
+export interface SelectionDetails { name: string; kind: string; hint: string; actions?: SelectionAction[] }
+export interface QueueRow { id: number; title: string; status: string; progress: number; reason: string; cancellable: boolean }
+
 const icons = {
   home: '<path d="m3 11 9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
@@ -30,6 +34,15 @@ export function createUI(app: HTMLElement) {
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="最近约半秒的平均帧率与每帧 CPU 处理耗时。CPU 统计游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。">
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
     </aside>
+    <aside class="economy-bar" aria-label="家园资源">
+      <div id="inventory" class="inventory"></div>
+      <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
+    </aside>
+    <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
+      <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
+      <p class="queue-note">农民依次接取可执行的任务。缺少材料或暂时无法到达时，会先处理其他任务。</p>
+      <ol id="queue-list"></ol>
+    </section>
     <aside class="journey" aria-label="探索进度" hidden>
       <div class="eyebrow"><span class="status-dot"></span> 初到家园</div>
       <div class="journey-heading"><h2>沿着小路，走一走</h2><span id="progress-count">0<span> / 3</span></span></div>
@@ -53,10 +66,10 @@ export function createUI(app: HTMLElement) {
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="当前选中对象" hidden>
-      <div role="status" aria-live="polite"><small id="selection-kind"></small><h2 id="selection-name"></h2><p id="selection-hint"></p></div>
+      <div><small id="selection-kind"></small><h2 id="selection-name"></h2><p id="selection-hint"></p><div id="selection-actions" class="selection-actions"></div></div>
       <button id="clear-selection" aria-label="取消选中">${icon('close')}</button>
     </section>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">探索家园</p><h2>操作说明</h2><p class="dialog-intro">点击人物选中，再点击空地指挥移动。<br>建筑、树木、作物和动物也可点击查看名称。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">右侧罗盘可以查看全景，回转箭头可回到初始视角。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">点击土地、作物、树木、石材或建设用地，下达作业。农民会自动前往并完成任务。<br>其他居民选中后，可以点击空地指挥移动。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开本说明会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">开始 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -70,6 +83,24 @@ export function createUI(app: HTMLElement) {
   let loading = true;
   let toastTimer: ReturnType<typeof setTimeout>;
   function focusGame() { canvas.focus({ preventScroll: true }); }
+  let onAction: (id: string) => void = () => {};
+  let onCancel: (id: number) => void = () => {};
+  let actionsKey = '', inventoryKey = '', queueKey = '';
+  const toggleQueue = () => {
+    get('queue-panel').hidden = !get('queue-panel').hidden;
+    get('queue-toggle').setAttribute('aria-expanded', String(!get('queue-panel').hidden));
+    focusGame();
+  };
+  get('queue-toggle').addEventListener('click', toggleQueue, options);
+  get('queue-close').addEventListener('click', toggleQueue, options);
+  get('selection-actions').addEventListener('click', event => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]');
+    if (button && !button.disabled) { onAction(button.dataset.action!); focusGame(); }
+  }, options);
+  get('queue-list').addEventListener('click', event => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-cancel]');
+    if (button) { onCancel(Number(button.dataset.cancel)); focusGame(); }
+  }, options);
   for (const dialog of [help, detail]) {
     dialog.querySelector('button')!.addEventListener('click', () => dialog.close(), options);
     dialog.addEventListener('close', focusGame, options);
@@ -137,12 +168,45 @@ export function createUI(app: HTMLElement) {
       get('overview').title = active ? '返回地图视角' : '查看全景';
     },
     ready() { loading = false; focusGame(); },
-    setSelection(details?: { name: string; kind: string; hint: string }) {
+    bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
+    setResources(values: { name: string; amount: number; capacity: number; reserved: number }[]) {
+      const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
+      get('inventory').replaceChildren(...values.map(value => {
+        const cell = document.createElement('span');
+        cell.textContent = `${value.name} ${value.amount}`;
+        cell.title = `容量 ${value.capacity}，预留 ${value.reserved}，可用 ${value.amount - value.reserved}`;
+        if (value.reserved) { const reserved = document.createElement('small'); reserved.textContent = `预留 ${value.reserved}`; cell.append(reserved); }
+        return cell;
+      }));
+    },
+    setQueue(rows: QueueRow[], count: number) {
+      get('queue-count').textContent = String(count);
+      const key = JSON.stringify(rows); if (key === queueKey) return; queueKey = key;
+      get('queue-list').replaceChildren(...rows.map(row => {
+        const item = document.createElement('li'); item.dataset.task = String(row.id);
+        const title = document.createElement('strong'); title.textContent = row.title;
+        const status = document.createElement('span'); status.textContent = row.status;
+        const reason = document.createElement('p'); reason.textContent = row.reason; reason.hidden = !row.reason;
+        const progress = document.createElement('progress'); progress.max = 100; progress.value = row.progress; progress.setAttribute('aria-label', row.title + '进度');
+        item.append(title, status, progress, reason);
+        if (row.cancellable) { const button = document.createElement('button'); button.dataset.cancel = String(row.id); button.textContent = '取消'; button.setAttribute('aria-label', `取消任务 ${row.id}`); item.append(button); }
+        return item;
+      }));
+      if (!rows.length) get('queue-list').textContent = '还没有任务，点击地图上的资源或土地开始。';
+    },
+    setSelection(details?: SelectionDetails) {
       get('selection-card').hidden = !details;
       if (!details) return;
       get('selection-name').textContent = details.name;
       get('selection-kind').textContent = details.kind;
       get('selection-hint').textContent = details.hint;
+      const actions = details.actions ?? [], key = JSON.stringify(actions);
+      if (key !== actionsKey) {
+        actionsKey = key;
+        get('selection-actions').replaceChildren(...actions.map(action => {
+          const button = document.createElement('button'); button.dataset.action = action.id; button.textContent = action.label; button.disabled = !!action.disabled; return button;
+        }));
+      }
     },
     setPerformance(sample?: FrameSample) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';

@@ -9,11 +9,13 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import { BUILDINGS, createLandGrid, FENCES, TREES } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes';
-import { createReferenceTree, createTreeMaterials } from './tree';
 import { referenceHouse, tiledRoof } from './buildings';
 import { selectionRanges } from './world-selection.ts';
 import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
+import type { Economy } from './economy.ts';
+import { BUILD_SITES } from './economy-config.ts';
+import { createEconomyWorld } from './economy-world.ts';
 
 /** Painted ground colors in world coordinates; navigation is separate from the artwork. */
 function meadow(scene: Scene, p: Palette) {
@@ -71,7 +73,7 @@ function daisy(scene: Scene, p: Palette, x: number, z: number, size = 1) {
   ellipsoid(scene, 'daisy-center', [.14 * size, .08 * size, .14 * size], [x, .17, z], p.golden, 6);
 }
 
-export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
+export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
   const before = new Set(scene.meshes), land = createLandGrid();
   const objects = new Map<string, WorldObject>();
   const register = (object: WorldObject, firstMesh: number) => {
@@ -87,44 +89,11 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     x: b.x, z: b.z, radius: b.width / 2, width: b.width + .4, depth: b.depth + .5,
     anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
   }, () => referenceHouse(scene, p, b));
-  const treeMaterials = createTreeMaterials(scene);
-  for (const [index, tree] of TREES.entries()) {
-    addObject({ id: `tree-${index}`, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
-      anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale },
-    }, () => createReferenceTree(scene, treeMaterials, tree.x, tree.z, tree.scale, tree.tone));
-    grassClump(scene, p, tree.x + .45, tree.z - .3, .95); grassClump(scene, p, tree.x - .35, tree.z - .22, .7);
+  for (const tree of TREES) {
+    grassClump(scene, p, tree.x + .45, tree.z - .3, .95);
+    grassClump(scene, p, tree.x - .35, tree.z - .22, .7);
   }
-  const garden: WorldObject = { id: 'garden', kind: 'scenery', name: '青青菜园', x: 4.8, z: -2, radius: 2.4,
-    width: 4.8, depth: 4.3, markerY: .26, anchor: { x: 4.8, y: .25, z: -2 } };
-  addObject(garden, () => {
-    roundedBox(scene, 'garden-border', [4.7, .19, 4.2], [4.8, .12, -2], p.timberLight, .08);
-    roundedBox(scene, 'garden-soil', [4.45, .19, 3.95], [4.8, .15, -2], p.soil, .1);
-  });
-  const carrot = new StandardMaterial('carrot-orange', scene); carrot.diffuseColor = Color3.FromHexString('#f28328'); carrot.specularColor = Color3.Black();
-  for (let row = 0; row < 3; row++) {
-    addObject(garden, () => roundedBox(scene, 'soil-ridge', [4.22, .15, .7], [4.8, .28, -3.25 + row * 1.22], p.soil, .07));
-    for (let col = 0; col < 5; col++) {
-      const x = 3.15 + col * .82, z = -3.25 + row * 1.22;
-      const firstCropMesh = scene.meshes.length;
-      if (row < 2) {
-        ellipsoid(scene, 'carrot', [.37, .4, .37], [x, .48, z], carrot);
-        for (let i = -1; i <= 1; i++) {
-          const leaf = ellipsoid(scene, 'carrot-leaf', [.19, .5, .14], [x + i * .13, .83, z], i % 2 ? p.leaf : p.leafLight);
-          leaf.rotation.z = i * -.5; tintHeight(leaf, '#539d54', '#ffffff');
-        }
-      } else for (let i = -1; i <= 1; i++) {
-        const stem = MeshBuilder.CreateCylinder('wheat-stem', { height: .65, diameter: .035, tessellation: 8 }, scene);
-        stem.position.set(x + i * .15, .59, z); stem.material = p.leafLight;
-        for (let k = 0; k < 3; k++) {
-          const ear = ellipsoid(scene, 'golden-wheat', [.13, .21, .13], [x + i * .15 + (k % 2 - .5) * .07, .82 + k * .1, z], k % 2 ? p.golden : p.linen);
-          ear.rotation.z = (k % 2 - .5) * .7;
-        }
-      }
-      register({ id: `crop-${row}-${col}`, kind: 'crop', name: row < 2 ? '胡萝卜' : '小麦', x, z, radius: .34,
-        markerY: .37, anchor: { x, y: row < 2 ? .64 : .94, z },
-      }, firstCropMesh);
-    }
-  }
+  // Individual farming cells are managed below as native mutable instances.
   const firstPondMesh = scene.meshes.length;
   const water = MeshBuilder.CreateDisc('pond-water', { radius: 2.13, tessellation: 64 }, scene);
   water.rotation.x = Math.PI / 2; water.position.set(-7.2, .035, -3.7); water.material = p.water;
@@ -169,7 +138,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
   for (let i = 0; i < 175; i++) {
     const x = Math.sin(i * 19.31) * 11.4, z = Math.cos(i * 7.73) * 12.4;
     const cell = land.find(c => c.x === Math.floor(x) && c.z === Math.floor(z));
-    if (cell?.type !== 'grass') continue;
+    if (cell?.type !== 'grass' || BUILD_SITES.some(s => Math.abs(x - s.x) < s.width / 2 + .5 && Math.abs(z - s.z) < s.depth / 2 + .8)) continue;
     if (i % 3 === 0) grassClump(scene, p, x, z, .65 + (i % 4) * .12);
     else daisy(scene, p, x, z, .65 + (i % 3) * .13);
   }
@@ -215,5 +184,6 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator) {
     mesh.freezeWorldMatrix();
     if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
-  return { land, objects };
+  const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects);
+  return { land, objects, ...economyWorld };
 }

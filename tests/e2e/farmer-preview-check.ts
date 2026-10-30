@@ -5,7 +5,7 @@ export async function checkFarmerPreview(page: Page) {
   const errors = await openGame(page);
   expect((await snapshot(page)).farmerModelLoaded).toBe(true);
   expect((await snapshot(page)).farmerModel.bones).toEqual((await snapshot(page)).baseModel.bones);
-  expect((await snapshot(page)).farmerModel.animations).toEqual(['Walk', 'Run']);
+  expect((await snapshot(page)).farmerModel.animations).toEqual(['Walk', 'Run', 'Hammer']);
   const button = page.getByRole('button', { name: '查看农民模型' });
   await button.click();
   await expect(button).toHaveAttribute('aria-pressed', 'true');
@@ -14,7 +14,10 @@ export async function checkFarmerPreview(page: Page) {
   expect(pose.length).toBe(4);
   await expect.poll(async () => (await snapshot(page)).farmerLegPose).not.toEqual(pose);
   await page.getByRole('button', { name: '操作说明', exact: true }).click();
-  await expect.poll(async () => (await snapshot(page)).farmerWalking).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).manualPaused).toBe(true);
+  const pausedPose = (await snapshot(page)).farmerLegPose;
+  await page.waitForTimeout(350);
+  expect((await snapshot(page)).farmerLegPose).toEqual(pausedPose);
   await page.getByRole('button', { name: '关闭操作说明' }).click();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(2.8);
   await button.click();

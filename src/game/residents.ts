@@ -43,7 +43,11 @@ const downloadProgress = (report?: ResourceProgress) => (event: ISceneLoaderProg
   if (event.lengthComputable && event.total > 0) report?.(Math.min(.9, .9 * event.loaded / event.total));
 };
 
-export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI) {
+export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
+  worldObstacles: () => readonly Obstacle[] = () => RESIDENT_OBSTACLES) {
+  const obstaclesFor = (role: string): readonly Obstacle[] => role === 'farmer' ? worldObstacles() : [
+    ...worldObstacles(), { kind: 'box', x: 4.8, z: -2, halfWidth: 2.35, halfDepth: 2.1 },
+  ];
   const placeholderRoles = new Set(['worker']);
   const soldierAssets = [
     { role: 'infantry', url: infantryModelUrl, lod: infantryLODUrl, mounted: false },
@@ -54,7 +58,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const actors = RESIDENTS.map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);
-    const state = createWanderState(definition.spawn, settings, RESIDENT_OBSTACLES, random);
+    const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random);
     const human = definition.role === 'dog' ? undefined : createCharacter(scene, p, shadows, {
       id: definition.id, role: definition.role === 'base' ? 'traveler' : definition.role, marker: false, phase: index * 1.2, mounted: definition.role === 'cavalry',
     });
@@ -84,13 +88,15 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   let selected: typeof actors[number] | undefined;
   let farmerWalk: AnimationGroup | undefined;
   let farmerRun: AnimationGroup | undefined;
+  let farmerHammer: AnimationGroup | undefined;
+  let work: { id: number; target: Point; status: 'travelling' | 'arrived' | 'working' | 'blocked'; stuck: number } | undefined;
   let farmerBones: Bone[] = [];
   let baseWalk: AnimationGroup | undefined;
   let baseRun: AnimationGroup | undefined;
   let baseBones: Bone[] = [];
   let baseMeshNames: string[] = [];
-  type Motion = 'idle' | 'walk' | 'run';
-  type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup;
+  type Motion = 'idle' | 'walk' | 'run' | 'work';
+  type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup; work?: AnimationGroup;
     walkSpeed: number; runSpeed: number; motion: Motion };
   const locomotion = new Map<string, Locomotion>();
   const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
@@ -123,23 +129,27 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   const prepareBaseMaterials = createCharacterMaterialSetup(scene);
   const registerLocomotion = (id: string, walk: AnimationGroup, run: AnimationGroup,
-    options: { idle?: AnimationGroup; walkSpeed?: number; runSpeed?: number } = {}) => {
-    walk.stop(); run.stop(); options.idle?.stop(); (options.idle ?? walk).reset();
-    locomotion.set(id, { walk, run, idle: options.idle, motion: 'idle',
+    options: { idle?: AnimationGroup; work?: AnimationGroup; walkSpeed?: number; runSpeed?: number } = {}) => {
+    walk.stop(); run.stop(); options.work?.stop(); options.idle?.stop(); (options.idle ?? walk).reset();
+    if (options.work) options.idle?.play(true);
+    locomotion.set(id, { walk, run, idle: options.idle, work: options.work, motion: 'idle',
       walkSpeed: options.walkSpeed ?? walkReferenceSpeed, runSpeed: options.runSpeed ?? runReferenceSpeed });
   };
   const setMotion = (id: string, motion: Motion, speed = 0) => {
     const clips = locomotion.get(id);
     if (!clips) return;
     if (motion !== clips.motion) {
-      clips.walk.stop(); clips.run.stop(); clips.idle?.stop();
+      clips.walk.stop(); clips.run.stop(); clips.idle?.stop(); clips.work?.stop();
       // Run starts at a running phase. Walk's first frame carries the complete
       // neutral pose, so stopping Run must reset Walk rather than reset Run.
-      if (motion === 'idle') (clips.idle ?? clips.walk).reset();
-      else (motion === 'run' ? clips.run : clips.walk).play(true);
+      if (motion === 'idle') {
+        if (clips.work && clips.idle) clips.idle.play(true);
+        else (clips.idle ?? clips.walk).reset();
+      } else (motion === 'work' ? clips.work : motion === 'run' ? clips.run : clips.walk)?.play(true);
       clips.motion = motion;
     }
-    if (motion !== 'idle') {
+    if (motion === 'work' && clips.work) clips.work.speedRatio = speed || 1;
+    else if (motion !== 'idle') {
       const clip = motion === 'run' ? clips.run : clips.walk;
       clip.speedRatio = speed / (motion === 'run' ? clips.runSpeed : clips.walkSpeed);
     }
@@ -151,8 +161,18 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
       farmerRun = result.animationGroups.find((group) => group.name === 'Run');
-      if (!farmerWalk || !farmerRun) throw new Error('Farmer model needs the shared Walk and Run animations');
-      registerLocomotion(farmer.definition.id, farmerWalk, farmerRun);
+      farmerHammer = result.animationGroups.find((group) => group.name === 'Hammer');
+      if (!farmerWalk || !farmerRun || !farmerHammer) throw new Error('Farmer model needs shared Walk, Run and Hammer animations');
+      // Reuse the authored neutral Walk pose for a native blended rest state.
+      // This is not another authored body/rig/action set.
+      const rest = farmerWalk.clone('Farmer rest pose', undefined, true);
+      for (const target of rest.targetedAnimations) {
+        const first = target.animation.getKeys()[0];
+        target.animation.setKeys([{ frame: 0, value: first.value.clone?.() ?? first.value }, { frame: 60, value: first.value.clone?.() ?? first.value }]);
+      }
+      rest.normalize(0, 60);
+      for (const clip of [farmerWalk, farmerRun, farmerHammer, rest]) { clip.enableBlending = true; clip.blendingSpeed = .15; }
+      registerLocomotion(farmer.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
       result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
       await attachGeometry(farmer.definition.id, result.meshes, farmerLODUrl, fraction => report?.(.8 + .2 * fraction));
@@ -241,7 +261,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     farmerRunning: () => farmerRun?.isPlaying ?? false,
     farmerModelInfo: () => ({
       bones: farmerBones.map(bone => bone.name),
-      animations: [farmerWalk?.name, farmerRun?.name].filter(Boolean),
+      animations: [farmerWalk?.name, farmerRun?.name, farmerHammer?.name].filter(Boolean),
       motion: locomotion.get(farmer.definition.id)?.motion ?? 'idle',
     }),
     farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
@@ -252,17 +272,63 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       return selected?.definition.name;
     },
     selectedId: () => selected?.definition.id,
-    selectedCanMove: () => !!selected && selected.definition.role !== 'dog',
+    selectedCanMove: () => !!selected && !['dog', 'farmer'].includes(selected.definition.role),
     command(point: Point) {
-      if (!selected || selected.definition.role === 'dog') return false;
-      const path = findPath(selected.state.position, point, selected.settings.bodyRadius, selected.settings.bounds, RESIDENT_OBSTACLES);
+      if (!selected || ['dog', 'farmer'].includes(selected.definition.role)) return false;
+      const path = findPath(selected.state.position, point, selected.settings.bodyRadius, selected.settings.bounds, obstaclesFor(selected.definition.role));
       if (!path) return false;
       selected.route = path; selected.state.target = undefined; selected.state.pause = 0;
       return true;
     },
-    update(seconds: number, previewRole?: 'farmer' | 'base') {
+    startFarmerWork(id: number, points: readonly Point[], target: Point) {
+      const crowd: Obstacle[] = actors.filter(a => a !== farmer).map(a => ({ kind: 'circle', ...a.state.position, radius: a.definition.bodyRadius }));
+      const obstacles = [...worldObstacles(), ...crowd];
+      const paths = points.map(point => findPath(farmer.state.position, point, farmer.settings.bodyRadius, farmer.settings.bounds, obstacles)).filter((path): path is Point[] => !!path);
+      const length = (path: Point[]) => path.reduce((sum, p, i) => { const prev = i ? path[i - 1] : farmer.state.position; return sum + Math.hypot(p.x - prev.x, p.z - prev.z); }, 0);
+      paths.sort((a, b) => length(a) - length(b));
+      if (!paths.length) return false;
+      farmer.route = paths[0]; farmer.state.target = undefined;
+      work = { id, target, status: 'travelling', stuck: 0 }; return true;
+    },
+    farmerWorkState: () => work && { id: work.id, status: work.status },
+    beginFarmerWork(id: number) { if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
+    releaseFarmerWork() { work = undefined; farmer.route = []; setMotion(farmer.definition.id, 'idle'); },
+    update(seconds: number, previewRole?: 'farmer' | 'base', activeElapsed = seconds) {
       for (const actor of actors) {
         actor.movementSpeed = 0;
+        if (seconds <= 0) continue;
+        if (actor === farmer && work) {
+          const before = { ...actor.state.position };
+          const workSeconds = Math.min(activeElapsed, .5);
+          const crowd: Obstacle[] = actors.filter(a => a !== farmer).map(a => ({ kind: 'circle', ...a.state.position, radius: a.definition.bodyRadius }));
+          if (work.status === 'travelling') {
+            let remaining = workSeconds;
+            while (remaining > 1e-8 && actor.route.length) {
+              const step = Math.min(remaining, .05), goal = actor.route[0], pos = actor.state.position;
+              const dx = goal.x - pos.x, dz = goal.z - pos.z, distance = Math.hypot(dx, dz);
+              actor.state.position = moveCharacter(pos, { x: dx / (distance || 1), z: dz / (distance || 1) }, step,
+                Math.min(walkReferenceSpeed, distance / step), actor.settings.bounds, [...worldObstacles(), ...crowd], actor.settings.bodyRadius);
+              if (Math.hypot(actor.state.position.x - goal.x, actor.state.position.z - goal.z) < .04) actor.route.shift();
+              remaining -= step;
+            }
+            const moved = Math.hypot(actor.state.position.x - before.x, actor.state.position.z - before.z);
+            actor.state.distanceTravelled += moved;
+            work.stuck = moved < .001 ? work.stuck + workSeconds : 0;
+            if (!actor.route.length) work.status = 'arrived';
+            else if (work.stuck > 1.5) { work.status = 'blocked'; actor.route = []; }
+          }
+          const dx = actor.state.position.x - before.x, dz = actor.state.position.z - before.z;
+          const moved = Math.hypot(dx, dz);
+          actor.movementSpeed = workSeconds > 0 ? moved / workSeconds : 0;
+          if (moved > .001) actor.facing = Math.atan2(dx, dz);
+          else if (work.status === 'arrived' || work.status === 'working') actor.facing = Math.atan2(work.target.x - actor.state.position.x, work.target.z - actor.state.position.z) + .35;
+          actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
+          actor.root.rotationQuaternion ??= Quaternion.Identity();
+          Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
+          setMotion(actor.definition.id, work.status === 'working' ? 'work' : moved > .001 ? 'walk' : 'idle',
+            work.status === 'working' ? activeElapsed / seconds : moved / seconds);
+          continue;
+        }
         if (previewRole === actor.definition.role && (actor === farmer || actor === baseHuman)) {
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(Math.PI, 0, 0, actor.root.rotationQuaternion);
@@ -270,7 +336,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
-        if (seconds <= 0) { setMotion(actor.definition.id, 'idle'); continue; }
         const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
         }));
@@ -284,7 +349,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           const commandSpeedRatio = locomotion.has(actor.definition.id)
             ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15;
           const next = moveCharacter(before, { x: dx / (distance || 1), z: dz / (distance || 1) }, seconds,
-            Math.min(actor.settings.speed * commandSpeedRatio * COMMAND_RUN_SPEED_MULTIPLIER, distance / seconds), actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers], actor.settings.bodyRadius);
+            Math.min(actor.settings.speed * commandSpeedRatio * COMMAND_RUN_SPEED_MULTIPLIER, distance / seconds), actor.settings.bounds, [...obstaclesFor(actor.definition.role), ...blockers], actor.settings.bodyRadius);
           velocity = { x: (next.x - before.x) / seconds, z: (next.z - before.z) / seconds };
           const moved = Math.hypot(next.x - before.x, next.z - before.z);
           actor.state.position = next; actor.state.distanceTravelled += moved;
@@ -292,12 +357,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           actor.state.blockedFor = moved < 0.002 ? actor.state.blockedFor + seconds : 0;
           if (actor.state.blockedFor > 1) {
             const goal = actor.route[actor.route.length - 1];
-            actor.route = findPath(next, goal, actor.settings.bodyRadius, actor.settings.bounds, [...RESIDENT_OBSTACLES, ...blockers]) ?? actor.route;
+            if (goal) actor.route = findPath(next, goal, actor.settings.bodyRadius, actor.settings.bounds, [...obstaclesFor(actor.definition.role), ...blockers]) ?? actor.route;
             actor.state.blockedFor = 0;
           }
           if (!actor.route.length) actor.state.pause = 3;
-        } else if (actor === selected && actor.definition.role !== 'dog') velocity = { x: 0, z: 0 };
-        else velocity = stepWander(actor.state, actor.settings, seconds, [...RESIDENT_OBSTACLES, ...blockers], actor.random);
+        } else if (actor === farmer || actor === selected && actor.definition.role !== 'dog') velocity = { x: 0, z: 0 };
+        else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
@@ -341,6 +406,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       runReferenceSpeed: locomotion.get(actor.definition.id)?.runSpeed,
       walking: locomotion.get(actor.definition.id)?.walk.isPlaying ?? false,
       running: locomotion.get(actor.definition.id)?.run.isPlaying ?? false,
+      working: locomotion.get(actor.definition.id)?.work?.isPlaying ?? false,
       placeholder: placeholderRoles.has(actor.definition.role) && locomotion.has(actor.definition.id),
       placeholderWalking: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.walk.isPlaying ?? false),
       placeholderRunning: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.run.isPlaying ?? false),

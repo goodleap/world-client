@@ -52,13 +52,32 @@ test('farmer reuses every Walk and Run channel, including timing, instead of spe
         { input: a.bytes(s.input), output: a.bytes(s.output), interpolation: s.interpolation }];
     })),
   ]));
-  assert.deepEqual(Object.keys(clips(farmer)).sort(), ['Run', 'Walk']);
-  assert.deepEqual(clips(farmer), clips(base));
+  assert.deepEqual(Object.keys(clips(farmer)).sort(), ['Hammer', 'Run', 'Walk']);
+  const farmerClips = clips(farmer);
+  assert.deepEqual({ Run: farmerClips.Run, Walk: farmerClips.Walk }, clips(base));
   for (const [name, duration] of [['Walk', .5], ['Run', .45]] as const) {
     const clip = base.json.animations.find(c => c.name === name)!;
     const times = base.bytes(clip.samplers[0].input);
     assert.equal(times.readFloatLE(0), 0);
     assert.ok(Math.abs(times.readFloatLE(times.length - 4) - duration) < 1e-6);
+  }
+});
+
+test('shared Hammer is a stationary looping work clip with fixed foot support', () => {
+  const clip = farmer.json.animations.find(c => c.name === 'Hammer')!;
+  const times = farmer.bytes(clip.samplers[0].input);
+  assert.equal(times.readFloatLE(0), 0);
+  assert.ok(Math.abs(times.readFloatLE(times.length - 4) - 1) < 1e-6);
+  for (const channel of clip.channels) {
+    const name = farmer.json.nodes[channel.target.node].name;
+    const sampler = clip.samplers[channel.sampler];
+    const values = farmer.bytes(sampler.output);
+    const width = channel.target.path === 'rotation' ? 16 : 12;
+    const first = values.subarray(0, width);
+    assert.deepEqual(values.subarray(values.length - width), first, name + ' loop seam');
+    if (name === 'root' || /^(thigh|shin|foot|knee_volume)\./.test(name)) {
+      for (let i = 0; i < values.length; i += width) assert.deepEqual(values.subarray(i, i + width), first, name + ' fixed support');
+    }
   }
 });
 

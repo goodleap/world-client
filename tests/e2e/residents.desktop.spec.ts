@@ -47,8 +47,8 @@ test('residents including the base character render and wander safely', async ({
   await expect(page.locator('[data-resident="archer"]')).toHaveText('弓兵');
   expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
-  await expect.poll(async () => (await snapshot(page)).residents.map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
-    .toEqual(initial.map((r) => ({ id: r.id, travelled: true })));
+  await expect.poll(async () => (await snapshot(page)).residents.filter(r => r.id !== 'farmer').map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
+    .toEqual(initial.filter(r => r.id !== 'farmer').map((r) => ({ id: r.id, travelled: true })));
   await expect.poll(async () => (await snapshot(page)).residents.some((r) => r.placeholderWalking)).toBe(true);
   const moving = (await snapshot(page)).residents;
   for (const actor of moving) {
@@ -56,14 +56,10 @@ test('residents including the base character render and wander safely', async ({
     expect(isBlocked(actor.position, definition.bodyRadius, RESIDENT_OBSTACLES)).toBe(false);
     if (actor.model) {
       if (actor.walking || actor.running) expect(actor.modelPose).not.toEqual(initial.find(r => r.id === actor.id)!.modelPose);
-    } else expect(actor.pose).not.toEqual(initial.find((r) => r.id === actor.id)!.pose);
+    } else if (actor.id !== 'farmer') expect(actor.pose).not.toEqual(initial.find((r) => r.id === actor.id)!.pose);
   }
   await page.getByRole('button', { name: '操作说明', exact: true }).click();
-  await expect.poll(async () => {
-    const state = await snapshot(page);
-    return state.baseWalking || state.baseRunning || state.farmerWalking
-      || state.residents.some((actor) => actor.walking || actor.running);
-  }).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).manualPaused).toBe(true);
   const paused = (await snapshot(page)).residents;
   await page.waitForTimeout(400);
   expect((await snapshot(page)).residents).toEqual(paused);

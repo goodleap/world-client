@@ -1,5 +1,5 @@
-"""Dress the shared base asset; never generate another body, rig or action.
-blender -b -t 8 --python studies/farmer/build_farmer.py -- --output /tmp/farmer-review
+"""Dress the base asset and import shared work; preserve body, rig and gaits.
+blender -b -t 8 --python-exit-code 1 --python studies/farmer/build_farmer.py -- --output /tmp/farmer-review
 """
 import bpy, bmesh, math, os, argparse, sys
 from pathlib import Path
@@ -7,6 +7,8 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 from mathutils.geometry import barycentric_transform
 from math import sin, cos, pi, sqrt
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'shared-actions'))
+from hammer import add_hammer_action, PLAN as HAMMER_PLAN
 p=argparse.ArgumentParser();p.add_argument('--output',default=str(Path(__file__).parent));a=p.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
 out=Path(a.output);out.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.open_mainfile(filepath=str(Path(__file__).resolve().parents[1]/'base-human/base-human.blend'))
@@ -18,7 +20,7 @@ def material(name,rgb,rough=.8,metal=0):
  m=bpy.data.materials.new(name);m.use_nodes=True;q=m.node_tree.nodes['Principled BSDF'];rgba=tuple(linear(c) for c in rgb)+(1,);q.inputs['Base Color'].default_value=rgba;q.inputs['Roughness'].default_value=rough;q.inputs['Metallic'].default_value=metal;q.inputs['Specular IOR Level'].default_value=.25;m.diffuse_color=rgba;return m
 blue=material('Farmer • indigo cotton',(.30,.51,.75));blue_edge=material('Farmer • blue seams',(.24,.40,.61))
 pants=material('Farmer • charcoal trousers',(.21,.25,.29));leather=material('Farmer • chestnut apron',(.61,.43,.28));edge=material('Farmer • leather edges',(.45,.30,.18));boots=material('Farmer • brown boots',(.40,.26,.16));sole=material('Farmer • dark soles',(.19,.125,.08))
-beige=material('Farmer • linen headwrap',(.98,.91,.79),.88);hair=material('Farmer • deep brown hair',(.22,.12,.067),.8);gold=material('Farmer • aged brass',(.79,.57,.28),.55,.25);wood=material('Farmer • ash handle',(.46,.29,.15));iron=material('Farmer • forged hoe',(.48,.52,.56),.65,.35)
+beige=material('Farmer • linen headwrap',(.98,.91,.79),.88);hair=material('Farmer • deep brown hair',(.22,.12,.067),.8);gold=material('Farmer • aged brass',(.79,.57,.28),.55,.25);wood=material('Farmer • ash handle',(.46,.29,.15));iron=material('Farmer • forged hammer',(.62,.68,.74),.60,.35)
 
 def mesh(name,vs,fs,mat,sub=0,thick=0):
  me=bpy.data.meshes.new(name);me.from_pydata(vs,[],fs);me.update();o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);me.materials.append(mat)
@@ -187,17 +189,21 @@ for k,(x0,x1,bottom) in enumerate([(-.38,-.13,1.348),(-.17,.13,1.305),(.12,.37,1
 o=oval('Headwrap knot',(0,.524,1.241),(.078,.058,.071),beige);bind(o,bone='head')
 for s in [-1,1]:
  o=rings('Linen tie.'+str(s),[(.998,s*.09,.468,.006,.006),(1.025,s*.10,.498,.045,.022),(1.10,s*.073,.538,.046,.021),(1.18,s*.025,.55,.025,.018),(1.24,0,.526,.018,.014)],beige);bind(o,bone='head')
-# A compact held hoe clears the face throughout the existing Run arm arc.
-o=tube('Hoe • wooden handle',[(-.384,-.078,.285),(-.384,-.078,.485),(-.384,-.078,.716)],.019,wood);bind(o,bone='hand.R')
-o=tube('Hoe • iron socket',[(-.384,-.078,.655),(-.384,-.078,.726)],.026,iron);bind(o,bone='hand.R')
-vs=[(-.40,-.103,.714),(-.59,-.103,.635),(-.63,-.103,.52),(-.54,-.103,.54),(-.40,-.053,.714),(-.59,-.053,.635),(-.63,-.053,.52),(-.54,-.053,.54)]
-o=mesh('Hoe • broad blade',vs,[(0,1,2,3),(4,7,6,5),(0,4,5,1),(1,5,6,2),(2,6,7,3),(3,7,4,0)],iron)
-m=o.modifiers.new('Forged rounded edge','BEVEL');m.width=.012;m.segments=3;bind(o,bone='hand.R')
+# All six work types use this same compact hammer and shared action. The tool
+# follows the original hand bone; no second body, skeleton or gait is authored.
+grip=Vector(HAMMER_PLAN['tool']['grip']);direction=Vector(HAMMER_PLAN['tool']['shaft_direction']).normalized()
+ends=HAMMER_PLAN['tool']['shaft_range']
+o=tube('Hammer • wooden handle',[grip+direction*ends[0],grip+direction*.12,grip+direction*ends[1]],.022,wood);bind(o,bone='hand.R')
+center=grip+direction*ends[1];sx,sy,sz=[v/2 for v in HAMMER_PLAN['tool']['head_dimensions']]
+vs=[center+Vector((x,y,z)) for z in [-sz,sz] for y in [-sy,sy] for x in [-sx,sx]]
+o=mesh('Hammer • rounded steel head',vs,[(0,1,3,2),(4,6,7,5),(0,4,5,1),(2,3,7,6),(0,2,6,4),(1,5,7,3)],iron)
+m=o.modifiers.new('Forged rounded edge','BEVEL');m.width=.025;m.segments=4;bind(o,bone='hand.R')
 # Covered base legs remain in the blend as the weight source; exclude them
 # from the dressed export so they cannot poke through the opaque boots.
 for label in ['L','R']:
  o=bpy.data.objects['Continuous leg and foot.'+label];o.hide_render=True;o.hide_set(True)
-scene['model_revision']='farmer-shared-v12';scene.frame_set(0)
+add_hammer_action(rig)
+scene['model_revision']='farmer-shared-v13-work';scene.frame_set(0)
 bpy.ops.object.select_all(action='DESELECT')
 for o in scene.objects:
  if o==rig or (o.parent==rig and not o.name.startswith('Continuous leg')):o.select_set(True)

@@ -1,11 +1,11 @@
 {
   "source": "studies/farmer/farmer.glb",
-  "sourceSha256": "a299057dcf67547d6b4965e388ac32c34110695bb6d8b204225dcc764ecc9796",
-  "lodSha256": "e4bb299468e2fece929d9e2c397fc47863eb2a2ac4ef65adaf5b6807b5c2b34e",
+  "sourceSha256": "d56df8e0b94a51b89606e072430c43139c8540097ede82e8f67b6374fe21d743",
+  "lodSha256": "7e1f02ab0c5f1d76dafe78dd4a837424cf2d7cde67f43fbb2c0024717ec2e95d",
   "jointOrderMatches": true,
   "bindPoseMatches": true,
-  "sourceTriangles": 352518,
-  "lodTriangles": 103054,
+  "sourceTriangles": 352374,
+  "lodTriangles": 102910,
   "parts": [
     {
       "name": "Head • shaped cranium cheeks and jaw",
@@ -258,19 +258,14 @@
       "lodTriangles": 2026
     },
     {
-      "name": "Hoe • wooden handle",
+      "name": "Hammer • wooden handle",
       "sourceTriangles": 496,
       "lodTriangles": 496
     },
     {
-      "name": "Hoe • iron socket",
-      "sourceTriangles": 256,
-      "lodTriangles": 256
-    },
-    {
-      "name": "Hoe • broad blade",
-      "sourceTriangles": 188,
-      "lodTriangles": 188
+      "name": "Hammer • rounded steel head",
+      "sourceTriangles": 300,
+      "lodTriangles": 300
     }
   ]
 }

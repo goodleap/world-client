@@ -1,0 +1,27 @@
+{
+  "status": "trial work action; shared base body and skeleton are unchanged",
+  "name": "Hammer",
+  "base_rig": "../base-human/base-human.blend",
+  "duration_seconds": 1.0,
+  "fps": 120,
+  "coordinates": "Blender Z up, -Y forward; local rotations derived from actual rest bone matrices",
+  "root_motion": false,
+  "support": "Both feet remain in the original neutral pose throughout the cycle",
+  "upper_arm_outward_radians": 0.20,
+  "keys": [
+    { "phase": 0.00, "upper": -0.18, "forearm": -0.12, "wrist": 0.88, "lean": 0.07 },
+    { "phase": 0.10, "upper": -0.18, "forearm": -0.12, "wrist": 0.88, "lean": 0.07 },
+    { "phase": 0.48, "upper": -1.02, "forearm": -0.48, "wrist": 0.28, "lean": 0.01 },
+    { "phase": 0.67, "upper": -0.18, "forearm": -0.12, "wrist": 0.88, "lean": 0.09 },
+    { "phase": 0.76, "upper": -0.28, "forearm": -0.17, "wrist": 0.76, "lean": 0.06 },
+    { "phase": 1.00, "upper": -0.18, "forearm": -0.12, "wrist": 0.88, "lean": 0.07 }
+  ],
+  "tool": {
+    "status": "temporary compact work hammer following the equipment reference's wood and rounded metal style",
+    "grip": [-0.399, -0.056, 0.398],
+    "shaft_direction": [0, -0.94, 0.34],
+    "shaft_range": [-0.055, 0.30],
+    "head_dimensions": [0.27, 0.145, 0.14]
+  },
+  "settlement": "Animation is visual only. Elapsed task work, not hammer hits, determines completion."
+}

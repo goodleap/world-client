@@ -2,7 +2,7 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 
 export interface WorldObject {
   id: string;
-  kind: 'building' | 'tree' | 'crop' | 'scenery';
+  kind: 'building' | 'tree' | 'crop' | 'scenery' | 'plot' | 'rock' | 'site';
   name: string;
   x: number; z: number; radius: number;
   width?: number; depth?: number; markerY?: number;
