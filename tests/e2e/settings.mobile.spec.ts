@@ -75,5 +75,16 @@ test('phone actions stay touchable at screen edges and settings isolate input th
   const left = await buttons[0].boundingBox(), right = await buttons[1].boundingBox();
   expect(left!.y).toBe(right!.y); expect(right!.x).toBeGreaterThan(left!.x + left!.width);
   await page.screenshot({ path: info.outputPath('phone-two-actions.png'), scale: 'css' });
+  // Exercise the same button layout with future three/four-action data. These
+  // presentation-only buttons do not submit or mutate game jobs.
+  for (const count of [3, 4]) {
+    await page.locator('#selection-actions').evaluate((container, count) => {
+      const button = document.createElement('button'); button.textContent = `操作 ${count}`;
+      container.append(button);
+    }, count);
+    const rows = await page.locator('#selection-actions button').evaluateAll(buttons => buttons.map(button => Math.round(button.getBoundingClientRect().y)));
+    expect(rows[0]).toBe(rows[1]); expect(rows[2]).toBeGreaterThan(rows[0]);
+    if (count === 4) expect(rows[3]).toBe(rows[2]);
+  }
   expect(errors).toEqual([]);
 });

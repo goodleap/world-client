@@ -7,7 +7,7 @@ test('six jobs run through automatic navigation, shared work, inventory and cons
   const choose = async (id: string, action: string) => {
     if ((await snapshot(page)).selection.object?.id !== id) {
       // Object actions intentionally intercept input over nearby map objects.
-      if (await page.locator('#selection-card').isVisible()) await page.getByRole('button', { name: '关闭对象操作', exact: true }).click();
+      if (await page.locator('#selection-card').isVisible()) await page.keyboard.press('Escape');
       const object = (await snapshot(page)).objects.find(o => o.id === id)!;
       await page.mouse.click(object.screen.x, object.screen.y);
       await expect.poll(async () => (await snapshot(page)).selection.object?.id).toBe(id);

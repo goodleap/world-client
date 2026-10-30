@@ -1,6 +1,6 @@
-import { Animation } from '@babylonjs/core/Animations/animation';
-import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
-import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Animation } from '@babylonjs/core/Animations/animation.js';
+import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
+import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Bone } from '@babylonjs/core/Bones/bone';
 

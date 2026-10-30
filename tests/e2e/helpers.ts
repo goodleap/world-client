@@ -7,7 +7,9 @@ export async function openGame(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: '开始游戏', exact: true }).click();
   await expect(page.locator('#loading')).toHaveClass(/\bloaded\b/, { timeout: 60_000 });
-  await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 10);
+  // Loading already waits for assets and shaders; two further frames establish
+  // the live scene without spending ten software-GPU frames before every test.
+  await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 2);
   return errors;
 }
 export async function snapshot(page: Page) { return page.evaluate(() => window.__DEMO__!.snapshot()); }
