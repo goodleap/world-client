@@ -81,7 +81,8 @@ export class Economy {
     if (this.state.tasks.filter(pending).length >= C.queueLimit) return { ok: false, message: '作业队列已满，请等待农民完成任务' };
     const task: WorkTask = { id: this.state.nextId++, kind, target, crop: kind === 'sow' ? crop : undefined,
       status: 'waiting', progress: 0, reserved: false, reason: '', retryAt: 0 };
-    this.state.tasks = this.state.tasks.filter(t => pending(t) || this.state.tasks.filter(t => !pending(t)).slice(-11).includes(t));
+    const recent = new Set(this.state.tasks.filter(t => !pending(t)).slice(-11));
+    this.state.tasks = this.state.tasks.filter(t => pending(t) || recent.has(t));
     this.state.tasks.push(task); this.reserve(task); this.changed();
     return { ok: true, message: task.reason ? `已排队，${task.reason}` : '已加入作业队列', task };
   }

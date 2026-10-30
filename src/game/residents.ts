@@ -261,6 +261,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     farmerRunning: () => farmerRun?.isPlaying ?? false,
     farmerModelInfo: () => ({
       bones: farmerBones.map(bone => bone.name),
+      pose: farmerBones.map(bone => (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       animations: [farmerWalk?.name, farmerRun?.name, farmerHammer?.name].filter(Boolean),
       motion: locomotion.get(farmer.definition.id)?.motion ?? 'idle',
     }),
@@ -367,9 +368,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
-        if (soldierModels.has(actor.definition.id)) {
-          // The dressed GLB owns every visible animation. Only navigation
-          // heading is updated here; hidden legacy rigs do not drive soldiers.
+        if (actor === farmer || soldierModels.has(actor.definition.id)) {
+          // Dressed GLBs own their visible animation. Preserve the farmer's
+          // working heading on release instead of resetting the hidden legacy rig.
           if (speed > 0.08) {
             const target = Math.atan2(velocity.x, velocity.z);
             const difference = Math.atan2(Math.sin(target - actor.facing), Math.cos(target - actor.facing));

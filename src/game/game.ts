@@ -37,8 +37,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   const saveKey = 'world-basic-economy-v1';
   let economy = new Economy();
   let saveWarning = false;
+  let startupNotice: string | undefined;
   try { const saved = localStorage.getItem(saveKey); if (saved) economy = decodeEconomy(saved); }
-  catch { ui.toast('未能读取经营进度，已开始新的家园'); }
+  catch { startupNotice = '未能读取经营进度，已开始新的家园'; }
   const save = () => {
     try { localStorage.setItem(saveKey, encodeEconomy(economy)); }
     catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } }
@@ -202,6 +203,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   const render = () => {
     if (disposed || suspended) return;
+    if (!ui.paused && startupNotice) { ui.toast(startupNotice); startupNotice = undefined; }
     const cpuStart = performance.now();
     const resuming = freshFrame;
     freshFrame = false;
@@ -213,6 +215,11 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}) 
     // Babylon's animation clock also uses wall time between scene renders.
     // A zero-scale first frame refreshes that clock without advancing a clip.
     scene.animationTimeScale = resuming || ui.paused ? 0 : elapsed > 0 ? dt / elapsed : 1;
+    // A zero delta alone still advances Babylon's transition blending once per
+    // rendered frame. Disable animation evaluation as well, using the public
+    // clock reset so resuming does not include the time spent away.
+    scene.animationsEnabled = !resuming && !ui.paused;
+    if (!scene.animationsEnabled) scene.resetLastAnimationTimeFrame();
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
     if (direction.x || direction.z) {
       setPreview(); overview = false; ui.setOverview(false);

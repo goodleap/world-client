@@ -103,8 +103,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     }
     for (const definition of FARM_PLOTS) {
       const plot = economy.plot(definition.id)!;
-      const stage = plot.crop ? Math.min(2, Math.floor(plot.growth / C.crops[plot.crop].growthSeconds * 3)) : 0;
       const mature = !!plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds;
+      const stage = mature ? 2 : plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds / 3 ? 1 : 0;
       const name = plot.crop ? C.crops[plot.crop].name : plot.tilled ? '耕地' : '待开垦土地';
       const object: WorldObject = { ...definition, kind: plot.crop ? 'crop' : 'plot', name, radius: .55, width: 1.2, depth: 1.2,
         markerY: .12, anchor: { x: definition.x, y: plot.crop ? .5 : .12, z: definition.z } };
@@ -120,7 +120,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       const built = economy.state.buildings.includes(site.id), task = economy.taskFor(site.id);
       const state = built ? 'built' : task ? 'construction' : 'site';
       show({ ...site, kind: built ? 'building' : 'site', name: built ? '民房' : '建设用地', radius: site.width / 2,
-        markerY: .12, anchor: { x: site.x, y: built ? 1.2 : .2, z: site.z - site.depth / 2 } }, state,
+        markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? 1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
       () => template(state, () => {
         if (built) { referenceHouse(scene, p, { ...site, id: 'new-house', x: 0, z: 0 }); return; }
         roundedBox(scene, 'building-footprint', [site.width, .07, site.depth], [0, .035, 0], p.pathLight, .08);

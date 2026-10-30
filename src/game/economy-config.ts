@@ -23,7 +23,7 @@ export const FARM_PLOTS = Array.from({ length: 9 }, (_, i) => ({
 export const RESOURCE_NODES = [
   ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, x: tree.x, z: tree.z, radius: .5 * tree.scale, yield: 16 })),
   { id: 'rock-0', kind: 'stone' as const, x: 8.1, z: 3.8, radius: .65, yield: 12 },
-  { id: 'rock-1', kind: 'stone' as const, x: -3.5, z: -9, radius: .65, yield: 12 },
+  { id: 'rock-1', kind: 'stone' as const, x: -2.7, z: -10, radius: .65, yield: 12 },
 ];
 export const BUILD_SITES = [
   { id: 'site-0', x: -5.3, z: -7.7, width: 3, depth: 2.8, height: 2.5 },

@@ -1,0 +1,40 @@
+import { test, expect } from '@playwright/test';
+import { openGame, snapshot } from './helpers.ts';
+
+test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+
+test('touch creates and cancels jobs without issuing direct farmer movement', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const errors = await openGame(page);
+  const label = await page.locator('[data-resident="farmer"]').boundingBox();
+  await page.touchscreen.tap(label!.x + label!.width / 2, label!.y + label!.height + 18);
+  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('farmer');
+  await expect(page.locator('#selection-hint')).toContainText('自动接取作业');
+  const before = (await snapshot(page)).residents.find(r => r.id === 'farmer')!.position;
+  await page.touchscreen.tap(195, 590);
+  expect((await snapshot(page)).residents.find(r => r.id === 'farmer')!.position).toEqual(before);
+  expect((await snapshot(page)).economy.tasks).toHaveLength(0);
+  await page.getByRole('button', { name: '查看全景', exact: true }).tap();
+  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(29);
+  const site = (await snapshot(page)).objects.find(o => o.id === 'site-1')!;
+  await page.touchscreen.tap(site.screen.x, site.screen.y);
+  await page.getByRole('button', { name: '建设民房', exact: true }).tap();
+  expect((await snapshot(page)).economy.tasks).toHaveLength(1);
+  await page.getByRole('button', { name: /^作业 \d/ }).tap();
+  const bounds = await page.locator('#queue-panel').boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(393);
+  await page.getByRole('button', { name: '取消任务 1', exact: true }).tap();
+  expect((await snapshot(page)).economy.tasks[0].status).toBe('cancelled');
+  expect((await snapshot(page)).economy.inventory.food).toBe(0);
+  await page.getByRole('button', { name: '收起作业队列' }).tap();
+  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
+  const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
+  await page.touchscreen.tap(plot.screen.x, plot.screen.y);
+  await page.getByRole('button', { name: '收获', exact: true }).tap();
+  await expect.poll(async () => (await snapshot(page)).farmerModel.motion, { timeout: 45_000 }).toBe('work');
+  await page.screenshot({ path: info.outputPath('phone-work.png'), scale: 'css' });
+  await expect.poll(async () => (await snapshot(page)).economy.inventory.food, { timeout: 25_000 }).toBe(8);
+  await expect(page.locator('#selection-actions button').first()).toHaveText('种胡萝卜');
+  expect(errors).toEqual([]);
+});

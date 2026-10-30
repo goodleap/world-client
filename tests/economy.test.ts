@@ -109,3 +109,11 @@ test('resource and construction footprints leave every resident spawn traversabl
   const { isBlocked } = await import('../src/game/movement.ts');
   for (const resident of RESIDENTS) assert.equal(isBlocked(resident.spawn, resident.bodyRadius, economyObstacles([])), false, resident.id);
 });
+
+test('resource volumes do not intersect the new building footprints', async () => {
+  const { BUILD_SITES, RESOURCE_NODES } = await import('../src/game/economy-config.ts');
+  const { isBlocked } = await import('../src/game/movement.ts');
+  for (const node of RESOURCE_NODES) for (const site of BUILD_SITES) {
+    assert.equal(isBlocked(node, node.radius, [{ kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .12, halfDepth: site.depth / 2 + .12 }]), false, `${node.id}/${site.id}`);
+  }
+});

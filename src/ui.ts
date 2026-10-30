@@ -173,7 +173,7 @@ export function createUI(app: HTMLElement) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
       get('inventory').replaceChildren(...values.map(value => {
         const cell = document.createElement('span');
-        cell.textContent = `${value.name} ${value.amount}`;
+        cell.textContent = `${value.name} ${value.amount}/${value.capacity}`;
         cell.title = `容量 ${value.capacity}，预留 ${value.reserved}，可用 ${value.amount - value.reserved}`;
         if (value.reserved) { const reserved = document.createElement('small'); reserved.textContent = `预留 ${value.reserved}`; cell.append(reserved); }
         return cell;
@@ -181,18 +181,26 @@ export function createUI(app: HTMLElement) {
     },
     setQueue(rows: QueueRow[], count: number) {
       get('queue-count').textContent = String(count);
-      const key = JSON.stringify(rows); if (key === queueKey) return; queueKey = key;
-      get('queue-list').replaceChildren(...rows.map(row => {
-        const item = document.createElement('li'); item.dataset.task = String(row.id);
-        const title = document.createElement('strong'); title.textContent = row.title;
-        const status = document.createElement('span'); status.textContent = row.status;
-        const reason = document.createElement('p'); reason.textContent = row.reason; reason.hidden = !row.reason;
-        const progress = document.createElement('progress'); progress.max = 100; progress.value = row.progress; progress.setAttribute('aria-label', row.title + '进度');
-        item.append(title, status, progress, reason);
-        if (row.cancellable) { const button = document.createElement('button'); button.dataset.cancel = String(row.id); button.textContent = '取消'; button.setAttribute('aria-label', `取消任务 ${row.id}`); item.append(button); }
-        return item;
-      }));
-      if (!rows.length) get('queue-list').textContent = '还没有任务，点击地图上的资源或土地开始。';
+      // Progress and status changes preserve the original buttons and focus.
+      const list = get('queue-list'), key = rows.map(row => row.id).join(',');
+      if (key !== queueKey || !list.childNodes.length) {
+        queueKey = key;
+        list.replaceChildren(...rows.map(row => {
+          const item = document.createElement('li'); item.dataset.task = String(row.id);
+          item.append(document.createElement('strong'), document.createElement('span'), document.createElement('progress'), document.createElement('p'));
+          const button = document.createElement('button'); button.dataset.cancel = String(row.id); button.textContent = '取消'; button.setAttribute('aria-label', `取消任务 ${row.id}`); item.append(button);
+          return item;
+        }));
+        if (!rows.length) list.textContent = '还没有任务，点击地图上的资源或土地开始。';
+      }
+      for (const row of rows) {
+        const item = list.querySelector<HTMLElement>(`[data-task="${row.id}"]`)!;
+        item.querySelector('strong')!.textContent = row.title;
+        item.querySelector('span')!.textContent = row.status;
+        const reason = item.querySelector('p')!; reason.textContent = row.reason; reason.hidden = !row.reason;
+        const progress = item.querySelector('progress')!; progress.max = 100; progress.value = row.progress; progress.setAttribute('aria-label', row.title + '进度');
+        const button = item.querySelector('button')!; button.hidden = !row.cancellable; button.disabled = !row.cancellable;
+      }
     },
     setSelection(details?: SelectionDetails) {
       get('selection-card').hidden = !details;
