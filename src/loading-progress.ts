@@ -2,6 +2,9 @@ export type LoadState = 'waiting' | 'working' | 'done' | 'failed';
 export interface LoadItem {
   id: string; name: string; kind: 'download' | 'stage'; state: LoadState;
   loaded?: number; total?: number; started?: number; ended?: number; updated: number; error?: string;
+  note?: string;
+  request?: { url: string; startMs?: number; responseStartMs?: number; responseEndMs?: number; durationMs?: number;
+    status?: number; transferBytes?: number; encodedBytes?: number; decodedBytes?: number; protocol?: string };
 }
 
 /** Shared by the small launcher and the lazy engine chunk. No scene is created. */

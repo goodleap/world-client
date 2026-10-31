@@ -30,16 +30,18 @@ export function createLauncher() {
     const active = items.filter(item => item.state === 'working');
     const stalled = active.filter(item => item.idleMs >= 10000);
     const failed = items.filter(item => item.state === 'failed');
-    status.textContent = stalled.length ? `仍在等待：${stalled.map(item => item.name).join('、')}；${Math.floor(Math.max(...stalled.map(item => item.idleMs)) / 1000)} 秒没有新进展，可展开详情或复制诊断。`
+    const waiting = stalled.filter(item => item.kind === 'download');
+    status.textContent = stalled.length ? `仍在等待：${(waiting.length ? waiting : stalled).map(item => item.name).join('、')}；${Math.floor(Math.max(...stalled.map(item => item.idleMs)) / 1000)} 秒没有新进展报告，可继续等待、复制诊断或重新加载。`
       : active.length ? `进行中：${active.map(item => item.name).join('、')}` : failed.length ? `未完成：${failed.map(item => item.name).join('、')}`
         : screen.dataset.phase === 'menu' ? '预加载已完成，开始游戏后处理模型与场景。' : '等待下一阶段…';
+    get('retry-loading').hidden = screen.dataset.phase !== 'error' && !stalled.length;
     for (const item of items) {
       let row = rows.get(item.id);
       if (!row) { row = document.createElement('li'); rows.set(item.id, row); get('loading-items').append(row); }
       row.dataset.state = item.state;
       const state = { waiting: '等待', working: item.kind === 'download' ? '下载中' : '处理中', done: '完成', failed: '失败' }[item.state];
-      const bytes = item.kind === 'download' ? ` · ${byteLabel(item.loaded ?? 0)} / ${byteLabel(item.total)}` : '';
-      row.textContent = `${item.name}\n${state}${bytes} · ${(item.elapsedMs / 1000).toFixed(1)} 秒${item.state === 'working' ? ` · ${(item.idleMs / 1000).toFixed(1)} 秒无新进展` : ''}${item.error ? `\n${item.error}` : ''}`;
+      const bytes = item.kind === 'download' ? item.request && item.loaded === undefined ? ' · 字节进度未知' : ` · ${byteLabel(item.loaded ?? 0)} / ${byteLabel(item.total)}` : '';
+      row.textContent = `${item.name}\n${state}${bytes} · ${(item.elapsedMs / 1000).toFixed(1)} 秒${item.state === 'working' ? ` · ${(item.idleMs / 1000).toFixed(1)} 秒未更新` : ''}${item.note ? `\n${item.note}` : ''}${item.error ? `\n${item.error}` : ''}`;
     }
   };
   const ticker = setInterval(renderDetails, 500);
@@ -101,7 +103,7 @@ export function createLauncher() {
       get('loading-title').textContent = '正在走进家园';
       get('loading-stage').textContent = '游戏资源加载';
       progress.setAttribute('aria-label', '游戏资源加载进度');
-      report(0, '正在准备地图…');
+      report(0, '正在下载并准备游戏代码…');
     },
     ready() {
       report(100, '家园已准备好');

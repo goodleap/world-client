@@ -17,5 +17,7 @@ export async function copyDiagnostics(text: string, host: HTMLElement): Promise<
 
 export function diagnosticContext() {
   return { time: new Date().toISOString(), browser: navigator.userAgent,
+    page: location.origin + location.pathname, online: navigator.onLine, visibility: document.visibilityState,
+    modulePreloadSupported: document.createElement('link').relList.supports?.('modulepreload') ?? false,
     viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } };
 }

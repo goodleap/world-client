@@ -7,11 +7,13 @@ import { readSavedGame } from './game/economy-storage.ts';
 import type { StartMode } from './launcher.ts';
 import { diagnosticContext } from './diagnostics.ts';
 import { loadingProgress } from './loading-progress.ts';
+import { trackModuleLoading } from './module-loading.ts';
 
 declare global {
   interface Window { __DEMO__?: { snapshot: Game['snapshot'] } }
 }
 
+const stopModuleTracking = trackModuleLoading();
 const launcher = createLauncher();
 let ui: GameUI | undefined;
 let game: Game | undefined;
@@ -19,7 +21,11 @@ let disposed = false;
 let makeUI: typeof import('./ui.ts')['createUI'];
 let gameModule: Promise<typeof import('./game/game.ts')> | undefined;
 function prepareGame() {
-  return gameModule ??= loadingProgress.run('engine', '游戏引擎与代码准备', () => import('./game/game.ts'))
+  return gameModule ??= loadingProgress.run('engine', '游戏引擎与代码准备', () => {
+    loadingProgress.items.get('engine')!.note = '等待代码文件下载、解析与初始化；此阶段尚未开始模型处理。';
+    return import('./game/game.ts');
+  })
+    .then(module => { loadingProgress.items.get('engine')!.note = '引擎与游戏代码已准备好；模型与场景处理另列。'; return module; })
     .catch(error => { gameModule = undefined; throw error; });
 }
 function menu() {
@@ -89,6 +95,6 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
   }
 }
 void boot();
-function dispose() { disposed = true; game?.dispose(); ui?.dispose(); launcher.dispose(); delete window.__DEMO__; }
+function dispose() { disposed = true; game?.dispose(); ui?.dispose(); launcher.dispose(); stopModuleTracking(); delete window.__DEMO__; }
 if (import.meta.hot) import.meta.hot.dispose(dispose);
 window.addEventListener('pagehide', (event) => { if (!event.persisted) dispose(); });
