@@ -72,7 +72,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   let farmerWalk: AnimationGroup | undefined;
   let farmerRun: AnimationGroup | undefined;
   let farmerHammer: AnimationGroup | undefined;
-  let work: { id: number; target: Point; status: 'travelling' | 'arrived' | 'working' | 'blocked' } | undefined;
+  type Work = { id: number; target: Point; status: 'travelling' | 'arrived' | 'working' | 'blocked' };
+  const works = new Map<string, Work>();
   let farmerBones: Bone[] = [];
   let baseWalk: AnimationGroup | undefined;
   let baseRun: AnimationGroup | undefined;
@@ -151,10 +152,11 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   return {
     async loadFarmerModel(report?: ResourceProgress) {
-      const result = await library.instantiate('farmer', farmer.root);
+      for (const actor of actors.filter(a => a.definition.role === 'farmer')) {
+      const result = await library.instantiate('farmer', actor.root);
       loadingProgress.begin('farmer:attach', '农民：共享材质与动作挂接');
-      farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
-      farmerWalk = result.walk; farmerRun = result.run; farmerHammer = result.work;
+      if (actor === farmer) farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
+      const farmerWalk = result.walk, farmerRun = result.run, farmerHammer = result.work;
       // Blending flags are actor-local. Key arrays remain shared and immutable.
       for (const clip of [farmerWalk, farmerRun, farmerHammer]) {
         for (const target of clip.targetedAnimations) target.animation = target.animation.clone();
@@ -168,10 +170,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
       rest.normalize(0, 60);
       for (const clip of [farmerWalk, farmerRun, farmerHammer, rest]) { clip.enableBlending = true; clip.blendingSpeed = .15; }
-      registerLocomotion(farmer.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
-      farmer.human!.mesh.setEnabled(false);
+      registerLocomotion(actor.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
+      actor.human!.mesh.setEnabled(false);
       loadingProgress.done('farmer:attach');
-      await attachGeometry(farmer.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
+      await attachGeometry(actor.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
+      }
+      const primary = locomotion.get(farmer.definition.id)!;
+      farmerWalk = primary.walk; farmerRun = primary.run; farmerHammer = primary.work;
       farmerModelLoaded = true;
       report?.(1);
     },
@@ -230,7 +235,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
       report?.(1);
     },
-    farmerPosition: () => farmer.root.position,
+    farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
+    farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.root.position,
     sharedLibraryInfo: library.summary,
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
       mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length })),
@@ -264,19 +270,20 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     selectedId: () => selected?.definition.id,
     selectedCanMove: () => !!selected,
-    canWork: (id: string) => id === farmer.definition.id,
-    hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && (actor !== farmer || !work)),
+    canWork: (id: string) => actors.some(a => a.definition.id === id && a.definition.role === 'farmer'),
+    hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && !works.has(actor.definition.id)),
     command(point: Point, id = selected?.definition.id) {
       const actor = actors.find(entry => entry.definition.id === id);
       if (!actor) return false;
       const path = findPath(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role));
       if (!path) return false;
-      if (actor === farmer) work = undefined;
+      works.delete(actor.definition.id);
       actor.route = path; actor.state.target = undefined; actor.state.pause = 0; actor.state.blockedFor = 0;
       resetRouteState(actor.navigation);
       return true;
     },
-    planFarmerWork(points: readonly Point[]): Point[] | undefined {
+    planFarmerWork(points: readonly Point[], unit = farmer.definition.id): Point[] | undefined {
+      const farmer = actors.find(a => a.definition.id === unit)!;
       // Temporary occupants are handled by the same follower as manual moves.
       // They must not make a valid job look permanently unreachable.
       const paths = points.map(point => findPath(farmer.state.position, point, farmer.settings.bodyRadius, farmer.settings.bounds, worldObstacles())).filter((path): path is Point[] => !!path);
@@ -284,19 +291,21 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       paths.sort((a, b) => length(a) - length(b));
       return paths[0];
     },
-    startFarmerWork(id: number, path: Point[], target: Point) {
+    startFarmerWork(id: number, path: Point[], target: Point, unit = farmer.definition.id) {
+      const farmer = actors.find(a => a.definition.id === unit)!;
       farmer.route = path; farmer.state.target = undefined;
       resetRouteState(farmer.navigation);
-      work = { id, target, status: 'travelling' };
+      works.set(unit, { id, target, status: 'travelling' });
     },
-    farmerWorkState: () => work && { id: work.id, status: work.status },
-    beginFarmerWork(id: number) { if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
-    releaseFarmerWork() { work = undefined; farmer.route = []; resetRouteState(farmer.navigation); setMotion(farmer.definition.id, 'idle'); },
+    farmerWorkState: (unit = farmer.definition.id) => { const work = works.get(unit); return work && { id: work.id, status: work.status }; },
+    beginFarmerWork(id: number, unit = farmer.definition.id) { const work = works.get(unit); if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
+    releaseFarmerWork(unit = farmer.definition.id) { works.delete(unit); const actor = actors.find(a => a.definition.id === unit)!; actor.route = []; resetRouteState(actor.navigation); setMotion(unit, 'idle'); },
     update(seconds: number, previewRole?: 'farmer' | 'base', activeElapsed = seconds) {
       for (const actor of actors) {
         actor.movementSpeed = 0;
         if (seconds <= 0) continue;
-        if (actor === farmer && work) {
+        const work = works.get(actor.definition.id);
+        if (work) {
           const before = { ...actor.state.position };
           const workSeconds = Math.min(activeElapsed, .5);
           if (work.status === 'travelling') {
@@ -339,13 +348,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           velocity = result.velocity;
           if (result.unreachable) { actor.route = []; ui.toast('目标暂时无法到达'); }
           if (!actor.route.length) actor.state.pause = 3;
-        } else if (actor === farmer) velocity = { x: 0, z: 0 };
+        } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random);
         const speed = Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
-        if (actor === farmer || soldierModels.has(actor.definition.id)) {
+        if (actor.definition.role === 'farmer' || soldierModels.has(actor.definition.id)) {
           // Dressed GLBs own their visible animation. Preserve the farmer's
           // working heading on release instead of resetting the hidden legacy rig.
           if (speed > 0.08) {
@@ -392,7 +401,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       position: { ...actor.state.position }, state: actor.state.target ? 'walking' : 'idle',
       facing: actor.root.rotationQuaternion?.asArray() ?? [],
       routeRemaining: actor.route.length,
-      moveCommand: !!actor.route.length && (actor !== farmer || !work),
+      moveCommand: !!actor.route.length && !works.has(actor.definition.id),
       navigation: { ...actor.navigation },
       travelled: actor.state.distanceTravelled, reached: actor.state.destinationsReached,
       bodyRadius: actor.definition.bodyRadius,

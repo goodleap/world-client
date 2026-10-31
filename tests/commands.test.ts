@@ -9,6 +9,7 @@ function setup(economy = new Economy()) {
   const moves = new Map<string, { x: number; z: number }>();
   let reachable = true;
   const residents: Residents = {
+    farmerIds: () => ['farmer'],
     farmerPosition: () => ({ x: 0, z: 0 }),
     canWork: id => id === 'farmer', hasMoveCommand: id => moves.has(id),
     command(point, id = 'farmer') {
@@ -24,7 +25,7 @@ function setup(economy = new Economy()) {
   };
   const controller = createEconomyController(economy, {
     sync: () => false, workPoints: () => ({ points: [{ x: 3, z: 0 }], target: { x: 3, z: 1 } }),
-  }, residents);
+  }, residents, false);
   return { economy, controller, moves, residents, blocked(value: boolean) { reachable = !value; },
     arrive() { if (work) work.status = 'arrived'; controller.update(.001); } };
 }
@@ -64,14 +65,14 @@ test('direct work preempts automatic work, reuses queued tasks and preserves the
   h.arrive(); c.update(.5);
   assert.ok(c.command('farmer', { kind: 'work', work: 'harvest', target: 'plot-0' }).ok);
   assert.equal(h.residents.farmerWorkState()?.status, 'working'); assert.equal(harvest.progress, .5);
-  c.update(2.5); assert.equal(e.state.inventory.food, 8); assert.equal(e.active()?.id, till.id);
+  c.update(2.5); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8); assert.equal(e.active()?.id, till.id);
   h.arrive(); c.update(3 - progress);
-  assert.equal(till.status, 'done'); assert.equal(e.state.inventory.food, 8);
+  assert.equal(till.status, 'done'); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8);
 });
 
 test('dogs and soldiers accept movement while unsupported or invalid work cannot interrupt an existing command', () => {
   const h = setup(), { economy: e, controller: c } = h;
-  for (const id of ['dog', 'infantry', 'archer', 'cavalry', 'worker', 'base-human']) {
+  for (const id of ['dog', 'infantry', 'archer', 'cavalry', 'base-human']) {
     assert.ok(c.command(id, { kind: 'move', point: { x: 0, z: -3 } }).ok);
     assert.equal(c.command(id, { kind: 'work', work: 'harvest', target: 'plot-0' }).ok, false);
     assert.ok(h.moves.has(id));
@@ -86,5 +87,5 @@ test('dogs and soldiers accept movement while unsupported or invalid work cannot
   assert.equal(c.command('farmer', { kind: 'move', point: { x: 100, z: 100 } }).ok, false);
   assert.equal(c.command('farmer', { kind: 'work', work: 'chop', target: 'tree-0' }).ok, false);
   assert.equal(e.active()!.id, active); assert.equal(e.active()!.status, 'working');
-  c.update(2.5); assert.equal(e.state.inventory.food, 8);
+  c.update(2.5); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8);
 });

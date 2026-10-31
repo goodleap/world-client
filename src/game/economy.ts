@@ -10,6 +10,7 @@ export type TaskStatus = 'waiting' | 'travelling' | 'working' | 'delivering' | '
 export interface FarmPlot { id: string; tilled: boolean; crop?: CropKind; growth: number; harvests?: number; lastCrop?: CropKind }
 export interface WorkTask {
   id: number; kind: WorkKind; target: string; crop?: CropKind; status: TaskStatus;
+  worker?: string; origin?: 'manual' | 'steward';
   progress: number; reserved: boolean; reason: string; retryAt: number;
 }
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string }
@@ -46,7 +47,7 @@ export class Economy {
   constructor(state = initialEconomy()) { this.state = state; }
   plot(id: string) { return this.state.plots.find(p => p.id === id); }
   taskFor(target: string) { return this.state.tasks.find(t => t.target === target && pending(t)); }
-  active() { return this.state.tasks.find(t => t.status === 'travelling' || t.status === 'working' || t.status === 'delivering'); }
+  active(worker = 'farmer') { return this.state.tasks.find(t => (t.worker ?? 'farmer') === worker && (t.status === 'travelling' || t.status === 'working' || t.status === 'delivering')); }
   cost(kind: WorkKind): Inventory { return kind === 'build' ? { ...C.houseCost } : emptyCost(); }
   reserved(): Inventory {
     const sum = emptyCost();
@@ -79,21 +80,22 @@ export class Economy {
     if (missing.length) { task.reason = '缺少' + missing.map(key => `${RESOURCE_NAMES[key]} ${cost[key] - available[key]}`).join('、'); return false; }
     task.reserved = true; task.reason = ''; return true;
   }
-  request(kind: WorkKind, target: string, crop?: CropKind): { ok: boolean; message: string; task?: WorkTask } {
+  request(kind: WorkKind, target: string, crop?: CropKind, origin: 'manual' | 'steward' = 'manual'): { ok: boolean; message: string; task?: WorkTask } {
     const invalid = this.invalidReason(kind, target, crop);
     if (invalid) return { ok: false, message: invalid };
     if (this.taskFor(target)) return { ok: false, message: '该目标已有任务' };
     if (this.state.tasks.filter(pending).length >= C.queueLimit) return { ok: false, message: '作业队列已满，请等待农民完成任务' };
-    const task: WorkTask = { id: this.state.nextId++, kind, target, crop: kind === 'sow' ? crop : undefined,
+    const task: WorkTask = { origin, id: this.state.nextId++, kind, target, crop: kind === 'sow' ? crop : undefined,
       status: 'waiting', progress: 0, reserved: false, reason: '', retryAt: 0 };
     const recent = new Set(this.state.tasks.filter(t => !pending(t)).slice(-11));
     this.state.tasks = this.state.tasks.filter(t => pending(t) || recent.has(t));
     this.state.tasks.push(task); this.reserve(task); this.changed();
     return { ok: true, message: task.reason ? `已排队，${task.reason}` : '已加入作业队列', task };
   }
-  claim(): WorkTask | undefined {
-    if (this.active()) return;
-    for (const task of this.state.tasks) {
+  claim(worker = 'farmer'): WorkTask | undefined {
+    if (this.active(worker)) return;
+    const ordered = [...this.state.tasks].sort((a, b) => Number(a.origin === 'steward') - Number(b.origin === 'steward') || a.id - b.id);
+    for (const task of ordered) {
       if (task.status !== 'waiting' || task.retryAt > this.state.seconds) continue;
       const invalid = this.invalidReason(task.kind, task.target, task.crop);
       if (invalid) { task.status = 'invalid'; task.reason = invalid; task.reserved = false; this.changed(); continue; }
@@ -102,23 +104,25 @@ export class Economy {
         if (this.state.inventory[goods.resource] >= C.capacity[goods.resource]) { task.reason = '仓库已满，资源保留在地面'; continue; }
       }
       if (!this.reserve(task)) continue;
-      task.status = 'travelling'; task.reason = ''; this.changed(); return task;
+      task.worker = worker; task.status = 'travelling'; task.reason = ''; this.changed(); return task;
     }
   }
   /** A player command pauses work, preserving progress and reserved materials. */
-  interrupt(position?: Point) {
-    const task = this.active();
+  interrupt(position?: Point, worker = 'farmer') {
+    const task = this.active(worker);
     if (!task) return;
     this.dropCargo(task, position);
-    task.status = 'waiting'; task.reason = '等待恢复'; task.retryAt = 0; this.changed();
+    task.worker = undefined; task.status = 'waiting'; task.reason = '等待恢复'; task.retryAt = 0; this.changed();
   }
-  assign(id: number): { ok: boolean; message: string } {
+  assign(id: number, worker = 'farmer'): { ok: boolean; message: string } {
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !['waiting', 'travelling', 'working', 'delivering'].includes(task.status)) return { ok: false, message: '该作业暂不可执行' };
+    if (task.worker && task.worker !== worker && task.status !== 'waiting') return { ok: false, message: '其他农民正在执行该任务' };
     const invalid = this.invalidReason(task.kind, task.target, task.crop);
     if (invalid) return { ok: false, message: invalid };
     if (!this.reserve(task)) { this.changed(); return { ok: false, message: `已排队，${task.reason}` }; }
-    if (this.active()?.id !== id) this.interrupt();
+    if (this.active(worker)?.id !== id) this.interrupt(undefined, worker);
+    task.worker = worker; task.origin = 'manual';
     if (task.status !== 'working') task.status = 'travelling';
     task.reason = ''; task.retryAt = 0; this.changed();
     return { ok: true, message: `优先${WORK_NAMES[task.kind]}` };
@@ -130,7 +134,7 @@ export class Economy {
     if (task.kind === 'haul') {
       const goods = this.state.goods.find(g => g.id === task.target);
       if (!goods) return;
-      goods.state = 'transit'; goods.carrier = 'farmer';
+      goods.state = 'transit'; goods.carrier = task.worker ?? 'farmer';
       task.status = 'delivering'; this.changed(); return;
     }
     task.status = 'working'; task.reason = ''; this.changed();
@@ -139,7 +143,7 @@ export class Economy {
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !['waiting', 'travelling', 'working', 'delivering'].includes(task.status)) return;
     this.dropCargo(task, position);
-    task.status = 'waiting'; task.reason = reason; task.retryAt = this.state.seconds + C.retrySeconds; this.changed();
+    task.worker = undefined; task.status = 'waiting'; task.reason = reason; task.retryAt = this.state.seconds + C.retrySeconds; this.changed();
   }
   cancel(id: number, position?: Point): boolean {
     const task = this.state.tasks.find(t => t.id === id);
@@ -156,8 +160,7 @@ export class Economy {
       plot.growth = Math.min(C.crops[plot.crop].growthSeconds, plot.growth + seconds);
       if (Math.floor(plot.growth / C.crops[plot.crop].growthSeconds * 3) !== previous) this.changed();
     }
-    const task = this.active();
-    if (task?.status === 'working') {
+    for (const task of this.state.tasks) if (task.status === 'working') {
       task.progress = Math.min(C.workSeconds[task.kind], task.progress + seconds);
       if (task.progress >= C.workSeconds[task.kind]) this.settle(task);
     }
@@ -258,7 +261,7 @@ export function decodeEconomy(text: string): Economy {
     if (pending(task)) { if (targets.has(task.target)) throw new Error('重复目标'); targets.add(task.target); }
     state.tasks.push({ id: task.id, kind: task.kind, target: task.target, crop: task.crop,
       status: task.status === 'travelling' || task.status === 'working' || task.status === 'delivering' ? 'waiting' : task.status,
-      progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: 0 });
+      origin: task.origin === 'steward' ? 'steward' : 'manual', progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: 0 });
   }
   state.nextId = Math.max(0, ...ids) + 1;
   // Re-establish reservations deterministically from actual inventory on resume.
