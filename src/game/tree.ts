@@ -1,11 +1,28 @@
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import type { Scene } from '@babylonjs/core/scene';
-import trunkGeometry from './tree-trunk.json';
+import { Color3 } from '@babylonjs/core/Maths/math.color.js';
+import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import type { Scene } from '@babylonjs/core/scene.js';
+import trunkGeometry from './tree-trunk.json' with { type: 'json' };
+import trunkLOD from './tree-trunk-lod.json' with { type: 'json' };
+
+export type TreeDetail = 'near' | 'medium' | 'far';
+
+/** Screen coverage works with both map zoom and differently scaled instances.
+ * Babylon retains the original instance for picking, disposal and shadows;
+ * the two LOD meshes remain blocked from independent scene rendering. */
+export function attachTreeLOD(source: Mesh, medium: Mesh, far: Mesh) {
+  // Babylon 9.32.1's WebGL mono-pass instance cache lets an independent shadow
+  // LOD overwrite a main-view batch when two tree sizes select different LODs.
+  // Use the engine's existing per-pass storage (the WebGPU default). There is
+  // no public switch yet; keep this adapter covered by real WebGL draw checks.
+  for (const mesh of [source, medium, far]) mesh._instanceDataStorage.useMonoDataStorageRenderPass = false;
+  source.useLODScreenCoverage = true;
+  source.addLODLevel(.04, medium);
+  source.addLODLevel(.004, far);
+}
 
 /** Reference: the rounded broadleaf tree in the approved terrain/plant sheet. */
 export function createTreeMaterials(scene: Scene) {
@@ -32,11 +49,12 @@ function gradient(mesh: Mesh, bottom: string, middle: string, top: string) {
   mesh.setVerticesData(VertexBuffer.ColorKind, colors);
 }
 
-export function createReferenceTree(scene: Scene, materials: ReturnType<typeof createTreeMaterials>, x = 0, z = 0, scale = 1, variation = 0) {
+export function createReferenceTree(scene: Scene, materials: ReturnType<typeof createTreeMaterials>, x = 0, z = 0, scale = 1, variation = 0, detail: TreeDetail = 'near') {
   const meshes: Mesh[] = [];
   const trunk = new Mesh('tree-trunk', scene);
   const data = new VertexData();
-  data.positions = trunkGeometry.positions; data.normals = trunkGeometry.normals; data.indices = trunkGeometry.indices;
+  const geometry = detail === 'near' ? trunkGeometry : trunkLOD[detail];
+  data.positions = geometry.positions; data.normals = geometry.normals; data.indices = geometry.indices;
   data.applyToMesh(trunk); trunk.material = materials.bark;
   gradient(trunk, '#b67435', '#cb8c45', '#dda452');
   meshes.push(trunk);
@@ -51,7 +69,7 @@ export function createReferenceTree(scene: Scene, materials: ReturnType<typeof c
   ];
   for (const [i, lobe] of lobes.entries()) {
     const [cx, cy, cz, sx, sy, sz] = lobe;
-    const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 1, segments: 24 }, scene);
+    const crown = MeshBuilder.CreateSphere('tree-crown', { diameter: 1, segments: { near: 24, medium: 10, far: 4 }[detail] }, scene);
     crown.scaling.set(sx, sy, sz); crown.position.set(cx, cy, cz);
     crown.rotation.z = Math.sin(i * 2.4) * 0.12;
     crown.material = materials.foliage;

@@ -13,7 +13,7 @@ import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
 import { TREES, GRID_SIZE, WAREHOUSE_DOOR } from './world-data.ts';
-import { createReferenceTree, createTreeMaterials } from './tree.ts';
+import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
 
@@ -45,6 +45,15 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       return source;
     });
     templates.set(name, sources); return sources;
+  }
+  function treeTemplate(tone: number) {
+    const name = 'tree-' + tone, cached = templates.get(name);
+    if (cached) return cached;
+    const levels = (['near', 'medium', 'far'] as const).map(detail => template(detail === 'near' ? name : `${name}-${detail}`,
+      () => { createReferenceTree(scene, treeMaterials, 0, 0, 1, tone, detail); }));
+    for (const source of levels[0]) attachTreeLOD(source,
+      levels[1].find(mesh => mesh.material === source.material)!, levels[2].find(mesh => mesh.material === source.material)!);
+    return levels[0];
   }
   function remove(id: string) {
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
@@ -95,7 +104,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         const tree = TREES[Number(node.id.slice(5))];
         show({ id: node.id, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
           anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale } }, 'tree',
-        () => template('tree-' + tree.tone, () => { createReferenceTree(scene, treeMaterials, 0, 0, 1, tree.tone); }), tree.scale);
+        () => treeTemplate(tree.tone), tree.scale);
       } else show({ id: node.id, kind: 'rock', name: '石材', x: node.x, z: node.z, radius: .75,
         anchor: { x: node.x, y: .75, z: node.z } }, 'rock', () => template('rock', () => {
         for (const [i, [x, y, z, size]] of [[0, .43, .12, .88], [-.36, .22, -.20, .54], [.35, .26, -.16, .60]].entries()) {

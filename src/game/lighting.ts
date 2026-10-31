@@ -10,9 +10,9 @@ import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
 
-/** A 1024px map shadow covers the village, not the zoomed-in phone viewport.
- * Use Babylon's independent LOD camera to reuse the existing map geometry for
- * that pass. Main-camera geometry is untouched; model previews retain full LOD. */
+/** Match native shadow LOD to the sun's actual orthographic footprint. A tree
+ * occupying a few shadow texels should not submit its close-up geometry.
+ * Main-camera geometry is untouched; model previews retain their own LOD. */
 export function createMapShadowLOD(scene: Scene, shadows: ShadowGenerator, mainCamera: Camera) {
   const lodCamera = new Camera('map-shadow-lod', Vector3.Zero(), scene, false);
   lodCamera.mode = Camera.ORTHOGRAPHIC_CAMERA;
@@ -26,6 +26,19 @@ export function createMapShadowLOD(scene: Scene, shadows: ShadowGenerator, mainC
       map.cameraForLOD = preview ? mainCamera : lodCamera;
       map.getCustomRenderList = preview ? null : (_pass, list, length) => {
         if (!list) return null;
+        const light = shadows.getLight();
+        if (light instanceof DirectionalLight) {
+          // This public call populates the light's bounds and shares the
+          // generator's per-render cache with the shadow draw itself.
+          shadows.getTransformMatrix();
+          const padding = 1 + 2 * light.shadowOrthoScale;
+          const width = light.shadowFrustumSize || (light.orthoRight - light.orthoLeft) * padding;
+          const height = light.shadowFrustumSize || (light.orthoTop - light.orthoBottom) * padding;
+          if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+            lodCamera.orthoRight = Math.max(16, width / 2); lodCamera.orthoLeft = -lodCamera.orthoRight;
+            lodCamera.orthoTop = Math.max(16, height / 2); lodCamera.orthoBottom = -lodCamera.orthoTop;
+          }
+        }
         Frustum.GetPlanesToRef(mainCamera.getTransformationMatrix(), planes);
         return filter(list, length, planes);
       };
