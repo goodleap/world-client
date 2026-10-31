@@ -121,7 +121,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         const task = economy.taskFor(target);
         if (task) instruction = { kind: 'work', work: task.kind, target, crop: task.crop };
       } else if (action === 'sow-carrot' || action === 'sow-wheat') instruction = { kind: 'work', work: 'sow', target, crop: action === 'sow-carrot' ? 'carrot' : 'wheat' };
-      else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build') instruction = { kind: 'work', work: action, target };
+      else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build' || action === 'haul') instruction = { kind: 'work', work: action, target };
       if (instruction) {
         const id = residents.selectedId();
         const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);

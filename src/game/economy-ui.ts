@@ -5,7 +5,7 @@ import type { Resource } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
-  const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设' };
+  const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设', goods: '待入库资源' };
   const details: SelectionDetails = { name: object.name, kind: kinds[object.kind], hint: '暂无可用操作', actions: [] };
   const task = economy.taskFor(object.id);
   if (task) {
@@ -13,6 +13,11 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
     if (task.status === 'working') details.hint += ` · ${Math.floor(task.progress / C.workSeconds[task.kind] * 100)}%`;
     if (task.status !== 'storage') details.actions = [{ id: 'cancel', label: '取消作业' }];
     return details;
+  }
+  if (object.kind === 'goods') {
+    const goods = economy.state.goods.find(g => g.id === object.id)!;
+    details.hint = `${RESOURCE_NAMES[goods.resource]} ${goods.amount} · 尚未入库`;
+    details.actions = [{ id: 'haul', label: '运送仓库' }]; return details;
   }
   const plot = economy.plot(object.id);
   if (plot) {

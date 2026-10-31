@@ -9,6 +9,7 @@ function setup(economy = new Economy()) {
   const moves = new Map<string, { x: number; z: number }>();
   let reachable = true;
   const residents: Residents = {
+    farmerPosition: () => ({ x: 0, z: 0 }),
     canWork: id => id === 'farmer', hasMoveCommand: id => moves.has(id),
     command(point, id = 'farmer') {
       if (!reachable) return false;

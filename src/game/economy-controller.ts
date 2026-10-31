@@ -7,7 +7,7 @@ import type { Point } from './movement.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
 type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
-  'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork'>;
+  'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork'> & { farmerPosition: () => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 
 /** Coordinates the existing navigation and native animation groups. Settlement
@@ -16,7 +16,7 @@ export function createEconomyController(economy: Economy, world: World, resident
   function command(id: string, instruction: UnitCommand): { ok: boolean; message: string } {
     if (instruction.kind === 'move') {
       if (!residents.command(instruction.point, id)) return { ok: false, message: '无法到达该位置' };
-      if (residents.canWork(id)) economy.interrupt();
+      if (residents.canWork(id)) economy.interrupt(residents.farmerPosition());
       return { ok: true, message: '前往目标位置' };
     }
     if (!residents.canWork(id)) return { ok: false, message: '该单位不能执行这项作业，请选择农民' };
@@ -41,13 +41,22 @@ export function createEconomyController(economy: Economy, world: World, resident
   }
   function update(seconds: number) {
     if (seconds <= 0) return;
+    economy.updateCargo(residents.farmerPosition());
     economy.advance(seconds);
+    for (const goods of economy.state.goods) if (!economy.taskFor(goods.id)) economy.request('haul', goods.id);
     const assigned = residents.farmerWorkState(), active = economy.active();
     if (assigned && assigned.id !== active?.id) residents.releaseFarmerWork();
     else if (assigned?.status === 'blocked') {
-      economy.defer(assigned.id, '暂时无法到达，稍后重试'); residents.releaseFarmerWork();
+      economy.defer(assigned.id, '暂时无法到达，稍后重试', residents.farmerPosition()); residents.releaseFarmerWork();
     } else if (assigned?.status === 'arrived') {
-      economy.arrive(assigned.id); residents.beginFarmerWork(assigned.id);
+      economy.arrive(assigned.id);
+      if (economy.active()?.status === 'delivering') {
+        const destination = world.workPoints('warehouse')!;
+        const path = residents.planFarmerWork(destination.points);
+        if (path) residents.startFarmerWork(assigned.id, path, destination.target);
+        else { economy.defer(assigned.id, '仓库暂时无法到达', residents.farmerPosition()); residents.releaseFarmerWork(); }
+      } else if (economy.active()?.status === 'working') residents.beginFarmerWork(assigned.id);
+      else residents.releaseFarmerWork();
     }
     world.sync();
     // Manual movement owns this unit until arrival, even when jobs are waiting.

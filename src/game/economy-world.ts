@@ -12,7 +12,7 @@ import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { BUILD_SITES, ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE } from './world-data.ts';
+import { TREES, GRID_SIZE, WAREHOUSE_DOOR } from './world-data.ts';
 import { createReferenceTree, createTreeMaterials } from './tree.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
@@ -116,6 +116,13 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         return plot.crop ? [...soil, ...cropTemplate(plot.crop, stage)] : soil;
       });
     }
+    for (const id of instances.keys()) if (id.startsWith('goods-') && !economy.state.goods.some(g => g.id === id && g.state === 'ground')) remove(id);
+    for (const goods of economy.state.goods) if (goods.state === 'ground') {
+      show({ ...goods, kind: 'goods', name: '待入库资源', radius: .4, anchor: { x: goods.x, y: .5, z: goods.z } }, `${goods.resource}-${goods.x}-${goods.z}`,
+        () => template('goods-' + goods.resource, () => {
+          for (let i = 0; i < 3; i++) roundedBox(scene, 'resource-pile', [.35, .25, .35], [(i % 2 - .5) * .25, .15 + (i === 2 ? .2 : 0), 0], goods.resource === 'food' ? p.golden : goods.resource === 'wood' ? p.timber : p.stone, .08);
+        }));
+    }
     for (const site of BUILD_SITES) {
       const built = economy.state.buildings.includes(site.id), task = economy.taskFor(site.id);
       const state = built ? 'built' : task ? 'construction' : 'site';
@@ -135,6 +142,9 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     return true;
   }
   function workPoints(target: string): { points: Point[]; target: Point } | undefined {
+    if (target === 'warehouse') return { target: WAREHOUSE_DOOR, points: [WAREHOUSE_DOOR, { x: WAREHOUSE_DOOR.x - .8, z: WAREHOUSE_DOOR.z }, { x: WAREHOUSE_DOOR.x + .8, z: WAREHOUSE_DOOR.z }] };
+    const goods = economy.state.goods.find(g => g.id === target);
+    if (goods) return { target: goods, points: [{ x: goods.x, z: goods.z }] };
     const plot = FARM_PLOTS.find(p => p.id === target), node = RESOURCE_NODES.find(n => n.id === target), site = BUILD_SITES.find(s => s.id === target);
     const source = plot ?? node ?? site; if (!source) return;
     if (site) return { target: site, points: [

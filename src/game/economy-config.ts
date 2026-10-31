@@ -7,7 +7,7 @@ import type { Obstacle } from './movement.ts';
 export const ECONOMY_CONFIG = {
   initialInventory: { wood: 8, stone: 4, food: 0 },
   capacity: { wood: 2000, stone: 2000, food: 4000 },
-  workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8 },
+  workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8, haul: .25 },
   crops: {
     carrot: { name: '胡萝卜', growthSeconds: 25, yield: 8 },
     wheat: { name: '小麦', growthSeconds: 40, yield: 12 },
