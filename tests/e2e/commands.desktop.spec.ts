@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
 
-test('farmer direct work retains selection, yields to movement, and resumes the same partial job', async ({ page }, info) => {
+test('farmer direct work clears selection, yields to movement, and resumes the same partial job', async ({ page }, info) => {
   test.setTimeout(180_000);
   const errors = await openGame(page);
   await selectUnit(page, 'farmer');
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
   await page.mouse.click(plot.screen.x, plot.screen.y);
-  expect((await snapshot(page)).selection.resident).toBe('farmer');
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
   expect((await snapshot(page)).economy.tasks).toHaveLength(1);
   // Software WebGL can render less than one frame per job second. Freeze at an
   // observed working frame through the real settings control, then resume and
@@ -18,6 +18,7 @@ test('farmer direct work retains selection, yields to movement, and resumes the 
   }, undefined, { timeout: 45000 });
   const progress = (await snapshot(page)).economy.tasks[0].progress;
   await page.getByRole('button', { name: '继续游戏', exact: true }).click();
+  await selectUnit(page, 'farmer');
   await clickGround(page, { x: 1.2, z: -7 });
   const interrupted = await snapshot(page), task = interrupted.economy.tasks[0];
   expect(task.status).toBe('waiting'); expect(task.progress).toBeGreaterThanOrEqual(progress); expect(task.progress).toBeLessThan(3);
@@ -27,7 +28,8 @@ test('farmer direct work retains selection, yields to movement, and resumes the 
   await page.screenshot({ path: info.outputPath('farmer-command-run.png') });
   await expect.poll(async () => (await snapshot(page)).economy.inventory.food, { timeout: 90000 }).toBe(8);
   expect((await snapshot(page)).economy.tasks).toHaveLength(1);
-  expect((await snapshot(page)).selection.resident).toBe('farmer');
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
+  await selectUnit(page, 'farmer');
   const empty = (await snapshot(page)).objects.find(o => o.id === 'plot-2')!;
   await page.mouse.click(empty.screen.x, empty.screen.y);
   await expect(page.getByRole('button', { name: '种胡萝卜', exact: true })).toBeVisible();
@@ -50,11 +52,12 @@ test('the selected dog runs to the latest destination and finishes its command',
   const running = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
   expect(running.walking).toBe(false);
   expect(running.runPlaybackRate! * running.runReferenceSpeed!).toBeCloseTo(running.movementSpeed, 6);
+  await selectUnit(page, 'dog');
   await clickGround(page, { x: .5, z: -4.5 });
   await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.moveCommand, { timeout: 90000 }).toBe(false);
   const arrived = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
   expect(Math.hypot(arrived.position.x - .5, arrived.position.z + 4.5)).toBeLessThan(.13);
   await page.screenshot({ path: info.outputPath('dog-command.png') });
-  expect((await snapshot(page)).selection.resident).toBe('dog');
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
   expect(errors).toEqual([]);
 });

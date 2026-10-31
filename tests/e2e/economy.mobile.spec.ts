@@ -13,7 +13,7 @@ test('touch commands the farmer, then creates and cancels automatic jobs using c
   await clickGround(page, { x: 1.3, z: -5 }, true);
   await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'farmer')!.moveCommand).toBe(true);
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
-  await page.getByRole('button', { name: '取消选中', exact: true }).tap();
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
   await page.getByRole('button', { name: '查看全景', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(29);
   const site = (await snapshot(page)).objects.find(o => o.id === 'site-1')!;

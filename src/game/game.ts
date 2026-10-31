@@ -79,7 +79,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   }
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { roundMarker.setEnabled(false); boxMarker.setEnabled(false); selectedWorld = undefined; ui.setSelection(); };
-  const clearSelection = () => { clearWorld(); residents.select(); ui.setResident(); };
+  const clearResident = () => { residents.select(); ui.setResident(); };
+  const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
     const details = economySelection(economy, object), unit = residents.selectedId();
     const task = economy.taskFor(object.id);
@@ -120,7 +121,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       if (instruction) {
         const id = residents.selectedId();
         const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);
-        if (result.ok && id) setPreview();
+        if (result.ok && id) { setPreview(); clearResident(); }
         ui.toast(result.message);
       }
     }
@@ -180,7 +181,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const hit = scene.pick(x, y, mesh => mesh.isVisible && (mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldObjectId || !!mesh.metadata?.worldFaceRanges?.length));
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
       clearWorld();
-      const name = residents.select(hit.pickedMesh.metadata.id);
+      const id = hit.pickedMesh.metadata.id;
+      const name = residents.select(residents.selectedId() === id ? undefined : id);
       ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!));
       return;
     }
@@ -206,7 +208,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
       const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
-      if (result.ok) { clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
+      if (result.ok) { clearSelection(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
       ui.toast(result.message);
     }
     else clearSelection();

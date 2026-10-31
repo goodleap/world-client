@@ -1,0 +1,38 @@
+import { test, expect } from '@playwright/test';
+import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
+
+test('single commands toggle, switch, retain failures/options and release selection only on success', async ({ page }, info) => {
+  const errors = await openGame(page);
+  await selectUnit(page, 'farmer', true);
+  const farmer = (await snapshot(page)).residents.find(r => r.id === 'farmer')!;
+  await clickGround(page, farmer.position, true, 1);
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
+  await selectUnit(page, 'farmer', true);
+  await selectUnit(page, 'dog', true);
+  const harvest = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
+  await page.touchscreen.tap(harvest.screen.x, harvest.screen.y);
+  expect((await snapshot(page)).selection.resident).toBe('dog');
+  await expect(page.locator('#toast')).toContainText('请选择农民');
+  expect((await snapshot(page)).economy.tasks).toHaveLength(0);
+  await selectUnit(page, 'farmer', true);
+  await page.getByRole('button', { name: '查看全景', exact: true }).tap();
+  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(29);
+  const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-2')!;
+  await page.touchscreen.tap(plot.screen.x, plot.screen.y);
+  await expect(page.getByRole('button', { name: '种小麦', exact: true })).toBeVisible();
+  expect((await snapshot(page)).selection.resident).toBe('farmer');
+  await page.screenshot({ path: info.outputPath('phone-crop-choice.png') });
+  await page.getByRole('button', { name: '种小麦', exact: true }).tap();
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
+  expect((await snapshot(page)).economy.tasks[0].crop).toBe('wheat');
+  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
+  await selectUnit(page, 'base-human', true);
+  await clickGround(page, { x: .8, z: -7 }, true);
+  const commanded = await snapshot(page);
+  expect(commanded.selection.resident).toBeUndefined();
+  expect(commanded.residents.find(r => r.id === 'base-human')!.moveCommand).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).baseRunning).toBe(true);
+  await page.screenshot({ path: info.outputPath('phone-command-released.png') });
+  expect(errors).toEqual([]);
+});
