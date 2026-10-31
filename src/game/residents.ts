@@ -12,7 +12,7 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
-import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
+import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
@@ -50,7 +50,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const settings = wanderSettings(definition);
     const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random);
     const human = definition.role === 'dog' ? undefined : createCharacter(scene, p, shadows, {
-      id: definition.id, role: definition.role === 'base' ? 'traveler' : definition.role, marker: false, phase: index * 1.2, mounted: definition.role === 'cavalry',
+      id: definition.id, role: definition.role, marker: false, phase: index * 1.2, mounted: definition.role === 'cavalry',
     });
     const animal = definition.role === 'dog' || definition.role === 'cavalry'
       ? createAnimal(scene, p, shadows, definition.role === 'dog' ? 'dog' : 'horse', `${definition.id}-animal`) : undefined;
@@ -66,16 +66,15 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
-    const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
+    const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
     return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
       route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
   const farmer = actors.find((actor) => actor.definition.role === 'farmer')!;
-  const baseHuman = actors.find((actor) => actor.definition.role === 'base')!;
+  const leader = actors.find(actor => actor.definition.id === roleLeader('farmer')?.id)!;
   let farmerModelLoaded = false;
-  let baseModelLoaded = false;
   let selected: typeof actors[number] | undefined;
   let farmerWalk: AnimationGroup | undefined;
   let farmerRun: AnimationGroup | undefined;
@@ -83,16 +82,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   type Work = { id: number; target: Point; status: 'travelling' | 'arrived' | 'working' | 'blocked' };
   const works = new Map<string, Work>();
   let farmerBones: Bone[] = [];
-  let baseWalk: AnimationGroup | undefined;
-  let baseRun: AnimationGroup | undefined;
-  let baseBones: Bone[] = [];
-  let baseMeshNames: string[] = [];
   type Motion = 'idle' | 'walk' | 'run' | 'work';
   type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup; work?: AnimationGroup;
     walkSpeed: number; runSpeed: number; motion: Motion };
   const locomotion = new Map<string, Locomotion>();
-  const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
-  const soldierBones = new Map<string, Bone[]>();
+  const characterModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
+  const characterBones = new Map<string, Bone[]>();
   const characterLODs = new Map<string, CharacterLOD[]>();
   const library = createCharacterLibrary(scene);
   const attachGeometry = async (id: string, meshes: readonly AbstractMesh[], report?: ResourceProgress) => {
@@ -170,45 +165,38 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   return {
     occupancy: () => actors.map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
     async loadFarmerModel(report?: ResourceProgress) {
-      for (const actor of actors.filter(a => a.definition.role === 'farmer')) {
-      const result = await library.instantiate('farmer', actor.root);
-      loadingProgress.begin('farmer:attach', '农民：共享材质与动作挂接');
-      if (actor === farmer) farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
-      const farmerWalk = result.walk, farmerRun = result.run, farmerHammer = result.work;
-      // Blending flags are actor-local. Key arrays remain shared and immutable.
-      for (const clip of [farmerWalk, farmerRun, farmerHammer]) {
-        for (const target of clip.targetedAnimations) target.animation = target.animation.clone();
-      }
-      // Reuse the authored neutral Walk pose for a native blended rest state.
-      // This is not another authored body/rig/action set.
-      const rest = farmerWalk.clone('Farmer rest pose', undefined, true);
-      for (const target of rest.targetedAnimations) {
-        const first = target.animation.getKeys()[0];
-        target.animation.setKeys([{ frame: 0, value: first.value.clone?.() ?? first.value }, { frame: 60, value: first.value.clone?.() ?? first.value }]);
-      }
-      rest.normalize(0, 60);
-      for (const clip of [farmerWalk, farmerRun, farmerHammer, rest]) { clip.enableBlending = true; clip.blendingSpeed = .15; }
-      registerLocomotion(actor.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
-      actor.human!.mesh.setEnabled(false);
-      loadingProgress.done('farmer:attach');
-      await attachGeometry(actor.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
+      const farmers = actors.filter(a => a.definition.role === 'farmer');
+      for (const [index, actor] of farmers.entries()) {
+        const result = await library.instantiate('farmer', actor.root);
+        loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
+        if (actor === farmer) farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
+        characterBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
+        characterModels.set(actor.definition.id, {
+          bones: characterBones.get(actor.definition.id)!.map(bone => bone.name),
+          meshes: result.meshes.map(mesh => mesh.name), animations: result.animationGroups.map(group => group.name),
+        });
+        const farmerWalk = result.walk, farmerRun = result.run, farmerHammer = result.work;
+        // Blending flags are actor-local. Key arrays remain shared and immutable.
+        for (const clip of [farmerWalk, farmerRun, farmerHammer]) {
+          for (const target of clip.targetedAnimations) target.animation = target.animation.clone();
+        }
+        // Reuse the authored neutral Walk pose for a native blended rest state.
+        // This is not another authored body/rig/action set.
+        const rest = farmerWalk.clone('Farmer rest pose', undefined, true);
+        for (const target of rest.targetedAnimations) {
+          const first = target.animation.getKeys()[0];
+          target.animation.setKeys([{ frame: 0, value: first.value.clone?.() ?? first.value }, { frame: 60, value: first.value.clone?.() ?? first.value }]);
+        }
+        rest.normalize(0, 60);
+        for (const clip of [farmerWalk, farmerRun, farmerHammer, rest]) { clip.enableBlending = true; clip.blendingSpeed = .15; }
+        registerLocomotion(actor.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
+        actor.human!.mesh.setEnabled(false);
+        loadingProgress.done(actor.definition.id + ':attach');
+        await attachGeometry(actor.definition.id, result.meshes, fraction => report?.((index + .8 + .2 * fraction) / farmers.length));
       }
       const primary = locomotion.get(farmer.definition.id)!;
       farmerWalk = primary.walk; farmerRun = primary.run; farmerHammer = primary.work;
       farmerModelLoaded = true;
-      report?.(1);
-    },
-    async loadBaseModel(report?: ResourceProgress) {
-      const result = await library.instantiate('base', baseHuman.root);
-      loadingProgress.begin('base:attach', '基础人物：共享材质与动作挂接');
-      baseBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
-      baseMeshNames = result.meshes.map((mesh) => mesh.name);
-      baseWalk = result.walk; baseRun = result.run;
-      registerLocomotion(baseHuman.definition.id, baseWalk, baseRun);
-      baseHuman.human!.mesh.setEnabled(false);
-      loadingProgress.done('base:attach');
-      await attachGeometry(baseHuman.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
-      baseModelLoaded = true;
       report?.(1);
     },
     async loadSoldierModels(report?: ResourceProgress) {
@@ -228,12 +216,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         loadingProgress.done(asset.role + ':attach');
         const meshNames = result.meshes.map(mesh => mesh.name);
         await attachGeometry(actor.definition.id, result.meshes, fraction => roleProgress(.8 + .2 * fraction));
-        soldierModels.set(actor.definition.id, {
+        characterModels.set(actor.definition.id, {
           bones: result.skeletons.flatMap(skeleton => skeleton.bones.map(bone => bone.name)),
           meshes: meshNames,
           animations: result.animationGroups.map(group => group.name),
         });
-        soldierBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
+        characterBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
         report?.((index + 1) / soldierAssets.length);
       }
     },
@@ -278,18 +266,18 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
       mapParts: pairs.filter(({ source }) => scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) !== source).length,
       farParts: pairs.filter(({ source, far }) => far && scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) === far).length })),
-    basePosition: () => baseHuman.root.position,
-    baseModelInfo: () => ({
-      meshes: baseMeshNames,
-      bones: baseBones.map((bone) => bone.name),
-      pose: baseBones.map((bone) => (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
-      motion: locomotion.get(baseHuman.definition.id)?.motion ?? 'idle',
-      animations: [baseWalk?.name, baseRun?.name].filter(Boolean),
+    leaderPosition: () => leader.root.position,
+    leaderModelInfo: () => ({
+      meshes: characterModels.get(leader.definition.id)?.meshes ?? [],
+      bones: (characterBones.get(leader.definition.id) ?? []).map(bone => bone.name),
+      pose: (characterBones.get(leader.definition.id) ?? []).map(bone => (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
+      motion: locomotion.get(leader.definition.id)?.motion ?? 'idle',
+      animations: characterModels.get(leader.definition.id)?.animations ?? [],
     }),
     farmerModelLoaded: () => farmerModelLoaded,
-    baseModelLoaded: () => baseModelLoaded,
-    baseWalking: () => baseWalk?.isPlaying ?? false,
-    baseRunning: () => baseRun?.isPlaying ?? false,
+    leaderModelLoaded: () => characterModels.has(leader.definition.id),
+    leaderWalking: () => locomotion.get(leader.definition.id)?.walk.isPlaying ?? false,
+    leaderRunning: () => locomotion.get(leader.definition.id)?.run.isPlaying ?? false,
     farmerWalking: () => farmerWalk?.isPlaying ?? false,
     farmerRunning: () => farmerRun?.isPlaying ?? false,
     farmerModelInfo: () => ({
@@ -309,7 +297,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     selectionMeshes: () => selected ? [...selected.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== selected!.marker && !m.metadata?.selectionKind), ...(characterLODs.get(selected.definition.id) ?? []).flatMap(p => [p.source, p.detail, ...(p.far ? [p.far] : [])])] : [],
     selectedId: () => selected?.definition.id,
     selectedCanMove: () => !!selected,
-    canWork: (id: string) => actors.some(a => a.definition.id === id && a.definition.role === 'farmer'),
+    canWork: canResidentWork,
     hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && !works.has(actor.definition.id)),
     command(point: Point, id = selected?.definition.id) {
       const actor = actors.find(entry => entry.definition.id === id);
@@ -341,7 +329,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     beginFarmerWork(id: number, unit = farmer.definition.id) { const work = works.get(unit); if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
     releaseFarmerWork(unit = farmer.definition.id) { works.delete(unit); const actor = actors.find(a => a.definition.id === unit)!; actor.route = []; resetRouteState(actor.navigation); setMotion(unit, 'idle'); },
-    update(frameSeconds: number, previewRole?: 'farmer' | 'base', frameElapsed = frameSeconds) {
+    update(frameSeconds: number, previewRole?: 'farmer' | 'leader', frameElapsed = frameSeconds) {
       // Advance the whole crowd in short shared ticks. Previously one resident
       // could consume a half-second of movement against everybody else's old
       // position before the next resident got a turn on a slow frame.
@@ -375,7 +363,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             work.status === 'working' ? activeElapsed / seconds : moved / seconds);
           continue;
         }
-        if (previewRole === actor.definition.role && (actor === farmer || actor === baseHuman)) {
+        if (previewRole === 'farmer' && actor === farmer || previewRole === 'leader' && actor === leader) {
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(Math.PI, 0, 0, actor.root.rotationQuaternion);
           if (actor === farmer) setMotion(actor.definition.id, seconds > 0 ? 'walk' : 'idle', walkReferenceSpeed * HUMAN_SPEED_MULTIPLIER);
@@ -411,7 +399,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
-        if (actor.definition.role === 'farmer' || soldierModels.has(actor.definition.id)) {
+        if (actor.definition.role === 'farmer' || characterModels.has(actor.definition.id)) {
           // Dressed GLBs own their visible animation. Preserve the farmer's
           // working heading on release instead of resetting the hidden legacy rig.
           if (speed > 0.08) {
@@ -440,10 +428,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     },
     snapshot: () => actors.map((actor) => ({
-      id: actor.definition.id, role: actor.definition.role,
-      model: soldierModels.get(actor.definition.id),
+      id: actor.definition.id, role: actor.definition.role, name: actor.definition.name, effects: actor.definition.effects ?? [],
+      model: characterModels.get(actor.definition.id),
       lod: lodInfo(actor.definition.id),
-      modelPose: soldierBones.get(actor.definition.id)?.map(bone =>
+      modelPose: characterBones.get(actor.definition.id)?.map(bone =>
         (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       motion: locomotion.get(actor.definition.id)?.motion ?? actor.animal?.motion,
       movementSpeed: actor.movementSpeed,

@@ -74,7 +74,7 @@ test('direct work preempts automatic work, reuses queued tasks and preserves the
 
 test('dogs and soldiers accept movement while unsupported or invalid work cannot interrupt an existing command', () => {
   const h = setup(), { economy: e, controller: c } = h;
-  for (const id of ['dog', 'infantry', 'archer', 'cavalry', 'base-human']) {
+  for (const id of ['dog', 'infantry', 'archer', 'cavalry']) {
     assert.ok(c.command(id, { kind: 'move', point: { x: 0, z: -3 } }).ok);
     assert.equal(c.command(id, { kind: 'work', work: 'harvest', target: 'plot-0' }).ok, false);
     assert.ok(h.moves.has(id));

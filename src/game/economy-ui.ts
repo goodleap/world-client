@@ -3,6 +3,7 @@ import { ECONOMY_CONFIG as C, RESOURCE_NODES, FARM_PLOTS } from './economy-confi
 import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES } from './economy.ts';
 import type { Resource } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
+import { roleLeader } from './resident-data.ts';
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
   const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设', goods: '待入库资源' };
@@ -42,7 +43,7 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
 
 export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const ground = economy.state.goods.filter(g => g.state === 'ground').length, transit = economy.state.goods.filter(g => g.state === 'transit').length;
-  ui.setSteward(`管家：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
+  ui.setSteward(`${roleLeader('farmer')?.name ?? '农民'}：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
   const reserved = economy.reserved();
   ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: C.capacity[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();

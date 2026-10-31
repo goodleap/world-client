@@ -45,7 +45,7 @@ export function createUI(app: HTMLElement) {
     <p id="steward-status" class="steward-status" role="status"></p>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
-      <p class="queue-note">管家管理小屋周围 30 格，默认调度全部农民。手动指令优先，资源送到仓库才入库。</p>
+      <p class="queue-note">农民·领头参与作业，并指挥农民经营小屋周围 30 格。手动指令优先，资源送到仓库才入库。</p>
       <ol id="queue-list"></ol>
     </section>
     <aside class="journey" aria-label="探索进度" hidden>
@@ -212,9 +212,10 @@ export function createUI(app: HTMLElement) {
       get('placement-status').hidden = !active; get('placement-hint').textContent = hint;
       get('building-toggle').classList.toggle('active', active); layoutDirty = true;
     },
-    addResidentLabel(id: string, name: string) {
+    addResidentLabel(id: string, name: string, leader = false) {
       const label = document.createElement('span');
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
+      if (leader) { label.classList.add('resident-leader'); label.title = '领头 · 参与作业并指挥同职业居民'; }
       get('resident-labels').append(label);
       return label;
     },

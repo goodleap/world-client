@@ -4,6 +4,7 @@ import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } fro
 import { buildingAt, buildingDoor, placementReason, BUILDING_TYPES } from './construction.ts';
 import type { BuildingSite, BuildingKind } from './construction.ts';
 import { findPath } from './pathfinding.ts';
+import { canResidentWork, RESIDENTS } from './resident-data.ts';
 
 export type Resource = 'wood' | 'stone' | 'food';
 export type Inventory = Record<Resource, number>;
@@ -269,12 +270,12 @@ export function decodeEconomy(text: string): Economy {
   state.inventory = { ...raw.inventory };
   state.seconds = number(raw.seconds, 1e12) ? raw.seconds : 0;
   if (raw.steward) {
-    if (typeof raw.steward.enabled !== 'boolean' || !number(raw.steward.nextDecision, 1e12)) throw new Error('管家存档无效');
+    if (typeof raw.steward.enabled !== 'boolean' || !number(raw.steward.nextDecision, 1e12)) throw new Error('领头调度存档无效');
     state.steward = { enabled: raw.steward.enabled, nextDecision: Math.min(raw.steward.nextDecision, state.seconds + .5), reason: '正在恢复经营' };
   }
   const validPoint = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && p.x >= WORLD_BOUNDS.minX && p.x <= WORLD_BOUNDS.maxX && p.z >= WORLD_BOUNDS.minZ && p.z <= WORLD_BOUNDS.maxZ;
   if (raw.residents && typeof raw.residents === 'object') for (const [id, entry] of Object.entries(raw.residents)) {
-    if (!['farmer', 'farmer-2', 'infantry', 'archer', 'cavalry', 'dog', 'base-human'].includes(id)) continue;
+    if (!RESIDENTS.some(resident => resident.id === id)) continue;
     if (!entry || !validPoint(entry.position) || entry.manualGoal && !validPoint(entry.manualGoal)) throw new Error('居民存档无效');
     state.residents[id] = { position: { ...entry.position }, manualGoal: entry.manualGoal && { ...entry.manualGoal } };
   }
@@ -309,7 +310,7 @@ export function decodeEconomy(text: string): Economy {
       || task.status === 'storage' && (!['chop', 'mine', 'harvest'].includes(task.kind) || task.progress !== C.workSeconds[task.kind])) throw new Error('任务存档无效');
     if (task.status === 'delivering') {
       const goods = state.goods.find(g => g.id === task.target);
-      if (task.kind !== 'haul' || !task.worker || !['farmer', 'farmer-2'].includes(task.worker) || carriers.has(task.worker)
+      if (task.kind !== 'haul' || !task.worker || !canResidentWork(task.worker) || carriers.has(task.worker)
         || !goods || goods.state !== 'transit' || goods.carrier !== task.worker) throw new Error('运输任务不一致');
       carriers.add(task.worker);
     }

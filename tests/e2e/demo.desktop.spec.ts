@@ -43,11 +43,11 @@ test('zoom, overview, reset and modal work', async ({ page }) => {
 test('selecting a resident and clicking open ground sends them moving', async ({ page }) => {
   test.setTimeout(180_000);
   const errors = await openGame(page);
-  const label = await page.locator('[data-resident="base-human"]').boundingBox();
+  const label = await page.locator('[data-resident="farmer-leader"]').boundingBox();
   expect(label).not.toBeNull();
   await page.mouse.click(label!.x + label!.width / 2, label!.y + label!.height + 25);
-  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('base-human');
-  const before = (await snapshot(page)).residents.find((r) => r.id === 'base-human')!.position;
+  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('farmer-leader');
+  const before = (await snapshot(page)).residents.find((r) => r.id === 'farmer-leader')!.position;
   // A nearby clear destination tests arrival within a bounded number of
   // simulation steps, even when software WebGL renders only a few fps.
   const camera = (await snapshot(page)).camera;
@@ -56,16 +56,16 @@ test('selecting a resident and clicking open ground sends them moving', async ({
   await page.mouse.click(viewport.width / 2 + (before.x - .25 - camera.x) * pixels,
     viewport.height / 2 + (.5 * Math.sin(camera.beta) - (before.z - .85 - camera.z) * Math.cos(camera.beta)) * pixels);
   await expect(page.locator('#toast')).toHaveText('前往目标位置');
-  await expect.poll(async () => (await snapshot(page)).baseRunning).toBe(true);
-  expect((await snapshot(page)).baseWalking).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).leaderRunning).toBe(true);
+  expect((await snapshot(page)).leaderWalking).toBe(false);
   await expect.poll(async () => {
-    const p = (await snapshot(page)).residents.find((r) => r.id === 'base-human')!.position;
+    const p = (await snapshot(page)).residents.find((r) => r.id === 'farmer-leader')!.position;
     return Math.hypot(p.x - before.x, p.z - before.z);
   }, { timeout: 12_000 }).toBeGreaterThan(0.2);
-  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'base-human')!.routeRemaining, { timeout: 90_000 }).toBe(0);
-  await expect.poll(async () => (await snapshot(page)).baseModel.motion).toBe('idle');
-  expect((await snapshot(page)).baseRunning).toBe(false);
-  expect((await snapshot(page)).baseWalking).toBe(false);
+  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'farmer-leader')!.routeRemaining, { timeout: 90_000 }).toBe(0);
+  await expect.poll(async () => (await snapshot(page)).leaderModel.motion).toBe('idle');
+  expect((await snapshot(page)).leaderRunning).toBe(false);
+  expect((await snapshot(page)).leaderWalking).toBe(false);
   await page.mouse.click(425, 205);
   await expect.poll(async () => (await snapshot(page)).selection.building).toBe('cottage');
   expect(errors).toEqual([]);

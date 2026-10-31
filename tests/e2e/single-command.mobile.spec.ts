@@ -30,12 +30,12 @@ test('single commands toggle, switch, retain failures/options and release select
   expect((await snapshot(page)).economy.tasks[0].crop).toBe('wheat');
   await page.getByRole('button', { name: '回到起点', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
-  await selectUnit(page, 'base-human', true);
+  await selectUnit(page, 'farmer-leader', true);
   await clickGround(page, { x: .8, z: -7 }, true);
   const commanded = await snapshot(page);
   expect(commanded.selection.resident).toBeUndefined();
-  expect(commanded.residents.find(r => r.id === 'base-human')!.moveCommand).toBe(true);
-  await expect.poll(async () => (await snapshot(page)).baseRunning).toBe(true);
+  expect(commanded.residents.find(r => r.id === 'farmer-leader')!.moveCommand).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).leaderRunning).toBe(true);
   await page.screenshot({ path: info.outputPath('phone-command-released.png') });
   expect(errors).toEqual([]);
 });

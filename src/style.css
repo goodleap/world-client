@@ -997,6 +997,8 @@ kbd {
 .settings-toggle input:checked { background:#617f4c; border-color:#617f4c; }
 .settings-toggle input:checked::before { transform:translateX(18px); }
 .settings-toggle input:focus-visible { outline:3px solid #c49a49; outline-offset:3px; }
+.resident-label.resident-leader { border-color:#d8b35b; background:#fff4ce; color:#705923; }
+.resident-label.resident-leader::before { content:'◆'; display:inline-block; margin-right:4px; color:#b78928; font-size:9px; vertical-align:middle; }
 .system-actions { display:grid; gap:9px; }
 .system-actions button { min-height:48px; margin:0; padding:11px 18px; border:1px solid #dce2cb; border-radius:12px; background:#edf0df; }
 .system-actions .primary-button { background:#617f4c; color:#fffbed; justify-content:center; }

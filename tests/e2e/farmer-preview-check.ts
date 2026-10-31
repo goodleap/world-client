@@ -4,7 +4,7 @@ import { openGame, snapshot } from './helpers.ts';
 export async function checkFarmerPreview(page: Page) {
   const errors = await openGame(page);
   expect((await snapshot(page)).farmerModelLoaded).toBe(true);
-  expect((await snapshot(page)).farmerModel.bones).toEqual((await snapshot(page)).baseModel.bones);
+  expect((await snapshot(page)).farmerModel.bones).toEqual((await snapshot(page)).leaderModel.bones);
   expect((await snapshot(page)).farmerModel.animations).toEqual(['Walk', 'Run', 'Hammer']);
   const button = page.getByRole('button', { name: '查看农民模型' });
   await button.click();

@@ -25,7 +25,7 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     expect(later.frames).toBe(frozen.frames);
     expect(later.simulationSeconds).toBe(frozen.simulationSeconds);
     expect(later.residents).toEqual(frozen.residents);
-    expect(later.baseModel.pose).toEqual(frozen.baseModel.pose);
+    expect(later.leaderModel.pose).toEqual(frozen.leaderModel.pose);
     expect(later.farmerLegPose).toEqual(frozen.farmerLegPose);
 
     const first = await page.evaluate(reason => new Promise<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>(resolve => {
@@ -43,7 +43,7 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     expect(first.suspended).toBe(false);
     expect(first.simulationSeconds).toBe(frozen.simulationSeconds);
     expect(first.residents.map(r => r.position)).toEqual(frozen.residents.map(r => r.position));
-    expect(first.baseModel.pose).toEqual(frozen.baseModel.pose);
+    expect(first.leaderModel.pose).toEqual(frozen.leaderModel.pose);
     expect(first.farmerLegPose).toEqual(frozen.farmerLegPose);
     // The physical key/pointer were never released while away. They must not
     // keep panning or turn the eventual pointer-up into a tap/command.

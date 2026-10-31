@@ -3,13 +3,13 @@ import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
 
 test('touch movement marks the accepted destination and dragging does not move the marker', async ({ page }, info) => {
   const errors = await openGame(page);
-  await selectUnit(page, 'base-human', true);
+  await selectUnit(page, 'farmer-leader', true);
   const destination = { x: .8, z: -7 };
   await clickGround(page, destination, true);
   const marker = (await snapshot(page)).moveFeedback;
   expect(marker.visible).toBe(true);
   expect(marker.x).toBeCloseTo(destination.x, 1); expect(marker.z).toBeCloseTo(destination.z, 1);
-  await page.waitForFunction(() => window.__DEMO__!.snapshot().baseRunning);
+  await page.waitForFunction(() => window.__DEMO__!.snapshot().leaderRunning);
   await page.screenshot({ path: info.outputPath('phone-move-destination.png') });
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const frozen = (await snapshot(page)).moveFeedback;

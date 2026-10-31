@@ -8,7 +8,7 @@ test('residents including the base character render and wander safely', async ({
   const errors = await openGame(page);
   const initial = (await snapshot(page)).residents;
   expect(initial.map((r) => r.role)).toEqual(['farmer', 'worker', 'infantry', 'archer', 'cavalry', 'dog', 'base']);
-  expect((await snapshot(page)).baseModelLoaded).toBe(true);
+  expect((await snapshot(page)).leaderModelLoaded).toBe(true);
   const humans = initial.filter((r) => r.humanBones.length > 0);
   expect(humans).toHaveLength(6);
   expect(new Set(humans.map((r) => r.humanRigId)).size).toBe(6);

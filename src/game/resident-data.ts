@@ -2,10 +2,12 @@ import { WORLD_BOUNDS, OBSTACLES } from './world-data.ts';
 import type { Obstacle, Point } from './movement.ts';
 import type { WanderSettings } from './wander.ts';
 
-export type ResidentRole = 'farmer' | 'infantry' | 'archer' | 'cavalry' | 'dog' | 'base';
+export type ResidentRole = 'farmer' | 'infantry' | 'archer' | 'cavalry' | 'dog';
+export type ResidentEffect = 'leader';
 export interface ResidentDefinition {
   id: string; role: ResidentRole; name: string; spawn: Point; home: Point;
   areaRadius: number; bodyRadius: number; speed: number; labelHeight: number;
+  effects?: readonly ResidentEffect[];
 }
 
 // Runtime human tempo; authored strides and economy clocks stay unchanged.
@@ -20,8 +22,13 @@ export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'archer', role: 'archer', name: '弓兵', spawn: { x: -2.6, z: -7.4 }, home: { x: -2.2, z: -7.2 }, areaRadius: 3.5, bodyRadius: 0.35, speed: 1.35, labelHeight: 2.15 },
   { id: 'cavalry', role: 'cavalry', name: '骑兵', spawn: { x: -4, z: -4 }, home: { x: -4, z: -4 }, areaRadius: 4.0, bodyRadius: 1.12, speed: 1.6, labelHeight: 2.95 },
   { id: 'dog', role: 'dog', name: '田园犬', spawn: { x: -1.6, z: -5.8 }, home: { x: -0.5, z: -5.5 }, areaRadius: 4.7, bodyRadius: 0.54, speed: 1.55, labelHeight: 1.35 },
-  { id: 'base-human', role: 'base', name: '管家', spawn: { x: 0, z: -3.8 }, home: { x: 0, z: -3.8 }, areaRadius: 2.5, bodyRadius: 0.34, speed: 1.15, labelHeight: 2.25 },
+  { id: 'farmer-leader', role: 'farmer', name: '农民·领头', effects: ['leader'], spawn: { x: 0, z: -3.8 }, home: { x: 0, z: -3.8 }, areaRadius: 3.6, bodyRadius: .29, speed: 1.15, labelHeight: 2.35 },
 ];
+
+/** Leadership is an additional effect; the ordinary role still owns work,
+ * equipment, animation and movement capabilities. */
+export const roleLeader = (role: ResidentRole) => RESIDENTS.find(resident => resident.role === role && resident.effects?.includes('leader'));
+export const canResidentWork = (id: string) => RESIDENTS.some(resident => resident.id === id && resident.role === 'farmer');
 
 // Residents stay out of the planted beds as well as the same solids used by the player.
 export const RESIDENT_OBSTACLES: readonly Obstacle[] = [

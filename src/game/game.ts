@@ -20,7 +20,7 @@ import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
-import { RESIDENTS } from './resident-data.ts';
+import { RESIDENTS, roleLeader } from './resident-data.ts';
 import { ECONOMY_CONFIG, FARM_PLOTS } from './economy-config.ts';
 import { Economy, encodeEconomy, WORK_NAMES } from './economy.ts';
 import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
@@ -65,9 +65,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     world = await loadingProgress.run('map', '地图与基础材质构建', () => buildWorld(scene, palette, shadows, economy));
     residents = createResidents(scene, palette, shadows, ui, world.obstacles);
     report(20, '正在迎接农民…');
-    await residents.loadFarmerModel(fraction => report(20 + 15 * fraction, '正在迎接农民…'));
-    report(35, '正在准备家园居民…');
-    await residents.loadBaseModel(fraction => report(35 + 12 * fraction, '正在准备家园居民…'));
+    await residents.loadFarmerModel(fraction => report(20 + 27 * fraction, '正在迎接农民…'));
     report(47, '正在迎接步兵、骑兵与弓兵…');
     await residents.loadSoldierModels(fraction => report(47 + 33 * fraction, '正在迎接步兵、骑兵与弓兵…'));
     report(80, '正在准备其他居民…');
@@ -79,12 +77,14 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     scene.dispose(); engine.dispose(); throw error;
   }
   residents.restoreResidents(economy.state.residents);
-  const controller = createEconomyController(economy, world, residents, true, (worker, task) => {
+  const farmerLeader = roleLeader('farmer');
+  const controller = createEconomyController(economy, world, residents, !!farmerLeader, (worker, task) => {
+    if (!farmerLeader) return;
     const name = RESIDENTS.find(r => r.id === worker)?.name ?? '农民';
     const index = FARM_PLOTS.findIndex(p => p.id === task.target);
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '民房' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
-    ui.sayResident('base-human', `${name}，去${work}${target}。`);
+    ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
   });
   const moveFeedback = createMoveFeedback(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
@@ -144,9 +144,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const defaultZoom = () => 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
   let zoom = defaultZoom();
   let overview = false;
-  let previewRole: 'farmer' | 'base' | undefined;
+  let previewRole: 'farmer' | 'leader' | undefined;
   let previewZoom = 1;
-  const setPreview = (role?: 'farmer' | 'base') => {
+  const setPreview = (role?: 'farmer' | 'leader') => {
     previewRole = role;
     previewZoom = 1;
     // Keep close-up self-shadows at full detail; the ordinary touch map uses
@@ -326,12 +326,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       }
     }
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
-    const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
+    const desiredZoom = previewRole === 'leader' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
     currentZoom = desiredZoom;
-    camera.beta += ((previewRole === 'base' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
+    camera.beta += ((previewRole === 'leader' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
     applyProjection();
     if (previewRole) {
-      const position = previewRole === 'base' ? residents.basePosition() : residents.farmerPosition();
+      const position = previewRole === 'leader' ? residents.leaderPosition() : residents.farmerPosition();
       target.set(position.x, 0.9, position.z);
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
@@ -431,10 +431,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       landmarks: ui.discoveredCount, frames: renderedFrames,
       meshes: scene.meshes.length,
       farmerModelLoaded: residents.farmerModelLoaded(),
-      baseModelLoaded: residents.baseModelLoaded(),
-      baseWalking: residents.baseWalking(),
-      baseRunning: residents.baseRunning(),
-      baseModel: residents.baseModelInfo(),
+      leaderModelLoaded: residents.leaderModelLoaded(),
+      leaderWalking: residents.leaderWalking(),
+      leaderRunning: residents.leaderRunning(),
+      leaderModel: residents.leaderModelInfo(),
       farmerWalking: residents.farmerWalking(),
       farmerRunning: residents.farmerRunning(),
       farmerModel: residents.farmerModelInfo(),

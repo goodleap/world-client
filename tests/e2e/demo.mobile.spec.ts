@@ -25,15 +25,15 @@ test('touch drag pans map; pinch zooms', async ({ page }) => {
 
 test('touch selects a resident and sends a move command', async ({ page }) => {
   const errors = await openGame(page);
-  const label = await page.locator('[data-resident="base-human"]').boundingBox();
+  const label = await page.locator('[data-resident="farmer-leader"]').boundingBox();
   expect(label).not.toBeNull();
   await page.touchscreen.tap(label!.x + label!.width / 2, label!.y + label!.height + 18);
-  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('base-human');
-  const before = (await snapshot(page)).residents.find((r) => r.id === 'base-human')!.position;
+  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe('farmer-leader');
+  const before = (await snapshot(page)).residents.find((r) => r.id === 'farmer-leader')!.position;
   await page.touchscreen.tap(195, 650);
   await expect(page.locator('#toast')).toHaveText('前往目标位置');
   await expect.poll(async () => {
-    const point = (await snapshot(page)).residents.find((r) => r.id === 'base-human')!.position;
+    const point = (await snapshot(page)).residents.find((r) => r.id === 'farmer-leader')!.position;
     return Math.hypot(point.x - before.x, point.z - before.z);
   }, { timeout: 12_000 }).toBeGreaterThan(0.2);
   expect(errors).toEqual([]);
