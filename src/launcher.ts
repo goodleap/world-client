@@ -22,7 +22,7 @@ export function createLauncher() {
   details.innerHTML = '<summary>加载详情与诊断</summary><ol id="loading-items"></ol><button id="copy-loading" class="primary-button">复制加载诊断</button><p id="copy-loading-status" role="status"></p>';
   screen.querySelector('.launch-content')!.append(details);
   const status = document.createElement('p'); status.id = 'loading-status'; status.setAttribute('role', 'status');
-  details.before(status);
+  details.querySelector('summary')!.after(status);
   const rows = new Map<string, HTMLLIElement>();
   const renderDetails = () => {
     if (screen.dataset.phase === 'playing' || screen.dataset.phase === 'exited') return;
@@ -96,7 +96,7 @@ export function createLauncher() {
       button.focus({ preventScroll: true });
     },
     beginGame() {
-      details.open = true;
+      details.open = false;
       percent = 0;
       screen.className = 'loading game-loading'; screen.dataset.phase = 'game-loading';
       menu.hidden = true; exit.hidden = true; panel.hidden = false;

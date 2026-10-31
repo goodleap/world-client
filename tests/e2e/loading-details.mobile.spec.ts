@@ -4,12 +4,17 @@ test('loading details explain a stalled shared download and complete processing 
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   let libraryRequests = 0;
-  await page.route(/\/assets\/characters-(?!lod-)[^/]+\.glb$/, async route => { libraryRequests++; await gate; await route.continue(); });
+  await page.route(/\/assets\/characters-(?!(?:far-)?lod-)[^/]+\.glb$/, async route => { libraryRequests++; await gate; await route.continue(); });
   await page.goto('/');
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
   await expect.poll(() => libraryRequests).toBe(1);
   await page.getByRole('button', { name: '开始游戏', exact: true }).click();
   try {
+    await expect(page.locator('#loading-progress')).toBeVisible();
+    await expect(page.locator('#loading-status')).toBeHidden();
+    await expect(page.locator('#loading-items')).toBeHidden();
+    await page.locator('#loading-details summary').click();
+    await expect(page.locator('#loading-details #loading-status')).toBeVisible();
     await expect(page.locator('#loading-status')).toContainText('没有新进展', { timeout: 20000 });
     await expect(page.locator('#loading-items')).toContainText('下载中');
     await expect(page.locator('#loading-items')).toContainText('游戏引擎与代码准备');

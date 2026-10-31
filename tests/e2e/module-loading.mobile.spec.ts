@@ -19,6 +19,8 @@ test('pending engine code is named, can be diagnosed or reloaded, and is shared 
     await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
     await expect.poll(() => engineRequests).toBe(1);
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await expect(page.locator('#loading-status')).toBeHidden();
+    await page.locator('#loading-details summary').click();
     await expect(page.locator('#loading-status')).toContainText('engine-', { timeout: 20000 });
     await expect(page.getByRole('button', { name: '重新加载' })).toBeVisible({ timeout: 20000 });
     await expect(page.locator('#loading-items')).toContainText('字节进度未知');
@@ -36,7 +38,9 @@ test('pending engine code is named, can be diagnosed or reloaded, and is shared 
     release();
     await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 60000 });
     await page.getByRole('button', { name: '设置', exact: true }).click();
-    await page.getByRole('button', { name: '复制诊断信息', exact: true }).click();
+    await page.getByRole('button', { name: '回到主菜单', exact: true }).click();
+    await page.locator('#loading-details summary').click();
+    await page.getByRole('button', { name: '复制加载诊断', exact: true }).click();
     const ready = await page.evaluate(() => JSON.parse((window as unknown as { copied: string }).copied));
     const finished = ready.loading.find((item: { name: string }) => item.name.includes('engine-'));
     expect(finished.state).toBe('done');
