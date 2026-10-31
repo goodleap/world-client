@@ -1,11 +1,11 @@
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import type { Scene } from '@babylonjs/core/scene';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { Color3 } from '@babylonjs/core/Maths/math.color.js';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
+import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import type { Scene } from '@babylonjs/core/scene.js';
 
 export type XYZ = [number, number, number];
 

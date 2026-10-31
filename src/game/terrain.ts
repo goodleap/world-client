@@ -12,7 +12,7 @@ import type { Palette } from './models.ts';
 import { MAP_SIZE, GRID_SIZE, ROADS } from './world-data.ts';
 import { roundedBox } from './environment-shapes.ts';
 
-/** One macro color map plus a small tiled detail map; no giant full-map texture. */
+/** World-scale color variation and small seamless detail maps shared by the terrain. */
 export function createTerrain(scene: Scene, palette: Palette) {
   roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], palette.earth, .28);
   roundedBox(scene, 'grass-sod', [MAP_SIZE, .17, MAP_SIZE], [0, -.08, 0], palette.grass, .08);
@@ -43,23 +43,46 @@ export function createTerrain(scene: Scene, palette: Palette) {
       grain.beginPath(); grain.ellipse(x + dx, y + dy, radius, radius * .5, .4, 0, 2 * Math.PI); grain.fill();
     }
   }
-  // Babylon packs detail normals in alpha/green. Both must be neutral (0.5),
-  // even with bumpLevel = 0, or an opaque alpha creates a zero-length normal.
-  const packed = grain.getImageData(0, 0, 512, 512);
-  for (let i = 3; i < packed.data.length; i += 4) packed.data[i] = 128;
-  grain.putImageData(packed, 0, 0);
-  detail.uScale = detail.vScale = MAP_SIZE / (4 * GRID_SIZE);
-  detail.update();
-  function material(name: string, color: string, strength: number) {
+  const grassDetail = makeTexture('meadow-leaves', 512), leaves = grassDetail.getContext() as CanvasRenderingContext2D;
+  leaves.fillStyle = '#808080'; leaves.fillRect(0, 0, 512, 512);
+  // Little curved leaf strokes remain at grass scale as the map grows. Native
+  // mipmaps blend them into the meadow at overview distance without shimmer.
+  for (let i = 0; i < 440; i++) {
+    const x = random() * 512, y = random() * 512, angle = random() * Math.PI * 2;
+    const size = 4 + random() * 6, shade = Math.round(i % 3 ? 84 + random() * 20 : 158 + random() * 20);
+    for (const dx of [-512, 0, 512]) for (const dy of [-512, 0, 512]) {
+      leaves.save(); leaves.translate(x + dx, y + dy); leaves.rotate(angle);
+      leaves.fillStyle = `rgb(${shade},128,128)`;
+      for (const side of [-1, 0, 1]) {
+        leaves.beginPath(); leaves.moveTo(0, 0);
+        leaves.quadraticCurveTo(side * size * .8 - 2, -size * .35, side * size, -size * (side ? .7 : 1));
+        leaves.quadraticCurveTo(side * size * .5 + 2, -size * .2, 0, 0); leaves.fill();
+      }
+      leaves.restore();
+    }
+  }
+  for (const texture of [detail, grassDetail]) {
+    // DetailMap packs normals in alpha/green. Both must stay neutral even with
+    // bumpLevel = 0; opaque alpha would create a zero-length surface normal.
+    const context = texture.getContext(), packed = context.getImageData(0, 0, 512, 512);
+    for (let i = 3; i < packed.data.length; i += 4) packed.data[i] = 128;
+    context.putImageData(packed, 0, 0);
+    // DynamicTexture defaults to CLAMP: scaling alone stretches its edge pixel
+    // over almost the entire map. Both detail layers must explicitly repeat.
+    texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.uScale = texture.vScale = MAP_SIZE / (4 * GRID_SIZE);
+    texture.update();
+  }
+  function material(name: string, color: string, strength: number, texture = detail) {
     const m = new StandardMaterial(name, scene);
     m.diffuseColor = Color3.FromHexString(color); m.specularColor = Color3.Black();
     if (strength) {
-      m.detailMap.texture = detail; m.detailMap.isEnabled = true;
+      m.detailMap.texture = texture; m.detailMap.isEnabled = true;
       m.detailMap.diffuseBlendLevel = strength; m.detailMap.bumpLevel = 0;
     }
     return m;
   }
-  const meadow = material('meadow', '#ffffff', .32); meadow.diffuseTexture = colorMap;
+  const meadow = material('meadow', '#ffffff', .65, grassDetail); meadow.diffuseTexture = colorMap;
   const ground = MeshBuilder.CreateGround('meadow', { width: MAP_SIZE, height: MAP_SIZE }, scene);
   ground.position.y = .012; ground.material = meadow; ground.receiveShadows = true;
 
@@ -102,4 +125,5 @@ export function createTerrain(scene: Scene, palette: Palette) {
       ribbon.material = roadMaterial; ribbon.receiveShadows = true;
     }
   }
+  return { paths, roadHalfWidth: layers[0].width / 1024 * MAP_SIZE / 2 };
 }
