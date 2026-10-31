@@ -10,6 +10,7 @@ import { createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
+import { pinchMapCamera } from './pinch-zoom.ts';
 import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE } from './world-data.ts';
 import { createSelectionFeedback } from './selection-feedback.ts';
 import '@babylonjs/core/Culling/ray';
@@ -38,7 +39,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
-  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.6, -2), scene);
+  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.5, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -222,6 +223,19 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       ui.toast(result.message);
     }
     else clearSelection();
+  }, gesture => {
+    if (ui.paused || suspended) return;
+    if (previewRole) {
+      const previous = previewZoom;
+      previewZoom = Math.max(.8, Math.min(1.8, previewZoom / gesture.scale));
+      currentZoom *= previewZoom / previous; applyProjection();
+      return;
+    }
+    zoom = currentZoom = pinchMapCamera(scene, camera, gesture, ui.canvas.getBoundingClientRect(), { min: 4, max: MAP_SIZE });
+    overview = false;
+    // Commit direct manipulation immediately, including any in-flight reset
+    // transition; the render loop must not ease back toward the old center.
+    mapCenter.copyFrom(camera.target); clampCenter(); camera.target.copyFrom(mapCenter);
   });
   const applyProjection = () => {
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
