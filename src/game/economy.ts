@@ -7,12 +7,12 @@ export type Inventory = Record<Resource, number>;
 export type CropKind = keyof typeof C.crops;
 export type WorkKind = keyof typeof C.workSeconds;
 export type TaskStatus = 'waiting' | 'travelling' | 'working' | 'delivering' | 'storage' | 'done' | 'cancelled' | 'invalid';
-export interface FarmPlot { id: string; tilled: boolean; crop?: CropKind; growth: number }
+export interface FarmPlot { id: string; tilled: boolean; crop?: CropKind; growth: number; harvests?: number; lastCrop?: CropKind }
 export interface WorkTask {
   id: number; kind: WorkKind; target: string; crop?: CropKind; status: TaskStatus;
   progress: number; reserved: boolean; reason: string; retryAt: number;
 }
-export interface Goods extends Point { id: string; resource: Resource; amount: number; state: 'ground' | 'transit'; carrier?: string }
+export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string }
 export interface EconomyState {
   version: 2; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
@@ -180,12 +180,15 @@ export class Economy {
     for (const key of resources) this.state.inventory[key] -= cost[key];
     if (task.kind === 'till') plot!.tilled = true;
     if (task.kind === 'sow') { plot!.crop = task.crop; plot!.growth = 0; }
-    if (task.kind === 'harvest') { plot!.crop = undefined; plot!.growth = 0; }
+    if (task.kind === 'harvest') {
+      plot!.lastCrop = plot!.crop; plot!.harvests = (plot!.harvests ?? 0) + 1;
+      plot!.crop = undefined; plot!.growth = 0;
+    }
     if (task.kind === 'chop' || task.kind === 'mine') this.state.depleted.push(task.target);
     if (task.kind === 'build') this.state.buildings.push(task.target);
     for (const resource of resources) if (output[resource]) {
       const point = FARM_PLOTS.find(p => p.id === task.target) ?? RESOURCE_NODES.find(n => n.id === task.target)!;
-      this.state.goods.push({ id: `goods-${task.id}`, resource, amount: output[resource], x: point.x, z: point.z, state: 'ground' });
+      this.state.goods.push({ id: `goods-${task.id}`, resource, amount: output[resource], crop: task.kind === 'harvest' ? plot!.lastCrop : undefined, x: point.x, z: point.z, state: 'ground' });
     }
     task.status = 'done'; task.reserved = false; task.reason = ''; this.changed();
   }
@@ -239,7 +242,7 @@ export function decodeEconomy(text: string): Economy {
     if (!value && raw.plots.length === 9) return plot;
     if (!value || typeof value.tilled !== 'boolean' || !number(value.growth, 1e6)
       || value.crop !== undefined && (!Object.hasOwn(C.crops, value.crop) || !value.tilled)) throw new Error('耕地存档无效');
-    return { id: plot.id, tilled: value.tilled, crop: value.crop, growth: value.crop ? Math.min(value.growth, C.crops[value.crop].growthSeconds) : 0 };
+    return { id: plot.id, tilled: value.tilled, crop: value.crop, harvests: number(value.harvests, 1e9) ? value.harvests : 0, lastCrop: value.lastCrop && Object.hasOwn(C.crops, value.lastCrop) ? value.lastCrop : undefined, growth: value.crop ? Math.min(value.growth, C.crops[value.crop].growthSeconds) : 0 };
   });
   if (!Array.isArray(raw.depleted) || !raw.depleted.every(id => RESOURCE_NODES.some(n => n.id === id))
     || !Array.isArray(raw.buildings) || !raw.buildings.every(id => BUILD_SITES.some(s => s.id === id))) throw new Error('地图存档无效');

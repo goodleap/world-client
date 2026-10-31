@@ -2,8 +2,8 @@ import { OBSTACLES, TREES, GRID_SIZE, gridPoint } from './world-data.ts';
 import type { Obstacle } from './movement.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
- * One farmer; FIFO among executable jobs; reserve before work, spend on
- * successful completion; no seed item, offline progress or resource respawn. */
+ * FIFO among executable jobs; reserve before work, spend on
+ * successful completion; produced goods must be delivered; no seed item, offline progress or resource respawn. */
 export const ECONOMY_CONFIG = {
   initialInventory: { wood: 8, stone: 4, food: 0 },
   capacity: { wood: 2000, stone: 2000, food: 4000 },

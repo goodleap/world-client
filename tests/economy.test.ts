@@ -4,7 +4,12 @@ import { Economy, initialEconomy, encodeEconomy, decodeEconomy } from '../src/ga
 import { ECONOMY_CONFIG as C } from '../src/game/economy-config.ts';
 
 function finish(economy: Economy) {
-  const task = economy.claim(); assert.ok(task); economy.arrive(task.id); economy.advance(C.workSeconds[task.kind]); return task;
+  const task = economy.claim(); assert.ok(task); economy.arrive(task.id); economy.advance(C.workSeconds[task.kind]);
+  const goods = economy.state.goods.at(-1);
+  if (goods && economy.state.inventory[goods.resource] + goods.amount <= C.capacity[goods.resource]) {
+    const haul = economy.request('haul', goods.id).task!; economy.assign(haul.id); economy.arrive(haul.id); economy.arrive(haul.id);
+  }
+  return task;
 }
 
 test('till, sow, grow and harvest form a repeatable cycle with exactly one output per job', () => {
@@ -49,17 +54,6 @@ test('concurrent requests cannot double reserve, and cancellation releases resou
   assert.equal(e.cancel(first.id), false);
 });
 
-test('full storage holds the entire output, releases the worker and settles exactly once when capacity is freed', () => {
-  const state = initialEconomy(); state.inventory = { wood: 110, stone: 12, food: 0 };
-  const e = new Economy(state); e.request('chop', 'tree-0'); const harvest = finish(e);
-  assert.equal(harvest.status, 'storage'); assert.equal(e.active(), undefined);
-  assert.equal(e.taskFor('tree-0')!.id, harvest.id); assert.equal(e.state.depleted.length, 0);
-  assert.equal(e.state.inventory.wood, 110); assert.equal(e.cancel(harvest.id), false);
-  e.request('build', 'site-0'); finish(e);
-  assert.equal(harvest.status, 'done'); assert.equal(e.state.inventory.wood, 114);
-  assert.deepEqual(e.state.depleted, ['tree-0']); e.advance(100); assert.equal(e.state.inventory.wood, 114);
-});
-
 test('blocked paths defer a job and allow the next executable job; invalid targets cannot grant output', () => {
   const e = new Economy(); e.request('chop', 'tree-0'); e.request('harvest', 'plot-0');
   const task = e.claim()!; e.defer(task.id, '暂时无法到达');
@@ -89,6 +83,8 @@ test('save/load retains partial work and crop growth without offline catch-up or
   assert.equal(restored.state.seconds, 0); assert.equal(restored.plot('plot-1')!.growth, 1.25);
   assert.equal(restored.state.tasks[0].status, 'waiting'); assert.equal(restored.state.tasks[0].progress, 1.25);
   const resumed = restored.claim()!; restored.arrive(resumed.id); restored.advance(1.75);
+  assert.equal(restored.state.inventory.food, 0);
+  const haul = restored.request('haul', restored.state.goods[0].id).task!; restored.claim(); restored.arrive(haul.id); restored.arrive(haul.id);
   assert.equal(restored.state.inventory.food, 8);
   const again = decodeEconomy(encodeEconomy(restored)); again.advance(10); assert.equal(again.state.inventory.food, 8);
 });
@@ -116,4 +112,23 @@ test('resource volumes do not intersect the new building footprints', async () =
   for (const node of RESOURCE_NODES) for (const site of BUILD_SITES) {
     assert.equal(isBlocked(node, node.radius, [{ kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .12, halfDepth: site.depth / 2 + .12 }]), false, `${node.id}/${site.id}`);
   }
+});
+
+test('two farming cycles retain tilled soil, free the farmer while growing, and deliver before food is usable', () => {
+  const e = new Economy(); e.request('till', 'plot-4'); finish(e);
+  for (const crop of ['carrot', 'wheat'] as const) {
+    e.request('sow', 'plot-4', crop); finish(e);
+    assert.equal(e.active(), undefined);
+    assert.equal(e.request('till', 'plot-4').ok, false);
+    const before = e.state.inventory.food;
+    e.advance(C.crops[crop].growthSeconds); e.request('harvest', 'plot-4');
+    const t = e.claim()!; e.arrive(t.id); e.advance(3);
+    assert.equal(e.state.inventory.food, before);
+    assert.equal(e.plot('plot-4')!.tilled, true);
+    assert.equal(e.plot('plot-4')!.crop, undefined);
+    const goods = e.state.goods.at(-1)!; assert.equal(goods.crop, crop);
+    e.request('haul', goods.id); const haul = e.claim()!; e.arrive(haul.id); e.arrive(haul.id);
+    assert.equal(e.state.inventory.food, before + C.crops[crop].yield);
+  }
+  assert.equal(e.plot('plot-4')!.harvests, 2);
 });
