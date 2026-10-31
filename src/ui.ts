@@ -1,3 +1,4 @@
+import { ResidentSpeech } from './game/resident-speech.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
@@ -30,7 +31,7 @@ export function createUI(app: HTMLElement) {
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
-      <div class="brand"><span class="brand-icon">${icon('home')}</span><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
+      <div class="brand"><button id="home-resources" class="brand-icon" aria-label="家园资源" title="查看资源">${icon('home')}</button><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
       <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
@@ -38,7 +39,6 @@ export function createUI(app: HTMLElement) {
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
     </aside>
     <aside class="economy-bar" aria-label="家园资源">
-      <div id="inventory" class="inventory"></div>
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
     <p id="steward-status" class="steward-status" role="status"></p>
@@ -55,22 +55,16 @@ export function createUI(app: HTMLElement) {
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
     <nav class="view-controls" aria-label="视角控制">
-      <button id="base-preview" class="icon-button" aria-label="查看基础人物" title="查看基础人物" aria-pressed="false">人</button>
-      <button id="farmer-preview" class="icon-button" aria-label="查看农民模型" title="查看农民模型" aria-pressed="false">农</button>
-      <button id="overview" class="icon-button" aria-label="查看全景" title="查看全景" aria-pressed="false">${icon('compass')}</button>
-      <span class="control-divider"></span>
-      <button id="zoom-in" class="icon-button" aria-label="放大" title="放大">${icon('plus')}</button>
-      <button id="zoom-out" class="icon-button" aria-label="缩小" title="缩小">${icon('minus')}</button>
-      <span class="control-divider"></span>
       <button id="reset" class="icon-button" aria-label="回到起点" title="回到起点">${icon('reset')}</button>
     </nav>
     <div class="north" aria-hidden="true"><span>N</span><i></i></div>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
-    <footer class="bottom-bar"><div class="control-hint"><span class="desktop-hint"><span class="key-set"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> 移动视角 <span class="hint-dot">·</span> 点击选中</span><span class="touch-hint"><span class="touch-dot"></span>拖动地图<span class="hint-dot">·</span>点击选中</span></div><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
+    <footer class="bottom-bar"><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
     <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
+    <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭资源面板">${icon('close')}</button><h2 id="resources-title">家园资源</h2><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">点击土地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；成功下令后自动取消选择，指令仍会执行。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
@@ -93,7 +87,10 @@ export function createUI(app: HTMLElement) {
     const ok = await copyDiagnostics(JSON.stringify(diagnostics(), null, 2), settings);
     get('settings-notice').textContent = ok ? '诊断信息已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
   });
-  const dialogs = [settings, help, detail];
+  const resources = get<HTMLDialogElement>('resources-dialog');
+  const dialogs = [settings, help, detail, resources];
+  const speech = new ResidentSpeech();
+  const bubbles = new Map<string, HTMLElement>();
   const discovered = new Set<string>();
   const abort = new AbortController();
   const options = { signal: abort.signal };
@@ -132,6 +129,7 @@ export function createUI(app: HTMLElement) {
     }, options);
   }
   get('help').addEventListener('click', () => showDialog(help), options);
+  get('home-resources').addEventListener('click', () => showDialog(resources), options);
   get('settings').addEventListener('click', () => showDialog(settings), options);
   get('settings-help').addEventListener('click', () => showDialog(help), options);
   get('continue-game').addEventListener('click', () => settings.close(), options);
@@ -209,6 +207,19 @@ export function createUI(app: HTMLElement) {
       get('resident-labels').append(label);
       return label;
     },
+    sayResident(id: string, text: string, duration = 3.5) {
+      if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); }
+      speech.say(id, text, duration);
+    },
+    advanceSpeech(seconds: number) { speech.advance(seconds); },
+    positionSpeech(id: string, x: number, y: number, visible: boolean) {
+      const bubble = bubbles.get(id); if (!bubble) return;
+      const text = speech.current(id); bubble.hidden = !text || !visible;
+      if (bubble.hidden) return;
+      bubble.textContent = text!;
+      const half = Math.min(100, canvas.clientWidth / 2 - 12);
+      bubble.style.transform = `translate(${Math.max(half + 8, Math.min(canvas.clientWidth - half - 8, x))}px, ${Math.max(70, y - 26)}px) translate(-50%, -100%)`;
+    },
     get paused() { return loading || dialogs.some(dialog => dialog.open); },
     bindPause(callback: () => void) { onPauseChange = callback; },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
@@ -219,35 +230,22 @@ export function createUI(app: HTMLElement) {
     bind(id: string, callback: () => void) {
       get(id).addEventListener('click', () => { callback(); focusGame(); }, options);
     },
-    setFarmerPreview(active: boolean) {
-      get('farmer-preview').setAttribute('aria-pressed', String(active));
-      get('farmer-preview').setAttribute('title', active ? '返回游戏视角' : '查看农民模型');
-    },
-    setBasePreview(active: boolean) {
-      get('base-preview').setAttribute('aria-pressed', String(active));
-      get('base-preview').setAttribute('title', active ? '返回游戏视角' : '查看基础人物');
-    },
     setNearby(landmark: Landmark | undefined) {
       if (nearby?.id === landmark?.id) return;
       nearby = landmark;
       get('landmark-prompt').hidden = !landmark;
       if (landmark) get('nearby-name').textContent = landmark.name;
     },
-    setOverview(active: boolean) {
-      get('overview').setAttribute('aria-pressed', String(active));
-      get('overview').setAttribute('aria-label', active ? '返回地图视角' : '查看全景');
-      get('overview').title = active ? '返回地图视角' : '查看全景';
-    },
     ready() { loading = false; onPauseChange(); focusGame(); },
     bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
     setSteward(text: string) { get('steward-status').textContent = text; },
-    setResources(values: { name: string; amount: number; capacity: number; reserved: number }[]) {
+    setResources(values: { name: string; amount: number; capacity: number; reserved: number; ground?: number; transit?: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
       get('inventory').replaceChildren(...values.map(value => {
         const cell = document.createElement('span');
         cell.textContent = `${value.name} ${value.amount}/${value.capacity}`;
         cell.title = `容量 ${value.capacity}，预留 ${value.reserved}，可用 ${value.amount - value.reserved}`;
-        if (value.reserved) { const reserved = document.createElement('small'); reserved.textContent = `预留 ${value.reserved}`; cell.append(reserved); }
+        const detail = document.createElement('small'); detail.textContent = `可用 ${value.amount - value.reserved} · 预留 ${value.reserved} · 地面 ${value.ground ?? 0} · 在途 ${value.transit ?? 0}`; cell.append(detail);
         return cell;
       }));
     },

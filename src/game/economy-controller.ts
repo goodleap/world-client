@@ -2,7 +2,7 @@ import { Economy } from './economy.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
 import type { createResidents } from './residents.ts';
 import type { createEconomyWorld } from './economy-world.ts';
-import type { CropKind, WorkKind } from './economy.ts';
+import type { CropKind, WorkKind, WorkTask } from './economy.ts';
 import type { Point } from './movement.ts';
 import { createSteward, inStewardRange, stewardStatus } from './steward.ts';
 
@@ -11,7 +11,7 @@ type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' 
   'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork' | 'farmerIds'> & { farmerPosition: (id?: string) => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 
-export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true) {
+export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}) {
   const steward = createSteward(economy);
   function command(id: string, instruction: UnitCommand): { ok: boolean; message: string } {
     if (instruction.kind === 'move') {
@@ -74,7 +74,7 @@ export function createEconomyController(economy: Economy, world: World, resident
         const task = economy.claim(id, residents.farmerPosition(id)); if (!task) break;
         const destination = world.workPoints(task.target);
         const path = destination && residents.planFarmerWork(destination.points, id);
-        if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); break; }
+        if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); if (task.origin === 'steward') onDispatch(id, task); break; }
         economy.defer(task.id, '暂时无法到达，稍后重试');
       }
     }

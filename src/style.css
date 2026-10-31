@@ -997,3 +997,17 @@ kbd {
 .queue-panel { top:194px; }
 @media (max-width:600px) { .steward-status { left:16px; } .queue-panel { top:194px; } }
 @media (max-height:500px) { .steward-status { top:130px; } .queue-panel { top:166px; } }
+
+/* Home/settings share a single size token, including the narrow layout. */
+#game-page { --home-button-size:48px; }
+#home-resources, .settings-button { width:var(--home-button-size); height:var(--home-button-size); min-width:var(--home-button-size); min-height:var(--home-button-size); border-radius:15px; padding:0; pointer-events:auto; }
+#home-resources svg, .settings-button svg { width:26px; height:26px; }
+.resources-dialog { width:min(420px,calc(100% - 32px)); }
+.resources-dialog .inventory { display:grid; gap:18px; background:transparent; box-shadow:none; padding:12px 0; font-size:17px; }
+.resources-dialog .inventory small { white-space:normal; font-size:12px; line-height:1.7; }
+.view-controls { padding:4px; }
+.bottom-bar { justify-content:flex-end; pointer-events:none; }
+.bottom-bar button { pointer-events:auto; }
+.resident-speech { position:absolute; left:0; top:0; width:max-content; max-width:200px; padding:9px 12px; border:1px solid #fff; border-radius:14px; background:#fffceeF5; color:#40543f; font-size:12px; line-height:1.5; box-shadow:0 3px 12px #354f2925; pointer-events:none; }
+.resident-speech::after { content:''; position:absolute; left:calc(50% - 5px); bottom:-6px; width:10px; height:10px; transform:rotate(45deg); background:#fffcee; }
+@media(max-width:600px) { #game-page { --home-button-size:41px; } #home-resources svg, .settings-button svg { width:23px; height:23px; } }

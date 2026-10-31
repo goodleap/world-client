@@ -19,7 +19,9 @@ import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
-import { Economy, encodeEconomy } from './economy.ts';
+import { RESIDENTS } from './resident-data.ts';
+import { ECONOMY_CONFIG, FARM_PLOTS } from './economy-config.ts';
+import { Economy, encodeEconomy, WORK_NAMES } from './economy.ts';
 import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
 import { economySelection, updateEconomyUI } from './economy-ui.ts';
 import { createEconomyController } from './economy-controller.ts';
@@ -72,7 +74,13 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     scene.dispose(); engine.dispose(); throw error;
   }
   residents.restoreResidents(economy.state.residents);
-  const controller = createEconomyController(economy, world, residents);
+  const controller = createEconomyController(economy, world, residents, true, (worker, task) => {
+    const name = RESIDENTS.find(r => r.id === worker)?.name ?? '农民';
+    const index = FARM_PLOTS.findIndex(p => p.id === task.target);
+    const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '民房' : task.kind === 'chop' ? '这棵树' : '这处石材';
+    const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
+    ui.sayResident('base-human', `${name}，去${work}${target}。`);
+  });
   const moveFeedback = createMoveFeedback(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
@@ -141,9 +149,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const shadowSize = role || !mobile ? 2048 : 1024;
     if (shadows.mapSize !== shadowSize) shadows.mapSize = shadowSize;
     configureShadowLOD?.(!!role);
-    if (role) { overview = false; ui.setOverview(false); }
-    ui.setFarmerPreview(role === 'farmer');
-    ui.setBasePreview(role === 'base');
+    if (role) { overview = false;  }
+
   };
   let currentZoom = zoom;
   let renderedFrames = 0;
@@ -161,7 +168,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
-    else zoom = Math.max(6, Math.min(MAP_SIZE, zoom + delta));
+    else zoom = Math.max(4, Math.min(MAP_SIZE, zoom + delta));
+    currentZoom = zoom; applyProjection();
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
@@ -169,7 +177,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     // Take over from the currently visible center, including an unfinished
     // preview/reset transition. Pointer motion is direct manipulation.
     if (started) mapCenter.copyFrom(camera.target);
-    setPreview(); overview = false; ui.setOverview(false);
+    setPreview(); overview = false;
     const units = 2 * currentZoom / Math.max(1, ui.canvas.clientHeight);
     mapCenter.x -= dx * units; mapCenter.z += dy * units / Math.max(0.2, Math.cos(camera.beta)); clampCenter();
     camera.target.copyFrom(mapCenter);
@@ -232,18 +240,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     scene.resetLastAnimationTimeFrame();
     if (!disposed) refreshEconomy();
   });
-  ui.bind('zoom-in', () => zoomBy(-1.2));
-  ui.bind('zoom-out', () => zoomBy(1.2));
-  ui.bind('overview', () => { setPreview(); overview = !overview; ui.setOverview(overview); });
-  ui.bind('farmer-preview', () => {
-    setPreview(previewRole === 'farmer' ? undefined : 'farmer');
-  });
-  ui.bind('base-preview', () => {
-    setPreview(previewRole === 'base' ? undefined : 'base');
-  });
   ui.bind('reset', () => {
     mapCenter.set(GRID_SIZE, 0.5, -2); setPreview();
-    overview = false; zoom = defaultZoom(); ui.setOverview(false); ui.toast('回到初始视角');
+    overview = false; zoom = defaultZoom();  ui.toast('回到初始视角');
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
@@ -270,7 +269,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       // Keyboard pan takes over at the visible position, just like dragging.
       // Keep the camera and destination together so keyup leaves no follow tail.
       if (!keyboardPanning) mapCenter.copyFrom(camera.target);
-      setPreview(); overview = false; ui.setOverview(false);
+      setPreview(); overview = false;
       mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
       camera.target.copyFrom(mapCenter);
     }
@@ -279,6 +278,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     if (!resuming) {
       if (!ui.paused) {
+        ui.advanceSpeech(elapsed);
         controller.update(elapsed);
         residents.update(dt, previewRole, elapsed);
         simulationSeconds += elapsed;
@@ -291,7 +291,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     }
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
-    currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-cameraDt * 7));
+    currentZoom = desiredZoom;
     camera.beta += ((previewRole === 'base' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
     applyProjection();
     if (previewRole) {

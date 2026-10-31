@@ -44,7 +44,7 @@ export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const ground = economy.state.goods.filter(g => g.state === 'ground').length, transit = economy.state.goods.filter(g => g.state === 'transit').length;
   ui.setSteward(`管家：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
   const reserved = economy.reserved();
-  ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: C.capacity[key], reserved: reserved[key] })));
+  ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: C.capacity[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
     const plotIndex = FARM_PLOTS.findIndex(plot => plot.id === task.target);

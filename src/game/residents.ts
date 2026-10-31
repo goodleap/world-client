@@ -403,6 +403,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const projected = Vector3.Project(labelPoint, identity, scene.getTransformMatrix(), viewport);
         const visible = projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
         actor.label.hidden = !visible;
+        ui.positionSpeech(actor.definition.id, projected.x, projected.y, visible);
         if (visible) actor.label.style.transform = `translate(${projected.x}px, ${projected.y}px) translate(-50%, -100%)`;
       }
     },
