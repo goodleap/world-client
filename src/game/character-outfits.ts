@@ -6,7 +6,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { cylinder, softBox, sphere } from './models.ts';
 import type { Palette } from './models.ts';
 
-export type HumanRole = 'traveler' | 'farmer' | 'worker' | 'infantry' | 'archer' | 'cavalry';
+export type HumanRole = 'traveler' | 'farmer' | 'infantry' | 'archer' | 'cavalry';
 export type HumanBones = Record<'hips' | 'torso' | 'head' | 'leftArm' | 'rightArm' | 'leftLeg' | 'rightLeg', Bone>;
 export type SkinPart = (mesh: Mesh, bone: Bone) => void;
 
@@ -14,7 +14,6 @@ export type SkinPart = (mesh: Mesh, bone: Bone) => void;
 export const HUMAN_STYLES = {
   traveler: { name: '旅人', shirt: 'shirt', trousers: 'pants', scale: [1, 1, 1], armSwing: 0.8 },
   farmer: { name: '农民', shirt: 'flax', trousers: 'sandCloth', scale: [1, 0.98, 1], armSwing: 0.8 },
-  worker: { name: '工人', shirt: 'workCloth', trousers: 'leatherDark', scale: [1.15, 1.03, 1.08], armSwing: 0.72 },
   infantry: { name: '步兵', shirt: 'leather', trousers: 'pants', scale: [1.07, 1.06, 1.04], armSwing: 0.3 },
   archer: { name: '弓兵', shirt: 'sage', trousers: 'sandCloth', scale: [0.94, 1.02, 0.96], armSwing: 0.45 },
   cavalry: { name: '骑兵', shirt: 'shirt', trousers: 'leatherDark', scale: [1, 1, 1], armSwing: 0.12 },
@@ -46,19 +45,6 @@ export function addOutfit(scene: Scene, p: Palette, role: HumanRole, bones: Huma
     }
     part('rope-belt', [0.52, 0.065, 0.38], [0, 0.8, 0], 'timberLight', hips, 0.02);
     part('cloth-patch', [0.15, 0.17, 0.025], [-0.14, 0.95, 0.215], 'linen', torso, 0.015);
-  }
-  if (role === 'worker') {
-    skin(sphere(scene, 'worker-cap', [0.65, 0.3, 0.59], [0, 1.82, -0.01], p.leatherDark), head);
-    part('cap-brim', [0.48, 0.06, 0.26], [0, 1.8, 0.25], 'leatherDark', head);
-    part('apron', [0.43, 0.6, 0.05], [0, 1, 0.23], 'leather', torso, 0.035);
-    part('apron-pocket', [0.25, 0.15, 0.04], [0, 0.92, 0.275], 'sandCloth', torso, 0.02);
-    part('belt', [0.57, 0.11, 0.4], [0, 0.78, 0], 'leatherDark', hips);
-    part('buckle', [0.11, 0.1, 0.035], [0, 0.78, 0.23], 'metal', hips, 0.015);
-    part('tool-pouch', [0.28, 0.33, 0.22], [0.33, 0.71, 0.05], 'leather', hips, 0.06);
-    part('pouch-flap', [0.3, 0.13, 0.06], [0.33, 0.8, 0.18], 'sandCloth', hips, 0.02);
-    part('hammer-handle', [0.055, 0.32, 0.06], [0.36, 0.97, 0.03], 'timberLight', hips, 0.01);
-    part('hammer-head', [0.23, 0.105, 0.1], [0.36, 1.14, 0.03], 'metal', hips, 0.025);
-    part('tool-handle', [0.055, 0.19, 0.06], [0.24, 0.96, 0.07], 'woodDark', hips, 0.01);
   }
   if (role === 'infantry' || role === 'cavalry') {
     part('cuirass', [0.53, 0.53, 0.07], [0, 1.05, 0.23], 'leatherDark', torso, 0.05);

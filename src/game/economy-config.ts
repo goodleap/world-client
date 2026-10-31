@@ -1,4 +1,4 @@
-import { OBSTACLES, TREES } from './world-data.ts';
+import { OBSTACLES, TREES, GRID_SIZE, gridPoint } from './world-data.ts';
 import type { Obstacle } from './movement.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
@@ -6,7 +6,7 @@ import type { Obstacle } from './movement.ts';
  * successful completion; no seed item, offline progress or resource respawn. */
 export const ECONOMY_CONFIG = {
   initialInventory: { wood: 8, stone: 4, food: 0 },
-  capacity: { wood: 120, stone: 120, food: 120 },
+  capacity: { wood: 2000, stone: 2000, food: 4000 },
   workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8 },
   crops: {
     carrot: { name: '胡萝卜', growthSeconds: 25, yield: 8 },
@@ -17,17 +17,17 @@ export const ECONOMY_CONFIG = {
   retrySeconds: 3,
 } as const;
 
-export const FARM_PLOTS = Array.from({ length: 9 }, (_, i) => ({
-  id: `plot-${i}`, x: 3.4 + i % 3 * 1.4, z: -3.4 + Math.floor(i / 3) * 1.4,
+export const FARM_PLOTS = Array.from({ length: 12 }, (_, i) => ({
+  id: `plot-${i}`, ...gridPoint(51.5 + i % 4, 52.5 + Math.floor(i / 4)),
 }));
 export const RESOURCE_NODES = [
   ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, x: tree.x, z: tree.z, radius: .5 * tree.scale, yield: 16 })),
-  { id: 'rock-0', kind: 'stone' as const, x: 8.1, z: 3.8, radius: .65, yield: 12 },
-  { id: 'rock-1', kind: 'stone' as const, x: -2.7, z: -10, radius: .65, yield: 12 },
+  ...Array.from({ length: 20 }, (_, i) => ({ id: `rock-${i}`, kind: 'stone' as const,
+    ...gridPoint(i < 2 ? 59 + i * 2 : 72 + i % 5 * 4, i < 2 ? 44 : 10 + Math.floor(i / 5) * 5), radius: .65, yield: 12 })),
 ];
 export const BUILD_SITES = [
-  { id: 'site-0', x: -5.3, z: -7.7, width: 3, depth: 2.8, height: 2.5 },
-  { id: 'site-1', x: 5.4, z: -8.4, width: 3, depth: 2.8, height: 2.5 },
+  { id: 'site-0', ...gridPoint(44, 56), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.5 },
+  { id: 'site-1', ...gridPoint(48, 59), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.5 },
 ];
 
 export function economyObstacles(depleted: readonly string[]): Obstacle[] {

@@ -12,7 +12,7 @@ import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { BUILD_SITES, ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES } from './world-data.ts';
+import { TREES, GRID_SIZE } from './world-data.ts';
 import { createReferenceTree, createTreeMaterials } from './tree.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
@@ -106,11 +106,11 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       const mature = !!plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds;
       const stage = mature ? 2 : plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds / 3 ? 1 : 0;
       const name = plot.crop ? C.crops[plot.crop].name : plot.tilled ? '耕地' : '待开垦土地';
-      const object: WorldObject = { ...definition, kind: plot.crop ? 'crop' : 'plot', name, radius: .55, width: 1.2, depth: 1.2,
+      const object: WorldObject = { ...definition, kind: plot.crop ? 'crop' : 'plot', name, radius: GRID_SIZE / 2, width: GRID_SIZE, depth: GRID_SIZE,
         markerY: .12, anchor: { x: definition.x, y: plot.crop ? .5 : .12, z: definition.z } };
       show(object, `${plot.tilled}-${plot.crop}-${stage}-${mature}`, () => {
         const soil = template(plot.tilled ? 'tilled' : 'untilled', () => {
-          roundedBox(scene, 'farm-cell', [1.22, .10, 1.22], [0, .055, 0], plot.tilled ? p.soil : p.grass, .08);
+          roundedBox(scene, 'farm-cell', [GRID_SIZE - .06, .10, GRID_SIZE - .06], [0, .055, 0], plot.tilled ? p.soil : p.grass, .08);
           if (plot.tilled) for (const x of [-.33, 0, .33]) roundedBox(scene, 'furrow', [.20, .08, 1.05], [x, .13, 0], p.soil, .04);
         });
         return plot.crop ? [...soil, ...cropTemplate(plot.crop, stage)] : soil;
@@ -141,7 +141,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       { x: site.x, z: site.z - site.depth / 2 - .65 }, { x: site.x - site.width / 2 - .65, z: site.z },
       { x: site.x + site.width / 2 + .65, z: site.z }, { x: site.x, z: site.z + site.depth / 2 + .65 },
     ] };
-    const distance = node ? node.radius + .39 : .72;
+    const distance = node ? node.radius + .65 : GRID_SIZE / 2 + .12;
     return { target: source, points: Array.from({ length: 8 }, (_, i) => ({ x: source.x + Math.sin(i * Math.PI / 4) * distance, z: source.z + Math.cos(i * Math.PI / 4) * distance })) };
   }
   sync();

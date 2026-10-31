@@ -10,7 +10,7 @@ import { createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
-import { WORLD_BOUNDS } from './world-data.ts';
+import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE } from './world-data.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
@@ -35,9 +35,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
-  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 36, new Vector3(0, 0.6, -2), scene);
+  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(0, 0.6, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
-  camera.minZ = 0.1; camera.maxZ = 120;
+  camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
   const shadows = createDaylight(scene, mobile);
   const configureShadowLOD = mobile ? createMapShadowLOD(scene, shadows, camera) : undefined;
@@ -137,7 +137,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   refreshEconomy();
   const projectionIdentity = Matrix.Identity();
-  let zoom = 10.7;
+  const defaultZoom = () => 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
+  let zoom = defaultZoom();
   let overview = false;
   let previewRole: 'farmer' | 'base' | undefined;
   let previewZoom = 1;
@@ -169,7 +170,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
-    else zoom = Math.max(6, Math.min(18, zoom + delta));
+    else zoom = Math.max(6, Math.min(MAP_SIZE, zoom + delta));
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
@@ -251,7 +252,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   ui.bind('reset', () => {
     mapCenter.set(0, 0.5, -2); setPreview();
-    overview = false; zoom = 10.7; ui.setOverview(false); ui.toast('回到初始视角');
+    overview = false; zoom = defaultZoom(); ui.setOverview(false); ui.toast('回到初始视角');
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
@@ -298,7 +299,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       }
     }
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
-    const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(16.5, 14.6 / aspect) * zoom / 10.7 : zoom;
+    const desiredZoom = previewRole === 'base' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
     currentZoom += (desiredZoom - currentZoom) * (1 - Math.exp(-cameraDt * 7));
     camera.beta += ((previewRole === 'base' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
     applyProjection();

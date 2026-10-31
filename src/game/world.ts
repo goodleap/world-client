@@ -6,10 +6,10 @@ import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTextur
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { BUILDINGS, createLandGrid, FENCES, TREES } from './world-data';
+import { BUILDINGS, createLandGrid, FENCES, TREES, MAP_SIZE, GRID_SIZE, POND, ROADS } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes';
-import { referenceHouse, tiledRoof } from './buildings';
+import { referenceHouse } from './buildings';
 import { selectionRanges } from './world-selection.ts';
 import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
@@ -19,8 +19,8 @@ import { createEconomyWorld } from './economy-world.ts';
 
 /** Painted ground colors in world coordinates; navigation is separate from the artwork. */
 function meadow(scene: Scene, p: Palette) {
-  roundedBox(scene, 'earth-bank', [25.6, .85, 27.6], [0, -.53, 0], p.earth, .28);
-  roundedBox(scene, 'grass-sod', [25.6, .17, 27.6], [0, -.08, 0], p.grass, .08);
+  roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], p.earth, .28);
+  roundedBox(scene, 'grass-sod', [MAP_SIZE, .17, MAP_SIZE], [0, -.08, 0], p.grass, .08);
   const texture = new DynamicTexture('meadow-and-sandy-path', { width: 1024, height: 1024 }, scene, false);
   const ctx = texture.getContext() as CanvasRenderingContext2D;
   let seed = 1037;
@@ -32,15 +32,20 @@ function meadow(scene: Scene, p: Palette) {
     g.addColorStop(0, i % 3 ? '#b0cf553b' : '#579c3030'); g.addColorStop(1, '#8aba3d00');
     ctx.fillStyle = g; ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
   }
-  const u = (x: number) => (x / 25.6 + .5) * 1024, v = (z: number) => (.5 - z / 27.6) * 1024;
+  const u = (x: number) => (x / MAP_SIZE + .5) * 1024, v = (z: number) => (.5 - z / MAP_SIZE) * 1024;
   const path = new Path2D();
-  path.moveTo(u(0), v(-13.8)); path.bezierCurveTo(u(.25), v(-8), u(-.1), v(-2), u(0), v(1));
-  path.bezierCurveTo(u(.1), v(6), u(-.15), v(10), u(0), v(13.8));
-  path.moveTo(u(-6.5), v(1)); path.bezierCurveTo(u(-3), v(.85), u(2), v(1.1), u(7.3), v(1));
+  for (const road of ROADS) {
+    path.moveTo(u(road[0].x), v(road[0].z));
+    for (let i = 1; i < road.length; i++) {
+      const p = road[i - 1], next = road[i];
+      path.quadraticCurveTo(u(p.x), v(p.z), u((p.x + next.x) / 2), v((p.z + next.z) / 2));
+    }
+    path.lineTo(u(road.at(-1)!.x), v(road.at(-1)!.z));
+  }
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#759d32'; ctx.lineWidth = 96; ctx.stroke(path);
-  ctx.strokeStyle = '#d8ad62'; ctx.lineWidth = 90; ctx.stroke(path);
-  ctx.strokeStyle = '#e9bb71'; ctx.lineWidth = 82; ctx.stroke(path);
+  ctx.strokeStyle = '#759d32'; ctx.lineWidth = 20; ctx.stroke(path);
+  ctx.strokeStyle = '#d8ad62'; ctx.lineWidth = 18; ctx.stroke(path);
+  ctx.strokeStyle = '#e9bb71'; ctx.lineWidth = 16; ctx.stroke(path);
   const pixels = ctx.getImageData(0, 0, 1024, 1024).data;
   for (let i = 0; i < 5200; i++) {
     const x = random() * 1024, y = random() * 1024;
@@ -51,7 +56,7 @@ function meadow(scene: Scene, p: Palette) {
   }
   texture.update();
   const material = new StandardMaterial('meadow', scene); material.diffuseTexture = texture; material.specularColor = Color3.Black();
-  const ground = MeshBuilder.CreateGround('meadow', { width: 25.6, height: 27.6 }, scene);
+  const ground = MeshBuilder.CreateGround('meadow', { width: MAP_SIZE, height: MAP_SIZE }, scene);
   ground.position.y = .012; ground.material = material; ground.receiveShadows = true;
 }
 
@@ -85,8 +90,8 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   };
   meadow(scene, p);
   for (const b of BUILDINGS) addObject({
-    id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '小屋',
-    x: b.x, z: b.z, radius: b.width / 2, width: b.width + .4, depth: b.depth + .5,
+    id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '仓库',
+    x: b.x, z: b.z, radius: b.width / 2, width: b.width, depth: b.depth,
     anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
   }, () => referenceHouse(scene, p, b));
   for (const tree of TREES) {
@@ -95,37 +100,15 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   }
   // Individual farming cells are managed below as native mutable instances.
   const firstPondMesh = scene.meshes.length;
-  const water = MeshBuilder.CreateDisc('pond-water', { radius: 2.13, tessellation: 64 }, scene);
-  water.rotation.x = Math.PI / 2; water.position.set(-7.2, .035, -3.7); water.material = p.water;
-  for (let i = 0; i < 20; i++) {
-    const a = i * Math.PI * 2 / 20;
-    const stone = roundedBox(scene, 'pond-stone', [.57 + (i % 3) * .035, .35 + i % 2 * .07, .43], [-7.2 + Math.sin(a) * 2.2, .17, -3.7 + Math.cos(a) * 2.2], i % 3 ? p.stoneLight : p.stone, .13);
-    stone.rotation.y = a; stone.rotation.z = Math.sin(i * 3.8) * .11;
-  }
-  for (let i = 0; i < 3; i++) {
-    const ripple = MeshBuilder.CreateTorus('water-ripple', { diameter: .55 + i * .4, thickness: .012, tessellation: 48 }, scene);
-    ripple.position.set(-7.5, .05, -3.5); ripple.scaling.z = .65; ripple.material = p.waterLight;
-  }
-  for (const [x, z] of [[-8.25, -3.6], [-6.4, -4.4], [-7.5, -2.8]]) {
-    const pad = ellipsoid(scene, 'lily-pad', [.55, .025, .43], [x, .06, z], p.leaf); pad.rotation.y = x;
-    ellipsoid(scene, 'lily-vein', [.3, .018, .025], [x, .078, z], p.leafLight);
-  }
-  register({ id: 'pond', kind: 'scenery', name: '小池塘', x: -7.2, z: -3.7, radius: 2.5,
-    anchor: { x: -7.2, y: .05, z: -3.7 },
-  }, firstPondMesh);
-  const firstWellMesh = scene.meshes.length;
-  for (let row = 0; row < 3; row++) for (let i = 0; i < 12; i++) {
-    const a = (i + row % 2 * .5) * Math.PI / 6;
-    const stone = roundedBox(scene, 'well-stone', [.39, .25, .3], [1.5 + Math.sin(a) * .75, .16 + row * .24, 7.2 + Math.cos(a) * .75], i % 2 ? p.stoneLight : p.stone, .055);
+  const water = MeshBuilder.CreateDisc('pond-water', { radius: POND.radius, tessellation: 64 }, scene);
+  water.rotation.x = Math.PI / 2; water.position.set(POND.x, .035, POND.z); water.material = p.water;
+  for (let i = 0; i < 60; i++) {
+    const a = i * Math.PI * 2 / 60, r = POND.radius + .2;
+    const stone = roundedBox(scene, 'pond-stone', [1.5, .6 + i % 3 * .15, 1], [POND.x + Math.sin(a) * r, .3, POND.z + Math.cos(a) * r], i % 3 ? p.stoneLight : p.stone, .2);
     stone.rotation.y = a;
   }
-  const wellWater = MeshBuilder.CreateDisc('well-water', { radius: .65, tessellation: 32 }, scene);
-  wellWater.rotation.x = Math.PI / 2; wellWater.position.set(1.5, .2, 7.2); wellWater.material = p.water;
-  for (const x of [.6, 2.4]) roundedBox(scene, 'well-post', [.2, 2.4, .22], [x, 1.2, 7.2], p.timber, .04);
-  tiledRoof(scene, p, 1.5, 7.2, 2.1, 1.45, 2.35, .55);
-  register({ id: 'well', kind: 'building', name: '石砌水井', x: 1.5, z: 7.2, radius: 1.1,
-    anchor: { x: 1.5, y: 2.9, z: 7.2 },
-  }, firstWellMesh);
+  register({ id: 'pond', kind: 'scenery', name: '湖泊', x: POND.x, z: POND.z, radius: POND.radius,
+    anchor: { x: POND.x, y: .05, z: POND.z } }, firstPondMesh);
   for (const [index, { x, z }] of FENCES.entries()) {
     const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);
@@ -135,9 +118,9 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
       width: 2, depth: .4, anchor: { x: x + .86, y: .63, z },
     }, firstFenceMesh);
   }
-  for (let i = 0; i < 175; i++) {
-    const x = Math.sin(i * 19.31) * 11.4, z = Math.cos(i * 7.73) * 12.4;
-    const cell = land.find(c => c.x === Math.floor(x) && c.z === Math.floor(z));
+  for (let i = 0; i < 220; i++) {
+    const x = Math.sin(i * 19.31) * MAP_SIZE * .48, z = Math.cos(i * 7.73) * MAP_SIZE * .48;
+    const cell = land.find(c => Math.abs(c.x - x) < GRID_SIZE / 2 && Math.abs(c.z - z) < GRID_SIZE / 2);
     if (cell?.type !== 'grass' || BUILD_SITES.some(s => Math.abs(x - s.x) < s.width / 2 + .5 && Math.abs(z - s.z) < s.depth / 2 + .8)) continue;
     if (i % 3 === 0) grassClump(scene, p, x, z, .65 + (i % 4) * .12);
     else daisy(scene, p, x, z, .65 + (i % 3) * .13);

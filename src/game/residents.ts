@@ -29,9 +29,9 @@ type ResourceProgress = (fraction: number) => void;
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
   worldObstacles: () => readonly Obstacle[] = () => RESIDENT_OBSTACLES) {
   const obstaclesFor = (role: string): readonly Obstacle[] => role === 'farmer' ? worldObstacles() : [
-    ...worldObstacles(), { kind: 'box', x: 4.8, z: -2, halfWidth: 2.35, halfDepth: 2.1 },
+    ...worldObstacles(), { kind: 'box', x: 5.07, z: -5.91, halfWidth: 3.38, halfDepth: 2.54 },
   ];
-  const placeholderRoles = new Set(['worker']);
+  const placeholderRoles = new Set<string>();
   const soldierAssets = [
     { role: 'infantry', mounted: false },
     { role: 'cavalry', mounted: true },
