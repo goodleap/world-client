@@ -97,7 +97,7 @@ export class Economy {
   }
   claim(worker = 'farmer', position?: Point): WorkTask | undefined {
     if (this.active(worker)) return;
-    const rank: Record<WorkKind, number> = { haul: 0, harvest: 1, sow: 2, chop: 3, mine: 3, till: 4, build: 5 };
+    const rank: Record<WorkKind, number> = { haul: 0, harvest: 1, sow: 2, chop: 4, mine: 4, till: 3, build: 5 };
     const distance = (t: WorkTask) => {
       const point = FARM_PLOTS.find(p => p.id === t.target) ?? RESOURCE_NODES.find(n => n.id === t.target) ?? this.state.goods.find(g => g.id === t.target);
       return point && position ? Math.hypot(point.x - position.x, point.z - position.z) : 0;

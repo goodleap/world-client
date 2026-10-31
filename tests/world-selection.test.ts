@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
@@ -13,10 +14,12 @@ test('ray picks retain logical identities after transforming and batching differ
   try {
     const parts = [-4, -2, 0, 2, 4].map((x, index) => {
       const mesh = index % 2 ? MeshBuilder.CreateSphere('round', { diameter: 1 }, scene) : MeshBuilder.CreateBox('box', { size: 1 }, scene);
+      mesh.material = new StandardMaterial('surface-' + index, scene);
       mesh.position.x = x; mesh.rotation.y = index * .2;
       mesh.metadata = { worldObjectId: ['tree-a', undefined, 'crop-a', 'tree-a', 'house-a'][index] };
       return mesh;
     });
+    for (const mesh of parts) mesh.computeWorldMatrix(true);
     const ranges = selectionRanges(parts);
     const merged = Mesh.MergeMeshes(parts, true, true)!;
     merged.computeWorldMatrix(true);

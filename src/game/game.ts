@@ -11,7 +11,7 @@ import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
 import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE } from './world-data.ts';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { createSelectionFeedback } from './selection-feedback.ts';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 import { nextPaint } from '../launcher.ts';
@@ -30,12 +30,12 @@ import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
-  const engine = new Engine(ui.canvas, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+  const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
-  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(0, 0.6, -2), scene);
+  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.6, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -74,16 +74,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   residents.restoreResidents(economy.state.residents);
   const controller = createEconomyController(economy, world, residents);
   const moveFeedback = createMoveFeedback(scene);
-  const roundMarker = MeshBuilder.CreateLines('selected-object-ring', { points: Array.from({ length: 65 }, (_, i) =>
-    new Vector3(Math.cos(i * Math.PI / 32), 0, Math.sin(i * Math.PI / 32))) }, scene);
-  const boxMarker = MeshBuilder.CreateLines('selected-object-outline', { points: [
-    new Vector3(-.5, 0, -.5), new Vector3(.5, 0, -.5), new Vector3(.5, 0, .5), new Vector3(-.5, 0, .5), new Vector3(-.5, 0, -.5),
-  ] }, scene);
-  for (const marker of [roundMarker, boxMarker]) {
-    marker.color = Color3.FromHexString('#fff0a6'); marker.isPickable = false; marker.setEnabled(false);
-  }
+  const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
-  const clearWorld = () => { roundMarker.setEnabled(false); boxMarker.setEnabled(false); selectedWorld = undefined; ui.setSelection(); };
+  const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); };
   const clearResident = () => { residents.select(); ui.setResident(); };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
@@ -98,9 +91,6 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   };
   const selectWorld = (object: WorldObject) => {
     clearWorld(); selectedWorld = object;
-    const marker = object.width && object.depth ? boxMarker : roundMarker;
-    marker.scaling.set(object.width ?? object.radius, 1, object.depth ?? object.radius);
-    marker.position.set(object.x, object.markerY ?? .035, object.z); marker.setEnabled(true);
     showObjectActions(object);
   };
   const refreshEconomy = () => {
@@ -167,7 +157,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const lifecycle = new AbortController();
   const target = new Vector3();
-  const mapCenter = new Vector3(0, 0.5, -2);
+  const mapCenter = new Vector3(GRID_SIZE, 0.5, -2);
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
@@ -235,7 +225,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   resize();
   ui.bind('clear-selection', clearSelection);
   window.addEventListener('keydown', event => {
-    if (event.code === 'Escape' && !ui.paused && !suspended) clearWorld();
+    if (event.code === 'Escape' && !ui.paused && !suspended) clearSelection();
   }, { signal: lifecycle.signal });
   ui.bindPause(() => {
     input.reset(); freshFrame = true;
@@ -252,7 +242,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     setPreview(previewRole === 'base' ? undefined : 'base');
   });
   ui.bind('reset', () => {
-    mapCenter.set(0, 0.5, -2); setPreview();
+    mapCenter.set(GRID_SIZE, 0.5, -2); setPreview();
     overview = false; zoom = defaultZoom(); ui.setOverview(false); ui.toast('回到初始视角');
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
@@ -312,6 +302,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     // Native instrumentation owns frame counters; track shadow-map replacement.
     performanceDiagnostics.beforeFrame();
+    selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
     scene.render(); residents.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
@@ -376,6 +367,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
+      selectionFeedback: selectionFeedback.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
@@ -423,7 +415,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     dispose() {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
-      performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      selectionFeedback.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

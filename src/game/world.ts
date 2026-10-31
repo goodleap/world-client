@@ -139,7 +139,9 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     // triangle cannot intercept a click intended for an object behind them.
     const selectable = meshes.filter(mesh => mesh.metadata?.worldObjectId);
     const decoration = meshes.filter(mesh => !mesh.metadata?.worldObjectId);
-    for (const batch of [selectable, decoration]) {
+    const byObject = new Map<string, Mesh[]>();
+    for (const mesh of selectable) { const id = mesh.metadata.worldObjectId; const parts = byObject.get(id) ?? []; parts.push(mesh); byObject.set(id, parts); }
+    for (const batch of [...byObject.values(), decoration]) {
       if (!batch.length) continue;
       for (const mesh of batch) mesh.computeWorldMatrix(true);
       // Preserve the original caster membership when splitting a batch. A
@@ -154,7 +156,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
         const merged = parts.length > 1 ? Mesh.MergeMeshes(parts, true, true) : parts[0];
         if (merged) {
           merged.name = `world-${material.name}${batch === decoration && selectable.length ? '-detail' : ''}${cell ? `-${cell}` : ''}`;
-          merged.metadata = { worldFaceRanges: ranges, castsShadow };
+          merged.metadata = { worldFaceRanges: ranges, worldObjectId: ranges[0]?.id, castsShadow };
         }
       }
     }
@@ -168,5 +170,5 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects);
-  return { land, objects, ...economyWorld };
+  return { land, objects, ...economyWorld, selectionMeshes: (id: string) => scene.meshes.filter(m => m.metadata?.worldObjectId === id && !m.name.startsWith('selected-')) };
 }

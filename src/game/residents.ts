@@ -1,5 +1,7 @@
 import type { SavedResident } from './economy.ts';
 import { isBlocked } from './movement.ts';
+import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { loadingProgress } from '../loading-progress.ts';
 import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
@@ -40,6 +42,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     { role: 'archer', mounted: false },
   ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
+  const selectionMaterial = new StandardMaterial('unit-selection', scene);
+  selectionMaterial.emissiveColor = Color3.FromHexString('#62e4ff'); selectionMaterial.disableLighting = true;
   const actors = RESIDENTS.map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);
@@ -59,7 +63,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if (definition.role === 'dog') { hit.position.y = .65; hit.scaling.set(.9, .8, 1.2); }
     hit.metadata = { selectionKind: 'resident', id: definition.id };
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
-    marker.parent = root; marker.position.y = 0.08; marker.material = p.pathLight; marker.isPickable = false; marker.setEnabled(false);
+    marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
     return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0, route: [] as Point[], navigation: createRouteState() };
@@ -283,6 +287,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       selected?.marker.setEnabled(true);
       return selected?.definition.name;
     },
+    selectionMeshes: () => selected ? [...selected.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== selected!.marker && !m.metadata?.selectionKind), ...(characterLODs.get(selected.definition.id) ?? []).flatMap(p => [p.source, p.detail])] : [],
     selectedId: () => selected?.definition.id,
     selectedCanMove: () => !!selected,
     canWork: (id: string) => actors.some(a => a.definition.id === id && a.definition.role === 'farmer'),
@@ -359,9 +364,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         let velocity: Point;
         const commanded = actor.route.length > 0;
         if (actor.route.length) {
-          const result = advanceRoute(actor, seconds);
-          velocity = result.velocity;
-          if (result.unreachable) { actor.route = []; ui.toast('目标暂时无法到达'); }
+          const before = { ...actor.state.position };
+          let remaining = Math.min(activeElapsed, .5);
+          while (remaining > 1e-8 && actor.route.length) {
+            const step = Math.min(remaining, .05);
+            if (advanceRoute(actor, step).unreachable) { actor.route = []; ui.toast('目标暂时无法到达'); break; }
+            remaining -= step;
+          }
+          velocity = { x: (actor.state.position.x - before.x) / seconds, z: (actor.state.position.z - before.z) / seconds };
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random);

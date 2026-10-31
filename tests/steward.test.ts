@@ -41,3 +41,10 @@ test('autonomous production delivers, replants, and waits when committed supply 
   for (let i=0;i<180;i++) { manager.update(); for(const id of ['farmer','farmer-2']) {const t=e.active(id)??e.claim(id); if(t?.status==='travelling'||t?.status==='delivering')e.arrive(t.id);} e.advance(.5); }
   assert.ok(e.state.plots.reduce((n,p)=>n+(p.harvests ?? 0),0) > before);
 });
+
+test('opening the first farming area takes precedence over distant material trips', () => {
+  const e = new Economy();
+  e.request('chop', 'tree-0', undefined, 'steward');
+  const till = e.request('till', 'plot-4', undefined, 'steward').task!;
+  assert.equal(e.claim()?.id, till.id);
+});
