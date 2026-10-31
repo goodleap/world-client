@@ -14,7 +14,6 @@ import { selectionRanges } from './world-selection.ts';
 import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
-import { BUILD_SITES } from './economy-config.ts';
 import { createEconomyWorld } from './economy-world.ts';
 
 /** Painted ground colors in world coordinates; navigation is separate from the artwork. */
@@ -121,7 +120,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   for (let i = 0; i < 220; i++) {
     const x = Math.sin(i * 19.31) * MAP_SIZE * .48, z = Math.cos(i * 7.73) * MAP_SIZE * .48;
     const cell = land.find(c => Math.abs(c.x - x) < GRID_SIZE / 2 && Math.abs(c.z - z) < GRID_SIZE / 2);
-    if (cell?.type !== 'grass' || BUILD_SITES.some(s => Math.abs(x - s.x) < s.width / 2 + .5 && Math.abs(z - s.z) < s.depth / 2 + .8)) continue;
+    if (cell?.type !== 'grass') continue;
     if (i % 3 === 0) grassClump(scene, p, x, z, .65 + (i % 4) * .12);
     else daisy(scene, p, x, z, .65 + (i % 3) * .13);
   }

@@ -1011,3 +1011,17 @@ kbd {
 .resident-speech { position:absolute; left:0; top:0; width:max-content; max-width:200px; padding:9px 12px; border:1px solid #fff; border-radius:14px; background:#fffceeF5; color:#40543f; font-size:12px; line-height:1.5; box-shadow:0 3px 12px #354f2925; pointer-events:none; }
 .resident-speech::after { content:''; position:absolute; left:calc(50% - 5px); bottom:-6px; width:10px; height:10px; transform:rotate(45deg); background:#fffcee; }
 @media(max-width:600px) { #game-page { --home-button-size:41px; } #home-resources svg, .settings-button svg { width:23px; height:23px; } }
+
+.construction-controls { position:absolute; left:max(16px,var(--safe-left)); bottom:max(24px,var(--safe-bottom)); z-index:var(--layer-controls); display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.construction-controls button { border:1px solid #fff; border-radius:13px; color:var(--ink); background:var(--paper); cursor:pointer; }
+#building-toggle { display:flex; align-items:center; gap:8px; padding:10px 16px; min-height:46px; box-shadow:0 4px 18px #354f2926; }
+#building-toggle.active { background:#d5f6f4; border-color:#62e4ff; }
+.building-palette { width:220px; max-width:calc(100vw - 32px); padding:14px; border:1px solid #fff; border-radius:16px; background:var(--paper); box-shadow:0 5px 24px #354f2929; }
+.building-palette > strong { display:block; margin-bottom:10px; font-size:14px; }
+.building-palette button { display:flex; flex-direction:column; gap:7px; width:100%; text-align:left; padding:12px; background:#e8edda; touch-action:none; user-select:none; }
+.building-palette button span { display:flex; justify-content:space-between; width:100%; font-weight:600; }
+.building-palette small, .building-palette p { font-size:11px; color:#617359; }
+.building-palette p { margin:10px 0 0; }
+.placement-status { display:flex; align-items:center; gap:8px; max-width:calc(100vw - 32px); padding:8px 10px; border:1px solid #fff; border-radius:12px; background:var(--paper); font-size:12px; }
+.placement-status span { max-width:215px; }
+.placement-status button { min-height:36px; padding:6px 10px; background:#e8edda; }

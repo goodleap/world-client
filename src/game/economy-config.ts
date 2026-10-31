@@ -1,5 +1,6 @@
-import { OBSTACLES, TREES, GRID_SIZE, gridPoint } from './world-data.ts';
+import { OBSTACLES, TREES, gridPoint } from './world-data.ts';
 import type { Obstacle } from './movement.ts';
+import type { BuildingSite } from './construction.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
  * FIFO among executable jobs; reserve before work, spend on
@@ -25,15 +26,10 @@ export const RESOURCE_NODES = [
   ...Array.from({ length: 20 }, (_, i) => ({ id: `rock-${i}`, kind: 'stone' as const,
     ...gridPoint(i < 2 ? 59 + i * 2 : 72 + i % 5 * 4, i < 2 ? 44 : 10 + Math.floor(i / 5) * 5), radius: .65, yield: 12 })),
 ];
-export const BUILD_SITES = [
-  { id: 'site-0', ...gridPoint(44, 56), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.5 },
-  { id: 'site-1', ...gridPoint(48, 59), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.5 },
-];
-
-export function economyObstacles(depleted: readonly string[]): Obstacle[] {
+export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = []): Obstacle[] {
   return [
     ...OBSTACLES.filter(o => !TREES.some(t => t.x === o.x && t.z === o.z)),
     ...RESOURCE_NODES.filter(n => !depleted.includes(n.id)).map((n): Obstacle => ({ kind: 'circle', x: n.x, z: n.z, radius: n.radius })),
-    ...BUILD_SITES.map((s): Obstacle => ({ kind: 'box', x: s.x, z: s.z, halfWidth: s.width / 2 + .12, halfDepth: s.depth / 2 + .12 })),
+    ...sites.map((s): Obstacle => ({ kind: 'box', x: s.x, z: s.z, halfWidth: s.width / 2 + .12, halfDepth: s.depth / 2 + .12 })),
   ];
 }

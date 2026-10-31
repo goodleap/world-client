@@ -60,6 +60,11 @@ export function createUI(app: HTMLElement) {
     <div class="north" aria-hidden="true"><span>N</span><i></i></div>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
     <footer class="bottom-bar"><button id="help" class="help-button" aria-label="操作说明">${icon('help')}<span>操作说明</span></button></footer>
+    <nav class="construction-controls" aria-label="建筑选项">
+      <div id="building-palette" class="building-palette" hidden><strong>建造</strong><button id="build-house" data-building="house"><span>民房 <small>2 × 2 格</small></span><small>木材 12 · 石材 8</small></button><p>拖到空地，或点击后再点地块</p></div>
+      <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
+      <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('home')}建筑</button>
+    </nav>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
@@ -161,7 +166,7 @@ export function createUI(app: HTMLElement) {
 
   // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
   const card = get('selection-card');
-  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection')];
+  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls')];
   let layoutDirty = true;
   let layout = { width: 0, height: 0, cardWidth: 0, cardHeight: 0, left: 12, right: 12, top: 12, bottom: 12,
     blockers: [] as { x: number; y: number; width: number; height: number }[] };
@@ -201,6 +206,11 @@ export function createUI(app: HTMLElement) {
 
   return {
     canvas, joystick: get('joystick'), knob: get('joystick-knob'),
+    constructionControls: { toggle: get('building-toggle'), palette: get('building-palette'), house: get('build-house'), cancel: get('cancel-building') },
+    setPlacement(active: boolean, hint = '移动到空地，点击放置民房') {
+      get('placement-status').hidden = !active; get('placement-hint').textContent = hint;
+      get('building-toggle').classList.toggle('active', active); layoutDirty = true;
+    },
     addResidentLabel(id: string, name: string) {
       const label = document.createElement('span');
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;

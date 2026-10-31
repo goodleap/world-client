@@ -29,6 +29,7 @@ import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
+import { createBuildingPlacement } from './building-placement.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
@@ -172,8 +173,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     currentZoom = zoom; applyProjection();
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
+  const placement = createBuildingPlacement(scene, camera, ui, economy, residents.occupancy, () => ui.paused || suspended,
+    clearSelection, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
-    if (ui.paused || suspended) return;
+    if (ui.paused || suspended || placement.active) return;
     // Take over from the currently visible center, including an unfinished
     // preview/reset transition. Pointer motion is direct manipulation.
     if (started) mapCenter.copyFrom(camera.target);
@@ -183,6 +186,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     camera.target.copyFrom(mapCenter);
   }, (clientX, clientY) => {
     if (ui.paused || suspended) return;
+    if (placement.active) { placement.place(clientX, clientY); return; }
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
     const hit = scene.pick(x, y, mesh => mesh.isVisible && (mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldObjectId || !!mesh.metadata?.worldFaceRanges?.length));
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
@@ -233,9 +237,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   resize();
   ui.bind('clear-selection', clearSelection);
   window.addEventListener('keydown', event => {
-    if (event.code === 'Escape' && !ui.paused && !suspended) clearSelection();
+    if (event.code === 'Escape' && !ui.paused && !suspended) { placement.cancel(); clearSelection(); }
   }, { signal: lifecycle.signal });
   ui.bindPause(() => {
+    if (ui.paused) placement.cancel();
     input.reset(); freshFrame = true;
     scene.resetLastAnimationTimeFrame();
     if (!disposed) refreshEconomy();
@@ -302,6 +307,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
     // Native instrumentation owns frame counters; track shadow-map replacement.
     performanceDiagnostics.beforeFrame();
+    placement.update();
     selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
     scene.render(); residents.updateLabels(camera);
     if (selectedWorld) {
@@ -368,6 +374,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
       selectionFeedback: selectionFeedback.snapshot(),
+      placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
@@ -415,7 +422,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     dispose() {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
-      selectionFeedback.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      placement.dispose(); selectionFeedback.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

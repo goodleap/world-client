@@ -1,3 +1,4 @@
+import { gridPoint } from '../src/game/world-data.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, initialEconomy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
@@ -30,7 +31,7 @@ test('till, sow, grow and harvest form a repeatable cycle with exactly one outpu
 
 test('FIFO skips unfunded construction, gathers materials, reserves once and spends only on completion', () => {
   const e = new Economy();
-  e.request('build', 'site-0'); e.request('chop', 'tree-0'); e.request('mine', 'rock-0');
+  e.placeBuilding('house', gridPoint(44, 56)); e.request('chop', 'tree-0'); e.request('mine', 'rock-0');
   assert.equal(finish(e).kind, 'chop'); assert.equal(e.state.inventory.wood, 24);
   assert.equal(finish(e).kind, 'mine'); assert.equal(e.state.inventory.stone, 16);
   const build = e.claim()!; assert.equal(build.kind, 'build');
@@ -45,7 +46,7 @@ test('FIFO skips unfunded construction, gathers materials, reserves once and spe
 
 test('concurrent requests cannot double reserve, and cancellation releases resources without spending', () => {
   const state = initialEconomy(); state.inventory = { wood: 12, stone: 8, food: 0 };
-  const e = new Economy(state), first = e.request('build', 'site-0').task!, second = e.request('build', 'site-1').task!;
+  const e = new Economy(state), first = e.placeBuilding('house', gridPoint(44, 56)).task!, second = e.placeBuilding('house', gridPoint(48, 59)).task!;
   assert.equal(first.reserved, true); assert.equal(second.reserved, false);
   assert.deepEqual(e.available(), { wood: 0, stone: 0, food: 0 });
   e.claim(); e.arrive(first.id); e.advance(2); assert.ok(e.cancel(first.id));
@@ -104,14 +105,6 @@ test('resource and construction footprints leave every resident spawn traversabl
   const { economyObstacles } = await import('../src/game/economy-config.ts');
   const { isBlocked } = await import('../src/game/movement.ts');
   for (const resident of RESIDENTS) assert.equal(isBlocked(resident.spawn, resident.bodyRadius, economyObstacles([])), false, resident.id);
-});
-
-test('resource volumes do not intersect the new building footprints', async () => {
-  const { BUILD_SITES, RESOURCE_NODES } = await import('../src/game/economy-config.ts');
-  const { isBlocked } = await import('../src/game/movement.ts');
-  for (const node of RESOURCE_NODES) for (const site of BUILD_SITES) {
-    assert.equal(isBlocked(node, node.radius, [{ kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .12, halfDepth: site.depth / 2 + .12 }]), false, `${node.id}/${site.id}`);
-  }
 });
 
 test('two farming cycles retain tilled soil, free the farmer while growing, and deliver before food is usable', () => {

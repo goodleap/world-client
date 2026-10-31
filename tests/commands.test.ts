@@ -1,3 +1,4 @@
+import { gridPoint } from '../src/game/world-data.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, initialEconomy, decodeEconomy, encodeEconomy } from '../src/game/economy.ts';
@@ -33,7 +34,7 @@ function setup(economy = new Economy()) {
 test('manual movement owns the farmer until arrival and resumes partial work without spending reserved materials twice', () => {
   const state = initialEconomy(); state.inventory = { wood: 24, stone: 16, food: 0 };
   const h = setup(new Economy(state)), { economy: e, controller: c } = h;
-  const build = e.request('build', 'site-0').task!;
+  const build = e.placeBuilding('house', gridPoint(44, 56)).task!;
   c.update(.01); h.arrive(); c.update(2);
   const progress = build.progress, growth = e.plot('plot-1')!.growth;
   assert.equal(build.status, 'working');

@@ -157,6 +157,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }
   };
   return {
+    occupancy: () => actors.map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
     async loadFarmerModel(report?: ResourceProgress) {
       for (const actor of actors.filter(a => a.definition.role === 'farmer')) {
       const result = await library.instantiate('farmer', actor.root);
