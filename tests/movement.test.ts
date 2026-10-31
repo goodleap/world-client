@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isBlocked, moveCharacter, normalizeInput } from '../src/game/movement.ts';
-import { createLandGrid, OBSTACLES, PLAYER_RADIUS, SPAWN, WORLD_BOUNDS } from '../src/game/world-data.ts';
+import { isBlocked, moveCharacter, normalizeInput, sweepIsBlocked } from '../src/game/movement.ts';
+import { createLandGrid, MAP_CELLS, OBSTACLES, PLAYER_RADIUS, SPAWN } from '../src/game/world-data.ts';
 import type { Obstacle } from '../src/game/movement.ts';
 
 const bounds = { minX: -10, maxX: 10, minZ: -10, maxZ: 10 };
@@ -42,6 +42,15 @@ test('circle obstacles and rounded box corners use the character radius', () => 
   assert.equal(isBlocked({ x: 1.3, z: 1.3 }, 0.3, [{ kind: 'box', x: 0, z: 0, halfWidth: 1, halfDepth: 1 }]), false);
 });
 
+test('continuous circle sweeps catch grazing contacts between the old sampling points', () => {
+  const person: Obstacle = { kind: 'circle', x: 0, z: 0, radius: .4 };
+  assert.equal(sweepIsBlocked({ x: -.47, z: .7999 }, { x: .53, z: .7999 }, .4, [person]), true);
+  assert.equal(sweepIsBlocked({ x: -.47, z: .8 }, { x: .53, z: .8 }, .4, [person]), false, 'a tangent remains passable');
+  const box: Obstacle = { kind: 'box', x: 0, z: 0, halfWidth: 1, halfDepth: 1 };
+  assert.equal(sweepIsBlocked({ x: 1.29, z: 1.29 }, { x: 1.5, z: 1.5 }, .4, [box]), false, 'do not replace rounded corners with an expanded square');
+  assert.equal(sweepIsBlocked({ x: 1.27, z: 1.27 }, { x: 1.5, z: 1.5 }, .4, [box]), true);
+});
+
 test('map bounds include the character radius on all four edges', () => {
   for (const side of [-1, 1]) {
     const result = moveCharacter({ x: 9.6 * side, z: 9.6 * side }, { x: side, z: side }, 0.1, 4, bounds, []);
@@ -58,6 +67,7 @@ test('zero input and nonpositive elapsed time never move the character', () => {
 test('demo spawn is walkable and the land grid records all terrain categories', () => {
   assert.equal(isBlocked(SPAWN, PLAYER_RADIUS, OBSTACLES), false);
   const grid = createLandGrid();
-  assert.equal(grid.length, (WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX) * (WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ));
-  assert.deepEqual(new Set(grid.map((cell) => cell.type)), new Set(['grass', 'path', 'garden', 'water', 'building']));
+  assert.equal(grid.length, MAP_CELLS * MAP_CELLS);
+  // Roads are separate continuous geometry; the land grid stores terrain use.
+  assert.deepEqual(new Set(grid.map((cell) => cell.type)), new Set(['grass', 'garden', 'water', 'building']));
 });

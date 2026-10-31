@@ -15,9 +15,8 @@ import type { Obstacle, Point } from './movement.ts';
 import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { findPath } from './pathfinding.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
-import { occupiedApproach, planWorkApproach } from './work-navigation.ts';
+import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -265,7 +264,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, 0, data.position.z);
           actor.state.target = undefined;
         }
-        if (data.manualGoal) actor.route = findPath(actor.state.position, data.manualGoal, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role)) ?? [];
+      }
+      // Resolve reservations after every saved position is restored, including
+      // older saves that assigned several units an identical destination.
+      for (const actor of actors) {
+        const goal = saved[actor.definition.id]?.manualGoal;
+        if (goal) actor.route = planMoveDestination(actor.state.position, goal, actor.settings.bodyRadius, actor.settings.bounds,
+          obstaclesFor(actor.definition.role), workNeighbours(actor)) ?? [];
       }
     },
     farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.root.position,
@@ -309,7 +314,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     command(point: Point, id = selected?.definition.id) {
       const actor = actors.find(entry => entry.definition.id === id);
       if (!actor) return false;
-      const path = findPath(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role));
+      const path = planMoveDestination(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds,
+        obstaclesFor(actor.definition.role), workNeighbours(actor));
       if (!path) return false;
       works.delete(actor.definition.id);
       actor.wanderRoute = []; resetRouteState(actor.wanderNavigation);
@@ -335,8 +341,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     beginFarmerWork(id: number, unit = farmer.definition.id) { const work = works.get(unit); if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
     releaseFarmerWork(unit = farmer.definition.id) { works.delete(unit); const actor = actors.find(a => a.definition.id === unit)!; actor.route = []; resetRouteState(actor.navigation); setMotion(unit, 'idle'); },
-    update(seconds: number, previewRole?: 'farmer' | 'base', activeElapsed = seconds) {
-      for (const actor of actors) {
+    update(frameSeconds: number, previewRole?: 'farmer' | 'base', frameElapsed = frameSeconds) {
+      // Advance the whole crowd in short shared ticks. Previously one resident
+      // could consume a half-second of movement against everybody else's old
+      // position before the next resident got a turn on a slow frame.
+      const ticks = Math.max(1, Math.ceil(Math.min(frameElapsed, .5) / .05));
+      const seconds = frameSeconds / ticks, activeElapsed = Math.min(frameElapsed, .5) / ticks;
+      for (let tick = 0; tick < ticks; tick++) for (const actor of actors) {
         actor.movementSpeed = 0;
         if (seconds <= 0) continue;
         const work = works.get(actor.definition.id);
@@ -448,6 +459,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       position: { ...actor.state.position }, state: actor.state.target ? 'walking' : 'idle',
       facing: actor.root.rotationQuaternion?.asArray() ?? [],
       routeRemaining: actor.route.length,
+      destination: actor.route.at(-1),
       moveCommand: !!actor.route.length && !works.has(actor.definition.id),
       navigation: { ...actor.navigation },
       wanderNavigation: { ...actor.wanderNavigation },

@@ -1,4 +1,4 @@
-import { isBlocked, moveCharacter } from './movement.ts';
+import { isBlocked, moveCharacter, sweepIsBlocked } from './movement.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 
 export interface WanderSettings {
@@ -26,12 +26,7 @@ export function inBounds(point: Point, radius: number, bounds: Bounds): boolean 
 
 /** Local wander targets must be directly reachable; this intentionally needs no navigation library. */
 export function segmentIsClear(from: Point, to: Point, radius: number, bounds: Bounds, obstacles: readonly Obstacle[]): boolean {
-  const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / (radius * 0.45)));
-  for (let i = 0; i <= steps; i++) {
-    const point = { x: from.x + (to.x - from.x) * i / steps, z: from.z + (to.z - from.z) * i / steps };
-    if (!inBounds(point, radius, bounds) || isBlocked(point, radius, obstacles)) return false;
-  }
-  return true;
+  return inBounds(from, radius, bounds) && inBounds(to, radius, bounds) && !sweepIsBlocked(from, to, radius, obstacles);
 }
 
 export function createWanderState(spawn: Point, settings: WanderSettings, obstacles: readonly Obstacle[], random: () => number): WanderState {

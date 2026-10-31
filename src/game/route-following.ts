@@ -24,7 +24,9 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
   const obstacles = [...solids, ...circles];
   const move = (next: Point) => {
     state.waiting = false; state.waited = 0; state.retryIn = 0;
-    if (distance(next, route[0]) < .025) route.shift();
+    // A corner is safe from the planned waypoint, not from a nearby point that
+    // cuts across the inflated obstacle on the following leg.
+    if (distance(next, route[0]) < 1e-8) route.shift();
     return { position: next, velocity: { x: (next.x - position.x) / dt, z: (next.z - position.z) / dt }, unreachable: false };
   };
   const towards = (goal: Point, length: number): Point => {
@@ -120,11 +122,19 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
       // every time a person crosses a route. Failed attempts retain the command.
       const local: Bounds = { minX: Math.max(bounds.minX, position.x - 8), maxX: Math.min(bounds.maxX, position.x + 8),
         minZ: Math.max(bounds.minZ, position.z - 8), maxZ: Math.min(bounds.maxZ, position.z + 8) };
-      const anchor = towards(route[0], 4);
-      if (!isBlocked(anchor, radius, obstacles)) {
+      // A person may stand on an intermediate corner. Rejoin a later leg,
+      // otherwise repeatedly searching toward that occupied corner can never
+      // succeed even though the final destination is free and reachable.
+      const candidates = [...new Set([route.length - 1, route.length - 2, route.length - 3, 0])].filter(i => i >= 0);
+      for (const i of candidates) {
+        const anchor = towards(route[i], 4);
+        if (isBlocked(anchor, radius, obstacles)) continue;
         state.searches++;
         const prefix = findPath(position, anchor, radius, local, obstacles);
-        if (prefix) detour = [...prefix, ...route];
+        if (prefix) {
+          detour = [...prefix, ...route.slice(distance(anchor, route[i]) < 1e-8 ? i + 1 : i)];
+          break;
+        }
       }
     }
     if (!detour) return wait();

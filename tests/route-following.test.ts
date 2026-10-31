@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { createRouteState, stepRoute } from '../src/game/route-following.ts';
 import type { Neighbour } from '../src/game/route-following.ts';
 import type { Point } from '../src/game/movement.ts';
+import { isBlocked } from '../src/game/movement.ts';
+import { findPath } from '../src/game/pathfinding.ts';
+import { seededRandom } from '../src/game/wander.ts';
+import { planMoveDestination } from '../src/game/work-navigation.ts';
 
 const bounds = { minX: -5, maxX: 5, minZ: -4, maxZ: 4 };
 const neighbour = (id: string, position: Point, moving = false): Neighbour => ({ id, position, radius: .4, moving, purposeful: false, waiting: false });
@@ -131,4 +135,72 @@ test('a fully occupied passage retains the goal and throttles failed local searc
   assert.equal(route.length, 1); assert.ok(state.searches <= 16, String(state.searches));
   for (let i = 0; i < 80 && route.length; i++) position = stepRoute('moving', position, route, state, .05, 3, .3, narrow, [], []).position;
   assert.equal(route.length, 0);
+});
+
+test('a grazing route follows its exact corner instead of getting permanently stuck before turning', () => {
+  const solids = [{ kind: 'box' as const, x: 1.8, z: 0, halfWidth: 1, halfDepth: 1 }];
+  const goal = { x: 1.4337644167244434, z: 3.7 };
+  let position = { x: .34822415094822645, z: -2.1582452952861786 };
+  const route = findPath(position, goal, .29, bounds, solids)!, state = createRouteState();
+  assert(route);
+  for (let i = 0; i < 300 && route.length; i++) {
+    position = stepRoute('farmer', position, route, state, 1 / 30, 6.3, .29, bounds, solids, []).position;
+    assert(!isBlocked(position, .29, solids));
+  }
+  assert.equal(route.length, 0);
+  assert(Math.hypot(position.x - goal.x, position.z - goal.z) < 1e-7);
+});
+
+test('adjacent farmers reach shared or nearby clicks at 15, 30 and 60 fps without overlap or lost commands', () => {
+  for (const fps of [15, 30, 60]) for (const reverse of [false, true]) for (const offset of [0, .01, .3, .7]) {
+    const actors = [-.3, .3].map((x, i) => ({ id: i ? 'farmer-2' : 'farmer', position: { x, z: -3 },
+      route: [] as Point[], state: createRouteState(), moving: false }));
+    for (const [i, actor] of actors.entries()) actor.route = planMoveDestination(actor.position, { x: i * offset, z: 3 }, .29, bounds, [],
+      actors.filter(a => a !== actor).map(a => ({ position: a.position, radius: .29, destination: a.route.at(-1) })))!;
+    const destinations = actors.map(a => a.route.at(-1)!);
+    for (let frame = 0; frame < fps * 15 && actors.some(a => a.route.length); frame++) {
+      const ticks = Math.ceil((1 / fps) / .05), dt = 1 / fps / ticks;
+      for (let tick = 0; tick < ticks; tick++) for (const actor of reverse ? [...actors].reverse() : actors) {
+        const other = actors.find(a => a !== actor)!;
+        const result = stepRoute(actor.id, actor.position, actor.route, actor.state, dt, 6.3, .29, bounds, [], [{
+          ...neighbour(other.id, other.position, other.moving), radius: .29, purposeful: !!other.route.length, waiting: other.state.waiting,
+        }]);
+        assert(Math.hypot(result.position.x - actor.position.x, result.position.z - actor.position.z) <= 6.3 * dt + 1e-8);
+        actor.position = result.position; actor.moving = Math.hypot(result.velocity.x, result.velocity.z) > .08;
+        assert(Math.hypot(actor.position.x - other.position.x, actor.position.z - other.position.z) >= .58 - 1e-8);
+      }
+    }
+    actors.forEach((actor, i) => {
+      assert.equal(actor.route.length, 0, JSON.stringify({ fps, reverse, offset, actors }));
+      assert(Math.hypot(actor.position.x - destinations[i].x, actor.position.z - destinations[i].z) < 1e-7);
+    });
+  }
+});
+
+test('seeded four-person traffic completes around round and rectangular obstacles', () => {
+  const random = seededRandom(1631), world = { minX: -8, maxX: 8, minZ: -8, maxZ: 8 };
+  const solids = [{ kind: 'box' as const, x: 1.8, z: 0, halfWidth: 1, halfDepth: 1 },
+    { kind: 'circle' as const, x: -1.8, z: -1, radius: .8 }];
+  const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
+  for (let trial = 0; trial < 300; trial++) {
+    const points: Point[] = [];
+    while (points.length < 8) {
+      const p = { x: random() * 10 - 5, z: random() * 10 - 5 };
+      if (!isBlocked(p, .35, solids) && points.every(q => distance(p, q) > .7)) points.push(p);
+    }
+    const actors = points.slice(0, 4).map((position, i) => ({ id: `unit-${i}`, position,
+      route: findPath(position, points[i + 4], .29, world, solids)!, state: createRouteState(), moving: true }));
+    assert(actors.every(a => a.route));
+    for (let frame = 0; frame < 600 && actors.some(a => a.route.length); frame++) for (const actor of actors) {
+      const others = actors.filter(a => a !== actor);
+      const result = stepRoute(actor.id, actor.position, actor.route, actor.state, 1 / 30, 6.3, .29, world, solids,
+        others.map(a => ({ ...neighbour(a.id, a.position, a.moving), radius: .29, purposeful: !!a.route.length, waiting: a.state.waiting })));
+      assert(distance(result.position, actor.position) <= .21 + 1e-8);
+      actor.position = result.position; actor.moving = Math.hypot(result.velocity.x, result.velocity.z) > .08;
+      assert(!isBlocked(actor.position, .29, solids));
+      assert(others.every(a => distance(actor.position, a.position) >= .58 - 1e-8));
+    }
+    assert(actors.every(a => !a.route.length), JSON.stringify({ trial, actors }));
+    actors.forEach((a, i) => assert(distance(a.position, points[i + 4]) < 1e-7));
+  }
 });
