@@ -40,7 +40,8 @@ export function createLauncher() {
       if (!row) { row = document.createElement('li'); rows.set(item.id, row); get('loading-items').append(row); }
       row.dataset.state = item.state;
       const state = { waiting: '等待', working: item.kind === 'download' ? '下载中' : '处理中', done: '完成', failed: '失败' }[item.state];
-      const bytes = item.kind === 'download' ? item.request && item.loaded === undefined ? ' · 字节进度未知' : ` · ${byteLabel(item.loaded ?? 0)} / ${byteLabel(item.total)}` : '';
+      const bytes = item.kind === 'download' ? item.request && item.loaded === undefined
+        ? ` · ${item.state === 'working' ? '字节进度未知' : '大小未知'}` : ` · ${byteLabel(item.loaded ?? 0)} / ${byteLabel(item.total)}` : '';
       row.textContent = `${item.name}\n${state}${bytes} · ${(item.elapsedMs / 1000).toFixed(1)} 秒${item.state === 'working' ? ` · ${(item.idleMs / 1000).toFixed(1)} 秒未更新` : ''}${item.note ? `\n${item.note}` : ''}${item.error ? `\n${item.error}` : ''}`;
     }
   };

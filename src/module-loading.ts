@@ -29,10 +29,14 @@ export function trackModuleLoading() {
       protocol: entry.nextHopProtocol };
     if (entry.encodedBodySize > 0) loadingProgress.bytes(item.id, entry.encodedBodySize, entry.encodedBodySize);
     if (entry.responseStatus >= 400) loadingProgress.fail(item.id, `${item.name}：HTTP ${entry.responseStatus}`);
-    else if (entry.encodedBodySize > 0 && item.state === 'working') loadingProgress.done(item.id);
+    // WebKit can report zero body sizes for a completed/cached module, including
+    // the entry that is executing this observer. Bytes are not a completion flag.
+    else if (entry.responseEnd > 0 && entry.responseEnd >= entry.startTime && item.state === 'working') loadingProgress.done(item.id);
     if (item.state !== 'working') {
       item.ended = entry.responseEnd;
-      item.note = `请求已结束；传输 ${byteLabel(entry.transferSize)}，解压后 ${byteLabel(entry.decodedBodySize || undefined)}。引擎是否就绪另列。`;
+      item.note = entry.encodedBodySize > 0
+        ? `请求已结束；传输 ${byteLabel(entry.transferSize)}，解压后 ${byteLabel(entry.decodedBodySize || undefined)}。引擎是否就绪另列。`
+        : '请求已结束；浏览器未提供文件大小。引擎是否就绪另列。';
     }
   };
   const timings = () => performance.getEntriesByType('resource').forEach(entry => timing(entry as PerformanceResourceTiming));

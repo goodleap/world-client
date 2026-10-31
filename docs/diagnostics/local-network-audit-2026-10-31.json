@@ -1,0 +1,81 @@
+{
+  "external": [],
+  "requests": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/assets/index-CFgxnG35.js",
+      "status": 200
+    },
+    {
+      "path": "/assets/index-DT_w5voj.css",
+      "status": 200
+    },
+    {
+      "path": "/assets/ui-QMmJv7Ta.js",
+      "status": 200
+    },
+    {
+      "path": "/favicon.svg",
+      "status": 200
+    },
+    {
+      "path": "/assets/rolldown-runtime-DK3Fl9T5.js",
+      "status": 200
+    },
+    {
+      "path": "/assets/game-XNQ2LXWY.js",
+      "status": 200
+    },
+    {
+      "path": "/assets/engine-Dr8TeCyG.js",
+      "status": 200
+    },
+    {
+      "path": "/assets/farmer-C4d0Gz0N.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/infantry-BVJorOVz.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/base-human-Buud_8tA.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/cavalry-DkEQqJBb.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/archer-DkCTy3Ph.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/base-lod-Ch7JNvk8.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/farmer-lod-B7R5xVmq.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/infantry-lod-y8B3rGjr.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/cavalry-lod-BiBS5S3v.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/archer-lod-q_pbRLig.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/studio-B1qJq6VN.env",
+      "status": 200
+    }
+  ]
+}

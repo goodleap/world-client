@@ -1,0 +1,148 @@
+{
+  "sourceCommit": "f0fb7f4573b2c93c50e3481bbfd209bf2387a413",
+  "measurement": "Local production build; gzip level 6 is a local size comparison, not measured site transfer.",
+  "resources": [
+    {
+      "file": "archer-DkCTy3Ph.glb",
+      "bytes": 10453816,
+      "gzipBytes": 5311742,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "archer-lod-q_pbRLig.glb",
+      "bytes": 3267932,
+      "gzipBytes": 1808402,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "base-human-Buud_8tA.glb",
+      "bytes": 6135208,
+      "gzipBytes": 3245885,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "base-lod-Ch7JNvk8.glb",
+      "bytes": 1565292,
+      "gzipBytes": 889365,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "cavalry-DkEQqJBb.glb",
+      "bytes": 16055148,
+      "gzipBytes": 7942550,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "cavalry-lod-BiBS5S3v.glb",
+      "bytes": 4759136,
+      "gzipBytes": 2614483,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "engine-XRFanohV.js",
+      "bytes": 3771152,
+      "gzipBytes": 868768
+    },
+    {
+      "file": "farmer-C4d0Gz0N.glb",
+      "bytes": 10351396,
+      "gzipBytes": 5374598,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "farmer-lod-B7R5xVmq.glb",
+      "bytes": 3163016,
+      "gzipBytes": 1795951,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "game-D0HL_m8D.js",
+      "bytes": 455706,
+      "gzipBytes": 164634
+    },
+    {
+      "file": "index-C5EXEZWI.js",
+      "bytes": 24060,
+      "gzipBytes": 9610
+    },
+    {
+      "file": "index-DT_w5voj.css",
+      "bytes": 19842,
+      "gzipBytes": 5220
+    },
+    {
+      "file": "infantry-BVJorOVz.glb",
+      "bytes": 10269912,
+      "gzipBytes": 5198311,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "infantry-lod-y8B3rGjr.glb",
+      "bytes": 3112844,
+      "gzipBytes": 1756324,
+      "extensionsUsed": [
+        "KHR_materials_specular"
+      ],
+      "externalUris": []
+    },
+    {
+      "file": "rolldown-runtime-DK3Fl9T5.js",
+      "bytes": 158,
+      "gzipBytes": 154
+    },
+    {
+      "file": "studio-B1qJq6VN.env",
+      "bytes": 205260,
+      "gzipBytes": 200358
+    },
+    {
+      "file": "ui-DajoKjnY.js",
+      "bytes": 16093,
+      "gzipBytes": 6383
+    }
+  ],
+  "totals": {
+    "models": {
+      "count": 10,
+      "bytes": 69133700,
+      "gzipBytes": 35937611
+    },
+    "code": {
+      "count": 5,
+      "bytes": 4267169,
+      "gzipBytes": 1049549
+    },
+    "all": {
+      "count": 17,
+      "bytes": 73625971,
+      "gzipBytes": 37192738
+    }
+  }
+}

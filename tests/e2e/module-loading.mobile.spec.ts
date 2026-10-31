@@ -59,3 +59,20 @@ test('engine HTTP errors identify the file and retain reload', async ({ page }) 
   const data = await page.evaluate(() => JSON.parse((window as unknown as { copied: string }).copied));
   expect(data.loading.find((item: { name: string }) => item.name.includes('engine-')).state).toBe('failed');
 });
+
+test('completed WebKit-style zero-size module timings do not remain downloading', async ({ page }) => {
+  await page.addInitScript(() => {
+    for (const key of ['encodedBodySize', 'decodedBodySize', 'responseStatus']) {
+      Object.defineProperty(PerformanceResourceTiming.prototype, key, { configurable: true, get: () => 0 });
+    }
+  });
+  await page.goto('/');
+  await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
+  await page.locator('#loading-details summary').click();
+  for (const prefix of ['index-', 'ui-']) {
+    const row = page.locator('#loading-items li').filter({ hasText: `代码文件 · ${prefix}` });
+    await expect(row).toHaveAttribute('data-state', 'done');
+    await expect(row).toContainText('大小未知');
+    await expect(row).not.toContainText('下载中');
+  }
+});
