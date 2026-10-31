@@ -17,6 +17,7 @@ import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { findPath } from './pathfinding.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
+import { occupiedApproach, planWorkApproach } from './work-navigation.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -66,7 +67,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name);
-    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0, route: [] as Point[], navigation: createRouteState() };
+    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
+      route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   });
   const labelPoint = new Vector3();
   const identity = Matrix.Identity();
@@ -121,11 +123,17 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const destinationSpeed = (actor: typeof actors[number]) => actor.settings.speed
     * (locomotion.has(actor.definition.id) ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15)
     * COMMAND_RUN_SPEED_MULTIPLIER;
-  const advanceRoute = (actor: typeof actors[number], seconds: number) => {
-    const result = stepRoute(actor.definition.id, actor.state.position, actor.route, actor.navigation, seconds,
-      destinationSpeed(actor), actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
+  const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
+    stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
+      speed, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
       actors.filter(other => other !== actor).map(other => ({ id: other.definition.id, position: other.state.position,
-        radius: other.settings.bodyRadius, moving: other.movementSpeed > .08, purposeful: !!other.route.length, waiting: other.navigation.waiting })));
+        radius: other.settings.bodyRadius, moving: other.movementSpeed > .08, purposeful: !!other.route.length || !!other.state.target,
+        waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting })));
+  const workNeighbours = (actor: typeof actors[number]) => actors.filter(other => other !== actor).map(other => ({
+    position: other.state.position, radius: other.settings.bodyRadius, destination: other.route.at(-1),
+  }));
+  const advanceRoute = (actor: typeof actors[number], seconds: number) => {
+    const result = navigate(actor, actor.route, actor.navigation, seconds, destinationSpeed(actor));
     actor.state.distanceTravelled += Math.hypot(result.position.x - actor.state.position.x, result.position.z - actor.state.position.z);
     actor.state.position = result.position;
     return result;
@@ -299,18 +307,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const path = findPath(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role));
       if (!path) return false;
       works.delete(actor.definition.id);
+      actor.wanderRoute = []; resetRouteState(actor.wanderNavigation);
       actor.route = path; actor.state.target = undefined; actor.state.pause = 0; actor.state.blockedFor = 0;
       resetRouteState(actor.navigation);
       return true;
     },
     planFarmerWork(points: readonly Point[], unit = farmer.definition.id): Point[] | undefined {
       const farmer = actors.find(a => a.definition.id === unit)!;
-      // Temporary occupants are handled by the same follower as manual moves.
-      // They must not make a valid job look permanently unreachable.
-      const paths = points.map(point => findPath(farmer.state.position, point, farmer.settings.bodyRadius, farmer.settings.bounds, worldObstacles())).filter((path): path is Point[] => !!path);
-      const length = (path: Point[]) => path.reduce((sum, p, i) => { const prev = i ? path[i - 1] : farmer.state.position; return sum + Math.hypot(p.x - prev.x, p.z - prev.z); }, 0);
-      paths.sort((a, b) => length(a) - length(b));
-      return paths[0];
+      return planWorkApproach(farmer.state.position, points, farmer.settings.bodyRadius, farmer.settings.bounds, worldObstacles(), workNeighbours(farmer));
     },
     startFarmerWork(id: number, path: Point[], target: Point, unit = farmer.definition.id) {
       const farmer = actors.find(a => a.definition.id === unit)!;
@@ -318,7 +322,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       resetRouteState(farmer.navigation);
       works.set(unit, { id, target, status: 'travelling' });
     },
-    farmerWorkState: (unit = farmer.definition.id) => { const work = works.get(unit); return work && { id: work.id, status: work.status }; },
+    farmerWorkState: (unit = farmer.definition.id): (Pick<Work, 'id' | 'status'> & { waitingFor?: number; approachOccupied?: boolean }) | undefined => {
+      const work = works.get(unit), actor = actors.find(a => a.definition.id === unit)!;
+      const goal = actor.route.at(-1);
+      return work && { id: work.id, status: work.status, waitingFor: actor.navigation.waited,
+        approachOccupied: !!goal && occupiedApproach(goal, actor.settings.bodyRadius, workNeighbours(actor)) };
+    },
     beginFarmerWork(id: number, unit = farmer.definition.id) { const work = works.get(unit); if (work?.id === id && work.status === 'arrived') work.status = 'working'; },
     releaseFarmerWork(unit = farmer.definition.id) { works.delete(unit); const actor = actors.find(a => a.definition.id === unit)!; actor.route = []; resetRouteState(actor.navigation); setMotion(unit, 'idle'); },
     update(seconds: number, previewRole?: 'farmer' | 'base', activeElapsed = seconds) {
@@ -375,7 +384,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           velocity = { x: (actor.state.position.x - before.x) / seconds, z: (actor.state.position.z - before.z) / seconds };
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
-        else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random);
+        else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random, (goal, dt, speed) => {
+          const last = actor.wanderRoute.at(-1);
+          if (!last || Math.hypot(last.x - goal.x, last.z - goal.z) > .001) {
+            actor.wanderRoute = [{ ...goal }]; resetRouteState(actor.wanderNavigation);
+          }
+          return navigate(actor, actor.wanderRoute, actor.wanderNavigation, dt, speed);
+        });
         const speed = Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
@@ -430,6 +445,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       routeRemaining: actor.route.length,
       moveCommand: !!actor.route.length && !works.has(actor.definition.id),
       navigation: { ...actor.navigation },
+      wanderNavigation: { ...actor.wanderNavigation },
       travelled: actor.state.distanceTravelled, reached: actor.state.destinationsReached,
       bodyRadius: actor.definition.bodyRadius,
       humanBones: actor.human?.skeleton.bones.map((bone) => bone.name) ?? [],

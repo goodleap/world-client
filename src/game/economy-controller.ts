@@ -13,6 +13,7 @@ type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 
 export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}) {
   const steward = createSteward(economy);
+  const approachRetry = new Map<string, number>();
   function command(id: string, instruction: UnitCommand): { ok: boolean; message: string } {
     if (instruction.kind === 'move') {
       if (!residents.command(instruction.point, id)) return { ok: false, message: '无法到达该位置' };
@@ -49,6 +50,14 @@ export function createEconomyController(economy: Economy, world: World, resident
     for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) economy.request('haul', goods.id, undefined, 'steward');
     for (const id of residents.farmerIds()) {
       const assigned = residents.farmerWorkState(id), active = economy.active(id);
+      if (assigned?.status === 'travelling' && active && (assigned.waitingFor ?? 0) > 1 && assigned.approachOccupied
+        && economy.state.seconds >= (approachRetry.get(id) ?? 0)) {
+        approachRetry.set(id, economy.state.seconds + 2);
+        const destination = world.workPoints(active.status === 'delivering' ? 'warehouse' : active.target);
+        const path = destination && residents.planFarmerWork(destination.points, id);
+        if (path && destination) { residents.startFarmerWork(active.id, path, destination.target, id); active.reason = ''; }
+        else active.reason = '作业点被占用，等待空位';
+      }
       if (!assigned && active?.status === 'delivering') {
         const destination = world.workPoints('warehouse')!;
         const path = residents.planFarmerWork(destination.points, id);

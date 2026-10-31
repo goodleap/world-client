@@ -44,7 +44,8 @@ export function createWanderState(spawn: Point, settings: WanderSettings, obstac
   };
 }
 
-export function stepWander(state: WanderState, settings: WanderSettings, seconds: number, obstacles: readonly Obstacle[], random: () => number): Point {
+export function stepWander(state: WanderState, settings: WanderSettings, seconds: number, obstacles: readonly Obstacle[], random: () => number,
+  navigate?: (target: Point, seconds: number, speed: number) => { position: Point; unreachable: boolean }): Point {
   const dt = Math.max(0, Math.min(seconds, 0.1));
   if (dt === 0) return { x: 0, z: 0 };
   if (state.pause > 0) { state.pause = Math.max(0, state.pause - dt); return { x: 0, z: 0 }; }
@@ -68,17 +69,19 @@ export function stepWander(state: WanderState, settings: WanderSettings, seconds
   }
   const speed = Math.min(settings.speed, distance / dt);
   const ahead = Math.min(distance, speed * dt + .2);
-  if (!segmentIsClear(state.position, { x: state.position.x + dx / distance * ahead, z: state.position.z + dz / distance * ahead },
+  if (!navigate && !segmentIsClear(state.position, { x: state.position.x + dx / distance * ahead, z: state.position.z + dz / distance * ahead },
     settings.bodyRadius, settings.bounds, obstacles)) {
     state.target = undefined; state.pause = .4 + random() * .4;
     return { x: 0, z: 0 };
   }
-  const next = moveCharacter(state.position, { x: dx / distance, z: dz / distance }, dt, speed, settings.bounds, obstacles, settings.bodyRadius);
+  const travel = navigate?.(state.target, dt, speed);
+  if (travel?.unreachable) { state.target = undefined; state.pause = .5; return { x: 0, z: 0 }; }
+  const next = travel?.position ?? moveCharacter(state.position, { x: dx / distance, z: dz / distance }, dt, speed, settings.bounds, obstacles, settings.bodyRadius);
   const moved = Math.hypot(next.x - state.position.x, next.z - state.position.z);
   const velocity = { x: (next.x - state.position.x) / dt, z: (next.z - state.position.z) / dt };
   state.position = next; state.distanceTravelled += moved;
   state.walkingFor += dt; state.blockedFor = moved < speed * dt * 0.15 ? state.blockedFor + dt : 0;
-  if (state.blockedFor > 0.6 || state.walkingFor > 14) {
+  if (state.blockedFor > (navigate ? 2.5 : .6) || state.walkingFor > 14) {
     state.target = undefined; state.pause = 0.2 + random() * 0.5;
   }
   return velocity;

@@ -8,7 +8,7 @@ function setup(economy = new Economy()) {
   type Residents = Parameters<typeof createEconomyController>[2];
   let work: ReturnType<Residents['farmerWorkState']>;
   const moves = new Map<string, { x: number; z: number }>();
-  let reachable = true;
+  let reachable = true, starts = 0;
   const residents: Residents = {
     farmerIds: () => ['farmer'],
     farmerPosition: () => ({ x: 0, z: 0 }),
@@ -22,12 +22,13 @@ function setup(economy = new Economy()) {
     releaseFarmerWork() { work = undefined; },
     beginFarmerWork(id) { work = { id, status: 'working' }; },
     planFarmerWork: points => reachable ? [...points] : undefined,
-    startFarmerWork(id) { moves.delete('farmer'); work = { id, status: 'travelling' }; },
+    startFarmerWork(id) { starts++; moves.delete('farmer'); work = { id, status: 'travelling' }; },
   };
   const controller = createEconomyController(economy, {
     sync: () => false, workPoints: () => ({ points: [{ x: 3, z: 0 }], target: { x: 3, z: 1 } }),
   }, residents, false);
-  return { economy, controller, moves, residents, blocked(value: boolean) { reachable = !value; },
+  return { economy, controller, moves, residents, starts: () => starts,
+    occupyApproach() { if (work) { work.waitingFor = 2; work.approachOccupied = true; } }, blocked(value: boolean) { reachable = !value; },
     arrive() { if (work) work.status = 'arrived'; controller.update(.001); } };
 }
 
@@ -89,4 +90,18 @@ test('dogs and soldiers accept movement while unsupported or invalid work cannot
   assert.equal(c.command('farmer', { kind: 'work', work: 'chop', target: 'tree-0' }).ok, false);
   assert.equal(e.active()!.id, active); assert.equal(e.active()!.status, 'working');
   c.update(2.5); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8);
+});
+
+
+test('a blocked delivery approach retries another point without dropping or duplicating cargo', () => {
+  const h = setup(), { economy: e, controller: c } = h;
+  e.state.goods.push({ id: 'goods-1', resource: 'wood', amount: 8, state: 'ground', x: 3, z: 0 }); e.state.nextId = 2;
+  e.request('haul', 'goods-1'); c.update(.01); h.arrive();
+  assert.equal(e.active()?.status, 'delivering'); assert.equal(e.state.goods[0].state, 'transit');
+  const before = h.starts(); h.occupyApproach(); h.blocked(true); c.update(.1);
+  assert.equal(h.starts(), before); assert.equal(e.state.goods[0].carrier, 'farmer');
+  assert.equal(e.state.inventory.wood, 8); assert.match(e.active()!.reason, /占用/);
+  h.blocked(false); c.update(2.1); assert.equal(h.starts(), before + 1);
+  assert.equal(e.state.tasks.length, 1); assert.equal(e.state.goods[0].state, 'transit');
+  h.arrive(); assert.equal(e.state.inventory.wood, 16); assert.equal(e.state.goods.length, 0);
 });
