@@ -98,6 +98,13 @@ test('shared merged geometry keeps each actor pose independent and templates int
     const b = batchSkinnedMeshes(actors[1].parts, shared)[0];
     assert.equal((a as typeof templates[0]).geometry, (b as typeof templates[0]).geometry);
     assert.notEqual(a.skeleton, b.skeleton);
+    for (const mesh of [a, b]) {
+      assert.equal(mesh.subMeshes.length, 1);
+      assert.equal(mesh.subMeshes[0].indexStart, 0);
+      assert.equal(mesh.subMeshes[0].indexCount, mesh.getTotalIndices(), 'every actor must draw the whole merged geometry');
+      assert.equal(mesh.subMeshes[0].verticesStart, 0);
+      assert.equal(mesh.subMeshes[0].verticesCount, mesh.getTotalVertices());
+    }
     actors[0].bone.setRotationQuaternion(Quaternion.RotationAxis(Vector3.Forward(), .8));
     actors.forEach(actor => actor.skeleton.prepare(true));
     assert.notDeepEqual(Array.from(a.getPositionData(true)!), Array.from(b.getPositionData(true)!));

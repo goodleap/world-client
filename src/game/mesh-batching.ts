@@ -26,7 +26,13 @@ export function batchSkinnedMeshes(meshes: readonly AbstractMesh[], sharedGeomet
     const [first, ...rest] = group;
     const geometryKey = group.map(mesh => mesh.geometry!.uniqueId).join(',');
     const shared = sharedGeometry?.get(geometryKey);
-    if (shared) shared.applyToMesh(first);
+    if (shared) {
+      // Geometry.applyToMesh preserves an existing submesh when its range
+      // fits, so a clone would draw only the first original part (e.g. the
+      // left eye). Let Babylon rebuild the range for the whole cached batch.
+      first.releaseSubMeshes();
+      shared.applyToMesh(first);
+    }
     else {
       const data = VertexData.ExtractFromMesh(first, true, true);
       data.merge(rest.map(mesh => VertexData.ExtractFromMesh(mesh, true, true)), true);

@@ -27,6 +27,13 @@ else {
 const asset = params.get('asset') || '/studies/base-human/base-human.glb';
 const role = params.get('role') as CharacterRole | null;
 const library = role ? createCharacterLibrary(scene) : undefined;
+// Exercise the same cached geometry path as the second farmer and the later
+// roles in the game, without another visible actor obscuring the comparison.
+if (library && params.has('warmup')) {
+  const warmup = await library.instantiate(params.get('warmup') as CharacterRole, new TransformNode('review-warmup', scene));
+  batchSkinnedMeshes(warmup.meshes, library.highBatches);
+  warmup.rootNodes.forEach(root => root.setEnabled(false));
+}
 const loaded = library ? await library.instantiate(role!, new TransformNode('review-actor', scene)) : await ImportMeshAsync(asset, scene);
 createCharacterMaterialSetup(scene)(loaded.meshes.map(mesh => mesh.material));
 const sources = batchSkinnedMeshes(loaded.meshes, library?.highBatches);
@@ -36,7 +43,10 @@ function mapLOD(enabled: boolean | 'far') {
   for (const { source, detail, far } of lod) {
     source.removeLODLevel(detail);
     if (far) source.removeLODLevel(far);
-    source.addLODLevel(enabled ? 1e6 : 0, enabled === 'far' ? far ?? detail : detail);
+    source.addLODLevel(enabled === true || enabled === 'far' && !far ? 1e6 : 0, detail);
+    // Keep every level registered: detached LOD meshes become independent
+    // scene meshes and can hide a missing part in the selected geometry.
+    if (far) source.addLODLevel(enabled === 'far' ? 1e6 : 0, far);
   }
   scene.render();
 }
