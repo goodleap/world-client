@@ -5,6 +5,7 @@ import type { Game } from './game/game.ts';
 import { Economy } from './game/economy.ts';
 import { readSavedGame } from './game/economy-storage.ts';
 import type { StartMode } from './launcher.ts';
+import { diagnosticContext } from './diagnostics.ts';
 
 declare global {
   interface Window { __DEMO__?: { snapshot: Game['snapshot'] } }
@@ -68,6 +69,11 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     ui = createUI(page);
     ui.bindLeave(leave);
     game = await createGame(ui, launcher.report, economy);
+    ui.bindDiagnostics(() => {
+      const state = game?.snapshot();
+      return { ...diagnosticContext(), performance: state?.performance, rendering: state?.rendering,
+        size: state?.size, camera: state?.camera, frames: state?.frames, suspended: state?.suspended };
+    });
     if (disposed) { game.dispose(); return; }
     if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {
       window.__DEMO__ = { snapshot: game.snapshot };

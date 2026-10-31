@@ -22,7 +22,14 @@
 
 * {
   box-sizing:border-box;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
 }
+
+/* Native scrolling and map pointer gestures remain enabled. Only the temporary
+   copy buffer needs selection; it is never an interactive page element. */
+.clipboard-buffer { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; -webkit-user-select:text; user-select:text; }
 
 body {
   margin:0;

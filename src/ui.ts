@@ -1,5 +1,6 @@
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
+import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
 
 export interface SelectionAction { id: string; label: string; disabled?: boolean }
 export interface SelectionDetails { name: string; kind: string; hint: string; actions?: SelectionAction[] }
@@ -78,6 +79,14 @@ export function createUI(app: HTMLElement) {
   const help = get<HTMLDialogElement>('help-dialog');
   const detail = get<HTMLDialogElement>('landmark-dialog');
   const settings = get<HTMLDialogElement>('settings-dialog');
+  const copy = document.createElement('button');
+  copy.id = 'copy-diagnostics'; copy.textContent = '复制诊断信息';
+  settings.querySelector('.system-actions')!.append(copy);
+  let diagnostics: () => unknown = diagnosticContext;
+  copy.addEventListener('click', async () => {
+    const ok = await copyDiagnostics(JSON.stringify(diagnostics(), null, 2), settings);
+    get('settings-notice').textContent = ok ? '诊断信息已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
+  });
   const dialogs = [settings, help, detail];
   const discovered = new Set<string>();
   const abort = new AbortController();
@@ -197,6 +206,7 @@ export function createUI(app: HTMLElement) {
     get paused() { return loading || dialogs.some(dialog => dialog.open); },
     bindPause(callback: () => void) { onPauseChange = callback; },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
+    bindDiagnostics(callback: () => unknown) { diagnostics = callback; },
     saveFailed() { get('settings-notice').textContent = '未能保存进度，请检查浏览器存储后重试。当前游戏已保留。'; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
