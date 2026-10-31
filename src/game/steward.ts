@@ -27,11 +27,10 @@ export function chooseCrop(e: Economy): CropKind {
   return committed('wheat') <= committed('carrot') ? 'wheat' : 'carrot';
 }
 export function createSteward(economy: Economy) {
-  let nextDecision = 0;
   return {
     update() {
-      if (economy.state.seconds < nextDecision) return;
-      nextDecision = economy.state.seconds + .5;
+      if (!economy.state.steward.enabled || economy.state.seconds < economy.state.steward.nextDecision) return;
+      economy.state.steward.nextDecision = economy.state.seconds + .5;
       for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) {
         economy.request('haul', goods.id, undefined, 'steward');
       }
@@ -58,4 +57,18 @@ export function createSteward(economy: Economy) {
       }
     },
   };
+}
+
+export function stewardStatus(e: Economy, manualFarmers = 0) {
+  if (!e.state.steward.enabled) return '自动经营已暂停';
+  const tasks = e.state.tasks.filter(pending);
+  const active = tasks.filter(t => ['working', 'travelling', 'delivering'].includes(t.status));
+  if (active.length) return `经营中 · ${active.length} 位农民作业${manualFarmers ? ' · 手动指令优先' : ''}`;
+  if (manualFarmers) return '等待农民完成手动指令';
+  if (e.state.goods.some(g => e.state.inventory[g.resource] >= C.capacity[g.resource])) return '等待仓库腾出空间';
+  const blocked = tasks.find(t => t.reason); if (blocked) return blocked.reason;
+  if (tasks.length) return '正在分配可执行作业';
+  if (e.state.plots.some(p => p.crop && p.growth < C.crops[p.crop].growthSeconds)) return '等待作物成熟';
+  if (expectedSupply(e, 'food') >= STEWARD_CONFIG.target.food) return '供应充足 · 等待库存消耗';
+  return '范围内暂无可执行作业';
 }

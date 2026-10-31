@@ -80,7 +80,7 @@ test('growth and working time follow active seconds independently of the frame r
 test('save/load retains partial work and crop growth without offline catch-up or duplicate settlement', () => {
   const e = new Economy(); e.request('harvest', 'plot-0'); const task = e.claim()!; e.arrive(task.id); e.advance(1.25);
   const restored = decodeEconomy(encodeEconomy(e));
-  assert.equal(restored.state.seconds, 0); assert.equal(restored.plot('plot-1')!.growth, 1.25);
+  assert.equal(restored.state.seconds, e.state.seconds); assert.equal(restored.plot('plot-1')!.growth, 1.25);
   assert.equal(restored.state.tasks[0].status, 'waiting'); assert.equal(restored.state.tasks[0].progress, 1.25);
   const resumed = restored.claim()!; restored.arrive(resumed.id); restored.advance(1.75);
   assert.equal(restored.state.inventory.food, 0);

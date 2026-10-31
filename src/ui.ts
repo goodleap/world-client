@@ -41,9 +41,10 @@ export function createUI(app: HTMLElement) {
       <div id="inventory" class="inventory"></div>
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
+    <p id="steward-status" class="steward-status" role="status"></p>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
-      <p class="queue-note">农民依次接取可执行的任务。缺少材料或暂时无法到达时，会先处理其他任务。</p>
+      <p class="queue-note">管家管理小屋周围 30 格，默认调度全部农民。手动指令优先，资源送到仓库才入库。</p>
       <ol id="queue-list"></ol>
     </section>
     <aside class="journey" aria-label="探索进度" hidden>
@@ -239,6 +240,7 @@ export function createUI(app: HTMLElement) {
     },
     ready() { loading = false; onPauseChange(); focusGame(); },
     bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
+    setSteward(text: string) { get('steward-status').textContent = text; },
     setResources(values: { name: string; amount: number; capacity: number; reserved: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
       get('inventory').replaceChildren(...values.map(value => {

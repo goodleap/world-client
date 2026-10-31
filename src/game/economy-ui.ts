@@ -41,12 +41,14 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
 }
 
 export function updateEconomyUI(ui: GameUI, economy: Economy) {
+  const ground = economy.state.goods.filter(g => g.state === 'ground').length, transit = economy.state.goods.filter(g => g.state === 'transit').length;
+  ui.setSteward(`管家：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
   const reserved = economy.reserved();
   ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: C.capacity[key], reserved: reserved[key] })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
     const plotIndex = FARM_PLOTS.findIndex(plot => plot.id === task.target);
-    const target = plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
+    const target = plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
     return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: STATUS_NAMES[task.status],
       progress: Math.floor(task.progress / C.workSeconds[task.kind] * 100), reason: task.reason,
       cancellable: pending(task) && task.status !== 'storage' };

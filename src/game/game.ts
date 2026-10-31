@@ -47,7 +47,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   let canSave = false;
   const save = () => {
     if (!canSave) return false;
-    try { localStorage.setItem(ECONOMY_SAVE_KEY, encodeEconomy(economy)); return true; }
+    try { economy.state.residents = residents.saveResidents(); localStorage.setItem(ECONOMY_SAVE_KEY, encodeEconomy(economy)); return true; }
     catch { if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
   };
   let world: ReturnType<typeof buildWorld>;
@@ -71,6 +71,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   } catch (error) {
     scene.dispose(); engine.dispose(); throw error;
   }
+  residents.restoreResidents(economy.state.residents);
   const controller = createEconomyController(economy, world, residents);
   const moveFeedback = createMoveFeedback(scene);
   const roundMarker = MeshBuilder.CreateLines('selected-object-ring', { points: Array.from({ length: 65 }, (_, i) =>

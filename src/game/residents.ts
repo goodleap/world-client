@@ -1,3 +1,5 @@
+import type { SavedResident } from './economy.ts';
+import { isBlocked } from './movement.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { Vector3, Matrix, Quaternion } from '@babylonjs/core/Maths/math.vector';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
@@ -236,6 +238,19 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       report?.(1);
     },
     farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
+    saveResidents: (): Record<string, SavedResident> => Object.fromEntries(actors.map(actor => [actor.definition.id, {
+      position: { ...actor.state.position }, manualGoal: !works.has(actor.definition.id) && actor.route.length ? { ...actor.route.at(-1)! } : undefined,
+    }])),
+    restoreResidents(saved: Record<string, SavedResident>) {
+      for (const actor of actors) {
+        const data = saved[actor.definition.id]; if (!data) continue;
+        if (!isBlocked(data.position, actor.settings.bodyRadius, obstaclesFor(actor.definition.role))) {
+          actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, 0, data.position.z);
+          actor.state.target = undefined;
+        }
+        if (data.manualGoal) actor.route = findPath(actor.state.position, data.manualGoal, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role)) ?? [];
+      }
+    },
     farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.root.position,
     sharedLibraryInfo: library.summary,
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,

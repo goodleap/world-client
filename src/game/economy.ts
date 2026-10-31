@@ -1,5 +1,5 @@
 import type { Point } from './movement.ts';
-import { WAREHOUSE_DOOR } from './world-data.ts';
+import { WAREHOUSE_DOOR, WORLD_BOUNDS } from './world-data.ts';
 import { BUILD_SITES, ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
 
 export type Resource = 'wood' | 'stone' | 'food';
@@ -14,7 +14,10 @@ export interface WorkTask {
   progress: number; reserved: boolean; reason: string; retryAt: number;
 }
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string }
+export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
+  residents: Record<string, SavedResident>;
+  steward: { enabled: boolean; nextDecision: number; reason: string };
   version: 2; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
@@ -33,7 +36,7 @@ function matchesTarget(kind: WorkKind, target: string) {
 
 export function initialEconomy(): EconomyState {
   return {
-    version: 2, goods: [], nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    version: 2, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ id: p.id, tilled: i < 3, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -241,10 +244,21 @@ export function decodeEconomy(text: string): Economy {
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k]) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || ![9, state.plots.length].includes(raw.plots.length) || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
   state.inventory = { ...raw.inventory };
+  state.seconds = number(raw.seconds, 1e12) ? raw.seconds : 0;
+  if (raw.steward) {
+    if (typeof raw.steward.enabled !== 'boolean' || !number(raw.steward.nextDecision, 1e12)) throw new Error('管家存档无效');
+    state.steward = { enabled: raw.steward.enabled, nextDecision: Math.min(raw.steward.nextDecision, state.seconds + .5), reason: '正在恢复经营' };
+  }
+  const validPoint = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && p.x >= WORLD_BOUNDS.minX && p.x <= WORLD_BOUNDS.maxX && p.z >= WORLD_BOUNDS.minZ && p.z <= WORLD_BOUNDS.maxZ;
+  if (raw.residents && typeof raw.residents === 'object') for (const [id, entry] of Object.entries(raw.residents)) {
+    if (!['farmer', 'farmer-2', 'infantry', 'archer', 'cavalry', 'dog', 'base-human'].includes(id)) continue;
+    if (!entry || !validPoint(entry.position) || entry.manualGoal && !validPoint(entry.manualGoal)) throw new Error('居民存档无效');
+    state.residents[id] = { position: { ...entry.position }, manualGoal: entry.manualGoal && { ...entry.manualGoal } };
+  }
   if (raw.version === 2) {
-    if (!Array.isArray(raw.goods) || raw.goods.some(g => !g || !/^goods-\d+$/.test(g.id) || !resources.includes(g.resource) || !Number.isSafeInteger(g.amount) || g.amount <= 0 || !Number.isFinite(g.x) || !Number.isFinite(g.z) || !['ground', 'transit'].includes(g.state))) throw new Error('运输存档无效');
+    if (!Array.isArray(raw.goods) || raw.goods.some(g => !g || !/^goods-\d+$/.test(g.id) || !resources.includes(g.resource) || !Number.isSafeInteger(g.amount) || g.amount <= 0 || !validPoint(g) || g.crop !== undefined && !Object.hasOwn(C.crops, g.crop) || !['ground', 'transit'].includes(g.state))) throw new Error('运输存档无效');
     if (new Set(raw.goods.map(g => g.id)).size !== raw.goods.length) throw new Error('重复产出');
-    state.goods = raw.goods.map(g => ({ ...g, state: 'ground', carrier: undefined }));
+    state.goods = raw.goods.map(g => ({ ...g }));
   }
   state.plots = state.plots.map(plot => {
     const value = raw.plots.find(p => p.id === plot.id);
@@ -256,20 +270,28 @@ export function decodeEconomy(text: string): Economy {
   if (!Array.isArray(raw.depleted) || !raw.depleted.every(id => RESOURCE_NODES.some(n => n.id === id))
     || !Array.isArray(raw.buildings) || !raw.buildings.every(id => BUILD_SITES.some(s => s.id === id))) throw new Error('地图存档无效');
   state.depleted = [...new Set(raw.depleted)]; state.buildings = [...new Set(raw.buildings)];
-  const ids = new Set<number>(), targets = new Set<string>();
+  const ids = new Set<number>(), targets = new Set<string>(), carriers = new Set<string>();
   for (const task of raw.tasks) {
     if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) || !Object.hasOwn(C.workSeconds, task.kind)
       || !Object.hasOwn(STATUS_NAMES, task.status) || !number(task.progress, C.workSeconds[task.kind])
       || !matchesTarget(task.kind, task.target)
       || task.kind === 'sow' && (task.crop === undefined || !Object.hasOwn(C.crops, task.crop))
       || task.status === 'storage' && (!['chop', 'mine', 'harvest'].includes(task.kind) || task.progress !== C.workSeconds[task.kind])) throw new Error('任务存档无效');
+    if (task.status === 'delivering') {
+      const goods = state.goods.find(g => g.id === task.target);
+      if (task.kind !== 'haul' || !task.worker || !['farmer', 'farmer-2'].includes(task.worker) || carriers.has(task.worker)
+        || !goods || goods.state !== 'transit' || goods.carrier !== task.worker) throw new Error('运输任务不一致');
+      carriers.add(task.worker);
+    }
     ids.add(task.id);
     if (pending(task)) { if (targets.has(task.target)) throw new Error('重复目标'); targets.add(task.target); }
     state.tasks.push({ id: task.id, kind: task.kind, target: task.target, crop: task.crop,
-      status: task.status === 'travelling' || task.status === 'working' || task.status === 'delivering' ? 'waiting' : task.status,
-      origin: task.origin === 'steward' ? 'steward' : 'manual', progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: 0 });
+      status: task.status === 'travelling' || task.status === 'working' ? 'waiting' : task.status,
+      worker: task.status === 'delivering' ? task.worker : undefined,
+      origin: task.origin === 'steward' ? 'steward' : 'manual', progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: number(task.retryAt, 1e12) ? task.retryAt : 0 });
   }
-  state.nextId = Math.max(0, ...ids) + 1;
+  for (const goods of state.goods) if (goods.state === 'transit' && !state.tasks.some(t => t.status === 'delivering' && t.target === goods.id && t.worker === goods.carrier)) throw new Error('在途资源缺少运输任务');
+  state.nextId = Math.max(0, ...ids, ...state.goods.map(g => Number(g.id.slice(6))), Number.isSafeInteger(raw.nextId) ? raw.nextId - 1 : 0) + 1;
   // Re-establish reservations deterministically from actual inventory on resume.
   const economy = new Economy(state);
   for (const task of state.tasks) if (pending(task)) {

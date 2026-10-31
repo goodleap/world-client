@@ -4,7 +4,7 @@ import type { createResidents } from './residents.ts';
 import type { createEconomyWorld } from './economy-world.ts';
 import type { CropKind, WorkKind } from './economy.ts';
 import type { Point } from './movement.ts';
-import { createSteward, inStewardRange } from './steward.ts';
+import { createSteward, inStewardRange, stewardStatus } from './steward.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
 type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
@@ -49,6 +49,12 @@ export function createEconomyController(economy: Economy, world: World, resident
     for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) economy.request('haul', goods.id, undefined, 'steward');
     for (const id of residents.farmerIds()) {
       const assigned = residents.farmerWorkState(id), active = economy.active(id);
+      if (!assigned && active?.status === 'delivering') {
+        const destination = world.workPoints('warehouse')!;
+        const path = residents.planFarmerWork(destination.points, id);
+        if (path) residents.startFarmerWork(active.id, path, destination.target, id);
+        else economy.defer(active.id, '仓库暂时无法到达', residents.farmerPosition(id));
+      }
       if (assigned && assigned.id !== active?.id) residents.releaseFarmerWork(id);
       else if (assigned?.status === 'blocked') {
         economy.defer(assigned.id, '暂时无法到达，稍后重试', residents.farmerPosition(id)); residents.releaseFarmerWork(id);
@@ -72,6 +78,7 @@ export function createEconomyController(economy: Economy, world: World, resident
         economy.defer(task.id, '暂时无法到达，稍后重试');
       }
     }
+    economy.state.steward.reason = stewardStatus(economy, residents.farmerIds().filter(id => residents.hasMoveCommand(id)).length);
   }
   return { update, command };
 }
