@@ -53,6 +53,36 @@ def main():
         assert len(target.g['skins'][1]['joints']) == 17
     assert not lod.g.get('animations')
 
+    # Far LOD is a vertex subset of the maintained medium asset. In particular,
+    # simplification must never re-export/reindex the rig or recompute weights.
+    far = Asset('studies/characters/characters-far-lod.glb')
+    report = json.loads((ROOT / 'studies/characters/far-lod.json').read_text())
+    assert report['sourceSha256'] == digest(lod.raw)
+    assert report['farSha256'] == digest(far.raw)
+    assert not far.g.get('animations') and far.g['materials'] == lod.g['materials']
+    assert len(far.g['skins']) == len(lod.g['skins']) == 2
+    for a, b in zip(lod.g['skins'], far.g['skins']):
+        assert a['joints'] == b['joints']
+        assert lod.accessor(a['inverseBindMatrices']) == far.accessor(b['inverseBindMatrices'])
+    assert len(lod.g['nodes']) == len(far.g['nodes'])
+    for a, b in zip(lod.g['nodes'], far.g['nodes']):
+        if 'mesh' not in a:
+            assert a == b
+    def vertex_records(asset, primitive):
+        count = asset.g['accessors'][primitive['attributes']['POSITION']]['count']
+        buffers = [asset.accessor(i) for i in primitive['attributes'].values()]
+        return {b''.join(data[j * (len(data) // count):(j + 1) * (len(data) // count)]
+            for data in buffers) for j in range(count)}
+    assert len(list(lod.parts())) == len(list(far.parts()))
+    for (a, original), (b, reduced) in zip(lod.parts(), far.parts()):
+        assert a['name'] == b['name'] and a['skin'] == b['skin']
+        assert a['extras']['partId'] == b['extras']['partId']
+        assert original['material'] == reduced['material']
+        assert list(original['attributes']) == list(reduced['attributes'])
+        assert vertex_records(far, reduced) <= vertex_records(lod, original), a['name']
+        assert 0 < far.g['accessors'][reduced['indices']]['count'] <= lod.g['accessors'][original['indices']]['count']
+    print(f'PASS: {len(list(far.parts()))} far LOD parts retain original vertex attributes, materials and both rigs.')
+
     comparisons = [('base', name, name, False) for name in ('Walk', 'Run')]
     comparisons += [('farmer', name, name, False) for name in ('Walk', 'Run', 'Hammer')]
     comparisons += [(role, name, 'Carry' + name, False) for role in ('infantry', 'archer') for name in ('Walk', 'Run')]

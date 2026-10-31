@@ -1,0 +1,1454 @@
+{
+  "source": "characters-lod.glb",
+  "sourceSha256": "212eff7cbd31963264bbfd7391b8c9ad9bbebb4f61205bdbb6f7e1236e1cec87",
+  "farSha256": "4d017ebf57621469f8139a59e6bdc7cda4f62586b66913fdd607607ba7cb7165",
+  "generator": "world-client far LOD / meshoptimizer 1.3.0",
+  "maximumError": 0.007889614440500736,
+  "sourceTriangles": 264210,
+  "farTriangles": 124146,
+  "sourceBytes": 6673980,
+  "farBytes": 3175068,
+  "retainedAttributes": "byte-identical original vertices; all blended vertices and bone boundaries locked",
+  "parts": [
+    {
+      "part": "part-000",
+      "name": "Brow.L",
+      "sourceTriangles": 342,
+      "farTriangles": 342,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-001",
+      "name": "Brow.R",
+      "sourceTriangles": 342,
+      "farTriangles": 342,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-002",
+      "name": "Continuous arm and fist.L",
+      "sourceTriangles": 4400,
+      "farTriangles": 3046,
+      "error": 0.007733703590929508,
+      "lockedVertices": 1511
+    },
+    {
+      "part": "part-003",
+      "name": "Continuous arm and fist.R",
+      "sourceTriangles": 4400,
+      "farTriangles": 3022,
+      "error": 0.007421914022415876,
+      "lockedVertices": 1499
+    },
+    {
+      "part": "part-004",
+      "name": "Continuous leg and foot.L",
+      "sourceTriangles": 4400,
+      "farTriangles": 1482,
+      "error": 0.007656808942556381,
+      "lockedVertices": 685
+    },
+    {
+      "part": "part-005",
+      "name": "Continuous leg and foot.R",
+      "sourceTriangles": 4400,
+      "farTriangles": 1486,
+      "error": 0.007883227430284023,
+      "lockedVertices": 689
+    },
+    {
+      "part": "part-006",
+      "name": "Ear.L",
+      "sourceTriangles": 1582,
+      "farTriangles": 348,
+      "error": 0.002512310864403844,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-007",
+      "name": "Ear.R",
+      "sourceTriangles": 1582,
+      "farTriangles": 348,
+      "error": 0.0026352317072451115,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-008",
+      "name": "Eye glint.L",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-009",
+      "name": "Eye glint.R",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-010",
+      "name": "Eye iris.L",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-011",
+      "name": "Eye iris.R",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-012",
+      "name": "Eye white.L",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-013",
+      "name": "Eye white.R",
+      "sourceTriangles": 322,
+      "farTriangles": 322,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-014",
+      "name": "Head • shaped cranium cheeks and jaw",
+      "sourceTriangles": 12272,
+      "farTriangles": 2698,
+      "error": 0.001299035269767046,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-015",
+      "name": "Neck",
+      "sourceTriangles": 654,
+      "farTriangles": 398,
+      "error": 0.007859116420149803,
+      "lockedVertices": 196
+    },
+    {
+      "part": "part-016",
+      "name": "Neck binding",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-017",
+      "name": "Shirt hem piping",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 275
+    },
+    {
+      "part": "part-018",
+      "name": "Short hem.L",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 64
+    },
+    {
+      "part": "part-019",
+      "name": "Short hem.R",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 100
+    },
+    {
+      "part": "part-020",
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 3962,
+      "farTriangles": 3030,
+      "error": 0.007703070063143969,
+      "lockedVertices": 1487
+    },
+    {
+      "part": "part-021",
+      "name": "Small rounded nose",
+      "sourceTriangles": 654,
+      "farTriangles": 142,
+      "error": 0.0017412734450772405,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-022",
+      "name": "Smile",
+      "sourceTriangles": 510,
+      "farTriangles": 510,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-023",
+      "name": "Subtle open smile",
+      "sourceTriangles": 128,
+      "farTriangles": 128,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-024",
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 3982,
+      "farTriangles": 3284,
+      "error": 0.007883233018219471,
+      "lockedVertices": 1695
+    },
+    {
+      "part": "part-025",
+      "name": "Torso skin",
+      "sourceTriangles": 702,
+      "farTriangles": 478,
+      "error": 0.00786184798926115,
+      "lockedVertices": 203
+    },
+    {
+      "part": "part-026",
+      "name": "Apron • curved skirt",
+      "sourceTriangles": 2800,
+      "farTriangles": 2238,
+      "error": 0.003818655153736472,
+      "lockedVertices": 1120
+    },
+    {
+      "part": "part-027",
+      "name": "Apron • fitted bib",
+      "sourceTriangles": 2800,
+      "farTriangles": 2008,
+      "error": 0.007760314736515284,
+      "lockedVertices": 1002
+    },
+    {
+      "part": "part-028",
+      "name": "Belt buckle",
+      "sourceTriangles": 424,
+      "farTriangles": 424,
+      "error": 0,
+      "lockedVertices": 252
+    },
+    {
+      "part": "part-029",
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 1576,
+      "farTriangles": 1576,
+      "error": 0,
+      "lockedVertices": 788
+    },
+    {
+      "part": "part-030",
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 42
+    },
+    {
+      "part": "part-031",
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 40
+    },
+    {
+      "part": "part-032",
+      "name": "Boot sole.L",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.0013336800038814545,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-033",
+      "name": "Boot sole.R",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.0013492839643731713,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-034",
+      "name": "Boot.L",
+      "sourceTriangles": 3378,
+      "farTriangles": 1368,
+      "error": 0.007518325932323933,
+      "lockedVertices": 649
+    },
+    {
+      "part": "part-035",
+      "name": "Boot.R",
+      "sourceTriangles": 3378,
+      "farTriangles": 1380,
+      "error": 0.007878187112510204,
+      "lockedVertices": 656
+    },
+    {
+      "part": "part-036",
+      "name": "Brass suspender rivet",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-037",
+      "name": "Brass suspender rivet.001",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 225
+    },
+    {
+      "part": "part-038",
+      "name": "Brass suspender rivet.002",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-039",
+      "name": "Brass suspender rivet.003",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 224
+    },
+    {
+      "part": "part-040",
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0011486131697893143,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-041",
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0013307778863236308,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-042",
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0012043309397995472,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-043",
+      "name": "Hair • wrapped scalp",
+      "sourceTriangles": 4616,
+      "farTriangles": 1014,
+      "error": 0.004404726903885603,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-044",
+      "name": "Hammer • rounded steel head",
+      "sourceTriangles": 300,
+      "farTriangles": 300,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-045",
+      "name": "Hammer • wooden handle",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-046",
+      "name": "Headwrap knot",
+      "sourceTriangles": 1840,
+      "farTriangles": 404,
+      "error": 0.001692502642981708,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-047",
+      "name": "Headwrap • complete folded crown",
+      "sourceTriangles": 22524,
+      "farTriangles": 4954,
+      "error": 0.000977741670794785,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-048",
+      "name": "Linen tie.-1",
+      "sourceTriangles": 2026,
+      "farTriangles": 444,
+      "error": 0.0007934694294817746,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-049",
+      "name": "Linen tie.1",
+      "sourceTriangles": 2026,
+      "farTriangles": 444,
+      "error": 0.000844906666316092,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-050",
+      "name": "Neck binding",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-051",
+      "name": "Shirt hem piping",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 275
+    },
+    {
+      "part": "part-052",
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 3962,
+      "farTriangles": 3030,
+      "error": 0.007703070063143969,
+      "lockedVertices": 1487
+    },
+    {
+      "part": "part-053",
+      "name": "Suspender.-1",
+      "sourceTriangles": 644,
+      "farTriangles": 370,
+      "error": 0.006848878227174282,
+      "lockedVertices": 186
+    },
+    {
+      "part": "part-054",
+      "name": "Suspender.1",
+      "sourceTriangles": 644,
+      "farTriangles": 386,
+      "error": 0.006681148894131184,
+      "lockedVertices": 194
+    },
+    {
+      "part": "part-055",
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 3982,
+      "farTriangles": 3284,
+      "error": 0.007883233018219471,
+      "lockedVertices": 1695
+    },
+    {
+      "part": "part-056",
+      "name": "Tool pouch.L",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-057",
+      "name": "Tool pouch.R",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-058",
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 2026,
+      "farTriangles": 2026,
+      "error": 0,
+      "lockedVertices": 1015
+    },
+    {
+      "part": "part-059",
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 2026,
+      "farTriangles": 2026,
+      "error": 0,
+      "lockedVertices": 1015
+    },
+    {
+      "part": "part-060",
+      "name": "Belt • wrapped waist",
+      "sourceTriangles": 1182,
+      "farTriangles": 1182,
+      "error": 0,
+      "lockedVertices": 591
+    },
+    {
+      "part": "part-061",
+      "name": "Blue collar.-1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 42
+    },
+    {
+      "part": "part-062",
+      "name": "Blue collar.1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 40
+    },
+    {
+      "part": "part-063",
+      "name": "Boot sole.L",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.0013336800038814545,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-064",
+      "name": "Boot sole.R",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.0013492839643731713,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-065",
+      "name": "Boot.L",
+      "sourceTriangles": 3378,
+      "farTriangles": 1368,
+      "error": 0.007518325932323933,
+      "lockedVertices": 649
+    },
+    {
+      "part": "part-066",
+      "name": "Boot.R",
+      "sourceTriangles": 3378,
+      "farTriangles": 1380,
+      "error": 0.007878187112510204,
+      "lockedVertices": 656
+    },
+    {
+      "part": "part-067",
+      "name": "Brass belt buckle",
+      "sourceTriangles": 424,
+      "farTriangles": 424,
+      "error": 0,
+      "lockedVertices": 254
+    },
+    {
+      "part": "part-068",
+      "name": "Hair • fitted scalp",
+      "sourceTriangles": 3124,
+      "farTriangles": 686,
+      "error": 0.006525936536490917,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-069",
+      "name": "Hair • swept fringe 0",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0011973365908488631,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-070",
+      "name": "Hair • swept fringe 1",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0012901551090180874,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-071",
+      "name": "Hair • swept fringe 2",
+      "sourceTriangles": 1766,
+      "farTriangles": 388,
+      "error": 0.0011395300971344113,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-072",
+      "name": "Helmet front rivet",
+      "sourceTriangles": 644,
+      "farTriangles": 140,
+      "error": 0.001040048897266388,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-073",
+      "name": "Helmet • broad joined reinforcement",
+      "sourceTriangles": 18690,
+      "farTriangles": 4110,
+      "error": 0.0010733529925346375,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-074",
+      "name": "Helmet • curled blue plume",
+      "sourceTriangles": 2328,
+      "farTriangles": 512,
+      "error": 0.001984781352803111,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-075",
+      "name": "Helmet • rounded steel crown",
+      "sourceTriangles": 4970,
+      "farTriangles": 1092,
+      "error": 0.0039079319685697556,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-076",
+      "name": "Leather shoulder strap.-1",
+      "sourceTriangles": 644,
+      "farTriangles": 370,
+      "error": 0.006318903528153896,
+      "lockedVertices": 186
+    },
+    {
+      "part": "part-077",
+      "name": "Leather shoulder strap.1",
+      "sourceTriangles": 644,
+      "farTriangles": 384,
+      "error": 0.006497255992144346,
+      "lockedVertices": 192
+    },
+    {
+      "part": "part-078",
+      "name": "Leather vest • rounded belly",
+      "sourceTriangles": 2800,
+      "farTriangles": 2642,
+      "error": 0.007858471013605595,
+      "lockedVertices": 1315
+    },
+    {
+      "part": "part-079",
+      "name": "Neck binding",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-080",
+      "name": "Shield • central boss",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-081",
+      "name": "Shield • convex blue face",
+      "sourceTriangles": 336,
+      "farTriangles": 336,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-082",
+      "name": "Shield • metal brace 0",
+      "sourceTriangles": 848,
+      "farTriangles": 186,
+      "error": 0.000884627690538764,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-083",
+      "name": "Shield • metal brace 2",
+      "sourceTriangles": 848,
+      "farTriangles": 186,
+      "error": 0.0008240585448220372,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-084",
+      "name": "Shield • steel rim",
+      "sourceTriangles": 2536,
+      "farTriangles": 556,
+      "error": 0.0025554178282618523,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-085",
+      "name": "Shirt hem piping",
+      "sourceTriangles": 438,
+      "farTriangles": 438,
+      "error": 0,
+      "lockedVertices": 275
+    },
+    {
+      "part": "part-086",
+      "name": "Shorts • shaped hip and separate legs",
+      "sourceTriangles": 3962,
+      "farTriangles": 3030,
+      "error": 0.007703070063143969,
+      "lockedVertices": 1487
+    },
+    {
+      "part": "part-087",
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-088",
+      "name": "Strap rivet.1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-089",
+      "name": "Sword • brass pommel",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-090",
+      "name": "Sword • broad steel blade",
+      "sourceTriangles": 156,
+      "farTriangles": 156,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-091",
+      "name": "Sword • leather grip",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-092",
+      "name": "Sword • rounded crossguard",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-093",
+      "name": "T-shirt • connected shoulders",
+      "sourceTriangles": 3982,
+      "farTriangles": 3284,
+      "error": 0.007883233018219471,
+      "lockedVertices": 1695
+    },
+    {
+      "part": "part-094",
+      "name": "Trouser cuff.L",
+      "sourceTriangles": 2026,
+      "farTriangles": 2026,
+      "error": 0,
+      "lockedVertices": 1015
+    },
+    {
+      "part": "part-095",
+      "name": "Trouser cuff.R",
+      "sourceTriangles": 2026,
+      "farTriangles": 2026,
+      "error": 0,
+      "lockedVertices": 1015
+    },
+    {
+      "part": "part-096",
+      "name": "Bow grip binding -0.062",
+      "sourceTriangles": 1270,
+      "farTriangles": 278,
+      "error": 0.0008726684027351439,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-097",
+      "name": "Bow grip binding 0.062",
+      "sourceTriangles": 1270,
+      "farTriangles": 278,
+      "error": 0.0008553079096600413,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-098",
+      "name": "Bow • continuous curved wooden limbs",
+      "sourceTriangles": 1688,
+      "farTriangles": 370,
+      "error": 0.0012315510539337993,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-099",
+      "name": "Bow • leather grip",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-100",
+      "name": "Bow • taut linen string",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-101",
+      "name": "Held arrow • ivory feathers.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-102",
+      "name": "Held arrow • ivory feathers.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-103",
+      "name": "Held arrow • ivory feathers.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-104",
+      "name": "Held arrow • steel point",
+      "sourceTriangles": 188,
+      "farTriangles": 188,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-105",
+      "name": "Held arrow • wooden shaft",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-106",
+      "name": "Helmet front rivet",
+      "sourceTriangles": 644,
+      "farTriangles": 140,
+      "error": 0.0010400863830000162,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-107",
+      "name": "Quiver arrow shaft 0",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-108",
+      "name": "Quiver arrow shaft 1",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-109",
+      "name": "Quiver arrow shaft 2",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-110",
+      "name": "Quiver arrow shaft 3",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-111",
+      "name": "Quiver arrow shaft 4",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-112",
+      "name": "Quiver ivory feathers 0.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-113",
+      "name": "Quiver ivory feathers 0.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-114",
+      "name": "Quiver ivory feathers 0.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-115",
+      "name": "Quiver ivory feathers 1.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-116",
+      "name": "Quiver ivory feathers 1.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-117",
+      "name": "Quiver ivory feathers 1.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-118",
+      "name": "Quiver ivory feathers 2.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-119",
+      "name": "Quiver ivory feathers 2.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-120",
+      "name": "Quiver ivory feathers 2.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-121",
+      "name": "Quiver ivory feathers 3.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-122",
+      "name": "Quiver ivory feathers 3.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-123",
+      "name": "Quiver ivory feathers 3.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-124",
+      "name": "Quiver ivory feathers 4.0",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-125",
+      "name": "Quiver ivory feathers 4.1",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-126",
+      "name": "Quiver ivory feathers 4.2",
+      "sourceTriangles": 32,
+      "farTriangles": 32,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-127",
+      "name": "Quiver • back harness",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-128",
+      "name": "Quiver • brass fastening",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-129",
+      "name": "Quiver • fitted diagonal shoulder strap",
+      "sourceTriangles": 388,
+      "farTriangles": 388,
+      "error": 0,
+      "lockedVertices": 91
+    },
+    {
+      "part": "part-130",
+      "name": "Quiver • leather band 0.055",
+      "sourceTriangles": 562,
+      "farTriangles": 562,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-131",
+      "name": "Quiver • leather band 0.515",
+      "sourceTriangles": 562,
+      "farTriangles": 562,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-132",
+      "name": "Quiver • rounded hollow leather shell",
+      "sourceTriangles": 468,
+      "farTriangles": 468,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-133",
+      "name": "Quiver • rounded hollow leather shell",
+      "sourceTriangles": 376,
+      "farTriangles": 376,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-134",
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-135",
+      "name": "Strap rivet.1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-136",
+      "name": "Helmet front rivet",
+      "sourceTriangles": 644,
+      "farTriangles": 140,
+      "error": 0.001015665358863771,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-137",
+      "name": "Hoof.FL",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.002331983996555209,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-138",
+      "name": "Hoof.FR",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.002338472753763199,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-139",
+      "name": "Hoof.HL",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.0023735100403428078,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-140",
+      "name": "Hoof.HR",
+      "sourceTriangles": 1576,
+      "farTriangles": 346,
+      "error": 0.002338419435545802,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-141",
+      "name": "Horse bit ring.-1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-142",
+      "name": "Horse bit ring.1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-143",
+      "name": "Horse brow band",
+      "sourceTriangles": 976,
+      "farTriangles": 214,
+      "error": 0.0019354121759533882,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-144",
+      "name": "Horse cheek strap.-1",
+      "sourceTriangles": 736,
+      "farTriangles": 160,
+      "error": 0.003240397199988365,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-145",
+      "name": "Horse cheek strap.1",
+      "sourceTriangles": 736,
+      "farTriangles": 160,
+      "error": 0.0032419522758573294,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-146",
+      "name": "Horse ear.-1",
+      "sourceTriangles": 2026,
+      "farTriangles": 444,
+      "error": 0.0015199052868410945,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-147",
+      "name": "Horse ear.1",
+      "sourceTriangles": 2026,
+      "farTriangles": 444,
+      "error": 0.0015140469186007977,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-148",
+      "name": "Horse eye glint.-1",
+      "sourceTriangles": 814,
+      "farTriangles": 178,
+      "error": 0.00006152137939352542,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-149",
+      "name": "Horse eye glint.1",
+      "sourceTriangles": 814,
+      "farTriangles": 178,
+      "error": 0.00005819118086947128,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-150",
+      "name": "Horse eye.-1",
+      "sourceTriangles": 814,
+      "farTriangles": 178,
+      "error": 0.00023736312869004905,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-151",
+      "name": "Horse eye.1",
+      "sourceTriangles": 814,
+      "farTriangles": 178,
+      "error": 0.00023981506819836795,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-152",
+      "name": "Horse inner ear.-1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-153",
+      "name": "Horse inner ear.1",
+      "sourceTriangles": 96,
+      "farTriangles": 96,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-154",
+      "name": "Horse muzzle smile",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-155",
+      "name": "Horse noseband",
+      "sourceTriangles": 976,
+      "farTriangles": 214,
+      "error": 0.0020030697342008352,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-156",
+      "name": "Horse nostril.-1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-157",
+      "name": "Horse nostril.1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-158",
+      "name": "Horse • continuous body neck head and legs",
+      "sourceTriangles": 19820,
+      "farTriangles": 12966,
+      "error": 0.007889614440500736,
+      "lockedVertices": 6306
+    },
+    {
+      "part": "part-159",
+      "name": "Horse • continuous flowing tail",
+      "sourceTriangles": 1238,
+      "farTriangles": 272,
+      "error": 0.005991934798657894,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-160",
+      "name": "Horse • flowing mane",
+      "sourceTriangles": 1238,
+      "farTriangles": 272,
+      "error": 0.004062596242874861,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-161",
+      "name": "Horse • swept forelock 0",
+      "sourceTriangles": 788,
+      "farTriangles": 172,
+      "error": 0.003804069710895419,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-162",
+      "name": "Horse • swept forelock 1",
+      "sourceTriangles": 788,
+      "farTriangles": 172,
+      "error": 0.0036477434914559126,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-163",
+      "name": "Lance • leaf steel point",
+      "sourceTriangles": 92,
+      "farTriangles": 92,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-164",
+      "name": "Lance • steel socket",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-165",
+      "name": "Lance • wooden shaft",
+      "sourceTriangles": 496,
+      "farTriangles": 496,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-166",
+      "name": "Rein • far hand",
+      "sourceTriangles": 976,
+      "farTriangles": 214,
+      "error": 0.002195425797253847,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-167",
+      "name": "Rein • near hand",
+      "sourceTriangles": 736,
+      "farTriangles": 160,
+      "error": 0.0013026843080297112,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-168",
+      "name": "Rider stirrup.L",
+      "sourceTriangles": 266,
+      "farTriangles": 266,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-169",
+      "name": "Rider stirrup.R",
+      "sourceTriangles": 266,
+      "farTriangles": 266,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-170",
+      "name": "Rider • curved blue cape",
+      "sourceTriangles": 2800,
+      "farTriangles": 616,
+      "error": 0.0010061924112960696,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-171",
+      "name": "Saddle stirrup strap.L",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-172",
+      "name": "Saddle stirrup strap.R",
+      "sourceTriangles": 256,
+      "farTriangles": 256,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-173",
+      "name": "Saddle • belly girth",
+      "sourceTriangles": 1152,
+      "farTriangles": 252,
+      "error": 0.002462222473695874,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-174",
+      "name": "Saddle • blue fitted blanket",
+      "sourceTriangles": 3490,
+      "farTriangles": 766,
+      "error": 0.0015839624684304,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-175",
+      "name": "Saddle • curved leather seat",
+      "sourceTriangles": 3490,
+      "farTriangles": 766,
+      "error": 0.0007519593345932662,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-176",
+      "name": "Saddle • rounded cantle",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-177",
+      "name": "Saddle • rounded pommel",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-178",
+      "name": "Strap rivet.-1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    },
+    {
+      "part": "part-179",
+      "name": "Strap rivet.1",
+      "sourceTriangles": 404,
+      "farTriangles": 404,
+      "error": 0,
+      "lockedVertices": 0
+    }
+  ]
+}

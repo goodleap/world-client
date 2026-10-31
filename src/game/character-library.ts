@@ -24,8 +24,8 @@ const parts: Record<string, { name: string; horse: boolean }> = catalog.parts;
 export function createCharacterLibrary(scene: Scene) {
   const containers: AssetContainer[] = [];
   const highBatches = new Map<string, Geometry>();
-  const lowBatches = new Map<string, Geometry>();
-  let templates: Promise<{ high: AssetContainer; low: AssetContainer }> | undefined;
+  const lowBatches = new Map<string, { detail: Geometry; far: Geometry }>();
+  let templates: Promise<{ high: AssetContainer; low: AssetContainer; far: AssetContainer }> | undefined;
   const prepareMaterials = createCharacterMaterialSetup(scene);
   let instanceCount = 0;
   let humanActions: string[] = [];
@@ -52,10 +52,10 @@ export function createCharacterLibrary(scene: Scene) {
       }
       return container;
     };
-    const [high, low] = await Promise.all([loadOne(modelAssets.characters), loadOne(modelAssets.characterLOD)]);
+    const [high, low, far] = await Promise.all([loadOne(modelAssets.characters), loadOne(modelAssets.characterLOD), loadOne(modelAssets.characterFarLOD)]);
     prepareMaterials(high.materials);
     humanActions = high.animationGroups.filter(group => !group.name.startsWith('Horse')).map(group => group.name);
-    return { high, low };
+    return { high, low, far };
   })();
 
   return {
@@ -93,8 +93,8 @@ export function createCharacterLibrary(scene: Scene) {
         idle: config.mounted ? clip('RideIdle') : undefined };
     },
     async attachLOD(sources: readonly AbstractMesh[]): Promise<CharacterLOD[]> {
-      const { low } = await load();
-      const templates = new Map(low.meshes.map(mesh => [mesh.metadata?.sharedParts?.[0], mesh]));
+      const { low, far } = await load();
+      const levels = [low, far].map(container => new Map(container.meshes.map(mesh => [mesh.metadata?.sharedParts?.[0], mesh])));
       const attached: CharacterLOD[] = [];
       for (const source of sources) {
         if (!(source instanceof Mesh) || !source.skeleton || !source.getTotalVertices()) continue;
@@ -103,22 +103,25 @@ export function createCharacterLibrary(scene: Scene) {
         const key = ids.join(',');
         let geometry = lowBatches.get(key);
         if (!geometry) {
-          const data = ids.map(id => {
-            const mesh = templates.get(id);
-            if (!(mesh instanceof Mesh) || mesh.material?.name !== source.material?.name ||
-              mesh.numBoneInfluencers !== source.numBoneInfluencers ||
-              mesh.skeleton?.bones.map(bone => bone.name).join('|') !== source.skeleton!.bones.map(bone => bone.name).join('|')) {
-              throw new Error(`LOD 蒙皮或材质不匹配：${id}`);
-            }
-            return VertexData.ExtractFromMesh(mesh, true, true);
+          const data = levels.map(templates => {
+            const parts = ids.map(id => {
+              const mesh = templates.get(id);
+              if (!(mesh instanceof Mesh) || mesh.material?.name !== source.material?.name ||
+                mesh.numBoneInfluencers !== source.numBoneInfluencers ||
+                mesh.skeleton?.bones.map(bone => bone.name).join('|') !== source.skeleton!.bones.map(bone => bone.name).join('|')) {
+                throw new Error(`LOD 蒙皮或材质不匹配：${id}`);
+              }
+              return VertexData.ExtractFromMesh(mesh, true, true);
+            });
+            const [first, ...rest] = parts;
+            if (rest.length) first.merge(rest, true);
+            return first;
           });
-          const [first, ...rest] = data;
-          if (rest.length) first.merge(rest, true);
-          const pair = attachMeshLOD(source, first);
-          geometry = pair.detail.geometry!;
+          const pair = attachMeshLOD(source, data[0], data[1]);
+          geometry = { detail: pair.detail.geometry!, far: pair.far!.geometry! };
           lowBatches.set(key, geometry);
           attached.push(pair);
-        } else attached.push(attachMeshLOD(source, geometry));
+        } else attached.push(attachMeshLOD(source, geometry.detail, geometry.far));
       }
       return attached;
     },

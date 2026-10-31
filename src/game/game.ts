@@ -231,6 +231,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const resize = () => {
     engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 1.5));
     engine.resize(); applyProjection();
+    requestRender();
   };
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(ui.canvas);
@@ -240,10 +241,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     if (event.code === 'Escape' && !ui.paused && !suspended) { placement.cancel(); clearSelection(); }
   }, { signal: lifecycle.signal });
   ui.bindPause(() => {
+    if (disposed) return;
     if (ui.paused) placement.cancel();
     input.reset(); freshFrame = true;
     scene.resetLastAnimationTimeFrame();
-    if (!disposed) refreshEconomy();
+    metrics.reset(); ui.setPerformance(); engine.performanceMonitor.reset();
+    refreshEconomy(); requestRender();
   });
   ui.bind('reset', () => {
     mapCenter.set(GRID_SIZE, 0.5, -2); setPreview();
@@ -251,7 +254,13 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
-  const render = () => {
+  // Babylon owns scheduling. A paused panel needs one final frame (for example
+  // to clear a building preview), then no animation, culling or GPU submissions.
+  // Resizes/context restoration invalidate that retained image once.
+  function requestRender() {
+    if (!disposed && !suspended) engine.runRenderLoop(render);
+  }
+  function render() {
     if (disposed || suspended) return;
     const cpuStart = performance.now();
     const resuming = freshFrame;
@@ -322,7 +331,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       ui.setPerformance(sample);
       performanceDiagnostics.record(sample, metrics.cadence, currentZoom, ui.paused, residents.lodSummary());
     }
-  };
+    if (canSave && ui.paused) engine.stopRenderLoop(render);
+  }
+  const contextRestored = engine.onContextRestoredObservable.add(requestRender);
   const reconcileVisibility = () => {
     const next = document.hidden || pageHidden || focusLost;
     if (disposed || next === suspended) return;
@@ -336,7 +347,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       freshFrame = true;
       metrics.reset(); ui.setPerformance();
       engine.performanceMonitor.reset();
-      engine.runRenderLoop(render);
+      requestRender();
     }
   };
   const lifecycleOptions = { signal: lifecycle.signal };
@@ -365,7 +376,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   canSave = true;
   return {
     save,
-    performanceReport: performanceDiagnostics.snapshot,
+    performanceReport: () => ({ ...performanceDiagnostics.snapshot(), paused: ui.paused, suspended, renderedFrames }),
     markPerformance: performanceDiagnostics.mark,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
@@ -422,6 +433,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     dispose() {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
+      engine.onContextRestoredObservable.remove(contextRestored);
       placement.dispose(); selectionFeedback.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };

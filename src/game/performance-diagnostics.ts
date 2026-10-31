@@ -32,7 +32,7 @@ export function createPerformanceDiagnostics(engine: Engine, scene: Scene, shado
   const read = (sample: FrameSample, cadence: { meanMs: number; p95Ms: number }, zoom: number, paused: boolean, lod: LodSample) => ({
     timeMs: Math.round(performance.now()), zoom, paused, ...sample, frameMs: cadence.meanMs, frameP95Ms: cadence.p95Ms,
     gpuMs: engineMeter.captureGPUFrameTime && engineMeter.gpuFrameTimeCounter.count > 0 ? engineMeter.gpuFrameTimeCounter.current / 1e6 : null,
-    gpuSupported: !!engine.getCaps().timerQuery,
+    gpuTimingSupported: !!engine.getCaps().timerQuery,
     gpuSampleAgeMs: gpuUpdated === undefined ? null : performance.now() - gpuUpdated,
     drawCalls: sceneMeter.drawCallsCounter.current, submittedTriangles: scene.getActiveIndices() / 3,
     shadowDrawCalls: shadowDraws, shadowTriangles, shadowCpuMs: sceneMeter.renderTargetsRenderTimeCounter.current,
@@ -61,8 +61,10 @@ export function createPerformanceDiagnostics(engine: Engine, scene: Scene, shado
       return `已记录${label}（视距 ${sample.zoom.toFixed(1)}）。${label === '近景' ? '关闭设置，缩小镜头后再记录。' : label === '远景' ? '放大回原视距后再记录。' : '可复制诊断信息反馈。'}`;
     },
     snapshot: () => ({ latest: history.at(-1), history: [...history], marks: [...marks],
-      webGLVersion: engine.webGLVersion, renderer: engine.getGlInfo().renderer,
-      note: 'CPU 与阴影 CPU 均为提交耗时；GPU 为原生查询最近有效帧，null 表示尚不可用，gpuSampleAgeMs 表示距观测到新 GPU 样本的时间。相机/居民运动会改变主通道面数。' }),
+      backend: `WebGL ${engine.webGLVersion}`, webGLVersion: engine.webGLVersion, renderer: engine.getGlInfo().renderer,
+      gpuTimingSupported: !!engine.getCaps().timerQuery, renderLoops: engine.activeRenderLoops.length,
+      sampleAgeMs: history.length ? performance.now() - history.at(-1)!.timeMs : null,
+      note: 'renderer 是正在使用的图形渲染器。gpuTimingSupported 仅表示 GPU 耗时查询是否可用，false 不表示未使用 GPU；gpuMs 为 null 时不能从 CPU 或帧间隔推算 GPU 耗时。CPU 与阴影 CPU 均为提交耗时。latest/history 保留最近实际渲染的样本，暂停后停止采样，sampleAgeMs 表示样本距现在的时间。' }),
     dispose() { engineMeter.dispose(); sceneMeter.dispose(); },
   };
 }

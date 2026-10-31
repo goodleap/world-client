@@ -7,7 +7,7 @@ import { createDaylight } from '../src/game/lighting';
 import { createCharacterLibrary } from '../src/game/character-library';
 import type { CharacterRole } from '../src/game/character-library';
 import { batchSkinnedMeshes } from '../src/game/mesh-batching';
-import { loadCharacterLOD } from '../src/game/character-lod';
+import { loadCharacterLOD, selectCharacterLOD } from '../src/game/character-lod';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -32,10 +32,11 @@ createCharacterMaterialSetup(scene)(loaded.meshes.map(mesh => mesh.material));
 const sources = batchSkinnedMeshes(loaded.meshes, library?.highBatches);
 const lod = library ? await library.attachLOD(sources) : params.has('lodAsset')
   ? await loadCharacterLOD(scene, sources, params.get('lodAsset')!) : [];
-function mapLOD(enabled: boolean) {
-  for (const { source, detail } of lod) {
+function mapLOD(enabled: boolean | 'far') {
+  for (const { source, detail, far } of lod) {
     source.removeLODLevel(detail);
-    source.addLODLevel(enabled ? 1e6 : 0, detail);
+    if (far) source.removeLODLevel(far);
+    source.addLODLevel(enabled ? 1e6 : 0, enabled === 'far' ? far ?? detail : detail);
   }
   scene.render();
 }
@@ -74,7 +75,7 @@ Object.assign(window, { review: { pose, view, mapLOD, scene, loaded, engine,
     return btoa(text);
   },
   geometry: () => sources.filter((m): m is Mesh => m instanceof Mesh && !!m.geometry).map(mesh => ({ name: mesh.name,
-    triangles: (mesh.getLOD(camera) ?? mesh).getTotalIndices() / 3, skeleton: mesh.skeleton?.name })),
+    triangles: (selectCharacterLOD(mesh, camera) ?? mesh).getTotalIndices() / 3, skeleton: mesh.skeleton?.name })),
   play(name: string) { groups.forEach(g => g.stop()); groups.find(g => g.name === name)!.start(true); },
   summary: { meshes: loaded.meshes.map(m => m.name), bones: loaded.skeletons[0]?.bones.map(b => b.name), animations: groups.map(g => ({ name: g.name, from: g.from, to: g.to })) },
 } });

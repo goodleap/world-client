@@ -24,6 +24,7 @@ import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
 import { batchSkinnedMeshes } from './mesh-batching.ts';
 import type { CharacterLOD } from './character-lod.ts';
+import { selectCharacterLOD } from './character-lod.ts';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { createCharacterLibrary } from './character-library.ts';
 
@@ -114,10 +115,13 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if (!pairs) return;
     return {
       parts: pairs.length,
-      mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length,
+      mapParts: pairs.filter(({ source }) => scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) !== source).length,
+      farParts: pairs.filter(({ source, far }) => far && scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) === far).length,
       sourceTriangles: pairs.reduce((sum, pair) => sum + pair.source.getTotalIndices() / 3, 0),
       mapTriangles: pairs.reduce((sum, pair) => sum + pair.detail.getTotalIndices() / 3, 0),
-      sharedSkeletonAndMaterials: pairs.every(({ source, detail }) => source.skeleton === detail.skeleton && source.material === detail.material),
+      farTriangles: pairs.reduce((sum, pair) => sum + (pair.far ?? pair.detail).getTotalIndices() / 3, 0),
+      sharedSkeletonAndMaterials: pairs.every(({ source, detail, far }) => [detail, ...(far ? [far] : [])]
+        .every(mesh => source.skeleton === mesh.skeleton && source.material === mesh.material)),
     };
   };
   const destinationSpeed = (actor: typeof actors[number]) => actor.settings.speed
@@ -267,7 +271,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.root.position,
     sharedLibraryInfo: library.summary,
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
-      mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length })),
+      mapParts: pairs.filter(({ source }) => scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) !== source).length,
+      farParts: pairs.filter(({ source, far }) => far && scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) === far).length })),
     basePosition: () => baseHuman.root.position,
     baseModelInfo: () => ({
       meshes: baseMeshNames,
@@ -296,7 +301,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       selected?.marker.setEnabled(true);
       return selected?.definition.name;
     },
-    selectionMeshes: () => selected ? [...selected.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== selected!.marker && !m.metadata?.selectionKind), ...(characterLODs.get(selected.definition.id) ?? []).flatMap(p => [p.source, p.detail])] : [],
+    selectionMeshes: () => selected ? [...selected.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== selected!.marker && !m.metadata?.selectionKind), ...(characterLODs.get(selected.definition.id) ?? []).flatMap(p => [p.source, p.detail, ...(p.far ? [p.far] : [])])] : [],
     selectedId: () => selected?.definition.id,
     selectedCanMove: () => !!selected,
     canWork: (id: string) => actors.some(a => a.definition.id === id && a.definition.role === 'farmer'),

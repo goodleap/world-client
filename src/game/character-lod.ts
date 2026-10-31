@@ -6,19 +6,31 @@ import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoa
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Geometry } from '@babylonjs/core/Meshes/geometry.js';
+import { BoundingSphere } from '@babylonjs/core/Culling/boundingSphere.js';
+import { Camera } from '@babylonjs/core/Cameras/camera.js';
 import { modelData, modelOptions } from './asset-cache.ts';
 
-export interface CharacterLOD { source: Mesh; detail: Mesh }
+export interface CharacterLOD { source: Mesh; detail: Mesh; far?: Mesh }
 
 // Orthographic viewport width × height in world units. Ordinary map views use
 // the reduced geometry; the model previews and closest phone zoom retain it all.
 const MAP_LOD_VIEW_AREA = 120;
+const FAR_LOD_VIEW_AREA = 320;
+const coverageSpheres = new WeakMap<AbstractMesh, BoundingSphere>();
+const configuredScenes = new WeakSet<Scene>();
+
+/** Babylon's conservative world sphere grows when a mesh rotates. For our
+ * orthographic view-area thresholds use its fixed reference sphere for LOD
+ * only; native render bounds, skinning and frustum tests remain unchanged. */
+export function selectCharacterLOD(source: Mesh, camera: Camera) {
+  return source.getLOD(camera, camera.mode === Camera.ORTHOGRAPHIC_CAMERA ? coverageSpheres.get(source) : undefined);
+}
 
 /** Normalize part thresholds to one orthographic view area: a tiny eye and a
  * large torso switch together. Babylon selects the LOD for both main/shadow
  * passes, and automatically restores the source geometry in close views. */
-export function attachMeshLOD(source: Mesh, data: VertexData | Geometry): CharacterLOD {
-  const detail = new Mesh(`${source.name}-map-lod`, source.getScene());
+function addLevel(source: Mesh, data: VertexData | Geometry, area: number, suffix: string) {
+  const detail = new Mesh(`${source.name}-${suffix}`, source.getScene());
   data.applyToMesh(detail);
   detail.material = source.material;
   detail.skeleton = source.skeleton;
@@ -32,10 +44,27 @@ export function attachMeshLOD(source: Mesh, data: VertexData | Geometry): Charac
   detail.isPickable = false;
   detail.metadata = { characterLOD: true };
   source.computeWorldMatrix(true);
-  const radius = source.getBoundingInfo().boundingSphere.radiusWorld;
+  const scene = source.getScene();
+  if (!coverageSpheres.has(source)) {
+    const sphere = source.getBoundingInfo().boundingSphere;
+    coverageSpheres.set(source, new BoundingSphere(sphere.minimum, sphere.maximum, source.getWorldMatrix()));
+  }
+  if (!configuredScenes.has(scene)) {
+    const previous = scene.customLODSelector;
+    scene.customLODSelector = (mesh, camera) => mesh instanceof Mesh && coverageSpheres.has(mesh) ? selectCharacterLOD(mesh, camera)
+      : previous ? previous(mesh, camera) : mesh.getLOD(camera);
+    configuredScenes.add(scene);
+  }
+  const radius = coverageSpheres.get(source)!.radiusWorld;
   source.useLODScreenCoverage = true;
-  source.addLODLevel(Math.PI * radius * radius / MAP_LOD_VIEW_AREA, detail);
-  return { source, detail };
+  source.addLODLevel(Math.PI * radius * radius / area, detail);
+  return detail;
+}
+
+export function attachMeshLOD(source: Mesh, data: VertexData | Geometry, farData?: VertexData | Geometry): CharacterLOD {
+  const detail = addLevel(source, data, MAP_LOD_VIEW_AREA, 'map-lod');
+  const far = farData ? addLevel(source, farData, FAR_LOD_VIEW_AREA, 'far-map-lod') : undefined;
+  return { source, detail, far };
 }
 
 /** Read geometry only. Temporary LOD materials/rigs are disposed after copying;

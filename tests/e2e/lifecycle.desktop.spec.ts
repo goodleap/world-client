@@ -52,16 +52,25 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     expect((await snapshot(page)).camera.x).toBe(frozen.camera.x);
     expect((await snapshot(page)).selection.resident).toBeUndefined();
   }
-  await page.getByRole('button', { name: '操作说明', exact: true }).click();
+  await page.locator('#settings').click();
   await expect.poll(async () => (await snapshot(page)).manualPaused).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(0);
+  const panel = await snapshot(page);
+  await page.waitForTimeout(400);
+  expect((await snapshot(page)).frames).toBe(panel.frames);
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await expect.poll(async () => (await snapshot(page)).frames).toBeGreaterThan(panel.frames);
+  await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(0);
+  expect((await snapshot(page)).simulationSeconds).toBe(panel.simulationSeconds);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   const paused = await snapshot(page);
   await page.waitForTimeout(300);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect.poll(async () => (await snapshot(page)).frames).toBeGreaterThan(paused.frames + 1);
+  await expect.poll(async () => (await snapshot(page)).frames).toBeGreaterThan(paused.frames);
+  await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(0);
   expect((await snapshot(page)).manualPaused).toBe(true);
   expect((await snapshot(page)).simulationSeconds).toBe(paused.simulationSeconds);
-  await page.getByRole('button', { name: '关闭操作说明' }).click();
+  await page.locator('#continue-game').click();
   await expect.poll(async () => (await snapshot(page)).simulationSeconds).toBeGreaterThan(paused.simulationSeconds);
   expect(errors).toEqual([]);
 });

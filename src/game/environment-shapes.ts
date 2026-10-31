@@ -15,7 +15,9 @@ export function roundedBox(scene: Scene, name: string, size: XYZ, at: XYZ, mater
   const positions: number[] = [], normals: number[] = [], indices: number[] = [], uvs: number[] = [];
   for (let axis = 0; axis < 3; axis++) {
     const u = (axis + 1) % 3, v = (axis + 2) % 3;
-    const samples = (h: number) => [-h, -h + r * 0.134, -h + r * 0.5, -h + r, 0, h - r, h - r * 0.5, h - r * 0.134, h];
+    // The middle of a straight span adds no shape or normal detail. Keep all
+    // original bevel samples; remove that split and coincident thin-box rows.
+    const samples = (h: number) => [...new Set([-h, -h + r * 0.134, -h + r * 0.5, -h + r, h - r, h - r * 0.5, h - r * 0.134, h])];
     const us = samples(half[u]), vs = samples(half[v]);
     for (const sign of [-1, 1]) {
       const start = positions.length / 3;
