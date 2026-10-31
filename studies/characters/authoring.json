@@ -1,0 +1,24 @@
+{
+  "sourceGLBSha256": "6ef040318f1112d5cfa70616cba458196b3bff99335bc0c1542fb20099dee59f",
+  "blendSha256": "0ee97ee072725e3baa8560f0f253b1f9682c0ff559bd5810281b4676f55b702b",
+  "rigs": {
+    "BaseHumanRig": 20,
+    "HorseRig": 17
+  },
+  "actions": [
+    "CarryRun",
+    "CarryWalk",
+    "Hammer",
+    "HorseRideIdle",
+    "HorseRideRun",
+    "HorseRideWalk",
+    "RideIdle",
+    "RideRun",
+    "RideWalk",
+    "Run",
+    "Walk"
+  ],
+  "roleCollectionsShareObjects": true,
+  "uniqueMeshData": 166,
+  "note": "Canonical DCC source initialized from the lossless runtime library. No re-export from Blender replaces the byte-verified runtime GLBs in this migration. Future exports still require engine validation."
+}

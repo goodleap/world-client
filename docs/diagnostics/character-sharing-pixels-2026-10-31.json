@@ -1,0 +1,720 @@
+{
+  "renderer": "Chromium / SwiftShader; not iPhone performance",
+  "results": [
+    {
+      "role": "base",
+      "comparisons": 48,
+      "maxChannelDifference": 0,
+      "pixelsDifferentByMoreThanOne": 0,
+      "renderedFramePixels": 172800,
+      "geometry": [
+        {
+          "name": "Brow.L",
+          "triangles": 3112,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Continuous arm and fist.L",
+          "triangles": 97588,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye glint.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye iris.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye white.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Head • shaped cranium cheeks and jaw",
+          "triangles": 35068,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck",
+          "triangles": 5952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck binding",
+          "triangles": 7992,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shorts • shaped hip and separate legs",
+          "triangles": 36114,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Smile",
+          "triangles": 2324,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Subtle open smile",
+          "triangles": 128,
+          "skeleton": "BaseHumanRig"
+        }
+      ]
+    },
+    {
+      "role": "farmer",
+      "comparisons": 24,
+      "phasesPerClip": 4,
+      "maxChannelDifference": 0,
+      "pixelsDifferentByMoreThanOne": 0,
+      "renderedFramePixels": 172800,
+      "geometry": [
+        {
+          "name": "Brow.L",
+          "triangles": 3112,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Continuous arm and fist.L",
+          "triangles": 57588,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye glint.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye iris.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye white.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Head • shaped cranium cheeks and jaw",
+          "triangles": 35068,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck",
+          "triangles": 5952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Smile",
+          "triangles": 2324,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Subtle open smile",
+          "triangles": 128,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Apron • curved skirt",
+          "triangles": 25472,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Belt buckle",
+          "triangles": 9296,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Belt • wrapped waist",
+          "triangles": 8456,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Blue collar.-1",
+          "triangles": 192,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot sole.L",
+          "triangles": 14336,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot.L",
+          "triangles": 30720,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hair • swept fringe 0",
+          "triangles": 45084,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hammer • rounded steel head",
+          "triangles": 300,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hammer • wooden handle",
+          "triangles": 496,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Headwrap knot",
+          "triangles": 1840,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Headwrap • complete folded crown",
+          "triangles": 40956,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck binding",
+          "triangles": 3996,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shorts • shaped hip and separate legs",
+          "triangles": 18014,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "T-shirt • connected shoulders",
+          "triangles": 18100,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Tool pouch.L",
+          "triangles": 3680,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Trouser cuff.L",
+          "triangles": 18432,
+          "skeleton": "BaseHumanRig"
+        }
+      ]
+    },
+    {
+      "role": "infantry",
+      "comparisons": 16,
+      "phasesPerClip": 4,
+      "maxChannelDifference": 0,
+      "pixelsDifferentByMoreThanOne": 0,
+      "renderedFramePixels": 172800,
+      "geometry": [
+        {
+          "name": "Brow.L",
+          "triangles": 3112,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Continuous arm and fist.L",
+          "triangles": 57588,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye glint.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye iris.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye white.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Head • shaped cranium cheeks and jaw",
+          "triangles": 35068,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck",
+          "triangles": 5952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Smile",
+          "triangles": 2324,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Subtle open smile",
+          "triangles": 128,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Belt • wrapped waist",
+          "triangles": 6664,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Blue collar.-1",
+          "triangles": 192,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot sole.L",
+          "triangles": 14336,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot.L",
+          "triangles": 30720,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Brass belt buckle",
+          "triangles": 7952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hair • fitted scalp",
+          "triangles": 38300,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet front rivet",
+          "triangles": 1840,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • broad joined reinforcement",
+          "triangles": 18846,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • curled blue plume",
+          "triangles": 6656,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • rounded steel crown",
+          "triangles": 14204,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Leather vest • rounded belly",
+          "triangles": 12736,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck binding",
+          "triangles": 3996,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shield • central boss",
+          "triangles": 21088,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shield • convex blue face",
+          "triangles": 1536,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shorts • shaped hip and separate legs",
+          "triangles": 18014,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Sword • leather grip",
+          "triangles": 256,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "T-shirt • connected shoulders",
+          "triangles": 18100,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Trouser cuff.L",
+          "triangles": 18432,
+          "skeleton": "BaseHumanRig"
+        }
+      ]
+    },
+    {
+      "role": "archer",
+      "comparisons": 16,
+      "phasesPerClip": 4,
+      "maxChannelDifference": 0,
+      "pixelsDifferentByMoreThanOne": 0,
+      "renderedFramePixels": 172800,
+      "geometry": [
+        {
+          "name": "Brow.L",
+          "triangles": 3112,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Continuous arm and fist.L",
+          "triangles": 57588,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye glint.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye iris.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye white.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Head • shaped cranium cheeks and jaw",
+          "triangles": 35068,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck",
+          "triangles": 5952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Smile",
+          "triangles": 2324,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Subtle open smile",
+          "triangles": 128,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Belt • wrapped waist",
+          "triangles": 13452,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Blue collar.-1",
+          "triangles": 192,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot sole.L",
+          "triangles": 14336,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot.L",
+          "triangles": 30720,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Brass belt buckle",
+          "triangles": 7456,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hair • fitted scalp",
+          "triangles": 38300,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • broad joined reinforcement",
+          "triangles": 18878,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • curled blue plume",
+          "triangles": 6656,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • rounded steel crown",
+          "triangles": 14204,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Leather vest • rounded belly",
+          "triangles": 12736,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck binding",
+          "triangles": 3996,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shorts • shaped hip and separate legs",
+          "triangles": 18014,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "T-shirt • connected shoulders",
+          "triangles": 18100,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Trouser cuff.L",
+          "triangles": 18432,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Bow grip binding -0.062",
+          "triangles": 11808,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Bow • continuous curved wooden limbs",
+          "triangles": 7680,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Bow • leather grip",
+          "triangles": 992,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Held arrow • ivory feathers.0",
+          "triangles": 576,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Held arrow • wooden shaft",
+          "triangles": 1536,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet front rivet",
+          "triangles": 1840,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Quiver • rounded hollow leather shell",
+          "triangles": 2560,
+          "skeleton": "BaseHumanRig"
+        }
+      ]
+    },
+    {
+      "role": "cavalry",
+      "comparisons": 24,
+      "phasesPerClip": 4,
+      "maxChannelDifference": 0,
+      "pixelsDifferentByMoreThanOne": 0,
+      "renderedFramePixels": 172800,
+      "geometry": [
+        {
+          "name": "Brow.L",
+          "triangles": 3112,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Continuous arm and fist.L",
+          "triangles": 57588,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye glint.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye iris.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Eye white.L",
+          "triangles": 2944,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Head • shaped cranium cheeks and jaw",
+          "triangles": 35068,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck",
+          "triangles": 5952,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Smile",
+          "triangles": 2324,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Subtle open smile",
+          "triangles": 128,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Belt • wrapped waist",
+          "triangles": 6664,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Blue collar.-1",
+          "triangles": 192,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot sole.L",
+          "triangles": 14336,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Boot.L",
+          "triangles": 30720,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Brass belt buckle",
+          "triangles": 5616,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hair • fitted scalp",
+          "triangles": 38300,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • broad joined reinforcement",
+          "triangles": 18782,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • curled blue plume",
+          "triangles": 19392,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet • rounded steel crown",
+          "triangles": 14204,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Leather vest • rounded belly",
+          "triangles": 12736,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Neck binding",
+          "triangles": 3996,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Shorts • shaped hip and separate legs",
+          "triangles": 18014,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "T-shirt • connected shoulders",
+          "triangles": 18100,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Trouser cuff.L",
+          "triangles": 18432,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Helmet front rivet",
+          "triangles": 1840,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Hoof.FL",
+          "triangles": 28672,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse bit ring.-1",
+          "triangles": 3680,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse brow band",
+          "triangles": 3424,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse ear.-1",
+          "triangles": 18432,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse eye glint.-1",
+          "triangles": 1628,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse eye.-1",
+          "triangles": 1628,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse inner ear.-1",
+          "triangles": 192,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse muzzle smile",
+          "triangles": 4176,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse • continuous body neck head and legs",
+          "triangles": 90092,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Horse • continuous flowing tail",
+          "triangles": 18432,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Lance • steel socket",
+          "triangles": 2688,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Lance • wooden shaft",
+          "triangles": 496,
+          "skeleton": "BaseHumanRig"
+        },
+        {
+          "name": "Rein • far hand",
+          "triangles": 5904,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Saddle • belly girth",
+          "triangles": 1152,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Saddle • blue fitted blanket",
+          "triangles": 15872,
+          "skeleton": "HorseRig"
+        },
+        {
+          "name": "Saddle • curved leather seat",
+          "triangles": 15872,
+          "skeleton": "HorseRig"
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

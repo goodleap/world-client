@@ -9,7 +9,7 @@ export async function checkLaunch(page: Page, info: TestInfo) {
   const uiGate = new Promise<void>(resolve => { releaseUI = resolve; });
   const modelGate = new Promise<void>(resolve => { releaseModel = resolve; });
   await page.route(/\/assets\/ui-[^/]+\.js$/, async route => { await uiGate; await route.continue(); });
-  await page.route(/\/assets\/farmer-[^/]+\.glb$/, async route => { await modelGate; await route.continue(); });
+  await page.route(/\/assets\/characters-(?!lod-)[^/]+\.glb$/, async route => { await modelGate; await route.continue(); });
   try {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     const screen = page.locator('#loading');
@@ -20,14 +20,14 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     releaseUI();
     await expect(screen).toHaveAttribute('data-phase', 'menu');
     await expect(page.getByRole('button', { name: '开始游戏', exact: true })).toBeVisible();
-    await expect.poll(() => requests.some(url => /farmer-.*\.glb/.test(url))).toBe(true);
+    await expect.poll(() => requests.some(url => /characters-(?!lod-).*\.glb/.test(url))).toBe(true);
     expect(await page.locator('#game').count()).toBe(0);
     await page.screenshot({ path: info.outputPath('menu.png') });
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
     await expect(screen).toHaveAttribute('data-phase', 'game-loading');
     await expect(screen).toHaveClass(/game-loading/);
     await expect(page.getByRole('progressbar', { name: '游戏资源加载进度' })).toBeVisible();
-    await expect.poll(() => requests.some(url => /farmer-.*\.glb/.test(url))).toBe(true);
+    await expect.poll(() => requests.some(url => /characters-(?!lod-).*\.glb/.test(url))).toBe(true);
     expect(Number(await page.locator('#loading-progress').getAttribute('value'))).toBeLessThan(100);
     await page.screenshot({ path: info.outputPath('game-loading.png') });
     releaseModel();
@@ -37,11 +37,11 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect((await page.evaluate(() => window.__DEMO__!.snapshot())).residents).toHaveLength(7);
-    // Pending farmer download was reused after Start; base/LOD downloads were
-    // also reused for the worker, even with HTTP caching disabled by routing.
+    // Both shared library downloads are reused after Start and across roles,
+    // even with HTTP caching disabled by routing.
     const models = requests.filter(url => /\.glb(?:\?|$)/.test(url));
-    expect(models).toHaveLength(10);
-    expect(new Set(models).size).toBe(10);
+    expect(models).toHaveLength(2);
+    expect(new Set(models).size).toBe(2);
     await page.screenshot({ path: info.outputPath('game.png') });
     expect(errors).toEqual([]);
   } finally { releaseUI(); releaseModel(); }

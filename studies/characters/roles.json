@@ -1,0 +1,1061 @@
+{
+  "roles": {
+    "base": {
+      "parts": [
+        "part-000",
+        "part-001",
+        "part-002",
+        "part-003",
+        "part-004",
+        "part-005",
+        "part-006",
+        "part-007",
+        "part-008",
+        "part-009",
+        "part-010",
+        "part-011",
+        "part-012",
+        "part-013",
+        "part-014",
+        "part-015",
+        "part-016",
+        "part-017",
+        "part-018",
+        "part-019",
+        "part-020",
+        "part-021",
+        "part-022",
+        "part-023",
+        "part-024",
+        "part-025"
+      ],
+      "walk": "Walk",
+      "run": "Run",
+      "mounted": false
+    },
+    "farmer": {
+      "parts": [
+        "part-026",
+        "part-027",
+        "part-028",
+        "part-029",
+        "part-030",
+        "part-031",
+        "part-032",
+        "part-033",
+        "part-034",
+        "part-035",
+        "part-036",
+        "part-037",
+        "part-038",
+        "part-039",
+        "part-000",
+        "part-001",
+        "part-002",
+        "part-003",
+        "part-006",
+        "part-007",
+        "part-008",
+        "part-009",
+        "part-010",
+        "part-011",
+        "part-012",
+        "part-013",
+        "part-040",
+        "part-041",
+        "part-042",
+        "part-043",
+        "part-044",
+        "part-045",
+        "part-014",
+        "part-046",
+        "part-047",
+        "part-048",
+        "part-049",
+        "part-015",
+        "part-050",
+        "part-051",
+        "part-052",
+        "part-021",
+        "part-022",
+        "part-023",
+        "part-053",
+        "part-054",
+        "part-055",
+        "part-056",
+        "part-057",
+        "part-025",
+        "part-058",
+        "part-059"
+      ],
+      "walk": "Walk",
+      "run": "Run",
+      "mounted": false
+    },
+    "infantry": {
+      "parts": [
+        "part-060",
+        "part-061",
+        "part-062",
+        "part-063",
+        "part-064",
+        "part-065",
+        "part-066",
+        "part-067",
+        "part-000",
+        "part-001",
+        "part-002",
+        "part-003",
+        "part-006",
+        "part-007",
+        "part-008",
+        "part-009",
+        "part-010",
+        "part-011",
+        "part-012",
+        "part-013",
+        "part-068",
+        "part-069",
+        "part-070",
+        "part-071",
+        "part-014",
+        "part-072",
+        "part-073",
+        "part-074",
+        "part-075",
+        "part-076",
+        "part-077",
+        "part-078",
+        "part-015",
+        "part-079",
+        "part-080",
+        "part-081",
+        "part-082",
+        "part-083",
+        "part-084",
+        "part-085",
+        "part-086",
+        "part-021",
+        "part-022",
+        "part-087",
+        "part-088",
+        "part-023",
+        "part-089",
+        "part-090",
+        "part-091",
+        "part-092",
+        "part-093",
+        "part-025",
+        "part-094",
+        "part-095"
+      ],
+      "walk": "CarryWalk",
+      "run": "CarryRun",
+      "mounted": false
+    },
+    "archer": {
+      "parts": [
+        "part-060",
+        "part-061",
+        "part-062",
+        "part-063",
+        "part-064",
+        "part-065",
+        "part-066",
+        "part-096",
+        "part-097",
+        "part-098",
+        "part-099",
+        "part-100",
+        "part-067",
+        "part-000",
+        "part-001",
+        "part-002",
+        "part-003",
+        "part-006",
+        "part-007",
+        "part-008",
+        "part-009",
+        "part-010",
+        "part-011",
+        "part-012",
+        "part-013",
+        "part-068",
+        "part-069",
+        "part-070",
+        "part-071",
+        "part-014",
+        "part-101",
+        "part-102",
+        "part-103",
+        "part-104",
+        "part-105",
+        "part-106",
+        "part-073",
+        "part-074",
+        "part-075",
+        "part-076",
+        "part-077",
+        "part-078",
+        "part-015",
+        "part-079",
+        "part-107",
+        "part-108",
+        "part-109",
+        "part-110",
+        "part-111",
+        "part-112",
+        "part-113",
+        "part-114",
+        "part-115",
+        "part-116",
+        "part-117",
+        "part-118",
+        "part-119",
+        "part-120",
+        "part-121",
+        "part-122",
+        "part-123",
+        "part-124",
+        "part-125",
+        "part-126",
+        "part-127",
+        "part-128",
+        "part-129",
+        "part-130",
+        "part-131",
+        "part-132",
+        "part-133",
+        "part-085",
+        "part-086",
+        "part-021",
+        "part-022",
+        "part-134",
+        "part-135",
+        "part-023",
+        "part-093",
+        "part-025",
+        "part-094",
+        "part-095"
+      ],
+      "walk": "CarryWalk",
+      "run": "CarryRun",
+      "mounted": false
+    },
+    "cavalry": {
+      "parts": [
+        "part-060",
+        "part-061",
+        "part-062",
+        "part-063",
+        "part-064",
+        "part-065",
+        "part-066",
+        "part-067",
+        "part-000",
+        "part-001",
+        "part-002",
+        "part-003",
+        "part-006",
+        "part-007",
+        "part-008",
+        "part-009",
+        "part-010",
+        "part-011",
+        "part-012",
+        "part-013",
+        "part-068",
+        "part-069",
+        "part-070",
+        "part-071",
+        "part-014",
+        "part-136",
+        "part-073",
+        "part-074",
+        "part-075",
+        "part-137",
+        "part-138",
+        "part-139",
+        "part-140",
+        "part-141",
+        "part-142",
+        "part-143",
+        "part-144",
+        "part-145",
+        "part-146",
+        "part-147",
+        "part-148",
+        "part-149",
+        "part-150",
+        "part-151",
+        "part-152",
+        "part-153",
+        "part-154",
+        "part-155",
+        "part-156",
+        "part-157",
+        "part-158",
+        "part-159",
+        "part-160",
+        "part-161",
+        "part-162",
+        "part-163",
+        "part-164",
+        "part-165",
+        "part-076",
+        "part-077",
+        "part-078",
+        "part-015",
+        "part-079",
+        "part-166",
+        "part-167",
+        "part-168",
+        "part-169",
+        "part-170",
+        "part-171",
+        "part-172",
+        "part-173",
+        "part-174",
+        "part-175",
+        "part-176",
+        "part-177",
+        "part-085",
+        "part-086",
+        "part-021",
+        "part-022",
+        "part-178",
+        "part-179",
+        "part-023",
+        "part-093",
+        "part-025",
+        "part-094",
+        "part-095"
+      ],
+      "walk": "RideWalk",
+      "run": "RideRun",
+      "mounted": true
+    }
+  },
+  "parts": {
+    "part-000": {
+      "name": "Brow.L",
+      "horse": false
+    },
+    "part-001": {
+      "name": "Brow.R",
+      "horse": false
+    },
+    "part-002": {
+      "name": "Continuous arm and fist.L",
+      "horse": false
+    },
+    "part-003": {
+      "name": "Continuous arm and fist.R",
+      "horse": false
+    },
+    "part-004": {
+      "name": "Continuous leg and foot.L",
+      "horse": false
+    },
+    "part-005": {
+      "name": "Continuous leg and foot.R",
+      "horse": false
+    },
+    "part-006": {
+      "name": "Ear.L",
+      "horse": false
+    },
+    "part-007": {
+      "name": "Ear.R",
+      "horse": false
+    },
+    "part-008": {
+      "name": "Eye glint.L",
+      "horse": false
+    },
+    "part-009": {
+      "name": "Eye glint.R",
+      "horse": false
+    },
+    "part-010": {
+      "name": "Eye iris.L",
+      "horse": false
+    },
+    "part-011": {
+      "name": "Eye iris.R",
+      "horse": false
+    },
+    "part-012": {
+      "name": "Eye white.L",
+      "horse": false
+    },
+    "part-013": {
+      "name": "Eye white.R",
+      "horse": false
+    },
+    "part-014": {
+      "name": "Head • shaped cranium cheeks and jaw",
+      "horse": false
+    },
+    "part-015": {
+      "name": "Neck",
+      "horse": false
+    },
+    "part-016": {
+      "name": "Neck binding",
+      "horse": false
+    },
+    "part-017": {
+      "name": "Shirt hem piping",
+      "horse": false
+    },
+    "part-018": {
+      "name": "Short hem.L",
+      "horse": false
+    },
+    "part-019": {
+      "name": "Short hem.R",
+      "horse": false
+    },
+    "part-020": {
+      "name": "Shorts • shaped hip and separate legs",
+      "horse": false
+    },
+    "part-021": {
+      "name": "Small rounded nose",
+      "horse": false
+    },
+    "part-022": {
+      "name": "Smile",
+      "horse": false
+    },
+    "part-023": {
+      "name": "Subtle open smile",
+      "horse": false
+    },
+    "part-024": {
+      "name": "T-shirt • connected shoulders",
+      "horse": false
+    },
+    "part-025": {
+      "name": "Torso skin",
+      "horse": false
+    },
+    "part-026": {
+      "name": "Apron • curved skirt",
+      "horse": false
+    },
+    "part-027": {
+      "name": "Apron • fitted bib",
+      "horse": false
+    },
+    "part-028": {
+      "name": "Belt buckle",
+      "horse": false
+    },
+    "part-029": {
+      "name": "Belt • wrapped waist",
+      "horse": false
+    },
+    "part-030": {
+      "name": "Blue collar.-1",
+      "horse": false
+    },
+    "part-031": {
+      "name": "Blue collar.1",
+      "horse": false
+    },
+    "part-032": {
+      "name": "Boot sole.L",
+      "horse": false
+    },
+    "part-033": {
+      "name": "Boot sole.R",
+      "horse": false
+    },
+    "part-034": {
+      "name": "Boot.L",
+      "horse": false
+    },
+    "part-035": {
+      "name": "Boot.R",
+      "horse": false
+    },
+    "part-036": {
+      "name": "Brass suspender rivet",
+      "horse": false
+    },
+    "part-037": {
+      "name": "Brass suspender rivet.001",
+      "horse": false
+    },
+    "part-038": {
+      "name": "Brass suspender rivet.002",
+      "horse": false
+    },
+    "part-039": {
+      "name": "Brass suspender rivet.003",
+      "horse": false
+    },
+    "part-040": {
+      "name": "Hair • swept fringe 0",
+      "horse": false
+    },
+    "part-041": {
+      "name": "Hair • swept fringe 1",
+      "horse": false
+    },
+    "part-042": {
+      "name": "Hair • swept fringe 2",
+      "horse": false
+    },
+    "part-043": {
+      "name": "Hair • wrapped scalp",
+      "horse": false
+    },
+    "part-044": {
+      "name": "Hammer • rounded steel head",
+      "horse": false
+    },
+    "part-045": {
+      "name": "Hammer • wooden handle",
+      "horse": false
+    },
+    "part-046": {
+      "name": "Headwrap knot",
+      "horse": false
+    },
+    "part-047": {
+      "name": "Headwrap • complete folded crown",
+      "horse": false
+    },
+    "part-048": {
+      "name": "Linen tie.-1",
+      "horse": false
+    },
+    "part-049": {
+      "name": "Linen tie.1",
+      "horse": false
+    },
+    "part-050": {
+      "name": "Neck binding",
+      "horse": false
+    },
+    "part-051": {
+      "name": "Shirt hem piping",
+      "horse": false
+    },
+    "part-052": {
+      "name": "Shorts • shaped hip and separate legs",
+      "horse": false
+    },
+    "part-053": {
+      "name": "Suspender.-1",
+      "horse": false
+    },
+    "part-054": {
+      "name": "Suspender.1",
+      "horse": false
+    },
+    "part-055": {
+      "name": "T-shirt • connected shoulders",
+      "horse": false
+    },
+    "part-056": {
+      "name": "Tool pouch.L",
+      "horse": false
+    },
+    "part-057": {
+      "name": "Tool pouch.R",
+      "horse": false
+    },
+    "part-058": {
+      "name": "Trouser cuff.L",
+      "horse": false
+    },
+    "part-059": {
+      "name": "Trouser cuff.R",
+      "horse": false
+    },
+    "part-060": {
+      "name": "Belt • wrapped waist",
+      "horse": false
+    },
+    "part-061": {
+      "name": "Blue collar.-1",
+      "horse": false
+    },
+    "part-062": {
+      "name": "Blue collar.1",
+      "horse": false
+    },
+    "part-063": {
+      "name": "Boot sole.L",
+      "horse": false
+    },
+    "part-064": {
+      "name": "Boot sole.R",
+      "horse": false
+    },
+    "part-065": {
+      "name": "Boot.L",
+      "horse": false
+    },
+    "part-066": {
+      "name": "Boot.R",
+      "horse": false
+    },
+    "part-067": {
+      "name": "Brass belt buckle",
+      "horse": false
+    },
+    "part-068": {
+      "name": "Hair • fitted scalp",
+      "horse": false
+    },
+    "part-069": {
+      "name": "Hair • swept fringe 0",
+      "horse": false
+    },
+    "part-070": {
+      "name": "Hair • swept fringe 1",
+      "horse": false
+    },
+    "part-071": {
+      "name": "Hair • swept fringe 2",
+      "horse": false
+    },
+    "part-072": {
+      "name": "Helmet front rivet",
+      "horse": false
+    },
+    "part-073": {
+      "name": "Helmet • broad joined reinforcement",
+      "horse": false
+    },
+    "part-074": {
+      "name": "Helmet • curled blue plume",
+      "horse": false
+    },
+    "part-075": {
+      "name": "Helmet • rounded steel crown",
+      "horse": false
+    },
+    "part-076": {
+      "name": "Leather shoulder strap.-1",
+      "horse": false
+    },
+    "part-077": {
+      "name": "Leather shoulder strap.1",
+      "horse": false
+    },
+    "part-078": {
+      "name": "Leather vest • rounded belly",
+      "horse": false
+    },
+    "part-079": {
+      "name": "Neck binding",
+      "horse": false
+    },
+    "part-080": {
+      "name": "Shield • central boss",
+      "horse": false
+    },
+    "part-081": {
+      "name": "Shield • convex blue face",
+      "horse": false
+    },
+    "part-082": {
+      "name": "Shield • metal brace 0",
+      "horse": false
+    },
+    "part-083": {
+      "name": "Shield • metal brace 2",
+      "horse": false
+    },
+    "part-084": {
+      "name": "Shield • steel rim",
+      "horse": false
+    },
+    "part-085": {
+      "name": "Shirt hem piping",
+      "horse": false
+    },
+    "part-086": {
+      "name": "Shorts • shaped hip and separate legs",
+      "horse": false
+    },
+    "part-087": {
+      "name": "Strap rivet.-1",
+      "horse": false
+    },
+    "part-088": {
+      "name": "Strap rivet.1",
+      "horse": false
+    },
+    "part-089": {
+      "name": "Sword • brass pommel",
+      "horse": false
+    },
+    "part-090": {
+      "name": "Sword • broad steel blade",
+      "horse": false
+    },
+    "part-091": {
+      "name": "Sword • leather grip",
+      "horse": false
+    },
+    "part-092": {
+      "name": "Sword • rounded crossguard",
+      "horse": false
+    },
+    "part-093": {
+      "name": "T-shirt • connected shoulders",
+      "horse": false
+    },
+    "part-094": {
+      "name": "Trouser cuff.L",
+      "horse": false
+    },
+    "part-095": {
+      "name": "Trouser cuff.R",
+      "horse": false
+    },
+    "part-096": {
+      "name": "Bow grip binding -0.062",
+      "horse": false
+    },
+    "part-097": {
+      "name": "Bow grip binding 0.062",
+      "horse": false
+    },
+    "part-098": {
+      "name": "Bow • continuous curved wooden limbs",
+      "horse": false
+    },
+    "part-099": {
+      "name": "Bow • leather grip",
+      "horse": false
+    },
+    "part-100": {
+      "name": "Bow • taut linen string",
+      "horse": false
+    },
+    "part-101": {
+      "name": "Held arrow • ivory feathers.0",
+      "horse": false
+    },
+    "part-102": {
+      "name": "Held arrow • ivory feathers.1",
+      "horse": false
+    },
+    "part-103": {
+      "name": "Held arrow • ivory feathers.2",
+      "horse": false
+    },
+    "part-104": {
+      "name": "Held arrow • steel point",
+      "horse": false
+    },
+    "part-105": {
+      "name": "Held arrow • wooden shaft",
+      "horse": false
+    },
+    "part-106": {
+      "name": "Helmet front rivet",
+      "horse": false
+    },
+    "part-107": {
+      "name": "Quiver arrow shaft 0",
+      "horse": false
+    },
+    "part-108": {
+      "name": "Quiver arrow shaft 1",
+      "horse": false
+    },
+    "part-109": {
+      "name": "Quiver arrow shaft 2",
+      "horse": false
+    },
+    "part-110": {
+      "name": "Quiver arrow shaft 3",
+      "horse": false
+    },
+    "part-111": {
+      "name": "Quiver arrow shaft 4",
+      "horse": false
+    },
+    "part-112": {
+      "name": "Quiver ivory feathers 0.0",
+      "horse": false
+    },
+    "part-113": {
+      "name": "Quiver ivory feathers 0.1",
+      "horse": false
+    },
+    "part-114": {
+      "name": "Quiver ivory feathers 0.2",
+      "horse": false
+    },
+    "part-115": {
+      "name": "Quiver ivory feathers 1.0",
+      "horse": false
+    },
+    "part-116": {
+      "name": "Quiver ivory feathers 1.1",
+      "horse": false
+    },
+    "part-117": {
+      "name": "Quiver ivory feathers 1.2",
+      "horse": false
+    },
+    "part-118": {
+      "name": "Quiver ivory feathers 2.0",
+      "horse": false
+    },
+    "part-119": {
+      "name": "Quiver ivory feathers 2.1",
+      "horse": false
+    },
+    "part-120": {
+      "name": "Quiver ivory feathers 2.2",
+      "horse": false
+    },
+    "part-121": {
+      "name": "Quiver ivory feathers 3.0",
+      "horse": false
+    },
+    "part-122": {
+      "name": "Quiver ivory feathers 3.1",
+      "horse": false
+    },
+    "part-123": {
+      "name": "Quiver ivory feathers 3.2",
+      "horse": false
+    },
+    "part-124": {
+      "name": "Quiver ivory feathers 4.0",
+      "horse": false
+    },
+    "part-125": {
+      "name": "Quiver ivory feathers 4.1",
+      "horse": false
+    },
+    "part-126": {
+      "name": "Quiver ivory feathers 4.2",
+      "horse": false
+    },
+    "part-127": {
+      "name": "Quiver • back harness",
+      "horse": false
+    },
+    "part-128": {
+      "name": "Quiver • brass fastening",
+      "horse": false
+    },
+    "part-129": {
+      "name": "Quiver • fitted diagonal shoulder strap",
+      "horse": false
+    },
+    "part-130": {
+      "name": "Quiver • leather band 0.055",
+      "horse": false
+    },
+    "part-131": {
+      "name": "Quiver • leather band 0.515",
+      "horse": false
+    },
+    "part-132": {
+      "name": "Quiver • rounded hollow leather shell",
+      "horse": false
+    },
+    "part-133": {
+      "name": "Quiver • rounded hollow leather shell",
+      "horse": false
+    },
+    "part-134": {
+      "name": "Strap rivet.-1",
+      "horse": false
+    },
+    "part-135": {
+      "name": "Strap rivet.1",
+      "horse": false
+    },
+    "part-136": {
+      "name": "Helmet front rivet",
+      "horse": false
+    },
+    "part-137": {
+      "name": "Hoof.FL",
+      "horse": true
+    },
+    "part-138": {
+      "name": "Hoof.FR",
+      "horse": true
+    },
+    "part-139": {
+      "name": "Hoof.HL",
+      "horse": true
+    },
+    "part-140": {
+      "name": "Hoof.HR",
+      "horse": true
+    },
+    "part-141": {
+      "name": "Horse bit ring.-1",
+      "horse": true
+    },
+    "part-142": {
+      "name": "Horse bit ring.1",
+      "horse": true
+    },
+    "part-143": {
+      "name": "Horse brow band",
+      "horse": true
+    },
+    "part-144": {
+      "name": "Horse cheek strap.-1",
+      "horse": true
+    },
+    "part-145": {
+      "name": "Horse cheek strap.1",
+      "horse": true
+    },
+    "part-146": {
+      "name": "Horse ear.-1",
+      "horse": true
+    },
+    "part-147": {
+      "name": "Horse ear.1",
+      "horse": true
+    },
+    "part-148": {
+      "name": "Horse eye glint.-1",
+      "horse": true
+    },
+    "part-149": {
+      "name": "Horse eye glint.1",
+      "horse": true
+    },
+    "part-150": {
+      "name": "Horse eye.-1",
+      "horse": true
+    },
+    "part-151": {
+      "name": "Horse eye.1",
+      "horse": true
+    },
+    "part-152": {
+      "name": "Horse inner ear.-1",
+      "horse": true
+    },
+    "part-153": {
+      "name": "Horse inner ear.1",
+      "horse": true
+    },
+    "part-154": {
+      "name": "Horse muzzle smile",
+      "horse": true
+    },
+    "part-155": {
+      "name": "Horse noseband",
+      "horse": true
+    },
+    "part-156": {
+      "name": "Horse nostril.-1",
+      "horse": true
+    },
+    "part-157": {
+      "name": "Horse nostril.1",
+      "horse": true
+    },
+    "part-158": {
+      "name": "Horse • continuous body neck head and legs",
+      "horse": true
+    },
+    "part-159": {
+      "name": "Horse • continuous flowing tail",
+      "horse": true
+    },
+    "part-160": {
+      "name": "Horse • flowing mane",
+      "horse": true
+    },
+    "part-161": {
+      "name": "Horse • swept forelock 0",
+      "horse": true
+    },
+    "part-162": {
+      "name": "Horse • swept forelock 1",
+      "horse": true
+    },
+    "part-163": {
+      "name": "Lance • leaf steel point",
+      "horse": false
+    },
+    "part-164": {
+      "name": "Lance • steel socket",
+      "horse": false
+    },
+    "part-165": {
+      "name": "Lance • wooden shaft",
+      "horse": false
+    },
+    "part-166": {
+      "name": "Rein • far hand",
+      "horse": true
+    },
+    "part-167": {
+      "name": "Rein • near hand",
+      "horse": true
+    },
+    "part-168": {
+      "name": "Rider stirrup.L",
+      "horse": false
+    },
+    "part-169": {
+      "name": "Rider stirrup.R",
+      "horse": false
+    },
+    "part-170": {
+      "name": "Rider • curved blue cape",
+      "horse": false
+    },
+    "part-171": {
+      "name": "Saddle stirrup strap.L",
+      "horse": true
+    },
+    "part-172": {
+      "name": "Saddle stirrup strap.R",
+      "horse": true
+    },
+    "part-173": {
+      "name": "Saddle • belly girth",
+      "horse": true
+    },
+    "part-174": {
+      "name": "Saddle • blue fitted blanket",
+      "horse": true
+    },
+    "part-175": {
+      "name": "Saddle • curved leather seat",
+      "horse": true
+    },
+    "part-176": {
+      "name": "Saddle • rounded cantle",
+      "horse": true
+    },
+    "part-177": {
+      "name": "Saddle • rounded pommel",
+      "horse": true
+    },
+    "part-178": {
+      "name": "Strap rivet.-1",
+      "horse": false
+    },
+    "part-179": {
+      "name": "Strap rivet.1",
+      "horse": false
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { batchSkinnedMeshes } from '../src/game/mesh-batching.ts';
+import type { Geometry } from '@babylonjs/core/Meshes/geometry.js';
 
 test('batched parts retain deformed positions across a full skeletal motion cycle', () => {
   const engine = new NullEngine(); const scene = new Scene(engine);
@@ -67,5 +68,39 @@ test('batching leaves transformed parts and different skeletons independent', ()
     });
     assert.deepEqual(batchSkinnedMeshes(parts), parts);
     assert.ok(parts.every(mesh => !mesh.isDisposed()));
+  } finally { scene.dispose(); engine.dispose(); }
+});
+
+test('shared merged geometry keeps each actor pose independent and templates intact', () => {
+  const engine = new NullEngine(); const scene = new Scene(engine);
+  try {
+    const material = new StandardMaterial('shared cloth', scene);
+    const templates = [0, 1].map(i => {
+      const mesh = MeshBuilder.CreateBox('template-' + i, {}, scene);
+      mesh.bakeTransformIntoVertices(Matrix.Translation(i, 1, 0));
+      mesh.material = material;
+      mesh.setVerticesData(VertexBuffer.MatricesIndicesKind, Array.from({ length: mesh.getTotalVertices() }, () => [0, 0, 0, 0]).flat(), false, 4);
+      mesh.setVerticesData(VertexBuffer.MatricesWeightsKind, Array.from({ length: mesh.getTotalVertices() }, () => [1, 0, 0, 0]).flat(), false, 4);
+      return mesh;
+    });
+    const before = templates.map(mesh => Array.from(mesh.getVerticesData(VertexBuffer.PositionKind)!));
+    const actors = [0, 1].map(i => {
+      const skeleton = new Skeleton('actor-' + i, 'actor-' + i, scene);
+      const bone = new Bone('root', skeleton, null, Matrix.Identity());
+      const parent = new TransformNode('actor-' + i, scene);
+      const parts = templates.map(template => {
+        const mesh = template.clone(template.name, parent)!; mesh.skeleton = skeleton; return mesh;
+      });
+      return { skeleton, bone, parts };
+    });
+    const shared = new Map<string, Geometry>();
+    const a = batchSkinnedMeshes(actors[0].parts, shared)[0];
+    const b = batchSkinnedMeshes(actors[1].parts, shared)[0];
+    assert.equal((a as typeof templates[0]).geometry, (b as typeof templates[0]).geometry);
+    assert.notEqual(a.skeleton, b.skeleton);
+    actors[0].bone.setRotationQuaternion(Quaternion.RotationAxis(Vector3.Forward(), .8));
+    actors.forEach(actor => actor.skeleton.prepare(true));
+    assert.notDeepEqual(Array.from(a.getPositionData(true)!), Array.from(b.getPositionData(true)!));
+    assert.deepEqual(templates.map(mesh => Array.from(mesh.getVerticesData(VertexBuffer.PositionKind)!)), before);
   } finally { scene.dispose(); engine.dispose(); }
 });

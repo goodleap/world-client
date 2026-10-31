@@ -1,0 +1,1537 @@
+{
+  "method": "Lossless accessor reuse; separate 20-bone human and 17-bone horse skins. No geometry simplification or animation resampling.",
+  "sources": {
+    "studies/base-human/base-human.glb": "124e6a1c91039c8f15f790f8d6220c95ff9c3dec5094603c89afb8986022ebb7",
+    "studies/farmer/farmer.glb": "d56df8e0b94a51b89606e072430c43139c8540097ede82e8f67b6374fe21d743",
+    "studies/soldiers/infantry/infantry.glb": "386d042c33934dcee2fad1bbf0b675e270d6f2c92fccd6034877ff52ba576443",
+    "studies/soldiers/archer/archer.glb": "e6ce5075703e493021cf4d9e82c404139cd0eafec057617c6dc55d07cf0492c7",
+    "studies/soldiers/cavalry/cavalry.glb": "bb3cab27c794c63e4a136dd8679cf38bbe1727198ee1270392ad6c06d62d7ceb",
+    "studies/lod/base-lod.glb": "c72468a5cee484962bd371a5995e0b7ddbaecd68dc59faff2dbbecef012a9c99",
+    "studies/lod/farmer-lod.glb": "7e1f02ab0c5f1d76dafe78dd4a837424cf2d7cde67f43fbb2c0024717ec2e95d",
+    "studies/lod/infantry-lod.glb": "14c3971544ddd033ab5c6b02b737344f9e440efd1e638e10cdca0b0dc5417849",
+    "studies/lod/archer-lod.glb": "55a984c1c88676dbbfd80ca05c6dc2afdc19e96442d0e61a6ad286b5af94872f",
+    "studies/lod/cavalry-lod.glb": "090ce2720d8b765efbb236ac61b204d03d032bb1efd78c112830b6a70007e620"
+  },
+  "outputs": {
+    "characters.glb": {
+      "bytes": 20679584,
+      "sha256": "6ef040318f1112d5cfa70616cba458196b3bff99335bc0c1542fb20099dee59f"
+    },
+    "characters-lod.glb": {
+      "bytes": 6673980,
+      "sha256": "212eff7cbd31963264bbfd7391b8c9ad9bbebb4f61205bdbb6f7e1236e1cec87"
+    }
+  },
+  "origin": [
+    {
+      "role": "base",
+      "ordinal": 0,
+      "part": "part-000"
+    },
+    {
+      "role": "base",
+      "ordinal": 1,
+      "part": "part-001"
+    },
+    {
+      "role": "base",
+      "ordinal": 2,
+      "part": "part-002"
+    },
+    {
+      "role": "base",
+      "ordinal": 3,
+      "part": "part-003"
+    },
+    {
+      "role": "base",
+      "ordinal": 4,
+      "part": "part-004"
+    },
+    {
+      "role": "base",
+      "ordinal": 5,
+      "part": "part-005"
+    },
+    {
+      "role": "base",
+      "ordinal": 6,
+      "part": "part-006"
+    },
+    {
+      "role": "base",
+      "ordinal": 7,
+      "part": "part-007"
+    },
+    {
+      "role": "base",
+      "ordinal": 8,
+      "part": "part-008"
+    },
+    {
+      "role": "base",
+      "ordinal": 9,
+      "part": "part-009"
+    },
+    {
+      "role": "base",
+      "ordinal": 10,
+      "part": "part-010"
+    },
+    {
+      "role": "base",
+      "ordinal": 11,
+      "part": "part-011"
+    },
+    {
+      "role": "base",
+      "ordinal": 12,
+      "part": "part-012"
+    },
+    {
+      "role": "base",
+      "ordinal": 13,
+      "part": "part-013"
+    },
+    {
+      "role": "base",
+      "ordinal": 14,
+      "part": "part-014"
+    },
+    {
+      "role": "base",
+      "ordinal": 15,
+      "part": "part-015"
+    },
+    {
+      "role": "base",
+      "ordinal": 16,
+      "part": "part-016"
+    },
+    {
+      "role": "base",
+      "ordinal": 17,
+      "part": "part-017"
+    },
+    {
+      "role": "base",
+      "ordinal": 18,
+      "part": "part-018"
+    },
+    {
+      "role": "base",
+      "ordinal": 19,
+      "part": "part-019"
+    },
+    {
+      "role": "base",
+      "ordinal": 20,
+      "part": "part-020"
+    },
+    {
+      "role": "base",
+      "ordinal": 21,
+      "part": "part-021"
+    },
+    {
+      "role": "base",
+      "ordinal": 22,
+      "part": "part-022"
+    },
+    {
+      "role": "base",
+      "ordinal": 23,
+      "part": "part-023"
+    },
+    {
+      "role": "base",
+      "ordinal": 24,
+      "part": "part-024"
+    },
+    {
+      "role": "base",
+      "ordinal": 25,
+      "part": "part-025"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 0,
+      "part": "part-026"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 1,
+      "part": "part-027"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 2,
+      "part": "part-028"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 3,
+      "part": "part-029"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 4,
+      "part": "part-030"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 5,
+      "part": "part-031"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 6,
+      "part": "part-032"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 7,
+      "part": "part-033"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 8,
+      "part": "part-034"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 9,
+      "part": "part-035"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 10,
+      "part": "part-036"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 11,
+      "part": "part-037"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 12,
+      "part": "part-038"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 13,
+      "part": "part-039"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 14,
+      "part": "part-000"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 15,
+      "part": "part-001"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 16,
+      "part": "part-002"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 17,
+      "part": "part-003"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 18,
+      "part": "part-006"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 19,
+      "part": "part-007"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 20,
+      "part": "part-008"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 21,
+      "part": "part-009"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 22,
+      "part": "part-010"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 23,
+      "part": "part-011"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 24,
+      "part": "part-012"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 25,
+      "part": "part-013"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 26,
+      "part": "part-040"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 27,
+      "part": "part-041"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 28,
+      "part": "part-042"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 29,
+      "part": "part-043"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 30,
+      "part": "part-044"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 31,
+      "part": "part-045"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 32,
+      "part": "part-014"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 33,
+      "part": "part-046"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 34,
+      "part": "part-047"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 35,
+      "part": "part-048"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 36,
+      "part": "part-049"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 37,
+      "part": "part-015"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 38,
+      "part": "part-050"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 39,
+      "part": "part-051"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 40,
+      "part": "part-052"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 41,
+      "part": "part-021"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 42,
+      "part": "part-022"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 43,
+      "part": "part-023"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 44,
+      "part": "part-053"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 45,
+      "part": "part-054"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 46,
+      "part": "part-055"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 47,
+      "part": "part-056"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 48,
+      "part": "part-057"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 49,
+      "part": "part-025"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 50,
+      "part": "part-058"
+    },
+    {
+      "role": "farmer",
+      "ordinal": 51,
+      "part": "part-059"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 0,
+      "part": "part-060"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 1,
+      "part": "part-061"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 2,
+      "part": "part-062"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 3,
+      "part": "part-063"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 4,
+      "part": "part-064"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 5,
+      "part": "part-065"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 6,
+      "part": "part-066"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 7,
+      "part": "part-067"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 8,
+      "part": "part-000"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 9,
+      "part": "part-001"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 10,
+      "part": "part-002"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 11,
+      "part": "part-003"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 12,
+      "part": "part-006"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 13,
+      "part": "part-007"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 14,
+      "part": "part-008"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 15,
+      "part": "part-009"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 16,
+      "part": "part-010"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 17,
+      "part": "part-011"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 18,
+      "part": "part-012"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 19,
+      "part": "part-013"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 20,
+      "part": "part-068"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 21,
+      "part": "part-069"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 22,
+      "part": "part-070"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 23,
+      "part": "part-071"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 24,
+      "part": "part-014"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 25,
+      "part": "part-072"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 26,
+      "part": "part-073"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 27,
+      "part": "part-074"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 28,
+      "part": "part-075"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 29,
+      "part": "part-076"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 30,
+      "part": "part-077"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 31,
+      "part": "part-078"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 32,
+      "part": "part-015"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 33,
+      "part": "part-079"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 34,
+      "part": "part-080"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 35,
+      "part": "part-081"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 36,
+      "part": "part-082"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 37,
+      "part": "part-083"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 38,
+      "part": "part-084"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 39,
+      "part": "part-085"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 40,
+      "part": "part-086"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 41,
+      "part": "part-021"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 42,
+      "part": "part-022"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 43,
+      "part": "part-087"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 44,
+      "part": "part-088"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 45,
+      "part": "part-023"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 46,
+      "part": "part-089"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 47,
+      "part": "part-090"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 48,
+      "part": "part-091"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 49,
+      "part": "part-092"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 50,
+      "part": "part-093"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 51,
+      "part": "part-025"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 52,
+      "part": "part-094"
+    },
+    {
+      "role": "infantry",
+      "ordinal": 53,
+      "part": "part-095"
+    },
+    {
+      "role": "archer",
+      "ordinal": 0,
+      "part": "part-060"
+    },
+    {
+      "role": "archer",
+      "ordinal": 1,
+      "part": "part-061"
+    },
+    {
+      "role": "archer",
+      "ordinal": 2,
+      "part": "part-062"
+    },
+    {
+      "role": "archer",
+      "ordinal": 3,
+      "part": "part-063"
+    },
+    {
+      "role": "archer",
+      "ordinal": 4,
+      "part": "part-064"
+    },
+    {
+      "role": "archer",
+      "ordinal": 5,
+      "part": "part-065"
+    },
+    {
+      "role": "archer",
+      "ordinal": 6,
+      "part": "part-066"
+    },
+    {
+      "role": "archer",
+      "ordinal": 7,
+      "part": "part-096"
+    },
+    {
+      "role": "archer",
+      "ordinal": 8,
+      "part": "part-097"
+    },
+    {
+      "role": "archer",
+      "ordinal": 9,
+      "part": "part-098"
+    },
+    {
+      "role": "archer",
+      "ordinal": 10,
+      "part": "part-099"
+    },
+    {
+      "role": "archer",
+      "ordinal": 11,
+      "part": "part-100"
+    },
+    {
+      "role": "archer",
+      "ordinal": 12,
+      "part": "part-067"
+    },
+    {
+      "role": "archer",
+      "ordinal": 13,
+      "part": "part-000"
+    },
+    {
+      "role": "archer",
+      "ordinal": 14,
+      "part": "part-001"
+    },
+    {
+      "role": "archer",
+      "ordinal": 15,
+      "part": "part-002"
+    },
+    {
+      "role": "archer",
+      "ordinal": 16,
+      "part": "part-003"
+    },
+    {
+      "role": "archer",
+      "ordinal": 17,
+      "part": "part-006"
+    },
+    {
+      "role": "archer",
+      "ordinal": 18,
+      "part": "part-007"
+    },
+    {
+      "role": "archer",
+      "ordinal": 19,
+      "part": "part-008"
+    },
+    {
+      "role": "archer",
+      "ordinal": 20,
+      "part": "part-009"
+    },
+    {
+      "role": "archer",
+      "ordinal": 21,
+      "part": "part-010"
+    },
+    {
+      "role": "archer",
+      "ordinal": 22,
+      "part": "part-011"
+    },
+    {
+      "role": "archer",
+      "ordinal": 23,
+      "part": "part-012"
+    },
+    {
+      "role": "archer",
+      "ordinal": 24,
+      "part": "part-013"
+    },
+    {
+      "role": "archer",
+      "ordinal": 25,
+      "part": "part-068"
+    },
+    {
+      "role": "archer",
+      "ordinal": 26,
+      "part": "part-069"
+    },
+    {
+      "role": "archer",
+      "ordinal": 27,
+      "part": "part-070"
+    },
+    {
+      "role": "archer",
+      "ordinal": 28,
+      "part": "part-071"
+    },
+    {
+      "role": "archer",
+      "ordinal": 29,
+      "part": "part-014"
+    },
+    {
+      "role": "archer",
+      "ordinal": 30,
+      "part": "part-101"
+    },
+    {
+      "role": "archer",
+      "ordinal": 31,
+      "part": "part-102"
+    },
+    {
+      "role": "archer",
+      "ordinal": 32,
+      "part": "part-103"
+    },
+    {
+      "role": "archer",
+      "ordinal": 33,
+      "part": "part-104"
+    },
+    {
+      "role": "archer",
+      "ordinal": 34,
+      "part": "part-105"
+    },
+    {
+      "role": "archer",
+      "ordinal": 35,
+      "part": "part-106"
+    },
+    {
+      "role": "archer",
+      "ordinal": 36,
+      "part": "part-073"
+    },
+    {
+      "role": "archer",
+      "ordinal": 37,
+      "part": "part-074"
+    },
+    {
+      "role": "archer",
+      "ordinal": 38,
+      "part": "part-075"
+    },
+    {
+      "role": "archer",
+      "ordinal": 39,
+      "part": "part-076"
+    },
+    {
+      "role": "archer",
+      "ordinal": 40,
+      "part": "part-077"
+    },
+    {
+      "role": "archer",
+      "ordinal": 41,
+      "part": "part-078"
+    },
+    {
+      "role": "archer",
+      "ordinal": 42,
+      "part": "part-015"
+    },
+    {
+      "role": "archer",
+      "ordinal": 43,
+      "part": "part-079"
+    },
+    {
+      "role": "archer",
+      "ordinal": 44,
+      "part": "part-107"
+    },
+    {
+      "role": "archer",
+      "ordinal": 45,
+      "part": "part-108"
+    },
+    {
+      "role": "archer",
+      "ordinal": 46,
+      "part": "part-109"
+    },
+    {
+      "role": "archer",
+      "ordinal": 47,
+      "part": "part-110"
+    },
+    {
+      "role": "archer",
+      "ordinal": 48,
+      "part": "part-111"
+    },
+    {
+      "role": "archer",
+      "ordinal": 49,
+      "part": "part-112"
+    },
+    {
+      "role": "archer",
+      "ordinal": 50,
+      "part": "part-113"
+    },
+    {
+      "role": "archer",
+      "ordinal": 51,
+      "part": "part-114"
+    },
+    {
+      "role": "archer",
+      "ordinal": 52,
+      "part": "part-115"
+    },
+    {
+      "role": "archer",
+      "ordinal": 53,
+      "part": "part-116"
+    },
+    {
+      "role": "archer",
+      "ordinal": 54,
+      "part": "part-117"
+    },
+    {
+      "role": "archer",
+      "ordinal": 55,
+      "part": "part-118"
+    },
+    {
+      "role": "archer",
+      "ordinal": 56,
+      "part": "part-119"
+    },
+    {
+      "role": "archer",
+      "ordinal": 57,
+      "part": "part-120"
+    },
+    {
+      "role": "archer",
+      "ordinal": 58,
+      "part": "part-121"
+    },
+    {
+      "role": "archer",
+      "ordinal": 59,
+      "part": "part-122"
+    },
+    {
+      "role": "archer",
+      "ordinal": 60,
+      "part": "part-123"
+    },
+    {
+      "role": "archer",
+      "ordinal": 61,
+      "part": "part-124"
+    },
+    {
+      "role": "archer",
+      "ordinal": 62,
+      "part": "part-125"
+    },
+    {
+      "role": "archer",
+      "ordinal": 63,
+      "part": "part-126"
+    },
+    {
+      "role": "archer",
+      "ordinal": 64,
+      "part": "part-127"
+    },
+    {
+      "role": "archer",
+      "ordinal": 65,
+      "part": "part-128"
+    },
+    {
+      "role": "archer",
+      "ordinal": 66,
+      "part": "part-129"
+    },
+    {
+      "role": "archer",
+      "ordinal": 67,
+      "part": "part-130"
+    },
+    {
+      "role": "archer",
+      "ordinal": 68,
+      "part": "part-131"
+    },
+    {
+      "role": "archer",
+      "ordinal": 69,
+      "part": "part-132"
+    },
+    {
+      "role": "archer",
+      "ordinal": 70,
+      "part": "part-133"
+    },
+    {
+      "role": "archer",
+      "ordinal": 71,
+      "part": "part-085"
+    },
+    {
+      "role": "archer",
+      "ordinal": 72,
+      "part": "part-086"
+    },
+    {
+      "role": "archer",
+      "ordinal": 73,
+      "part": "part-021"
+    },
+    {
+      "role": "archer",
+      "ordinal": 74,
+      "part": "part-022"
+    },
+    {
+      "role": "archer",
+      "ordinal": 75,
+      "part": "part-134"
+    },
+    {
+      "role": "archer",
+      "ordinal": 76,
+      "part": "part-135"
+    },
+    {
+      "role": "archer",
+      "ordinal": 77,
+      "part": "part-023"
+    },
+    {
+      "role": "archer",
+      "ordinal": 78,
+      "part": "part-093"
+    },
+    {
+      "role": "archer",
+      "ordinal": 79,
+      "part": "part-025"
+    },
+    {
+      "role": "archer",
+      "ordinal": 80,
+      "part": "part-094"
+    },
+    {
+      "role": "archer",
+      "ordinal": 81,
+      "part": "part-095"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 0,
+      "part": "part-060"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 1,
+      "part": "part-061"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 2,
+      "part": "part-062"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 3,
+      "part": "part-063"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 4,
+      "part": "part-064"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 5,
+      "part": "part-065"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 6,
+      "part": "part-066"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 7,
+      "part": "part-067"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 8,
+      "part": "part-000"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 9,
+      "part": "part-001"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 10,
+      "part": "part-002"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 11,
+      "part": "part-003"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 12,
+      "part": "part-006"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 13,
+      "part": "part-007"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 14,
+      "part": "part-008"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 15,
+      "part": "part-009"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 16,
+      "part": "part-010"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 17,
+      "part": "part-011"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 18,
+      "part": "part-012"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 19,
+      "part": "part-013"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 20,
+      "part": "part-068"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 21,
+      "part": "part-069"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 22,
+      "part": "part-070"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 23,
+      "part": "part-071"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 24,
+      "part": "part-014"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 25,
+      "part": "part-136"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 26,
+      "part": "part-073"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 27,
+      "part": "part-074"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 28,
+      "part": "part-075"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 29,
+      "part": "part-137"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 30,
+      "part": "part-138"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 31,
+      "part": "part-139"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 32,
+      "part": "part-140"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 33,
+      "part": "part-141"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 34,
+      "part": "part-142"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 35,
+      "part": "part-143"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 36,
+      "part": "part-144"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 37,
+      "part": "part-145"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 38,
+      "part": "part-146"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 39,
+      "part": "part-147"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 40,
+      "part": "part-148"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 41,
+      "part": "part-149"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 42,
+      "part": "part-150"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 43,
+      "part": "part-151"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 44,
+      "part": "part-152"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 45,
+      "part": "part-153"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 46,
+      "part": "part-154"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 47,
+      "part": "part-155"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 48,
+      "part": "part-156"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 49,
+      "part": "part-157"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 50,
+      "part": "part-158"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 51,
+      "part": "part-159"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 52,
+      "part": "part-160"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 53,
+      "part": "part-161"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 54,
+      "part": "part-162"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 55,
+      "part": "part-163"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 56,
+      "part": "part-164"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 57,
+      "part": "part-165"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 58,
+      "part": "part-076"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 59,
+      "part": "part-077"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 60,
+      "part": "part-078"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 61,
+      "part": "part-015"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 62,
+      "part": "part-079"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 63,
+      "part": "part-166"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 64,
+      "part": "part-167"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 65,
+      "part": "part-168"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 66,
+      "part": "part-169"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 67,
+      "part": "part-170"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 68,
+      "part": "part-171"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 69,
+      "part": "part-172"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 70,
+      "part": "part-173"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 71,
+      "part": "part-174"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 72,
+      "part": "part-175"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 73,
+      "part": "part-176"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 74,
+      "part": "part-177"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 75,
+      "part": "part-085"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 76,
+      "part": "part-086"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 77,
+      "part": "part-021"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 78,
+      "part": "part-022"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 79,
+      "part": "part-178"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 80,
+      "part": "part-179"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 81,
+      "part": "part-023"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 82,
+      "part": "part-093"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 83,
+      "part": "part-025"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 84,
+      "part": "part-094"
+    },
+    {
+      "role": "cavalry",
+      "ordinal": 85,
+      "part": "part-095"
+    }
+  ],
+  "humanActions": [
+    "Walk",
+    "Run",
+    "Hammer",
+    "CarryWalk",
+    "CarryRun",
+    "RideIdle",
+    "RideWalk",
+    "RideRun"
+  ]
+}

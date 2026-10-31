@@ -1,0 +1,3305 @@
+{
+  "files": [
+    {
+      "path": "studies/base-human/base-human.glb",
+      "bytes": 6135208,
+      "sha256": "124e6a1c91039c8f15f790f8d6220c95ff9c3dec5094603c89afb8986022ebb7",
+      "categories": {
+        "POSITION": 1214292,
+        "NORMAL": 1214292,
+        "TEXCOORD_0": 240824,
+        "JOINTS_0": 404764,
+        "WEIGHTS_0": 1619056,
+        "indices": 1138500,
+        "COLOR_0": 210432,
+        "animations": 28224,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 6042160,
+      "referencedViewBytes": 6071664,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": [
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "path": "studies/farmer/farmer.glb",
+      "bytes": 10351396,
+      "sha256": "d56df8e0b94a51b89606e072430c43139c8540097ede82e8f67b6374fe21d743",
+      "categories": {
+        "POSITION": 2154228,
+        "NORMAL": 2154228,
+        "JOINTS_0": 718076,
+        "WEIGHTS_0": 2872304,
+        "indices": 1803204,
+        "TEXCOORD_0": 291368,
+        "COLOR_0": 210432,
+        "animations": 39836,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 10203840,
+      "referencedViewBytes": 10244956,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": [
+        "Hammer",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "path": "studies/soldiers/infantry/infantry.glb",
+      "bytes": 10269912,
+      "sha256": "386d042c33934dcee2fad1bbf0b675e270d6f2c92fccd6034877ff52ba576443",
+      "categories": {
+        "POSITION": 2131392,
+        "NORMAL": 2131392,
+        "JOINTS_0": 710464,
+        "WEIGHTS_0": 2841856,
+        "indices": 1761384,
+        "TEXCOORD_0": 361528,
+        "COLOR_0": 210432,
+        "animations": 24640,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 10148448,
+      "referencedViewBytes": 10174368,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": [
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "path": "studies/soldiers/archer/archer.glb",
+      "bytes": 10453816,
+      "sha256": "e6ce5075703e493021cf4d9e82c404139cd0eafec057617c6dc55d07cf0492c7",
+      "categories": {
+        "POSITION": 2183508,
+        "NORMAL": 2183508,
+        "JOINTS_0": 727836,
+        "WEIGHTS_0": 2911344,
+        "indices": 1758336,
+        "TEXCOORD_0": 329488,
+        "COLOR_0": 210432,
+        "animations": 24640,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 10304452,
+      "referencedViewBytes": 10330372,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": [
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "path": "studies/soldiers/cavalry/cavalry.glb",
+      "bytes": 16055148,
+      "sha256": "bb3cab27c794c63e4a136dd8679cf38bbe1727198ee1270392ad6c06d62d7ceb",
+      "categories": {
+        "POSITION": 3332424,
+        "NORMAL": 3332424,
+        "JOINTS_0": 1110808,
+        "WEIGHTS_0": 4443232,
+        "indices": 2432280,
+        "TEXCOORD_0": 348728,
+        "COLOR_0": 751008,
+        "animations": 72748,
+        "inverseBindMatrices": 2368
+      },
+      "geometryViewBytes": 15750904,
+      "referencedViewBytes": 15826020,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": [
+        "RideIdle",
+        "RideRun",
+        "RideWalk",
+        "Run",
+        "Walk"
+      ]
+    },
+    {
+      "path": "studies/lod/base-lod.glb",
+      "bytes": 1565292,
+      "sha256": "c72468a5cee484962bd371a5995e0b7ddbaecd68dc59faff2dbbecef012a9c99",
+      "categories": {
+        "POSITION": 302460,
+        "NORMAL": 302460,
+        "TEXCOORD_0": 56208,
+        "JOINTS_0": 100820,
+        "WEIGHTS_0": 403280,
+        "indices": 287976,
+        "COLOR_0": 73656,
+        "animations": 0,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 1526860,
+      "referencedViewBytes": 1528140,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": []
+    },
+    {
+      "path": "studies/lod/farmer-lod.glb",
+      "bytes": 3163016,
+      "sha256": "7e1f02ab0c5f1d76dafe78dd4a837424cf2d7cde67f43fbb2c0024717ec2e95d",
+      "categories": {
+        "POSITION": 635052,
+        "NORMAL": 635052,
+        "JOINTS_0": 211684,
+        "WEIGHTS_0": 846736,
+        "indices": 617460,
+        "TEXCOORD_0": 75224,
+        "COLOR_0": 73656,
+        "animations": 0,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 3094864,
+      "referencedViewBytes": 3096144,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": []
+    },
+    {
+      "path": "studies/lod/infantry-lod.glb",
+      "bytes": 3112844,
+      "sha256": "14c3971544ddd033ab5c6b02b737344f9e440efd1e638e10cdca0b0dc5417849",
+      "categories": {
+        "POSITION": 621768,
+        "NORMAL": 621768,
+        "JOINTS_0": 207256,
+        "WEIGHTS_0": 829024,
+        "indices": 601872,
+        "TEXCOORD_0": 86776,
+        "COLOR_0": 73656,
+        "animations": 0,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 3042120,
+      "referencedViewBytes": 3043400,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": []
+    },
+    {
+      "path": "studies/lod/archer-lod.glb",
+      "bytes": 3267932,
+      "sha256": "55a984c1c88676dbbfd80ca05c6dc2afdc19e96442d0e61a6ad286b5af94872f",
+      "categories": {
+        "POSITION": 650448,
+        "NORMAL": 650448,
+        "JOINTS_0": 216816,
+        "WEIGHTS_0": 867264,
+        "indices": 622776,
+        "TEXCOORD_0": 87656,
+        "COLOR_0": 73656,
+        "animations": 0,
+        "inverseBindMatrices": 1280
+      },
+      "geometryViewBytes": 3169064,
+      "referencedViewBytes": 3170344,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": []
+    },
+    {
+      "path": "studies/lod/cavalry-lod.glb",
+      "bytes": 4759136,
+      "sha256": "090ce2720d8b765efbb236ac61b204d03d032bb1efd78c112830b6a70007e620",
+      "categories": {
+        "POSITION": 941640,
+        "NORMAL": 941640,
+        "JOINTS_0": 313880,
+        "WEIGHTS_0": 1255520,
+        "indices": 897168,
+        "TEXCOORD_0": 106136,
+        "COLOR_0": 192600,
+        "animations": 0,
+        "inverseBindMatrices": 2368
+      },
+      "geometryViewBytes": 4648584,
+      "referencedViewBytes": 4650952,
+      "unusedViews": [],
+      "unreachableNodes": [],
+      "unreachableMeshes": [],
+      "images": 0,
+      "clips": []
+    }
+  ],
+  "totals": {
+    "fileBytes": 69133700,
+    "animationViewBytes": 190088,
+    "geometryViewBytes": 67931296,
+    "primitiveReferencedBytesIncludingReuse": 69851464,
+    "uniquePrimitiveAccessorBytes": 29291784,
+    "repeatedPrimitiveReferencesBytes": 40559680
+  },
+  "duplicateGeometry": [
+    {
+      "bytes": 54524,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Brow.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Brow.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Brow.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Brow.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Brow.L"
+        }
+      ]
+    },
+    {
+      "bytes": 54524,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Brow.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Brow.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Brow.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Brow.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Brow.R"
+        }
+      ]
+    },
+    {
+      "bytes": 560088,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Continuous arm and fist.L"
+        }
+      ]
+    },
+    {
+      "bytes": 560088,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Continuous arm and fist.R"
+        }
+      ]
+    },
+    {
+      "bytes": 201576,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Ear.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Ear.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Ear.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Ear.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Ear.L"
+        }
+      ]
+    },
+    {
+      "bytes": 201576,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Ear.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Ear.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Ear.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Ear.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Ear.R"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye glint.L"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye glint.R"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye iris.L"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye iris.R"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye white.L"
+        }
+      ]
+    },
+    {
+      "bytes": 42668,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Eye white.R"
+        }
+      ]
+    },
+    {
+      "bytes": 1192424,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Head • shaped cranium cheeks and jaw"
+        }
+      ]
+    },
+    {
+      "bytes": 101836,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Neck"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Neck"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Neck"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Neck"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Neck"
+        }
+      ]
+    },
+    {
+      "bytes": 70072,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Neck binding"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Neck binding"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Neck binding"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Neck binding"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Neck binding"
+        }
+      ]
+    },
+    {
+      "bytes": 70280,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Shirt hem piping"
+        }
+      ]
+    },
+    {
+      "bytes": 576344,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Shorts • shaped hip and separate legs"
+        }
+      ]
+    },
+    {
+      "bytes": 101836,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Small rounded nose"
+        }
+      ]
+    },
+    {
+      "bytes": 80764,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Smile"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Smile"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Smile"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Smile"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Smile"
+        }
+      ]
+    },
+    {
+      "bytes": 6488,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Subtle open smile"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Subtle open smile"
+        }
+      ]
+    },
+    {
+      "bytes": 648464,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "T-shirt • connected shoulders"
+        }
+      ]
+    },
+    {
+      "bytes": 89576,
+      "uses": [
+        {
+          "role": "base",
+          "lod": false,
+          "node": "Torso skin"
+        },
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Torso skin"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Torso skin"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Torso skin"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Torso skin"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Blue collar.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Blue collar.1"
+        }
+      ]
+    },
+    {
+      "bytes": 200792,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Boot sole.L"
+        }
+      ]
+    },
+    {
+      "bytes": 200792,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Boot sole.R"
+        }
+      ]
+    },
+    {
+      "bytes": 430168,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Boot.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Boot.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Boot.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Boot.L"
+        }
+      ]
+    },
+    {
+      "bytes": 430168,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Boot.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Boot.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Boot.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Boot.R"
+        }
+      ]
+    },
+    {
+      "bytes": 8488,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Hammer • rounded steel head"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Hammer • rounded steel head"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Hammer • wooden handle"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Hammer • wooden handle"
+        }
+      ]
+    },
+    {
+      "bytes": 64236,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Headwrap knot"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Headwrap knot"
+        }
+      ]
+    },
+    {
+      "bytes": 630760,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Headwrap • complete folded crown"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Headwrap • complete folded crown"
+        }
+      ]
+    },
+    {
+      "bytes": 18120,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Suspender.-1"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Suspender.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 18120,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Suspender.1"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Suspender.1"
+        }
+      ]
+    },
+    {
+      "bytes": 258136,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Trouser cuff.L"
+        }
+      ]
+    },
+    {
+      "bytes": 258136,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": false,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Trouser cuff.R"
+        }
+      ]
+    },
+    {
+      "bytes": 150528,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Belt • wrapped waist"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Belt • wrapped waist"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Belt • wrapped waist"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Blue collar.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Blue collar.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Blue collar.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Blue collar.1"
+        }
+      ]
+    },
+    {
+      "bytes": 68140,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Brass belt buckle"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Brass belt buckle"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Brass belt buckle"
+        }
+      ]
+    },
+    {
+      "bytes": 397800,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Hair • fitted scalp"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Hair • fitted scalp"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Hair • fitted scalp"
+        }
+      ]
+    },
+    {
+      "bytes": 224984,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Hair • swept fringe 0"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Hair • swept fringe 0"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Hair • swept fringe 0"
+        }
+      ]
+    },
+    {
+      "bytes": 224984,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Hair • swept fringe 1"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Hair • swept fringe 1"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Hair • swept fringe 1"
+        }
+      ]
+    },
+    {
+      "bytes": 224984,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Hair • swept fringe 2"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Hair • swept fringe 2"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Hair • swept fringe 2"
+        }
+      ]
+    },
+    {
+      "bytes": 523056,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Helmet • broad joined reinforcement"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Helmet • broad joined reinforcement"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Helmet • broad joined reinforcement"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Helmet • broad joined reinforcement"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Helmet • broad joined reinforcement"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Helmet • broad joined reinforcement"
+        }
+      ]
+    },
+    {
+      "bytes": 186456,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Helmet • curled blue plume"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Helmet • curled blue plume"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Helmet • curled blue plume"
+        }
+      ]
+    },
+    {
+      "bytes": 397800,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Helmet • rounded steel crown"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Helmet • rounded steel crown"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Helmet • rounded steel crown"
+        }
+      ]
+    },
+    {
+      "bytes": 18120,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Leather shoulder strap.-1"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Leather shoulder strap.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Leather shoulder strap.-1"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Leather shoulder strap.-1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Leather shoulder strap.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Leather shoulder strap.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 18120,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Leather shoulder strap.1"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Leather shoulder strap.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Leather shoulder strap.1"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Leather shoulder strap.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Leather shoulder strap.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Leather shoulder strap.1"
+        }
+      ]
+    },
+    {
+      "bytes": 356696,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Leather vest • rounded belly"
+        },
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Leather vest • rounded belly"
+        },
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Leather vest • rounded belly"
+        }
+      ]
+    },
+    {
+      "bytes": 4456,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Sword • broad steel blade"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Sword • broad steel blade"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Sword • leather grip"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Sword • leather grip"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": false,
+          "node": "Sword • rounded crossguard"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Sword • rounded crossguard"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Bow • leather grip"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Bow • leather grip"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Bow • taut linen string"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Bow • taut linen string"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Held arrow • ivory feathers.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Held arrow • ivory feathers.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Held arrow • ivory feathers.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Held arrow • ivory feathers.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Held arrow • ivory feathers.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Held arrow • ivory feathers.2"
+        }
+      ]
+    },
+    {
+      "bytes": 5352,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Held arrow • steel point"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Held arrow • steel point"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Held arrow • wooden shaft"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Held arrow • wooden shaft"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver arrow shaft 0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver arrow shaft 0"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver arrow shaft 1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver arrow shaft 1"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver arrow shaft 2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver arrow shaft 2"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver arrow shaft 3"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver arrow shaft 3"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver arrow shaft 4"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver arrow shaft 4"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 0.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 0.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 0.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 0.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 0.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 0.2"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 1.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 1.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 1.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 1.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 1.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 1.2"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 2.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 2.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 2.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 2.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 2.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 2.2"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 3.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 3.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 3.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 3.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 3.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 3.2"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 4.0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 4.0"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 4.1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 4.1"
+        }
+      ]
+    },
+    {
+      "bytes": 984,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver ivory feathers 4.2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver ivory feathers 4.2"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver • back harness"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver • back harness"
+        }
+      ]
+    },
+    {
+      "bytes": 10952,
+      "uses": [
+        {
+          "role": "archer",
+          "lod": false,
+          "node": "Quiver • fitted diagonal shoulder strap"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Quiver • fitted diagonal shoulder strap"
+        }
+      ]
+    },
+    {
+      "bytes": 34924,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse brow band"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse brow band"
+        }
+      ]
+    },
+    {
+      "bytes": 26620,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse cheek strap.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse cheek strap.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 26620,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse cheek strap.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse cheek strap.1"
+        }
+      ]
+    },
+    {
+      "bytes": 23892,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse eye glint.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse eye glint.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 23892,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse eye glint.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse eye glint.1"
+        }
+      ]
+    },
+    {
+      "bytes": 23892,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse eye.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse eye.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 23892,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse eye.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse eye.1"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse inner ear.-1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse inner ear.-1"
+        }
+      ]
+    },
+    {
+      "bytes": 2776,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse inner ear.1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse inner ear.1"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse muzzle smile"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse muzzle smile"
+        }
+      ]
+    },
+    {
+      "bytes": 34924,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Horse noseband"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Horse noseband"
+        }
+      ]
+    },
+    {
+      "bytes": 2664,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Lance • leaf steel point"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Lance • leaf steel point"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Lance • steel socket"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Lance • steel socket"
+        }
+      ]
+    },
+    {
+      "bytes": 18316,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Lance • wooden shaft"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Lance • wooden shaft"
+        }
+      ]
+    },
+    {
+      "bytes": 34924,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Rein • far hand"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Rein • far hand"
+        }
+      ]
+    },
+    {
+      "bytes": 26620,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Rein • near hand"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Rein • near hand"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Saddle stirrup strap.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Saddle stirrup strap.L"
+        }
+      ]
+    },
+    {
+      "bytes": 10012,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Saddle stirrup strap.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Saddle stirrup strap.R"
+        }
+      ]
+    },
+    {
+      "bytes": 32256,
+      "uses": [
+        {
+          "role": "cavalry",
+          "lod": false,
+          "node": "Saddle • belly girth"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Saddle • belly girth"
+        }
+      ]
+    },
+    {
+      "bytes": 13024,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Brow.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Brow.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Brow.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Brow.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Brow.L"
+        }
+      ]
+    },
+    {
+      "bytes": 13128,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Brow.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Brow.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Brow.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Brow.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Brow.R"
+        }
+      ]
+    },
+    {
+      "bytes": 123288,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Continuous arm and fist.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Continuous arm and fist.L"
+        }
+      ]
+    },
+    {
+      "bytes": 123288,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Continuous arm and fist.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Continuous arm and fist.R"
+        }
+      ]
+    },
+    {
+      "bytes": 44384,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Ear.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Ear.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Ear.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Ear.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Ear.L"
+        }
+      ]
+    },
+    {
+      "bytes": 44384,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Ear.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Ear.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Ear.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Ear.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Ear.R"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye glint.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye glint.L"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye glint.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye glint.R"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye iris.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye iris.L"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye iris.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye iris.R"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye white.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye white.L"
+        }
+      ]
+    },
+    {
+      "bytes": 10468,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Eye white.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Eye white.R"
+        }
+      ]
+    },
+    {
+      "bytes": 417360,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Head • shaped cranium cheeks and jaw"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Head • shaped cranium cheeks and jaw"
+        }
+      ]
+    },
+    {
+      "bytes": 22176,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Neck"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Neck"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Neck"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Neck"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Neck"
+        }
+      ]
+    },
+    {
+      "bytes": 16616,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Neck binding"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Neck binding"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Neck binding"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Neck binding"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Neck binding"
+        }
+      ]
+    },
+    {
+      "bytes": 16928,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Shirt hem piping"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Shirt hem piping"
+        }
+      ]
+    },
+    {
+      "bytes": 126680,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Shorts • shaped hip and separate legs"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Shorts • shaped hip and separate legs"
+        }
+      ]
+    },
+    {
+      "bytes": 22124,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Small rounded nose"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Small rounded nose"
+        }
+      ]
+    },
+    {
+      "bytes": 18452,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Smile"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Smile"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Smile"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Smile"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Smile"
+        }
+      ]
+    },
+    {
+      "bytes": 156388,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "T-shirt • connected shoulders"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "T-shirt • connected shoulders"
+        }
+      ]
+    },
+    {
+      "bytes": 19744,
+      "uses": [
+        {
+          "role": "base",
+          "lod": true,
+          "node": "Torso skin"
+        },
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Torso skin"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Torso skin"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Torso skin"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Torso skin"
+        }
+      ]
+    },
+    {
+      "bytes": 44216,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Boot sole.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Boot sole.L"
+        }
+      ]
+    },
+    {
+      "bytes": 44216,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Boot sole.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Boot sole.R"
+        }
+      ]
+    },
+    {
+      "bytes": 94672,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Boot.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Boot.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Boot.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Boot.L"
+        }
+      ]
+    },
+    {
+      "bytes": 94672,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Boot.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Boot.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Boot.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Boot.R"
+        }
+      ]
+    },
+    {
+      "bytes": 56816,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Trouser cuff.L"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Trouser cuff.L"
+        }
+      ]
+    },
+    {
+      "bytes": 56816,
+      "uses": [
+        {
+          "role": "farmer",
+          "lod": true,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Trouser cuff.R"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Trouser cuff.R"
+        }
+      ]
+    },
+    {
+      "bytes": 33096,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Belt • wrapped waist"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Belt • wrapped waist"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Belt • wrapped waist"
+        }
+      ]
+    },
+    {
+      "bytes": 15752,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Brass belt buckle"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Brass belt buckle"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Brass belt buckle"
+        }
+      ]
+    },
+    {
+      "bytes": 87560,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Hair • fitted scalp"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Hair • fitted scalp"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Hair • fitted scalp"
+        }
+      ]
+    },
+    {
+      "bytes": 49536,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Hair • swept fringe 0"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Hair • swept fringe 0"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Hair • swept fringe 0"
+        }
+      ]
+    },
+    {
+      "bytes": 49536,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Hair • swept fringe 1"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Hair • swept fringe 1"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Hair • swept fringe 1"
+        }
+      ]
+    },
+    {
+      "bytes": 49536,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Hair • swept fringe 2"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Hair • swept fringe 2"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Hair • swept fringe 2"
+        }
+      ]
+    },
+    {
+      "bytes": 65272,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Helmet • curled blue plume"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Helmet • curled blue plume"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Helmet • curled blue plume"
+        }
+      ]
+    },
+    {
+      "bytes": 139248,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Helmet • rounded steel crown"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Helmet • rounded steel crown"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Helmet • rounded steel crown"
+        }
+      ]
+    },
+    {
+      "bytes": 78488,
+      "uses": [
+        {
+          "role": "infantry",
+          "lod": true,
+          "node": "Leather vest • rounded belly"
+        },
+        {
+          "role": "archer",
+          "lod": true,
+          "node": "Leather vest • rounded belly"
+        },
+        {
+          "role": "cavalry",
+          "lod": true,
+          "node": "Leather vest • rounded belly"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Category sizes are buffer-view unions within each category; categories can overlap.",
+    "Geometry duplication compares complete primitives (all attributes and indices), regardless of material.",
+    "Primitive-reference totals can count a shared accessor more than once; they are not physical file bytes or a predicted download saving. geometryViewBytes uses a physical buffer-view union per file.",
+    "Reachability does not prove that every visible or occluded part is artistically necessary.",
+    "File bytes are not HTTP transfer bytes or runtime GPU memory."
+  ]
+}

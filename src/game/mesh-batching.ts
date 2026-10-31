@@ -1,10 +1,11 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import type { Geometry } from '@babylonjs/core/Meshes/geometry';
 
 /** Join compatible GLB parts in their existing bind space. Keep every vertex,
  * normal, color and skin weight; never bake a posed/world transform into a rig. */
-export function batchSkinnedMeshes(meshes: readonly AbstractMesh[]): AbstractMesh[] {
+export function batchSkinnedMeshes(meshes: readonly AbstractMesh[], sharedGeometry?: Map<string, Geometry>): AbstractMesh[] {
   const animationTargets = new Set(meshes[0]?.getScene().animationGroups.flatMap(group => group.targetedAnimations.map(entry => entry.target)));
   const groups = new Map<string, Mesh[]>();
   for (const mesh of meshes) {
@@ -23,11 +24,18 @@ export function batchSkinnedMeshes(meshes: readonly AbstractMesh[]): AbstractMes
   for (const group of groups.values()) {
     if (group.length < 2) continue;
     const [first, ...rest] = group;
-    const data = VertexData.ExtractFromMesh(first, true, true);
-    data.merge(rest.map(mesh => VertexData.ExtractFromMesh(mesh, true, true)), true);
-    first.makeGeometryUnique();
-    data.applyToMesh(first);
-    first.metadata = { ...first.metadata, batchedParts: group.map(mesh => mesh.name) };
+    const geometryKey = group.map(mesh => mesh.geometry!.uniqueId).join(',');
+    const shared = sharedGeometry?.get(geometryKey);
+    if (shared) shared.applyToMesh(first);
+    else {
+      const data = VertexData.ExtractFromMesh(first, true, true);
+      data.merge(rest.map(mesh => VertexData.ExtractFromMesh(mesh, true, true)), true);
+      first.makeGeometryUnique();
+      data.applyToMesh(first);
+      sharedGeometry?.set(geometryKey, first.geometry!);
+    }
+    first.metadata = { ...first.metadata, batchedParts: group.map(mesh => mesh.name),
+      sharedParts: group.flatMap(mesh => mesh.metadata?.sharedParts ?? []) };
     for (const mesh of rest) mesh.dispose(false, false);
   }
   return meshes.filter(mesh => !mesh.isDisposed());

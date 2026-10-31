@@ -54,7 +54,7 @@ test('a failed new-game load does not overwrite the previous save', async ({ pag
   const economy = new Economy(); economy.state.inventory.wood = 29;
   const saved = encodeEconomy(economy);
   await page.addInitScript(({ key, saved }) => localStorage.setItem(key, saved), { key: ECONOMY_SAVE_KEY, saved });
-  await page.route(/\/assets\/farmer-[^/]+\.glb$/, route => route.abort('failed'));
+  await page.route(/\/assets\/characters-(?!lod-)[^/]+\.glb$/, route => route.abort('failed'));
   await page.goto('/');
   await page.locator('#start-game').tap();
   await page.getByRole('button', { name: '开始新游戏', exact: true }).tap();

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
 
+test.use({ viewport: { width: 393, height: 754 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+
 test('single commands toggle, switch, retain failures/options and release selection only on success', async ({ page }, info) => {
   const errors = await openGame(page);
   await selectUnit(page, 'farmer', true);
@@ -16,7 +18,8 @@ test('single commands toggle, switch, retain failures/options and release select
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
   await selectUnit(page, 'farmer', true);
   await page.getByRole('button', { name: '查看全景', exact: true }).tap();
-  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(29);
+  // The 393 × 754 viewport settles near 28; overview fits the viewport aspect.
+  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(27.5);
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-2')!;
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);
   await expect(page.getByRole('button', { name: '种小麦', exact: true })).toBeVisible();

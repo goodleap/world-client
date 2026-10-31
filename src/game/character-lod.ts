@@ -5,6 +5,7 @@ import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader.js'
 import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoader.js';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh.js';
 import type { Scene } from '@babylonjs/core/scene.js';
+import { Geometry } from '@babylonjs/core/Meshes/geometry.js';
 import { modelData, modelOptions } from './asset-cache.ts';
 
 export interface CharacterLOD { source: Mesh; detail: Mesh }
@@ -16,7 +17,7 @@ const MAP_LOD_VIEW_AREA = 120;
 /** Normalize part thresholds to one orthographic view area: a tiny eye and a
  * large torso switch together. Babylon selects the LOD for both main/shadow
  * passes, and automatically restores the source geometry in close views. */
-export function attachMeshLOD(source: Mesh, data: VertexData): CharacterLOD {
+export function attachMeshLOD(source: Mesh, data: VertexData | Geometry): CharacterLOD {
   const detail = new Mesh(`${source.name}-map-lod`, source.getScene());
   data.applyToMesh(detail);
   detail.material = source.material;

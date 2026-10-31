@@ -13,30 +13,18 @@ import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { findPath } from './pathfinding.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
-import { ImportMeshAsync, LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
-import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoader';
-import '@babylonjs/loaders/glTF';
-import { modelAssets } from './model-assets.ts';
-import { modelData, modelOptions } from './asset-cache.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Bone } from '@babylonjs/core/Bones/bone';
-import { createCharacterMaterialSetup } from './character-materials.ts';
 import { batchSkinnedMeshes } from './mesh-batching.ts';
-import { loadCharacterLOD } from './character-lod.ts';
 import type { CharacterLOD } from './character-lod.ts';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
+import { createCharacterLibrary } from './character-library.ts';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
-const { farmer: farmerModelUrl, base: baseModelUrl, infantry: infantryModelUrl, cavalry: cavalryModelUrl, archer: archerModelUrl,
-  baseLOD: baseLODUrl, farmerLOD: farmerLODUrl, infantryLOD: infantryLODUrl, cavalryLOD: cavalryLODUrl, archerLOD: archerLODUrl } = modelAssets;
 type ResourceProgress = (fraction: number) => void;
-const downloadProgress = (report?: ResourceProgress) => (event: ISceneLoaderProgressEvent) => {
-  // Reserve the final tenth for decoding, skinning and attaching the asset.
-  if (event.lengthComputable && event.total > 0) report?.(Math.min(.9, .9 * event.loaded / event.total));
-};
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
   worldObstacles: () => readonly Obstacle[] = () => RESIDENT_OBSTACLES) {
@@ -45,9 +33,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   ];
   const placeholderRoles = new Set(['worker']);
   const soldierAssets = [
-    { role: 'infantry', url: infantryModelUrl, lod: infantryLODUrl, mounted: false },
-    { role: 'cavalry', url: cavalryModelUrl, lod: cavalryLODUrl, mounted: true },
-    { role: 'archer', url: archerModelUrl, lod: archerLODUrl, mounted: false },
+    { role: 'infantry', mounted: false },
+    { role: 'cavalry', mounted: true },
+    { role: 'archer', mounted: false },
   ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const actors = RESIDENTS.map((definition, index) => {
@@ -97,17 +85,16 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const soldierModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
   const soldierBones = new Map<string, Bone[]>();
   const characterLODs = new Map<string, CharacterLOD[]>();
-  const attachGeometry = async (id: string, meshes: readonly AbstractMesh[], lodUrl: string, report?: ResourceProgress, namePrefix?: string) => {
+  const library = createCharacterLibrary(scene);
+  const attachGeometry = async (id: string, meshes: readonly AbstractMesh[], report?: ResourceProgress) => {
     loadingProgress.begin(id + ':geometry', `${id}：合批与 LOD 准备`);
-    const sources = batchSkinnedMeshes(meshes);
+    const sources = batchSkinnedMeshes(meshes, library.highBatches);
     for (const mesh of sources) {
       mesh.isPickable = false;
       if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
     }
     report?.(0);
-    characterLODs.set(id, await loadCharacterLOD(scene, sources, lodUrl, {
-      namePrefix, onProgress: downloadProgress(report),
-    }));
+    characterLODs.set(id, await library.attachLOD(sources));
     // The native shadow renderer selects the same LOD as the main camera;
     // only the source meshes belong in its caster list.
     loadingProgress.done(id + ':geometry');
@@ -124,7 +111,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       sharedSkeletonAndMaterials: pairs.every(({ source, detail }) => source.skeleton === detail.skeleton && source.material === detail.material),
     };
   };
-  const prepareBaseMaterials = createCharacterMaterialSetup(scene);
   const destinationSpeed = (actor: typeof actors[number]) => actor.settings.speed
     * (locomotion.has(actor.definition.id) ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15)
     * COMMAND_RUN_SPEED_MULTIPLIER;
@@ -165,15 +151,14 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   return {
     async loadFarmerModel(report?: ResourceProgress) {
-      const data = await modelData(farmerModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
-      const result = await loadingProgress.run(farmerModelUrl + ':parse', '农民：模型解析', () => ImportMeshAsync(data, scene, modelOptions(farmerModelUrl)));
-      loadingProgress.begin(farmerModelUrl + ':attach', '农民：材质与动作挂接');
-      prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
+      const result = await library.instantiate('farmer', farmer.root);
+      loadingProgress.begin('farmer:attach', '农民：共享材质与动作挂接');
       farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
-      farmerWalk = result.animationGroups.find((group) => group.name === 'Walk');
-      farmerRun = result.animationGroups.find((group) => group.name === 'Run');
-      farmerHammer = result.animationGroups.find((group) => group.name === 'Hammer');
-      if (!farmerWalk || !farmerRun || !farmerHammer) throw new Error('Farmer model needs shared Walk, Run and Hammer animations');
+      farmerWalk = result.walk; farmerRun = result.run; farmerHammer = result.work;
+      // Blending flags are actor-local. Key arrays remain shared and immutable.
+      for (const clip of [farmerWalk, farmerRun, farmerHammer]) {
+        for (const target of clip.targetedAnimations) target.animation = target.animation.clone();
+      }
       // Reuse the authored neutral Walk pose for a native blended rest state.
       // This is not another authored body/rig/action set.
       const rest = farmerWalk.clone('Farmer rest pose', undefined, true);
@@ -184,29 +169,22 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       rest.normalize(0, 60);
       for (const clip of [farmerWalk, farmerRun, farmerHammer, rest]) { clip.enableBlending = true; clip.blendingSpeed = .15; }
       registerLocomotion(farmer.definition.id, farmerWalk, farmerRun, { idle: rest, work: farmerHammer });
-      result.meshes[0].parent = farmer.root;
       farmer.human!.mesh.setEnabled(false);
-      loadingProgress.done(farmerModelUrl + ':attach');
-      await attachGeometry(farmer.definition.id, result.meshes, farmerLODUrl, fraction => report?.(.8 + .2 * fraction));
+      loadingProgress.done('farmer:attach');
+      await attachGeometry(farmer.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
       farmerModelLoaded = true;
       report?.(1);
     },
     async loadBaseModel(report?: ResourceProgress) {
-      const data = await modelData(baseModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
-      const result = await loadingProgress.run(baseModelUrl + ':parse', '基础人物：模型解析', () => ImportMeshAsync(data, scene, modelOptions(baseModelUrl)));
-      loadingProgress.begin(baseModelUrl + ':attach', '基础人物：材质与动作挂接');
-      // Preserve the approved model's own skin, face vertex colors and cotton.
-      prepareBaseMaterials(result.meshes.map((mesh) => mesh.material));
+      const result = await library.instantiate('base', baseHuman.root);
+      loadingProgress.begin('base:attach', '基础人物：共享材质与动作挂接');
       baseBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
       baseMeshNames = result.meshes.map((mesh) => mesh.name);
-      baseWalk = result.animationGroups.find((group) => group.name === 'Walk');
-      baseRun = result.animationGroups.find((group) => group.name === 'Run');
-      if (!baseWalk || !baseRun) throw new Error('Base character model needs Walk and Run animations');
+      baseWalk = result.walk; baseRun = result.run;
       registerLocomotion(baseHuman.definition.id, baseWalk, baseRun);
-      result.meshes[0].parent = baseHuman.root;
       baseHuman.human!.mesh.setEnabled(false);
-      loadingProgress.done(baseModelUrl + ':attach');
-      await attachGeometry(baseHuman.definition.id, result.meshes, baseLODUrl, fraction => report?.(.8 + .2 * fraction));
+      loadingProgress.done('base:attach');
+      await attachGeometry(baseHuman.definition.id, result.meshes, fraction => report?.(.8 + .2 * fraction));
       baseModelLoaded = true;
       report?.(1);
     },
@@ -214,26 +192,22 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const [index, asset] of soldierAssets.entries()) {
         const roleProgress = (fraction: number) => report?.((index + fraction) / soldierAssets.length);
         const actor = actors.find(entry => entry.definition.role === asset.role)!;
-        const data = await modelData(asset.url, downloadProgress(fraction => roleProgress(.8 * fraction)));
-        const result = await loadingProgress.run(asset.url + ':parse', `${actor.definition.name}：模型解析`, () => ImportMeshAsync(data, scene, modelOptions(asset.url)));
-        loadingProgress.begin(asset.url + ':attach', `${actor.definition.name}：材质与动作挂接`);
-        prepareBaseMaterials(result.meshes.map(mesh => mesh.material));
+        const result = await library.instantiate(asset.role, actor.root);
+        loadingProgress.begin(asset.role + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         result.animationGroups.forEach(group => group.stop());
-        const walk = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideWalk' : 'Walk'));
-        const run = result.animationGroups.find(group => group.name === (asset.mounted ? 'RideRun' : 'Run'));
-        const idle = result.animationGroups.find(group => group.name === 'RideIdle');
+        const { walk, run, idle } = result;
         if (!walk || !run || (asset.mounted && !idle)) throw new Error(`${asset.role} is missing its locomotion clips`);
         registerLocomotion(actor.definition.id, walk, run, asset.mounted ? {
           idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountMetadata.gaits.RideRun.speed,
         } : {});
-        result.meshes[0].parent = actor.root;
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
-        loadingProgress.done(asset.url + ':attach');
-        await attachGeometry(actor.definition.id, result.meshes, asset.lod, fraction => roleProgress(.8 + .2 * fraction));
+        loadingProgress.done(asset.role + ':attach');
+        const meshNames = result.meshes.map(mesh => mesh.name);
+        await attachGeometry(actor.definition.id, result.meshes, fraction => roleProgress(.8 + .2 * fraction));
         soldierModels.set(actor.definition.id, {
           bones: result.skeletons.flatMap(skeleton => skeleton.bones.map(bone => bone.name)),
-          meshes: result.meshes.map(mesh => mesh.name),
+          meshes: meshNames,
           animations: result.animationGroups.map(group => group.name),
         });
         soldierBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
@@ -241,27 +215,23 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     },
     async loadRolePlaceholders(report?: ResourceProgress) {
-      const data = await modelData(baseModelUrl, downloadProgress(fraction => report?.(.8 * fraction)));
-      const container = await loadingProgress.run('worker:parse', '工人：模型解析与动作复用', () => LoadAssetContainerAsync(data, scene, modelOptions(baseModelUrl)));
-      prepareBaseMaterials(container.materials);
       const placeholders = actors.filter(entry => placeholderRoles.has(entry.definition.role));
       for (const [index, actor] of placeholders.entries()) {
-        const instance = container.instantiateModelsToScene((name) => `${actor.definition.id}-${name}`, false, { doNotInstantiate: true });
-        const walk = instance.animationGroups.find((group) => group.name.endsWith('-Walk'));
-        const run = instance.animationGroups.find((group) => group.name.endsWith('-Run'));
-        if (!walk || !run) throw new Error(`Missing locomotion animations for ${actor.definition.id}`);
+        const instance = await library.instantiate('base', actor.root);
+        const { walk, run } = instance;
         registerLocomotion(actor.definition.id, walk, run);
         for (const root of instance.rootNodes) {
           root.parent = actor.root;
         }
-        await attachGeometry(actor.definition.id, instance.rootNodes.flatMap(root => root.getChildMeshes()), baseLODUrl,
-          fraction => report?.(.8 + .2 * (index + fraction) / placeholders.length), `${actor.definition.id}-`);
+        await attachGeometry(actor.definition.id, instance.meshes,
+          fraction => report?.(.8 + .2 * (index + fraction) / placeholders.length));
         actor.human?.mesh.setEnabled(false);
         if (actor.definition.role === 'cavalry') actor.animal?.mesh.setEnabled(false);
       }
       report?.(1);
     },
     farmerPosition: () => farmer.root.position,
+    sharedLibraryInfo: library.summary,
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
       mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length })),
     basePosition: () => baseHuman.root.position,

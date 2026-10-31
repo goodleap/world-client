@@ -38,6 +38,6 @@ export const modelOptions = (url: string) => ({
   pluginExtension: '.glb', name: url.slice(url.lastIndexOf('/') + 1), rootUrl: url.slice(0, url.lastIndexOf('/') + 1),
 });
 
-// Decoded scene resources now own their buffers; avoid retaining another 66 MB
+// Decoded scene resources now own their buffers; avoid retaining another copy
 // for the whole play session. Returning to the menu can use the HTTP cache.
 export function releaseModelDownloads() { downloads.clear(); }

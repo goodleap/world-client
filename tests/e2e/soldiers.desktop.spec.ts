@@ -6,7 +6,7 @@ test(`${role} uses the dressed shared rig for wandering, commanded running, and 
   test.setTimeout(240_000);
   const errors = await openGame(page);
   const soldier = async () => (await snapshot(page)).residents.find(r => r.id === role)!;
-  expect((await soldier()).model?.animations.sort()).toEqual(role === 'cavalry' ? ['RideIdle', 'RideRun', 'RideWalk', 'Run', 'Walk'] : ['Run', 'Walk']);
+  expect((await soldier()).model?.animations.sort()).toEqual(['CarryRun', 'CarryWalk', 'Hammer', 'RideIdle', 'RideRun', 'RideWalk', 'Run', 'Walk']);
   expect((await soldier()).placeholder).toBe(false);
   expect((await soldier()).legacyVisible).toBe(false);
   // The demo caps simulation steps under software WebGL; its initial wander
