@@ -1,3 +1,4 @@
+import { loadingProgress } from '../loading-progress.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader.js';
@@ -41,7 +42,7 @@ export function attachMeshLOD(source: Mesh, data: VertexData): CharacterLOD {
 export async function loadCharacterLOD(scene: Scene, sources: readonly AbstractMesh[], url: string,
   options: { namePrefix?: string; onProgress?: (event: ISceneLoaderProgressEvent) => void } = {}): Promise<CharacterLOD[]> {
   const data = await modelData(url, options.onProgress);
-  const container = await LoadAssetContainerAsync(data, scene, modelOptions(url));
+  const container = await loadingProgress.run(url + ':parse', `${loadingProgress.items.get(url)?.name ?? 'LOD'}：解析`, () => LoadAssetContainerAsync(data, scene, modelOptions(url)));
   const attached: CharacterLOD[] = [];
   const originalName = (name: string) => options.namePrefix && name.startsWith(options.namePrefix) ? name.slice(options.namePrefix.length) : name;
   try {

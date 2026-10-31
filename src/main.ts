@@ -6,6 +6,7 @@ import { Economy } from './game/economy.ts';
 import { readSavedGame } from './game/economy-storage.ts';
 import type { StartMode } from './launcher.ts';
 import { diagnosticContext } from './diagnostics.ts';
+import { loadingProgress } from './loading-progress.ts';
 
 declare global {
   interface Window { __DEMO__?: { snapshot: Game['snapshot'] } }
@@ -18,7 +19,8 @@ let disposed = false;
 let makeUI: typeof import('./ui.ts')['createUI'];
 let gameModule: Promise<typeof import('./game/game.ts')> | undefined;
 function prepareGame() {
-  return gameModule ??= import('./game/game.ts').catch(error => { gameModule = undefined; throw error; });
+  return gameModule ??= loadingProgress.run('engine', '游戏引擎与代码准备', () => import('./game/game.ts'))
+    .catch(error => { gameModule = undefined; throw error; });
 }
 function menu() {
   launcher.menu(mode => { void start(makeUI, mode); }, readSavedGame().status);
@@ -40,17 +42,17 @@ function leave(destination: 'menu' | 'exit') {
 async function boot() {
   try {
     launcher.report(25, '正在准备界面…');
-    const { createUI } = await import('./ui.ts');
+    const { createUI } = await loadingProgress.run('ui', '基础界面代码', () => import('./ui.ts'));
     makeUI = createUI;
     launcher.report(75, '正在准备文字与按钮…');
-    await document.fonts.ready;
+    await loadingProgress.run('fonts', '文字与按钮准备', () => document.fonts.ready);
     if (disposed) return;
     launcher.report(100, '界面已准备好');
     await nextPaint();
     menu();
   } catch (error) {
     console.error('Unable to prepare the menu:', error);
-    launcher.error();
+    launcher.error(error);
   }
 }
 async function start(createUI: typeof import('./ui.ts')['createUI'], mode: StartMode) {
@@ -71,7 +73,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     game = await createGame(ui, launcher.report, economy);
     ui.bindDiagnostics(() => {
       const state = game?.snapshot();
-      return { ...diagnosticContext(), performance: state?.performance, rendering: state?.rendering,
+      return { ...diagnosticContext(), loading: loadingProgress.snapshot(), performance: state?.performance, rendering: state?.rendering,
         size: state?.size, camera: state?.camera, frames: state?.frames, suspended: state?.suspended };
     });
     if (disposed) { game.dispose(); return; }
@@ -82,7 +84,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     launcher.ready(); ui.ready(); game.save();
   } catch (error) {
     console.error('Unable to initialize the game:', error);
-    launcher.error();
+    launcher.error(error);
   }
 }
 void boot();

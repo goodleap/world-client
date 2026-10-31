@@ -1,5 +1,6 @@
 import { Tools } from '@babylonjs/core/Misc/tools.js';
 import type { ISceneLoaderProgressEvent } from '@babylonjs/core/Loading/sceneLoader.js';
+import { loadingProgress } from '../loading-progress.ts';
 
 type Progress = (event: ISceneLoaderProgressEvent) => void;
 type Download = { data: Promise<Uint8Array>; progress?: ISceneLoaderProgressEvent; listeners: Set<Progress> };
@@ -10,14 +11,19 @@ const downloads = new Map<string, Download>();
 export async function modelData(url: string, onProgress?: Progress): Promise<Uint8Array> {
   let download = downloads.get(url);
   if (!download) {
+    loadingProgress.begin(url, loadingProgress.items.get(url)?.name ?? url.split('/').pop()!, 'download');
     const listeners = new Set<Progress>();
     const entry: Download = { listeners, data: undefined! };
     entry.data = new Promise<Uint8Array>((resolve, reject) => {
-      Tools.LoadFile(url, data => resolve(new Uint8Array(data as ArrayBuffer)), event => {
+      Tools.LoadFile(url, data => {
+        const bytes = new Uint8Array(data as ArrayBuffer);
+        loadingProgress.bytes(url, bytes.byteLength, bytes.byteLength); loadingProgress.done(url); resolve(bytes);
+      }, event => {
         entry.progress = { lengthComputable: event.lengthComputable, loaded: event.loaded, total: event.total };
+        loadingProgress.bytes(url, event.loaded, event.lengthComputable ? event.total : undefined);
         for (const listener of listeners) listener(entry.progress);
-      }, undefined, true, (_request, error) => reject(error ?? new Error(`Unable to load ${url}`)));
-    }).catch(error => { downloads.delete(url); throw error; });
+      }, undefined, true, (request, error) => reject(new Error(`${loadingProgress.items.get(url)?.name}: HTTP ${request?.status ?? '网络错误'} · ${error?.message ?? '资源下载失败'}`)));
+    }).catch(error => { loadingProgress.fail(url, error); downloads.delete(url); throw error; });
     downloads.set(url, entry); download = entry;
   }
   if (onProgress) { download.listeners.add(onProgress); if (download.progress) onProgress(download.progress); }

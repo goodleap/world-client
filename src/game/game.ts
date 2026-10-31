@@ -1,3 +1,4 @@
+import { loadingProgress } from '../loading-progress.ts';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
@@ -51,7 +52,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   try {
     report(10, '正在铺好小路、布置房屋与树木…');
     await nextPaint();
-    world = buildWorld(scene, palette, shadows, economy);
+    world = await loadingProgress.run('map', '地图与基础材质构建', () => buildWorld(scene, palette, shadows, economy));
     residents = createResidents(scene, palette, shadows, ui, world.obstacles);
     report(20, '正在迎接农民…');
     await residents.loadFarmerModel(fraction => report(20 + 15 * fraction, '正在迎接农民…'));
@@ -343,12 +344,17 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   document.addEventListener('resume', () => { pageHidden = false; reconcileVisibility(); }, lifecycleOptions);
   if (!suspended) engine.runRenderLoop(render);
   try {
-    await scene.whenReadyAsync();
+    await loadingProgress.run('shaders', '材质、纹理与着色器就绪', () => scene.whenReadyAsync());
+    const failed = loadingProgress.snapshot().find(item => item.state === 'failed' && item.kind === 'download');
+    if (failed) throw new Error(`${failed.name}：${failed.error}`);
+    loadingProgress.begin('first-frame', '首帧显示');
     report(98, '正在打开家园…');
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
     lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
+  await nextPaint();
+  loadingProgress.done('first-frame');
   canSave = true;
   return {
     save,

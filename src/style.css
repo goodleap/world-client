@@ -729,6 +729,17 @@ kbd {
 .game-loading #loading-progress::-webkit-progress-value { background:#ddc67d; }
 .game-loading #loading-progress::-moz-progress-bar { background:#ddc67d; }
 #retry-loading { margin:20px auto; }
+#loading-details { text-align:left; margin:12px 0; font-size:12px; }
+#loading-details summary { cursor:pointer; padding:12px; border-radius:10px; background:#879b6830; }
+#loading-items { list-style:none; padding:0 10px; margin:8px 0; max-height:30dvh; overflow:auto; overscroll-behavior:contain; touch-action:pan-y; }
+#loading-items li { padding:8px 0; border-bottom:1px solid #879b6840; white-space:pre-line; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; line-height:1.6; }
+#loading-items li[data-state=failed] { color:#c55132; }
+.game-loading #loading-items li[data-state=failed] { color:#ffc9b5; }
+#loading-status { font-size:11px; overflow-wrap:anywhere; max-height:70px; overflow:auto; }
+.loading { overflow-y:auto; touch-action:pan-y; }
+.loading:has(#loading-details[open]) .launch-emblem { display:none; }
+.loading:has(#loading-details[open]) .launch-footer { display:none; }
+.loading:has(#loading-details[open]) #loading-description { min-height:0; margin:10px 0; }
 @media(max-height:500px) {
   .launch-emblem { width:52px; height:52px; margin-bottom:10px; }
   .launch-emblem svg { width:26px; height:26px; }
