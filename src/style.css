@@ -193,12 +193,13 @@ h1 {
 
 .performance-hud {
   position:absolute; top:82px; right:max(32px,env(safe-area-inset-right));
-  display:flex; gap:12px; padding:8px 11px; border:1px solid #fff9;
+  display:grid; grid-template-columns:auto auto; gap:4px 12px; padding:8px 11px; border:1px solid #fff9;
   border-radius:10px; background:var(--paper); color:#637658; font-size:10px;
   font-variant-numeric:tabular-nums; pointer-events:none; white-space:nowrap;
 }
 .performance-hud b { color:#40543f; font-weight:600; margin-left:3px; }
 .performance-hud small { font-size:9px; margin-left:4px; }
+.performance-triangles { grid-column:1 / -1; text-align:right; }
 
 .journey {
   position:absolute;
@@ -348,7 +349,7 @@ h1 {
 .north {
   position:absolute;
   right:43px;
-  top:135px;
+  top:150px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -859,9 +860,9 @@ kbd {
   }
   .north {
     right:31px;
-    top:113px;
+    top:136px;
   }
-  .performance-hud { top:70px; right:max(20px,env(safe-area-inset-right)); gap:9px; padding:7px 9px; }
+  .performance-hud { top:70px; right:max(20px,env(safe-area-inset-right)); column-gap:9px; padding:7px 9px; }
   .bottom-bar {
     left:16px;
     right:16px;
@@ -900,7 +901,7 @@ kbd {
     top:14px;
   }
   .view-controls {
-    top:90px;
+    top:146px;
     right:18px;
   }
   .icon-button {

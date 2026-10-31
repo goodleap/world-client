@@ -328,7 +328,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     renderedFrames++;
     const sample = metrics.record(cpuStart, performance.now());
     if (sample) {
-      ui.setPerformance(sample);
+      ui.setPerformance(sample, scene.getActiveIndices() / 3);
       performanceDiagnostics.record(sample, metrics.cadence, currentZoom, ui.paused, residents.lodSummary());
     }
     if (canSave && ui.paused) engine.stopRenderLoop(render);

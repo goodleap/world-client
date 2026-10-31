@@ -35,8 +35,9 @@ export function createUI(app: HTMLElement) {
       <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
-    <aside id="performance" class="performance-hud" aria-label="性能信息" title="最近约半秒的平均帧率与每帧 CPU 处理耗时。CPU 统计游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。">
+    <aside id="performance" class="performance-hud" aria-label="性能信息" title="约每半秒更新。FPS 与 CPU 为这段时间的平均值；CPU 包含游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。三角形为采样帧实际提交总量，包含主画面、阴影等渲染通道。">
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
+      <span class="performance-triangles">三角形 <b id="triangles-value">—</b><small>/帧</small></span>
     </aside>
     <aside class="economy-bar" aria-label="家园资源">
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
@@ -303,9 +304,11 @@ export function createUI(app: HTMLElement) {
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       layoutDirty = true;
     },
-    setPerformance(sample?: FrameSample) {
+    setPerformance(sample?: FrameSample, triangles?: number) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
       get('cpu-value').textContent = sample ? sample.cpuMs.toFixed(2) : '—';
+      get('triangles-value').textContent = triangles === undefined ? '—'
+        : triangles >= 10000 ? `${(triangles / 10000).toFixed(1)}万` : Math.round(triangles).toLocaleString('zh-CN');
     },
     toast(message: string) {
       clearTimeout(toastTimer);
