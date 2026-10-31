@@ -32,11 +32,13 @@ import { createMoveFeedback } from './move-feedback.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
+import { readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
+  scene.shadowsEnabled = readShadowsEnabled();
   scene.clearColor = Color4.FromHexString('#c4dd9fff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
@@ -263,6 +265,11 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     metrics.reset(); ui.setPerformance(); engine.performanceMonitor.reset();
     refreshEconomy(); requestRender();
   });
+  ui.bindShadows(scene.shadowsEnabled, enabled => {
+    scene.shadowsEnabled = enabled;
+    if (!saveShadowsEnabled(enabled)) ui.toast('阴影设置已生效，浏览器未能保存此偏好');
+    freshFrame = true; requestRender();
+  });
   ui.bind('reset', () => {
     mapCenter.set(GRID_SIZE, 0.5, -2); setPreview();
     overview = false; zoom = defaultZoom();  ui.toast('回到初始视角');
@@ -397,6 +404,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       performance: { ...compactPerformanceLog(performanceDiagnostics.snapshot()), paused: ui.paused, suspended, renderedFrames },
       camera: cameraState(),
       shadows: {
+        enabled: scene.shadowsEnabled,
         lodCamera: shadows.getShadowMap()?.cameraForLOD?.name, filter: shadows.filter,
         mapSize: shadows.mapSize, quality: shadows.filteringQuality,
         casterCount: (shadows.getShadowMap()?.renderList ?? []).filter(mesh => mesh.isEnabled() && mesh.isVisible).length,
@@ -444,6 +452,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         batchedParts: scene.meshes.reduce((count, mesh) => count + (mesh.metadata?.batchedParts?.length ?? 0), 0),
       },
       shadows: {
+        enabled: scene.shadowsEnabled,
         lodCamera: shadows.getShadowMap()?.cameraForLOD?.name,
         filter: shadows.filter,
         mapSize: shadows.getShadowMap()?.getSize().width,
