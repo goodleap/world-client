@@ -92,9 +92,15 @@ export class Economy {
     this.state.tasks.push(task); this.reserve(task); this.changed();
     return { ok: true, message: task.reason ? `已排队，${task.reason}` : '已加入作业队列', task };
   }
-  claim(worker = 'farmer'): WorkTask | undefined {
+  claim(worker = 'farmer', position?: Point): WorkTask | undefined {
     if (this.active(worker)) return;
-    const ordered = [...this.state.tasks].sort((a, b) => Number(a.origin === 'steward') - Number(b.origin === 'steward') || a.id - b.id);
+    const rank: Record<WorkKind, number> = { haul: 0, harvest: 1, sow: 2, chop: 3, mine: 3, till: 4, build: 5 };
+    const distance = (t: WorkTask) => {
+      const point = FARM_PLOTS.find(p => p.id === t.target) ?? RESOURCE_NODES.find(n => n.id === t.target) ?? this.state.goods.find(g => g.id === t.target);
+      return point && position ? Math.hypot(point.x - position.x, point.z - position.z) : 0;
+    };
+    const ordered = [...this.state.tasks].sort((a, b) => Number(a.origin === 'steward') - Number(b.origin === 'steward')
+      || (a.origin === 'steward' ? rank[a.kind] - rank[b.kind] || distance(a) - distance(b) : 0) || a.id - b.id);
     for (const task of ordered) {
       if (task.status !== 'waiting' || task.retryAt > this.state.seconds) continue;
       const invalid = this.invalidReason(task.kind, task.target, task.crop);

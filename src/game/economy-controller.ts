@@ -4,7 +4,7 @@ import type { createResidents } from './residents.ts';
 import type { createEconomyWorld } from './economy-world.ts';
 import type { CropKind, WorkKind } from './economy.ts';
 import type { Point } from './movement.ts';
-import { createSteward } from './steward.ts';
+import { createSteward, inStewardRange } from './steward.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
 type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
@@ -46,7 +46,7 @@ export function createEconomyController(economy: Economy, world: World, resident
     for (const id of residents.farmerIds()) economy.updateCargo(residents.farmerPosition(id), id);
     economy.advance(seconds);
     if (automatic) steward.update();
-    for (const goods of economy.state.goods) if (!economy.taskFor(goods.id)) economy.request('haul', goods.id, undefined, 'steward');
+    for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) economy.request('haul', goods.id, undefined, 'steward');
     for (const id of residents.farmerIds()) {
       const assigned = residents.farmerWorkState(id), active = economy.active(id);
       if (assigned && assigned.id !== active?.id) residents.releaseFarmerWork(id);
@@ -65,7 +65,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       world.sync();
       if (residents.hasMoveCommand(id)) continue;
       if (!economy.active(id)) for (let attempts = 0; attempts < ECONOMY_CONFIG.queueLimit; attempts++) {
-        const task = economy.claim(id); if (!task) break;
+        const task = economy.claim(id, residents.farmerPosition(id)); if (!task) break;
         const destination = world.workPoints(task.target);
         const path = destination && residents.planFarmerWork(destination.points, id);
         if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); break; }
