@@ -30,6 +30,7 @@ import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
+import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
@@ -388,14 +389,24 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   await nextPaint();
   loadingProgress.done('first-frame');
   canSave = true;
+  const cameraState = () => ({ alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
+    target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } });
   return {
     save,
-    performanceReport: () => ({ ...performanceDiagnostics.snapshot(), paused: ui.paused, suspended, renderedFrames }),
+    diagnosticReport: () => ({
+      performance: { ...compactPerformanceLog(performanceDiagnostics.snapshot()), paused: ui.paused, suspended, renderedFrames },
+      camera: cameraState(),
+      shadows: {
+        lodCamera: shadows.getShadowMap()?.cameraForLOD?.name, filter: shadows.filter,
+        mapSize: shadows.mapSize, quality: shadows.filteringQuality,
+        casterCount: (shadows.getShadowMap()?.renderList ?? []).filter(mesh => mesh.isEnabled() && mesh.isVisible).length,
+        groundReceives: scene.getMeshByName('world-meadow')?.receiveShadows ?? false,
+      },
+    }),
     markPerformance: performanceDiagnostics.mark,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
-      camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
-        target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } },
+      camera: cameraState(),
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
       selectionFeedback: selectionFeedback.snapshot(),

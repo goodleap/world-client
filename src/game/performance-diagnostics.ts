@@ -58,7 +58,7 @@ export function createPerformanceDiagnostics(engine: Engine, scene: Scene, shado
       if (!sample) return '请先运行游戏几秒，再记录视距。';
       const label = ['近景', '远景', '返回近景'][marks.length % 3];
       marks.push({ label, sample }); if (marks.length > 12) marks.splice(0, 3);
-      return `已记录${label}（视距 ${sample.zoom.toFixed(1)}）。${label === '近景' ? '关闭设置，缩小镜头后再记录。' : label === '远景' ? '放大回原视距后再记录。' : '可复制诊断信息反馈。'}`;
+      return `已记录${label}（视距 ${sample.zoom.toFixed(1)}）。${label === '近景' ? '关闭设置，缩小镜头后再记录。' : label === '远景' ? '放大回原视距后再记录。' : '可复制性能日志反馈。'}`;
     },
     snapshot: () => ({ latest: history.at(-1), history: [...history], marks: [...marks],
       backend: `WebGL ${engine.webGLVersion}`, webGLVersion: engine.webGLVersion, renderer: engine.getGlInfo().renderer,

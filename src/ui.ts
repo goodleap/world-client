@@ -81,7 +81,7 @@ export function createUI(app: HTMLElement) {
   const detail = get<HTMLDialogElement>('landmark-dialog');
   const settings = get<HTMLDialogElement>('settings-dialog');
   const copy = document.createElement('button');
-  copy.id = 'copy-diagnostics'; copy.textContent = '复制诊断信息';
+  copy.id = 'copy-diagnostics'; copy.textContent = '复制性能日志';
   settings.querySelector('.system-actions')!.append(copy);
   const record = document.createElement('button');
   record.id = 'record-performance'; record.textContent = '记录当前视距';
@@ -91,7 +91,7 @@ export function createUI(app: HTMLElement) {
   let diagnostics: () => unknown = diagnosticContext;
   copy.addEventListener('click', async () => {
     const ok = await copyDiagnostics(JSON.stringify(diagnostics(), null, 2), settings);
-    get('settings-notice').textContent = ok ? '诊断信息已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
+    get('settings-notice').textContent = ok ? '最近 10 秒性能日志已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
   });
   const resources = get<HTMLDialogElement>('resources-dialog');
   const dialogs = [settings, help, detail, resources];
