@@ -3,7 +3,7 @@ import type { CropKind, Resource } from './economy.ts';
 import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
 import { GRID_SIZE, HOME } from './world-data.ts';
 import type { Point } from './movement.ts';
-export const STEWARD_CONFIG = { radius: 30, maxFields: 6, target: { food: 160, wood: 96, stone: 72 } } as const;
+export const STEWARD_CONFIG = { radius: 30, maxFields: 6 } as const;
 export const inStewardRange = (point: Point) => Math.hypot(point.x - HOME.x, point.z - HOME.z) <= STEWARD_CONFIG.radius * GRID_SIZE;
 
 /** Each quantity is counted at exactly one location in its production pipeline. */
@@ -37,20 +37,24 @@ export function createSteward(economy: Economy) {
       const managed = FARM_PLOTS.filter(inStewardRange);
       for (const definition of managed) {
         const plot = economy.plot(definition.id)!;
-        if (plot.crop && !economy.taskFor(plot.id)) economy.request('harvest', plot.id, undefined, 'steward');
+        if (economy.state.inventory.food < C.capacity.food && plot.crop && !economy.taskFor(plot.id)) economy.request('harvest', plot.id, undefined, 'steward');
       }
       let fields = managed.filter(p => economy.plot(p.id)!.crop || economy.taskFor(p.id)).length;
       // Reuse tilled ground before opening more; leave paths and expansion land intact.
       const candidates = [...managed].sort((a, b) => Number(economy.plot(b.id)!.tilled) - Number(economy.plot(a.id)!.tilled));
       for (const definition of candidates) {
-        if (fields >= STEWARD_CONFIG.maxFields || expectedSupply(economy, 'food') >= STEWARD_CONFIG.target.food) break;
+        if (fields >= STEWARD_CONFIG.maxFields || economy.state.inventory.food >= C.capacity.food
+          || expectedSupply(economy, 'food') >= C.capacity.food) break;
         const plot = economy.plot(definition.id)!;
         if (plot.crop || economy.taskFor(plot.id)) continue;
         const result = plot.tilled ? economy.request('sow', plot.id, chooseCrop(economy), 'steward') : economy.request('till', plot.id, undefined, 'steward');
         if (result.ok) fields++;
       }
       for (const resource of ['wood', 'stone'] as const) {
-        if (expectedSupply(economy, resource) >= STEWARD_CONFIG.target[resource]) continue;
+        // The warehouse limit replaces the former small comfort stock. Count
+        // incoming goods/jobs to avoid scheduling an unbounded surplus, while
+        // workers keep harvesting and delivering everything already committed.
+        if (economy.state.inventory[resource] >= C.capacity[resource] || expectedSupply(economy, resource) >= C.capacity[resource]) continue;
         const node = RESOURCE_NODES.filter(n => n.kind === resource && inStewardRange(n) && !economy.state.depleted.includes(n.id) && !economy.taskFor(n.id))
           .sort((a, b) => Math.hypot(a.x - HOME.x, a.z - HOME.z) - Math.hypot(b.x - HOME.x, b.z - HOME.z))[0];
         if (node) economy.request(resource === 'wood' ? 'chop' : 'mine', node.id, undefined, 'steward');
@@ -68,7 +72,7 @@ export function stewardStatus(e: Economy, manualFarmers = 0) {
   if (e.state.goods.some(g => e.state.inventory[g.resource] >= C.capacity[g.resource])) return '等待仓库腾出空间';
   const blocked = tasks.find(t => t.reason); if (blocked) return blocked.reason;
   if (tasks.length) return '正在分配可执行作业';
-  if (e.state.plots.some(p => p.crop && p.growth < C.crops[p.crop].growthSeconds)) return '等待作物成熟';
-  if (expectedSupply(e, 'food') >= STEWARD_CONFIG.target.food) return '供应充足 · 等待库存消耗';
+  if ((['food', 'wood', 'stone'] as const).every(resource => e.state.inventory[resource] >= C.capacity[resource])) return '仓库已满 · 等待腾出空间';
+  if (e.state.inventory.food < C.capacity.food && e.state.plots.some(p => p.crop && p.growth < C.crops[p.crop].growthSeconds)) return '等待作物成熟';
   return '范围内暂无可执行作业';
 }

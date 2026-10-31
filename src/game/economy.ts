@@ -125,6 +125,11 @@ export class Economy {
       if (task.status !== 'waiting' || task.retryAt > this.state.seconds) continue;
       const invalid = this.invalidReason(task.kind, task.target, task.crop);
       if (invalid) { task.status = 'invalid'; task.reason = invalid; task.reserved = false; this.changed(); continue; }
+      const production = task.kind === 'chop' ? 'wood' : task.kind === 'mine' ? 'stone'
+        : ['till', 'sow', 'harvest'].includes(task.kind) ? 'food' : undefined;
+      if (task.origin === 'steward' && production && this.state.inventory[production] >= C.capacity[production]) {
+        task.reason = `${RESOURCE_NAMES[production]}仓位已满，等待腾出空间`; continue;
+      }
       if (task.kind === 'haul') {
         const goods = this.state.goods.find(g => g.id === task.target)!;
         if (this.state.inventory[goods.resource] >= C.capacity[goods.resource]) { task.reason = '仓库已满，资源保留在地面'; continue; }
