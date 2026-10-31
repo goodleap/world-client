@@ -58,7 +58,10 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       const mesh = source.createInstance(object.id + '-' + source.name);
       mesh.position.set(object.x, 0, object.z); mesh.scaling.setAll(scale);
       mesh.metadata = { worldObjectId: object.id }; mesh.isPickable = true; mesh.receiveShadows = true;
-      shadows.addShadowCaster(mesh, false); mesh.computeWorldMatrix(true); return mesh;
+      // Flat soil/grass beds still receive shadows. Casting these shallow
+      // surfaces into a map-wide shadow atlas causes diagonal self-shadow acne.
+      if (source.getBoundingInfo().boundingBox.maximum.y * scale > .24) shadows.addShadowCaster(mesh, false);
+      mesh.computeWorldMatrix(true); return mesh;
     });
     instances.set(object.id, { state, meshes });
   }

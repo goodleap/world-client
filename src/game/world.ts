@@ -1,12 +1,9 @@
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { BUILDINGS, createLandGrid, FENCES, TREES, MAP_SIZE, GRID_SIZE, POND, ROADS } from './world-data';
+import { BUILDINGS, createLandGrid, FENCES, TREES, MAP_SIZE, GRID_SIZE, POND } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes';
 import { referenceHouse } from './buildings';
@@ -15,49 +12,7 @@ import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { createEconomyWorld } from './economy-world.ts';
-
-/** Painted ground colors in world coordinates; navigation is separate from the artwork. */
-function meadow(scene: Scene, p: Palette) {
-  roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], p.earth, .28);
-  roundedBox(scene, 'grass-sod', [MAP_SIZE, .17, MAP_SIZE], [0, -.08, 0], p.grass, .08);
-  const texture = new DynamicTexture('meadow-and-sandy-path', { width: 1024, height: 1024 }, scene, false);
-  const ctx = texture.getContext() as CanvasRenderingContext2D;
-  let seed = 1037;
-  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-  ctx.fillStyle = '#88b83b'; ctx.fillRect(0, 0, 1024, 1024);
-  for (let i = 0; i < 650; i++) {
-    const x = random() * 1024, y = random() * 1024, radius = 15 + random() * 45;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    g.addColorStop(0, i % 3 ? '#b0cf553b' : '#579c3030'); g.addColorStop(1, '#8aba3d00');
-    ctx.fillStyle = g; ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
-  const u = (x: number) => (x / MAP_SIZE + .5) * 1024, v = (z: number) => (.5 - z / MAP_SIZE) * 1024;
-  const path = new Path2D();
-  for (const road of ROADS) {
-    path.moveTo(u(road[0].x), v(road[0].z));
-    for (let i = 1; i < road.length; i++) {
-      const p = road[i - 1], next = road[i];
-      path.quadraticCurveTo(u(p.x), v(p.z), u((p.x + next.x) / 2), v((p.z + next.z) / 2));
-    }
-    path.lineTo(u(road.at(-1)!.x), v(road.at(-1)!.z));
-  }
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#759d32'; ctx.lineWidth = 20; ctx.stroke(path);
-  ctx.strokeStyle = '#d8ad62'; ctx.lineWidth = 18; ctx.stroke(path);
-  ctx.strokeStyle = '#e9bb71'; ctx.lineWidth = 16; ctx.stroke(path);
-  const pixels = ctx.getImageData(0, 0, 1024, 1024).data;
-  for (let i = 0; i < 5200; i++) {
-    const x = random() * 1024, y = random() * 1024;
-    const index = (Math.floor(y) * 1024 + Math.floor(x)) * 4;
-    const onPath = pixels[index] > 190 && pixels[index + 2] < 150;
-    ctx.fillStyle = onPath ? (i % 3 ? '#f7d18d65' : '#c99c5530') : (i % 3 ? '#c0d95542' : '#57983528');
-    ctx.beginPath(); ctx.ellipse(x, y, onPath ? 2 + random() * 6 : 1 + random() * 2, 1 + random() * 3, random() * 3, 0, Math.PI * 2); ctx.fill();
-  }
-  texture.update();
-  const material = new StandardMaterial('meadow', scene); material.diffuseTexture = texture; material.specularColor = Color3.Black();
-  const ground = MeshBuilder.CreateGround('meadow', { width: MAP_SIZE, height: MAP_SIZE }, scene);
-  ground.position.y = .012; ground.material = material; ground.receiveShadows = true;
-}
+import { createTerrain } from './terrain.ts';
 
 function grassClump(scene: Scene, p: Palette, x: number, z: number, size = 1) {
   // These tiny rounded decorations need smooth normals, not 1,296 triangles
@@ -87,7 +42,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   const addObject = (object: WorldObject, build: () => void) => {
     const first = scene.meshes.length; build(); register(object, first);
   };
-  meadow(scene, p);
+  createTerrain(scene, p);
   for (const b of BUILDINGS) addObject({
     id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '仓库',
     x: b.x, z: b.z, radius: b.width / 2, width: b.width, depth: b.depth,

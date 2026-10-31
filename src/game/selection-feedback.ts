@@ -49,7 +49,8 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
         shown.position.copyFrom(mesh.position); shown.scaling.copyFrom(mesh.scaling); shown.rotation.copyFrom(mesh.rotation);
         shown.rotationQuaternion = mesh.rotationQuaternion?.clone() ?? null;
         shown.isVisible = true; shown.setEnabled(true); shown.metadata = { ...mesh.metadata };
-        shown.isPickable = true; mesh.setEnabled(false); shadows.addShadowCaster(shown, false);
+        shown.isPickable = true; mesh.setEnabled(false);
+        if (shadows.getShadowMap()?.renderList?.includes(mesh)) shadows.addShadowCaster(shown, false);
       } else if (mesh instanceof Mesh) shown = mesh;
       else continue;
       shown.renderOutline = false; shown.outlineWidth = .035; shown.outlineColor = color;
