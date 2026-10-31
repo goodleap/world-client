@@ -262,6 +262,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       report?.(1);
     },
     farmerPosition: () => farmer.root.position,
+    lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
+      mapParts: pairs.filter(({ source, detail }) => scene.activeCamera && source.getLOD(scene.activeCamera) === detail).length })),
     basePosition: () => baseHuman.root.position,
     baseModelInfo: () => ({
       meshes: baseMeshNames,

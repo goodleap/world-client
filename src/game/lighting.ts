@@ -6,6 +6,32 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import type { Scene } from '@babylonjs/core/scene';
 import { Engine } from '@babylonjs/core/Engines/engine';
+import { Camera } from '@babylonjs/core/Cameras/camera';
+import { Frustum } from '@babylonjs/core/Maths/math.frustum';
+import { createShadowCasterFilter } from './shadow-culling.ts';
+
+/** A 1024px map shadow covers the village, not the zoomed-in phone viewport.
+ * Use Babylon's independent LOD camera to reuse the existing map geometry for
+ * that pass. Main-camera geometry is untouched; model previews retain full LOD. */
+export function createMapShadowLOD(scene: Scene, shadows: ShadowGenerator, mainCamera: Camera) {
+  const lodCamera = new Camera('map-shadow-lod', Vector3.Zero(), scene, false);
+  lodCamera.mode = Camera.ORTHOGRAPHIC_CAMERA;
+  lodCamera.orthoLeft = -16; lodCamera.orthoRight = 16;
+  lodCamera.orthoTop = 16; lodCamera.orthoBottom = -16;
+  const filter = createShadowCasterFilter(shadows.getLight().getShadowDirection());
+  const planes = Frustum.GetPlanes(mainCamera.getTransformationMatrix());
+  return (preview = false) => {
+    const map = shadows.getShadowMap();
+    if (map) {
+      map.cameraForLOD = preview ? mainCamera : lodCamera;
+      map.getCustomRenderList = preview ? null : (_pass, list, length) => {
+        if (!list) return null;
+        Frustum.GetPlanesToRef(mainCamera.getTransformationMatrix(), planes);
+        return filter(list, length, planes);
+      };
+    }
+  };
+}
 
 /** Shared by the single-asset review and the demo; no exposure/saturation filter. */
 export function createDaylight(scene: Scene, mobile = false) {

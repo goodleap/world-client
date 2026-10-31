@@ -6,7 +6,7 @@ import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
-import { createDaylight } from './lighting.ts';
+import { createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
@@ -26,6 +26,7 @@ import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
+import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
@@ -39,6 +40,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   camera.minZ = 0.1; camera.maxZ = 120;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
   const shadows = createDaylight(scene, mobile);
+  const configureShadowLOD = mobile ? createMapShadowLOD(scene, shadows, camera) : undefined;
+  configureShadowLOD?.();
   const palette = createPalette(scene);
   let saveWarning = false;
   let canSave = false;
@@ -145,6 +148,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     // the smaller target. Babylon retains the caster list when resizing.
     const shadowSize = role || !mobile ? 2048 : 1024;
     if (shadows.mapSize !== shadowSize) shadows.mapSize = shadowSize;
+    configureShadowLOD?.(!!role);
     if (role) { overview = false; ui.setOverview(false); }
     ui.setFarmerPreview(role === 'farmer');
     ui.setBasePreview(role === 'base');
@@ -158,6 +162,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   let freshFrame = true;
   let simulationSeconds = 0;
   const metrics = new FrameMetrics();
+  const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const lifecycle = new AbortController();
   const target = new Vector3();
   const mapCenter = new Vector3(0, 0.5, -2);
@@ -303,8 +308,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
-    // Babylon accumulates this counter unless instrumentation starts a frame.
-    engine._drawCalls.fetchNewFrame();
+    // Native instrumentation owns frame counters; track shadow-map replacement.
+    performanceDiagnostics.beforeFrame();
     scene.render(); residents.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
@@ -314,7 +319,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     }
     renderedFrames++;
     const sample = metrics.record(cpuStart, performance.now());
-    if (sample) ui.setPerformance(sample);
+    if (sample) {
+      ui.setPerformance(sample);
+      performanceDiagnostics.record(sample, metrics.cadence, currentZoom, ui.paused, residents.lodSummary());
+    }
   };
   const reconcileVisibility = () => {
     const next = document.hidden || pageHidden || focusLost;
@@ -351,13 +359,15 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     report(98, '正在打开家园…');
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
-    lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
+    performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   await nextPaint();
   loadingProgress.done('first-frame');
   canSave = true;
   return {
     save,
+    performanceReport: performanceDiagnostics.snapshot,
+    markPerformance: performanceDiagnostics.mark,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
       camera: { alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
@@ -387,6 +397,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       residents: residents.snapshot(),
       cells: world.land.length, fps: engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
+      diagnostics: performanceDiagnostics.snapshot(),
       rendering: {
         drawCalls: engine._drawCalls.current,
         activeTriangles: scene.getActiveIndices() / 3,
@@ -395,6 +406,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         batchedParts: scene.meshes.reduce((count, mesh) => count + (mesh.metadata?.batchedParts?.length ?? 0), 0),
       },
       shadows: {
+        lodCamera: shadows.getShadowMap()?.cameraForLOD?.name,
         filter: shadows.filter,
         mapSize: shadows.getShadowMap()?.getSize().width,
         mapId: shadows.getShadowMap()?.uniqueId,
@@ -408,7 +420,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     dispose() {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
-      scene.dispose(); engine.dispose();
+      performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

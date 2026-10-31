@@ -19,3 +19,13 @@ test('resuming clears the old sampling interval and averages actual frame costs'
   assert.equal(meter.record(60_000, 60_004), undefined);
   assert.deepEqual(meter.record(60_500, 60_508), { fps: 2, cpuMs: 6 });
 });
+
+test('frame interval tail resets with the sampling window and on resume', () => {
+  const meter = new FrameMetrics();
+  for (let t = 0; t <= 500; t += 20) meter.record(t, t + 3);
+  assert.deepEqual(meter.cadence, { meanMs: 20, p95Ms: 20 });
+  meter.record(1000, 1004);
+  assert.equal(meter.cadence.p95Ms, 500);
+  meter.reset();
+  assert.deepEqual(meter.cadence, { meanMs: 0, p95Ms: 0 });
+});

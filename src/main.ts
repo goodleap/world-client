@@ -71,10 +71,11 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     ui = createUI(page);
     ui.bindLeave(leave);
     game = await createGame(ui, launcher.report, economy);
+    ui.bindPerformanceRecord(game.markPerformance);
     ui.bindDiagnostics(() => {
       const state = game?.snapshot();
-      return { ...diagnosticContext(), loading: loadingProgress.snapshot(), performance: state?.performance, rendering: state?.rendering,
-        size: state?.size, camera: state?.camera, frames: state?.frames, suspended: state?.suspended };
+      return { ...diagnosticContext(), loading: loadingProgress.snapshot(), performance: game?.performanceReport(), rendering: state?.rendering,
+        size: state?.size, camera: state?.camera, shadows: state?.shadows, frames: state?.frames, suspended: state?.suspended };
     });
     if (disposed) { game.dispose(); return; }
     if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {

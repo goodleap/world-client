@@ -1,0 +1,384 @@
+{
+  "baseline": [
+    {
+      "stage": "near",
+      "timeMs": 46652,
+      "zoom": 6.000000004804588,
+      "paused": false,
+      "fps": 0.5086987486010062,
+      "cpuMs": 24.399999999906868,
+      "frameMs": 1965.8000000002794,
+      "frameP95Ms": 1965.8000000002794,
+      "gpuMs": 2050.073215,
+      "gpuSupported": true,
+      "drawCalls": 310,
+      "submittedTriangles": 4504076,
+      "shadowDrawCalls": 180,
+      "shadowTriangles": 2751618,
+      "shadowCpuMs": 2.599999999627471,
+      "cullingCpuMs": 1.6000000000931323,
+      "activeMeshes": 131,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 0
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 0
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 0
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 0
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 0
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 0
+        }
+      ]
+    },
+    {
+      "stage": "far",
+      "timeMs": 126867,
+      "zoom": 17.99999999475906,
+      "paused": false,
+      "fps": 0.7785736530673544,
+      "cpuMs": 6,
+      "frameMs": 1284.4000000003725,
+      "frameP95Ms": 1284.4000000003725,
+      "gpuMs": 1238.297625,
+      "gpuSupported": true,
+      "drawCalls": 383,
+      "submittedTriangles": 2755340,
+      "shadowDrawCalls": 180,
+      "shadowTriangles": 1312374,
+      "shadowCpuMs": 1.2000000001862645,
+      "cullingCpuMs": 1.5,
+      "activeMeshes": 232,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 25
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 11
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 27
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 31
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 36
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 11
+        }
+      ]
+    },
+    {
+      "stage": "near-return",
+      "timeMs": 214362,
+      "zoom": 6.000000005240936,
+      "paused": false,
+      "fps": 0.4324698352289405,
+      "cpuMs": 7,
+      "frameMs": 2312.3000000002794,
+      "frameP95Ms": 2312.3000000002794,
+      "gpuMs": 2330.91574,
+      "gpuSupported": true,
+      "drawCalls": 324,
+      "submittedTriangles": 4705478,
+      "shadowDrawCalls": 180,
+      "shadowTriangles": 2751618,
+      "shadowCpuMs": 3.099999999627471,
+      "cullingCpuMs": 1.2000000001862645,
+      "activeMeshes": 147,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 0
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 0
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 0
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 0
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 0
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 0
+        }
+      ]
+    }
+  ],
+  "optimized": [
+    {
+      "stage": "near",
+      "timeMs": 60074,
+      "zoom": 6.000000020508272,
+      "paused": false,
+      "fps": 0.6820817133892207,
+      "cpuMs": 7.5,
+      "frameMs": 1466.1000000000931,
+      "frameP95Ms": 1466.1000000000931,
+      "gpuMs": 1363.278751,
+      "gpuSupported": true,
+      "gpuSampleAgeMs": 0,
+      "drawCalls": 285,
+      "submittedTriangles": 2686728,
+      "shadowDrawCalls": 168,
+      "shadowTriangles": 997238,
+      "shadowCpuMs": 2.2000000001862645,
+      "cullingCpuMs": 1.3999999999068677,
+      "activeMeshes": 118,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "shadowLodCamera": "map-shadow-lod",
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 0
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 0
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 0
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 0
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 0
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 0
+        }
+      ]
+    },
+    {
+      "stage": "far",
+      "timeMs": 81070,
+      "zoom": 17.999999990900925,
+      "paused": false,
+      "fps": 0.7908264136022143,
+      "cpuMs": 5.7000000001862645,
+      "frameMs": 1264.5,
+      "frameP95Ms": 1264.5,
+      "gpuMs": 1132.644695,
+      "gpuSupported": true,
+      "gpuSampleAgeMs": 0,
+      "drawCalls": 383,
+      "submittedTriangles": 2708264,
+      "shadowDrawCalls": 180,
+      "shadowTriangles": 1265298,
+      "shadowCpuMs": 1.2999999998137355,
+      "cullingCpuMs": 1.3999999999068677,
+      "activeMeshes": 232,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "shadowLodCamera": "map-shadow-lod",
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 25
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 11
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 27
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 31
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 36
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 11
+        }
+      ]
+    },
+    {
+      "stage": "near-return",
+      "timeMs": 101764,
+      "zoom": 6.000000009099074,
+      "paused": false,
+      "fps": 0.8528057308544436,
+      "cpuMs": 5.399999999906868,
+      "frameMs": 1172.6000000000931,
+      "frameP95Ms": 1172.6000000000931,
+      "gpuMs": 1224.009069,
+      "gpuSupported": true,
+      "gpuSampleAgeMs": 0.09999999962747097,
+      "drawCalls": 275,
+      "submittedTriangles": 2741560,
+      "shadowDrawCalls": 168,
+      "shadowTriangles": 997238,
+      "shadowCpuMs": 1.3999999999068677,
+      "cullingCpuMs": 1.1000000000931323,
+      "activeMeshes": 108,
+      "meshes": 424,
+      "geometries": 394,
+      "textures": 13,
+      "materials": 167,
+      "skeletons": 14,
+      "animationGroups": 19,
+      "renderLoops": 1,
+      "width": 589,
+      "height": 1278,
+      "scaling": 0.6666666666666666,
+      "shadowSize": 1024,
+      "shadowLodCamera": "map-shadow-lod",
+      "lod": [
+        {
+          "id": "farmer",
+          "parts": 25,
+          "mapParts": 0
+        },
+        {
+          "id": "worker",
+          "parts": 11,
+          "mapParts": 0
+        },
+        {
+          "id": "infantry",
+          "parts": 27,
+          "mapParts": 0
+        },
+        {
+          "id": "archer",
+          "parts": 31,
+          "mapParts": 0
+        },
+        {
+          "id": "cavalry",
+          "parts": 36,
+          "mapParts": 0
+        },
+        {
+          "id": "base-human",
+          "parts": 11,
+          "mapParts": 0
+        }
+      ]
+    }
+  ]
+}

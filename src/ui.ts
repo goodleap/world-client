@@ -82,6 +82,11 @@ export function createUI(app: HTMLElement) {
   const copy = document.createElement('button');
   copy.id = 'copy-diagnostics'; copy.textContent = '复制诊断信息';
   settings.querySelector('.system-actions')!.append(copy);
+  const record = document.createElement('button');
+  record.id = 'record-performance'; record.textContent = '记录当前视距';
+  copy.before(record);
+  let recordPerformance = () => '请先运行游戏几秒。';
+  record.addEventListener('click', () => { get('settings-notice').textContent = recordPerformance(); });
   let diagnostics: () => unknown = diagnosticContext;
   copy.addEventListener('click', async () => {
     const ok = await copyDiagnostics(JSON.stringify(diagnostics(), null, 2), settings);
@@ -207,6 +212,7 @@ export function createUI(app: HTMLElement) {
     bindPause(callback: () => void) { onPauseChange = callback; },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
     bindDiagnostics(callback: () => unknown) { diagnostics = callback; },
+    bindPerformanceRecord(callback: () => string) { recordPerformance = callback; },
     saveFailed() { get('settings-notice').textContent = '未能保存进度，请检查浏览器存储后重试。当前游戏已保留。'; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {
