@@ -8,12 +8,14 @@ import type { StartMode } from './launcher.ts';
 import { diagnosticContext } from './diagnostics.ts';
 import { loadingProgress } from './loading-progress.ts';
 import { trackModuleLoading } from './module-loading.ts';
+import { suppressBrowserGestures } from './page-gestures.ts';
 
 declare global {
   interface Window { __DEMO__?: { snapshot: Game['snapshot'] } }
 }
 
 const stopModuleTracking = trackModuleLoading();
+const restoreBrowserGestures = suppressBrowserGestures();
 const launcher = createLauncher();
 let ui: GameUI | undefined;
 let game: Game | undefined;
@@ -95,6 +97,6 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
   }
 }
 void boot();
-function dispose() { disposed = true; game?.dispose(); ui?.dispose(); launcher.dispose(); stopModuleTracking(); delete window.__DEMO__; }
+function dispose() { disposed = true; game?.dispose(); ui?.dispose(); launcher.dispose(); stopModuleTracking(); restoreBrowserGestures(); delete window.__DEMO__; }
 if (import.meta.hot) import.meta.hot.dispose(dispose);
 window.addEventListener('pagehide', (event) => { if (!event.persisted) dispose(); });
