@@ -1,6 +1,9 @@
+import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
+import type { PolygonArea } from './polygon.ts';
 export interface Point { x: number; z: number }
 export type Obstacle =
   | { kind: 'box'; x: number; z: number; halfWidth: number; halfDepth: number }
+  | ({ kind: 'polygon' } & PolygonArea)
   | { kind: 'circle'; x: number; z: number; radius: number };
 
 export interface Bounds { minX: number; maxX: number; minZ: number; maxZ: number }
@@ -15,6 +18,7 @@ function pointSegmentDistanceSquared(point: Point, from: Point, to: Point): numb
  * can miss a grazing contact, so the planner and follower must share this test. */
 export function sweepIsBlocked(from: Point, to: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
   return obstacles.some(obstacle => {
+    if (obstacle.kind === 'polygon') return sweepHitsPolygon(from, to, radius, obstacle);
     if (obstacle.kind === 'circle') {
       return pointSegmentDistanceSquared(obstacle, from, to) < (radius + obstacle.radius) ** 2 - 1e-10;
     }
@@ -49,6 +53,7 @@ export function normalizeInput(x: number, z: number): Point {
 
 export function isBlocked(position: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
   return obstacles.some((obstacle) => {
+    if (obstacle.kind === 'polygon') return insidePolygon(position, obstacle) || sweepHitsPolygon(position, position, radius, obstacle);
     if (obstacle.kind === 'circle') {
       return Math.hypot(position.x - obstacle.x, position.z - obstacle.z) < radius + obstacle.radius;
     }

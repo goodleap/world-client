@@ -1,0 +1,130 @@
+{
+  "environment": "Cloud Chromium / SwiftShader; these are rendering submissions, not iPhone FPS measurements",
+  "samples": [
+    {
+      "view": "wide",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 32,
+        "overview": false,
+        "x": 8,
+        "z": 0,
+        "target": {
+          "x": 8,
+          "y": 0.5,
+          "z": 0
+        }
+      },
+      "drawCalls": 527,
+      "submittedTriangles": 2009634,
+      "shadowTriangles": 922958,
+      "shadowDrawCalls": 223,
+      "width": 1280,
+      "height": 900,
+      "scaling": 1,
+      "renderLoops": 1,
+      "errors": []
+    },
+    {
+      "view": "shore",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 16,
+        "overview": false,
+        "x": 25,
+        "z": 14,
+        "target": {
+          "x": 25,
+          "y": 0.5,
+          "z": 14
+        }
+      },
+      "drawCalls": 268,
+      "submittedTriangles": 897792,
+      "shadowTriangles": 513754,
+      "shadowDrawCalls": 205,
+      "width": 1280,
+      "height": 900,
+      "scaling": 1,
+      "renderLoops": 1,
+      "errors": []
+    },
+    {
+      "view": "mobile-home",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 16.196752777536407,
+        "overview": false,
+        "x": 1.6884148120880127,
+        "z": -2,
+        "target": {
+          "x": 1.6884148120880127,
+          "y": 0.5,
+          "z": -2
+        }
+      },
+      "drawCalls": 459,
+      "submittedTriangles": 1470308,
+      "shadowTriangles": 572624,
+      "shadowDrawCalls": 219,
+      "width": 589,
+      "height": 1131,
+      "scaling": 0.6666666666666666,
+      "renderLoops": 1,
+      "errors": []
+    },
+    {
+      "view": "mobile-shore",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 20,
+        "overview": false,
+        "x": 25,
+        "z": 14,
+        "target": {
+          "x": 25,
+          "y": 0.5,
+          "z": 14
+        }
+      },
+      "drawCalls": 217,
+      "submittedTriangles": 689302,
+      "shadowTriangles": 382576,
+      "shadowDrawCalls": 185,
+      "width": 589,
+      "height": 1131,
+      "scaling": 0.6666666666666666,
+      "renderLoops": 1,
+      "errors": []
+    },
+    {
+      "view": "mobile-wide",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 40,
+        "overview": false,
+        "x": 8,
+        "z": 0,
+        "target": {
+          "x": 8,
+          "y": 0.5,
+          "z": 0
+        }
+      },
+      "drawCalls": 491,
+      "submittedTriangles": 1580682,
+      "shadowTriangles": 732956,
+      "shadowDrawCalls": 221,
+      "width": 589,
+      "height": 1131,
+      "scaling": 0.6666666666666666,
+      "renderLoops": 1,
+      "errors": []
+    }
+  ]
+}

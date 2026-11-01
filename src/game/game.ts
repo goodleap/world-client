@@ -33,13 +33,14 @@ import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
 import { readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
+import { landscapePreview } from './landscape-mode.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   scene.shadowsEnabled = readShadowsEnabled();
-  scene.clearColor = Color4.FromHexString('#c4dd9fff');
+  scene.clearColor = Color4.FromHexString(landscapePreview ? '#7b8e5dff' : '#c4dd9fff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
   const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.5, -2), scene);
@@ -47,7 +48,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
   const shadows = createDaylight(scene, mobile);
-  const configureShadowLOD = mobile ? createMapShadowLOD(scene, shadows, camera) : undefined;
+  const configureShadowLOD = mobile || landscapePreview ? createMapShadowLOD(scene, shadows, camera) : undefined;
   configureShadowLOD?.();
   const palette = createPalette(scene);
   let saveWarning = false;
@@ -141,7 +142,10 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   refreshEconomy();
   const projectionIdentity = Matrix.Identity();
-  const defaultZoom = () => 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
+  const reviewView = landscapePreview ? new URLSearchParams(location.search).get('view') : null;
+  const reviewCenter = reviewView === 'shore' ? new Vector3(25, .5, 14) : reviewView === 'wide' ? new Vector3(8, .5, 0) : new Vector3(GRID_SIZE, .5, -2);
+  const defaultZoom = () => reviewView === 'wide' ? (mobile ? 40 : 32) : reviewView === 'shore' ? (mobile ? 20 : 16)
+    : 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
   let zoom = defaultZoom();
   let overview = false;
   let previewRole: 'farmer' | 'leader' | undefined;
@@ -169,7 +173,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const lifecycle = new AbortController();
   const target = new Vector3();
-  const mapCenter = new Vector3(GRID_SIZE, 0.5, -2);
+  const mapCenter = reviewCenter.clone();
+  camera.target.copyFrom(reviewCenter);
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
@@ -271,7 +276,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     freshFrame = true; requestRender();
   });
   ui.bind('reset', () => {
-    mapCenter.set(GRID_SIZE, 0.5, -2); setPreview();
+    mapCenter.copyFrom(reviewCenter); setPreview();
     overview = false; zoom = defaultZoom();  ui.toast('回到初始视角');
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;

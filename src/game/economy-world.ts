@@ -12,11 +12,12 @@ import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE } from './world-data.ts';
+import { TREES, GRID_SIZE, LANDSCAPE } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
+import { createLandscapeRock, createLandscapeRockMaterial } from './landscape-rock.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
@@ -24,6 +25,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
   const templates = new Map<string, Mesh[]>();
   const instances = new Map<string, { state: string; meshes: AbstractMesh[] }>();
   const treeMaterials = createTreeMaterials(scene);
+  const rockMaterial = LANDSCAPE ? createLandscapeRockMaterial(scene) : undefined;
   const carrot = new StandardMaterial('carrot-orange', scene);
   carrot.diffuseColor = Color3.FromHexString('#f28328'); carrot.specularColor = Color3.Black();
   function template(name: string, build: () => void): Mesh[] {
@@ -60,13 +62,14 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
     instances.delete(id); objects.delete(id);
   }
-  function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1) {
+  function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1, rotation = 0) {
     objects.set(object.id, object);
     if (instances.get(object.id)?.state === state) return;
     remove(object.id); objects.set(object.id, object);
     const meshes = sources().map(source => {
       const mesh = source.createInstance(object.id + '-' + source.name);
       mesh.position.set(object.x, 0, object.z); mesh.scaling.setAll(scale);
+      mesh.rotation.y = rotation;
       mesh.metadata = { worldObjectId: object.id }; mesh.isPickable = true; mesh.receiveShadows = true;
       // Flat soil/grass beds still receive shadows. Casting these shallow
       // surfaces into a map-wide shadow atlas causes diagonal self-shadow acne.
@@ -106,14 +109,15 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         const tree = TREES[Number(node.id.slice(5))];
         show({ id: node.id, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
           anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale } }, 'tree',
-        () => treeTemplate(tree.tone), tree.scale);
-      } else show({ id: node.id, kind: 'rock', name: '石材', x: node.x, z: node.z, radius: .75,
+        () => treeTemplate(tree.tone), tree.scale, tree.rotation);
+      } else show({ id: node.id, kind: 'rock', name: '石材', x: node.x, z: node.z, radius: .75 * node.scale,
         anchor: { x: node.x, y: .75, z: node.z } }, 'rock', () => template('rock', () => {
+        if (rockMaterial) { createLandscapeRock(scene, rockMaterial); return; }
         for (const [i, [x, y, z, size]] of [[0, .43, .12, .88], [-.36, .22, -.20, .54], [.35, .26, -.16, .60]].entries()) {
           const rock = roundedBox(scene, 'resource-rock', [size, size * .86, size * .9], [x, y, z], i === 0 ? p.stoneLight : p.stone, size * .20);
           rock.rotation.y = i * .7; rock.rotation.z = (i - 1) * .12;
         }
-      }));
+      }), node.scale, LANDSCAPE ? node.rotation : 0);
     }
     for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);
     for (const plot of economy.state.plots) {

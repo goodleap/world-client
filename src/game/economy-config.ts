@@ -1,4 +1,4 @@
-import { OBSTACLES, TREES, gridPoint } from './world-data.ts';
+import { OBSTACLES, TREES, LANDSCAPE, gridPoint } from './world-data.ts';
 import type { Obstacle } from './movement.ts';
 import type { BuildingSite } from './construction.ts';
 
@@ -24,8 +24,9 @@ export const FARM_PLOTS = Array.from({ length: 12 }, (_, i) => ({
 }));
 export const RESOURCE_NODES = [
   ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, x: tree.x, z: tree.z, radius: .5 * tree.scale, yield: 16 })),
-  ...Array.from({ length: 20 }, (_, i) => ({ id: `rock-${i}`, kind: 'stone' as const,
-    ...gridPoint(i < 2 ? 59 + i * 2 : 72 + i % 5 * 4, i < 2 ? 44 : 10 + Math.floor(i / 5) * 5), radius: .65, yield: 12 })),
+  ...(LANDSCAPE?.rocks ?? Array.from({ length: 20 }, (_, i) => ({
+    ...gridPoint(i < 2 ? 59 + i * 2 : 72 + i % 5 * 4, i < 2 ? 44 : 10 + Math.floor(i / 5) * 5), scale: 1, rotation: 0,
+  }))).map((rock, i) => ({ ...rock, id: `rock-${i}`, kind: 'stone' as const, radius: (LANDSCAPE ? .85 : .65) * rock.scale, yield: 12 })),
 ];
 export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = []): Obstacle[] {
   return [

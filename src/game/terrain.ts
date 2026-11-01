@@ -8,12 +8,14 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Palette } from './models.ts';
-import { MAP_SIZE, GRID_SIZE } from './world-data.ts';
+import { MAP_SIZE, GRID_SIZE, LANDSCAPE } from './world-data.ts';
 import { ROAD_PATHS, ROAD_HALF_WIDTH } from './road-layout.ts';
 import { roundedBox } from './environment-shapes.ts';
+import { createLandscapeTerrain } from './landscape-terrain.ts';
 
 /** World-scale color variation and small seamless detail maps shared by the terrain. */
 export function createTerrain(scene: Scene, palette: Palette) {
+  if (LANDSCAPE) return createLandscapeTerrain(scene, palette);
   roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], palette.earth, .28);
   roundedBox(scene, 'grass-sod', [MAP_SIZE, .17, MAP_SIZE], [0, -.08, 0], palette.grass, .08);
   let seed = 1037;

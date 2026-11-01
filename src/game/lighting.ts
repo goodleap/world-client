@@ -9,6 +9,7 @@ import { Engine } from '@babylonjs/core/Engines/engine';
 import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
+import { landscapePreview } from './landscape-mode.ts';
 
 /** Match native shadow LOD to the sun's actual orthographic footprint. A tree
  * occupying a few shadow texels should not submit its close-up geometry.
@@ -67,5 +68,16 @@ export function createDaylight(scene: Scene, mobile = false) {
   } else shadows.usePoissonSampling = true;
   shadows.bias = 0.0005; shadows.normalBias = 0.02;
   shadows.setDarkness(0.18);
+  if (landscapePreview) {
+    // Balance the fill against the key light; StandardMaterial processes its
+    // diffuse/vertex colors in gamma space, unlike the imported PBR albedo.
+    // Preserve each native material's pipeline instead of double-converting it.
+    sky.intensity = .72;
+    sky.diffuse = Color3.FromHexString('#e9efdf');
+    sky.groundColor = Color3.FromHexString('#b1c39b');
+    sun.intensity = .56;
+    sun.diffuse = Color3.FromHexString('#fff4e2');
+    shadows.setDarkness(.14);
+  }
   return shadows;
 }

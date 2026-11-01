@@ -3,6 +3,7 @@ import { isBlocked } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { nearRoad } from './road-layout.ts';
+import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 
 export const BUILDING_TYPES = {
   farm: { name: '耕地', columns: 1, rows: 1, height: .1 },
@@ -22,8 +23,15 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   if (!Number.isFinite(site.x) || !Number.isFinite(site.z) || site.x - site.width / 2 < WORLD_BOUNDS.minX + 1
     || site.x + site.width / 2 > WORLD_BOUNDS.maxX - 1 || site.z - site.depth / 2 < WORLD_BOUNDS.minZ + 1 || site.z + site.depth / 2 > WORLD_BOUNDS.maxZ - 1) return '请放在地图范围内';
   const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .35, halfDepth: site.depth / 2 + .35 };
-  const overlaps = (o: Obstacle) => o.kind === 'circle' ? isBlocked(o, o.radius, [footprint])
-    : Math.abs(site.x - o.x) < footprint.halfWidth + o.halfWidth && Math.abs(site.z - o.z) < footprint.halfDepth + o.halfDepth;
+  const overlaps = (o: Obstacle) => {
+    if (o.kind === 'circle') return isBlocked(o, o.radius, [footprint]);
+    if (o.kind === 'polygon') {
+      const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * footprint.halfWidth, z: site.z + z * footprint.halfDepth }));
+      return insidePolygon(site, o) || o.points.some(p => Math.abs(p.x - site.x) <= footprint.halfWidth && Math.abs(p.z - site.z) <= footprint.halfDepth)
+        || corners.some((a, i) => sweepHitsPolygon(a, corners[(i + 1) % 4], 0, o));
+    }
+    return Math.abs(site.x - o.x) < footprint.halfWidth + o.halfWidth && Math.abs(site.z - o.z) < footprint.halfDepth + o.halfDepth;
+  };
   const obstacles = economyObstacles(state.depleted, state.sites);
   if (obstacles.some(overlaps)) return '此处有建筑、资源或水域';
   if (site.kind === 'farm' && nearRoad(site, Math.hypot(site.width, site.depth) / 2)) return '请在道路旁的空地开垦';

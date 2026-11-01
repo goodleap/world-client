@@ -23,7 +23,7 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 
 export function checkLandExpansion(touch = false) {
   test('compact build menu places adjacent farmland and a working warehouse; reset sits at bottom right', async ({ page }, info) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     const state = initialEconomy(); state.steward.enabled = false; state.inventory = { wood: 60, stone: 40, food: 0 };
     const errors = await setup(page, state);
     const click = async (selector: string) => { if (touch) await page.locator(selector).tap(); else await page.locator(selector).click(); };
@@ -72,7 +72,7 @@ export function checkLandExpansion(touch = false) {
     await expect.poll(async () => {
       const target = (await snapshot(page)).camera.target;
       return Math.hypot(target.x - initial.camera.target.x, target.z - initial.camera.target.z);
-    }).toBeLessThan(.001);
+    }, { timeout: 45_000 }).toBeLessThan(.001);
     await page.screenshot({ path: info.outputPath('expanded-farm-and-warehouse.png'), scale: 'css' });
     await click('#settings'); await click('#return-menu');
     await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');

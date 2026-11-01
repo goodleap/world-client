@@ -1,10 +1,10 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-export async function openGame(page: Page) {
+export async function openGame(page: Page, url = '/') {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto('/');
+  await page.goto(url);
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
   if (await page.locator('#continue-save').isEnabled()) await page.locator('#continue-save').click();
   else await page.getByRole('button', { name: '开始游戏', exact: true }).click();

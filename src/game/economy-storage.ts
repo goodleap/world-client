@@ -1,7 +1,8 @@
 import { decodeEconomy } from './economy.ts';
 import type { Economy } from './economy.ts';
+import { landscapePreview } from './landscape-mode.ts';
 
-export const ECONOMY_SAVE_KEY = 'world-basic-economy-v1';
+export const ECONOMY_SAVE_KEY = landscapePreview ? 'world-landscape-review-v1' : 'world-basic-economy-v1';
 export type SavedGame = { status: 'ready'; economy: Economy } | { status: 'empty' | 'invalid' | 'unavailable' };
 
 /** Inspection never overwrites a missing, broken or unreadable save. */

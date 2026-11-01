@@ -3,7 +3,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { BUILDINGS, createLandGrid, FENCES, POND, GRID_SIZE } from './world-data';
+import { BUILDINGS, createLandGrid, FENCES, POND, GRID_SIZE, LANDSCAPE } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox } from './environment-shapes';
 import { referenceHouse } from './buildings';
@@ -14,6 +14,7 @@ import type { Economy } from './economy.ts';
 import { createEconomyWorld } from './economy-world.ts';
 import { createTerrain } from './terrain.ts';
 import { createGroundCover } from './ground-cover.ts';
+import { createLandscapeWater } from './landscape-terrain.ts';
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
   const before = new Set(scene.meshes), land = createLandGrid();
@@ -33,6 +34,10 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   }, () => referenceHouse(scene, p, b));
   // Individual farming cells are managed below as native mutable instances.
   const firstPondMesh = scene.meshes.length;
+  if (LANDSCAPE) {
+    const water = createLandscapeWater(scene);
+    register({ id: 'pond', kind: 'scenery', name: '湖泊', ...water, anchor: { x: water.x, y: .05, z: water.z } }, firstPondMesh);
+  } else {
   const water = MeshBuilder.CreateDisc('pond-water', { radius: POND.radius, tessellation: 64 }, scene);
   water.rotation.x = Math.PI / 2; water.position.set(POND.x, .035, POND.z); water.material = p.water;
   for (let i = 0; i < 60; i++) {
@@ -42,6 +47,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   }
   register({ id: 'pond', kind: 'scenery', name: '湖泊', x: POND.x, z: POND.z, radius: POND.radius,
     anchor: { x: POND.x, y: .05, z: POND.z } }, firstPondMesh);
+  }
   for (const [index, { x, z }] of FENCES.entries()) {
     const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);

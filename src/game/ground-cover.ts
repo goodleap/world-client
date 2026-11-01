@@ -6,9 +6,11 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { BuildingSite } from './construction.ts';
 import type { Point } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, MAP_SIZE, POND } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, MAP_SIZE, POND, LANDSCAPE } from './world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
 import { ellipsoid, tintHeight } from './environment-shapes.ts';
+import { polygonDistance } from './polygon.ts';
+import { nearRoad } from './road-layout.ts';
 
 type Footprint = Pick<BuildingSite, 'x' | 'z' | 'width' | 'depth'>;
 type Plant = Point & { size: number; rotation: number; flower: boolean };
@@ -56,11 +58,13 @@ export function createGroundCover(scene: Scene, roads: { paths: Point[][]; roadH
   for (let z = -MAP_SIZE / 2 + SPACING; z < MAP_SIZE / 2 - SPACING; z += SPACING) {
     for (let x = -MAP_SIZE / 2 + SPACING; x < MAP_SIZE / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
-        size: .65 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < .30 };
+        size: (LANDSCAPE ? .45 : .65) + random() * .5, rotation: random() * Math.PI * 2, flower: random() < (LANDSCAPE ? .08 : .30) };
+      if (LANDSCAPE && (Math.abs(plant.x) > 40 || Math.abs(plant.z) > 40
+        || random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27)))) continue;
       if (random() < .22 || footprints.some(b => inFootprint(plant, b))
-        || Math.hypot(plant.x - POND.x, plant.z - POND.z) < POND.radius + .9
+        || (LANDSCAPE ? polygonDistance(plant, LANDSCAPE.lake) < 1.8 : Math.hypot(plant.x - POND.x, plant.z - POND.z) < POND.radius + .9)
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
-        || segments.some(([a, b]) => distanceToSegment(plant, a, b) < roads.roadHalfWidth + MARGIN)) continue;
+        || (LANDSCAPE ? nearRoad(plant, MARGIN) : segments.some(([a, b]) => distanceToSegment(plant, a, b) < roads.roadHalfWidth + MARGIN))) continue;
       const cx = Math.floor(plant.x / CHUNK_SIZE), cz = Math.floor(plant.z / CHUNK_SIZE);
       const key = `${cx},${cz}:${plant.flower ? 'flowers' : 'grass'}`;
       let chunk = chunks.get(key);

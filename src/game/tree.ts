@@ -7,6 +7,10 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import type { Scene } from '@babylonjs/core/scene.js';
 import trunkGeometry from './tree-trunk.json' with { type: 'json' };
 import trunkLOD from './tree-trunk-lod.json' with { type: 'json' };
+import { landscapePreview } from './landscape-mode.ts';
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
+import { seededRandom } from './landscape-layout.ts';
 
 export type TreeDetail = 'near' | 'medium' | 'far';
 
@@ -32,6 +36,25 @@ export function createTreeMaterials(scene: Scene) {
   const bark = new StandardMaterial('tree-bark', scene);
   bark.diffuseColor = Color3.White();
   bark.specularColor = Color3.Black();
+  if (landscapePreview) {
+    // One shared, seamless painted leaf map for all crowns and all LODs.
+    // Small leaf groups live in the texture rather than separate geometry.
+    const texture = new DynamicTexture('woodland-canopy-leaves', 512, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
+    const ctx = texture.getContext() as CanvasRenderingContext2D, random = seededRandom(919);
+    ctx.fillStyle = '#c7d4a8'; ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 260; i++) {
+      const x = random() * 512, y = random() * 512, angle = random() * Math.PI * 2;
+      const size = 7 + random() * 10;
+      ctx.fillStyle = ['#edf0c7', '#95ad7a', '#b3c695', '#e2e8b7'][i % 4];
+      for (const dx of [-512, 0, 512]) for (const dy of [-512, 0, 512]) {
+        ctx.save(); ctx.translate(x + dx, y + dy); ctx.rotate(angle);
+        ctx.beginPath(); ctx.moveTo(-size, 0); ctx.quadraticCurveTo(0, -size * .8, size, 0);
+        ctx.quadraticCurveTo(0, size * .35, -size, 0); ctx.fill(); ctx.restore();
+      }
+    }
+    texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.update(); foliage.diffuseTexture = texture;
+  }
   return { foliage, bark };
 }
 
@@ -56,7 +79,8 @@ export function createReferenceTree(scene: Scene, materials: ReturnType<typeof c
   const geometry = detail === 'near' ? trunkGeometry : trunkLOD[detail];
   data.positions = geometry.positions; data.normals = geometry.normals; data.indices = geometry.indices;
   data.applyToMesh(trunk); trunk.material = materials.bark;
-  gradient(trunk, '#b67435', '#cb8c45', '#dda452');
+  if (landscapePreview) gradient(trunk, '#6c6341', '#948351', '#baaa6d');
+  else gradient(trunk, '#b67435', '#cb8c45', '#dda452');
   meshes.push(trunk);
   // Overlapping, asymmetrical lobes form one rounded crown, with visible forks below.
   const lobes = [
@@ -74,7 +98,8 @@ export function createReferenceTree(scene: Scene, materials: ReturnType<typeof c
     crown.rotation.z = Math.sin(i * 2.4) * 0.12;
     crown.material = materials.foliage;
     const hue = variation % 3;
-    gradient(crown, '#469b58', hue === 1 ? '#65b943' : '#5fb442', hue === 2 ? '#b9dc54' : '#bde052');
+    if (landscapePreview) gradient(crown, '#4d7055', hue === 1 ? '#91ac6c' : '#84a061', hue === 2 ? '#c2cd87' : '#b7c680');
+    else gradient(crown, '#469b58', hue === 1 ? '#65b943' : '#5fb442', hue === 2 ? '#b9dc54' : '#bde052');
     meshes.push(crown);
   }
   for (const mesh of meshes) {

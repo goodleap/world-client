@@ -6,6 +6,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial.js';
 import type { Material } from '@babylonjs/core/Materials/material.js';
 import type { Scene } from '@babylonjs/core/scene';
+import { landscapePreview } from './landscape-mode.ts';
 
 export function createPalette(scene: Scene) {
   const colors = {
@@ -21,6 +22,11 @@ export function createPalette(scene: Scene) {
     leatherDark: '#6f3619', metal: '#9daab3', metalLight: '#d9e1dc', straw: '#e4ba61',
     horse: '#bd7132', dogFur: '#e49a3d', dogCream: '#ffe0a0', nose: '#342721',
   };
+  if (landscapePreview) Object.assign(colors, {
+    grass: '#82965b', grassLight: '#a2ad73', grassDark: '#4d6c46', earth: '#7c6849',
+    path: '#c8bd8b', pathLight: '#d5c99c', stone: '#74786b', stoneLight: '#a5a58e', soil: '#795435',
+    leaf: '#5b7d47', leafLight: '#9eaf63', leafDark: '#365b40',
+  });
   return Object.fromEntries(Object.entries(colors).map(([name, color]) => {
     const material = new StandardMaterial(name, scene);
     material.diffuseColor = Color3.FromHexString(color);
