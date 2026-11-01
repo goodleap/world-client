@@ -16,7 +16,8 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
-import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
+import { HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
+import { destinationSpeed as commandedSpeed, runReferenceSpeed, mountedRunReferenceSpeed } from './locomotion.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
@@ -36,7 +37,6 @@ import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
-const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
 type ResourceProgress = (fraction: number) => void;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
@@ -139,9 +139,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         .every(mesh => source.skeleton === mesh.skeleton && source.material === mesh.material)),
     };
   };
-  const destinationSpeed = (actor: typeof actors[number]) => actor.settings.speed
-    * (locomotion.has(actor.definition.id) ? runReferenceSpeed / walkReferenceSpeed : 2.1 / 1.15)
-    * COMMAND_RUN_SPEED_MULTIPLIER;
+  const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, locomotion.has(actor.definition.id));
   const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
     stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed * effort(vitals, actor.definition.id), actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
@@ -232,7 +230,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const { walk, run, idle } = result;
         if (!walk || !run || (asset.mounted && !idle)) throw new Error(`${asset.role} is missing its locomotion clips`);
         registerLocomotion(actor.definition.id, walk, run, asset.mounted ? {
-          idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountMetadata.gaits.RideRun.speed,
+          idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountedRunReferenceSpeed,
         } : {});
         if (asset.role === 'archer') bowPoses.set(actor.definition.id, result.bowPose);
         const attack = result.animationGroups.find(g => g.name === (asset.role === 'archer' ? 'BowShot' : asset.mounted ? 'LanceThrust' : 'SwordSlash'));

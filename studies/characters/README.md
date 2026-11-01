@@ -55,3 +55,21 @@ python3 tools/verify_character_library.py
 使用实际 Babylon 动作审查：启动 `VITE_E2E=true npm run dev -- --host 127.0.0.1 --port 5175`，运行 `node tools/review_combat.mjs`，会记录完整周期、正侧面／游戏／手机截图与骨架样本。录像需要 Playwright 可用的 ffmpeg；本云环境通过 `/workspace/.cache/ms-playwright/ffmpeg-1013/ffmpeg-linux` 使用已有 `/usr/bin/ffmpeg`，相应运行命令加 `PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright`。
 
 当前攻击节奏为旧版 3.5 倍；骑兵长枪刺击保留 RideIdle 根与下肢姿势，独立马骨架使用原站姿的原生常量轨道同步采样。完整三兵种审查使用 `node tools/review_combat.mjs /tmp/combat-review cavalry,infantry,archer`，结果见[本轮交付](../../docs/combat-and-auto-feeding/implementation.md)。
+
+## 舒展奔跑与疾驰
+
+`locomotion.json` 是当前 Run、CarryRun、RideRun、HorseRideRun 的统一参数源。人物增加跨步、收腿、肩胯配合；马使用后肢到前肢依次触地的四拍疾驰，骑手根节点与马鞍变换一致。保留 20／17 根骨架、所有几何、绑定、Walk、作业及攻击轨道。旧逐职业 Run 只供历史对照，不能再用于覆盖当前动作。
+
+动画参考速度与游戏移速已分离。人物参考速度为 4.8，马为 6.96，原生周期均为 0.34 秒；人物满速实际周期约 0.326–0.355 秒。移动、体力、寻路、避让及经济时钟不变。
+
+```sh
+python3 tools/build_locomotion.py
+python3 tools/verify_locomotion.py
+python3 tools/verify_character_library.py
+blender -b -t 2 --python tools/sync_locomotion_authoring.py
+REVIEW_ORIGIN=http://127.0.0.1:4174 node tools/review_locomotion.mjs
+```
+
+生成器从当前共享库的中性姿态和固定骨长计算离线 IK，运行时只使用 Babylon AnimationGroup。输出重建会压紧未引用的动画 buffer，重复生成不增长文件；重建攻击也保留新奔跑轨道。数值检查直接读取导出后的四元数插值、蒙皮鞋底及马蹄，检查地面接触、循环和鞍座关系。Blender 同步工具只替换四个动作，保留其他制作内容。
+
+审查记录及视频见[奔跑改造记录](../../docs/locomotion/implementation.md)。视频以确定相位渲染并按当前移速编码，用于判断动作节奏，不代表录制设备帧率。当前造型的历史还原结论不因本次动作改造而改变。

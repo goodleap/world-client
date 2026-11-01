@@ -1,0 +1,27 @@
+{
+  "Run": {
+    "minimumSkinnedSoleY": [
+      0.0027378146430528105,
+      "part-032",
+      0.004166666666666667
+    ],
+    "plantedFootDrift": 0.0002764866903165576
+  },
+  "CarryRun": {
+    "minimumSkinnedSoleY": [
+      0.0027378146430528105,
+      "part-032",
+      0.004166666666666667
+    ],
+    "plantedFootDrift": 0.0002764866903165576
+  },
+  "HorseRideRun": {
+    "minimumSkinnedSoleY": [
+      0.0076040517582749295,
+      "part-138",
+      0.7125
+    ],
+    "plantedFootDrift": 0.0003698753791680561
+  },
+  "riderAttachmentError": 6.616187436803145e-07
+}

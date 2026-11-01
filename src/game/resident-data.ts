@@ -14,8 +14,6 @@ export interface ResidentDefinition {
 
 // Runtime human tempo; authored strides and economy clocks stay unchanged.
 export const HUMAN_SPEED_MULTIPLIER = 2;
-// Preserve the existing command-to-wander speed relationship.
-export const COMMAND_RUN_SPEED_MULTIPLIER = 1.5;
 
 export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'farmer', role: 'farmer', name: '农民', spawn: { x: 1.8, z: -2.3 }, home: { x: 1.8, z: -2 }, areaRadius: 3.6, bodyRadius: 0.29, speed: 1.15, labelHeight: 2.35 },

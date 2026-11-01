@@ -1,0 +1,23 @@
+{
+  "engine": "Babylon.js 9.32.1, Chromium SwiftShader",
+  "observedNativeLoops": {
+    "base": 3,
+    "farmer": 3,
+    "infantry": 3,
+    "archer": 3,
+    "cavalry": 3
+  },
+  "reviewRuns": [
+    [
+      "base",
+      "cavalry"
+    ],
+    [
+      "farmer",
+      "infantry",
+      "archer"
+    ]
+  ],
+  "errors": [],
+  "video": "Phase-sampled actual WebGL frames, encoded at gameplay cadence; not a performance benchmark."
+}

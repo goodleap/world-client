@@ -1,0 +1,64 @@
+
+> world-client@0.1.0 test:e2e
+> playwright test commands.desktop.spec.ts single-soldier.desktop.spec.ts single-soldier.mobile.spec.ts combat.desktop.spec.ts lifecycle.desktop.spec.ts
+
+[WebServer] (node:67567) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [plugin builtin:vite-reporter]
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] (node:67606) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 7 tests using 1 worker
+
+(node:67630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop-chromium] › tests/e2e/combat.desktop.spec.ts:7:1 › mounted melee and archer keep independent commands, selection, pause and saved progress (58.5s)
+  ✓  2 [desktop-chromium] › tests/e2e/combat.desktop.spec.ts:60:1 › outpost clear creates transportable reward and survives reload exactly once (32.3s)
+  ✘  3 [desktop-chromium] › tests/e2e/commands.desktop.spec.ts:10:1 › farmer direct work clears selection, yields to movement, and resumes the same partial job (16.5s)
+(node:67948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [desktop-chromium] › tests/e2e/commands.desktop.spec.ts:58:1 › the selected dog runs to the latest destination and finishes its command (22.2s)
+  ✓  5 [desktop-chromium] › tests/e2e/lifecycle.desktop.spec.ts:7:1 › background lifecycle freezes simulation and poses, clears input, and preserves manual pause (24.7s)
+  ✓  6 [desktop-chromium] › tests/e2e/single-soldier.desktop.spec.ts:3:1 › single soldiers move to repeated mouse destinations and resume a saved route (57.1s)
+(node:68386) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  7 [mobile-chromium] › tests/e2e/single-soldier.mobile.spec.ts:3:1 › single soldiers move to touch destinations and resume a saved route (1.1m)
+
+
+  1) [desktop-chromium] › tests/e2e/commands.desktop.spec.ts:10:1 › farmer direct work clears selection, yields to movement, and resumes the same partial job
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      31 |   const interrupted = await snapshot(page), task = interrupted.economy.tasks[0];
+      32 |   expect(task.status).toBe('waiting'); expect(task.progress).toBeGreaterThanOrEqual(progress); expect(task.progress).toBeLessThan(3);
+    > 33 |   expect(interrupted.residents.find(r => r.id === 'farmer')!.moveCommand).toBe(true);
+         |                                                                           ^
+      34 |   expect(interrupted.selection.resident).toBe('farmer');
+      35 |   await expect.poll(async () => (await snapshot(page)).farmerRunning).toBe(true);
+      36 |   expect((await snapshot(page)).economy.tasks[0].progress).toBe(task.progress);
+        at /workspace/world-client/tests/e2e/commands.desktop.spec.ts:33:75
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/commands.desktop-farmer-di-36459-esumes-the-same-partial-job-desktop-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/commands.desktop-farmer-di-36459-esumes-the-same-partial-job-desktop-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/commands.desktop-farmer-di-36459-esumes-the-same-partial-job-desktop-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/commands.desktop-farmer-di-36459-esumes-the-same-partial-job-desktop-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [desktop-chromium] › tests/e2e/commands.desktop.spec.ts:10:1 › farmer direct work clears selection, yields to movement, and resumes the same partial job
+  6 passed (4.8m)

@@ -27,7 +27,9 @@ test('farmer direct work clears selection, yields to movement, and resumes the s
   // Hide the plot's nearby action button before selecting its working farmer.
   await page.keyboard.press('Escape');
   await selectUnit(page, 'farmer');
-  await clickGround(page, { x: .2, z: -10.5 });
+  // The expanded woodland places a foreground canopy over the old screen ray.
+  // Use the open road so this tests movement, not a valid tree-work command.
+  await clickGround(page, { x: -1.2, z: -11 });
   const interrupted = await snapshot(page), task = interrupted.economy.tasks[0];
   expect(task.status).toBe('waiting'); expect(task.progress).toBeGreaterThanOrEqual(progress); expect(task.progress).toBeLessThan(3);
   expect(interrupted.residents.find(r => r.id === 'farmer')!.moveCommand).toBe(true);

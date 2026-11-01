@@ -4,21 +4,21 @@ bone lengths. Uniform 31 phase samples; runtime uses native AnimationGroups.
 Requires numpy/scipy (offline tooling only). Re-running replaces the appended
 section instead of retaining unused accessors. Run from the repository root.
 """
-import copy, json, math, struct
+import argparse, json, math, struct
+from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from character_assets import Asset, ROOT
+from character_assets import ROOT
+from animation_asset import AnimationAsset
 
-path = ROOT / 'studies/characters/characters.glb'
-a = Asset(path); g = a.g; binary = bytearray(a.binary)
+parser = argparse.ArgumentParser()
+parser.add_argument('--input', type=Path, default=ROOT / 'studies/characters/characters.glb')
+parser.add_argument('--output', type=Path)
+args = parser.parse_args()
+path = args.input
+edit = AnimationAsset(path)
+a = edit.asset; g = edit.g; binary = edit.binary
 recipe = json.loads((ROOT / 'studies/characters/combat-actions.json').read_text())
-base = g.setdefault('extras', {}).get('combatBase')
-if base:
-    g['accessors'] = g['accessors'][:base['accessors']]
-    g['bufferViews'] = g['bufferViews'][:base['views']]
-    binary = binary[:base['bytes']]
-else:
-    g['extras']['combatBase'] = {'accessors':len(g['accessors']), 'views':len(g['bufferViews']), 'bytes':len(binary)}
 g['animations'] = [x for x in g['animations'] if x['name'] not in ('SwordSlash','BowShot','LanceThrust')]
 def base_pose(name):
     clip = next(x for x in g['animations'] if x['name']==name)
@@ -91,7 +91,5 @@ for name in ('SwordSlash','BowShot','LanceThrust'):
         animation['channels'].append({'sampler':len(animation['samplers']),'target':{'node':node,'path':prop}})
         animation['samplers'].append({'input':time,'output':output,'interpolation':'LINEAR'})
     g['animations'].append(animation)
-g['buffers'][0]['byteLength']=len(binary)
-encoded=json.dumps(g,separators=(',',':')).encode();encoded+=b' '*(-len(encoded)%4);binary+=b'\0'*(-len(binary)%4)
-path.write_bytes(struct.pack('<4sII',b'glTF',2,28+len(encoded)+len(binary))+struct.pack('<I4s',len(encoded),b'JSON')+encoded+struct.pack('<I4s',len(binary),b'BIN\0')+binary)
+edit.save(args.output or path)
 print('Shared SwordSlash/BowShot/LanceThrust written; original mesh and animation buffers retained.')

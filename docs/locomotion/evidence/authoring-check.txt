@@ -1,0 +1,6 @@
+PASS: Blender objects, mesh vertices, rigs and all other actions unchanged; only four run actions replaced.
+Blender 4.3.2
+Read blend: "/tmp/running-baseline.blend"
+Read blend: "/workspace/world-client/studies/characters/characters.blend"
+
+Blender quit
