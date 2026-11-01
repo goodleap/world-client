@@ -7,7 +7,7 @@ import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } fro
 import { buildingAt, buildingDoor, placementReason, BUILDING_TYPES } from './construction.ts';
 import type { BuildingSite, BuildingKind } from './construction.ts';
 import { findPath } from './pathfinding.ts';
-import { canResidentWork, RESIDENTS } from './resident-data.ts';
+import { canResidentWork, canResidentSupply, RESIDENTS } from './resident-data.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
 import { initialVitals, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
@@ -193,6 +193,7 @@ export class Economy {
     const ordered = [...this.state.tasks].sort((a, b) => Number(a.origin === 'steward') - Number(b.origin === 'steward')
       || (a.origin === 'steward' ? priority(a) - priority(b) || distance(a) - distance(b) : 0) || a.id - b.id);
     for (const task of ordered) {
+      if (!(task.kind === 'supply' ? canResidentSupply(worker) : canResidentWork(worker))) continue;
       if (task.status !== 'waiting' || task.retryAt > this.state.seconds) continue;
       const invalid = this.invalidReason(task.kind, task.target, task.crop);
       if (invalid) { task.status = 'invalid'; task.reason = invalid; task.reserved = false; this.changed(); continue; }
@@ -214,18 +215,20 @@ export class Economy {
     const task = this.active(worker);
     if (!task) return;
     this.dropCargo(task, position);
+    this.releasePersonalSupply(task);
     task.worker = undefined; task.status = 'waiting'; task.reason = '等待恢复'; task.retryAt = 0; this.changed();
   }
   assign(id: number, worker = 'farmer'): { ok: boolean; message: string } {
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !['waiting', 'travelling', 'working', 'delivering'].includes(task.status)) return { ok: false, message: '该作业暂不可执行' };
-    if (task.worker && task.worker !== worker && task.status !== 'waiting') return { ok: false, message: '其他农民正在执行该任务' };
+    if (!(task.kind === 'supply' ? canResidentSupply(worker) : canResidentWork(worker))) return { ok: false, message: '该单位不能执行这项作业' };
+    if (task.worker && task.worker !== worker && task.status !== 'waiting') return { ok: false, message: '其他人物正在执行该任务' };
     const invalid = this.invalidReason(task.kind, task.target, task.crop);
     if (invalid) return { ok: false, message: invalid };
     if (!this.reserve(task)) { this.changed(); return { ok: false, message: `已排队，${task.reason}` }; }
     if (this.active(worker)?.id !== id) this.interrupt(undefined, worker);
     task.worker = worker; task.origin = 'manual';
-    if (task.status !== 'working') task.status = 'travelling';
+    if (task.status !== 'working' && task.status !== 'delivering') task.status = 'travelling';
     task.reason = ''; task.retryAt = 0; this.changed();
     return { ok: true, message: `优先${WORK_NAMES[task.kind]}` };
   }
@@ -256,12 +259,14 @@ export class Economy {
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !['waiting', 'travelling', 'working', 'delivering'].includes(task.status)) return;
     this.dropCargo(task, position);
+    this.releasePersonalSupply(task);
     task.worker = undefined; task.status = 'waiting'; task.reason = reason; task.retryAt = this.state.seconds + C.retrySeconds; this.changed();
   }
   cancel(id: number, position?: Point): boolean {
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !pending(task) || task.status === 'storage') return false;
     this.dropCargo(task, position);
+    this.releasePersonalSupply(task);
     if (task.kind === 'till' && !this.plot(task.target)?.tilled) this.state.plots = this.state.plots.filter(p => p.id !== task.target);
     if (task.kind === 'build') this.state.sites = this.state.sites.filter(s => s.id !== task.target);
     task.status = 'cancelled'; task.reserved = false; task.reason = '已取消，预留材料已释放';
@@ -270,6 +275,17 @@ export class Economy {
       if (goods) { goods.destination = undefined; this.request('haul', goods.id, undefined, 'continuation'); }
     }
     this.changed(); return true;
+  }
+  /** One shared reservation/delivery per fire, including goods already en route. */
+  requestFireSupply(id: string) {
+    const fire = this.campfire(id);
+    if (!fire?.enabled) return;
+    const pending = this.taskFor(id); if (pending) return pending;
+    for (const resource of ['wood', 'food'] as const) {
+      if (resource === 'food' && !fire.cooking || fire[resource] > F.low[resource]) continue;
+      const amount = Math.min(F.batch[resource], F.capacity[resource] - fire[resource], this.available()[resource]);
+      if (amount > 0) return this.request('supply', id, undefined, 'continuation', { resource, amount }).task;
+    }
   }
   /** Called only with active foreground elapsed time. Pause/resume supplies 0. */
   advance(seconds: number) {
@@ -281,11 +297,7 @@ export class Economy {
       const before = `${fire.wood}/${fire.food}/${fire.meals}/${fire.cook > 0}`;
       advanceCampfire(fire, seconds, demand);
       if (before !== `${fire.wood}/${fire.food}/${fire.meals}/${fire.cook > 0}`) this.changed();
-      if (fire.enabled && !this.taskFor(fire.id)) for (const resource of ['wood', 'food'] as const) {
-        if (resource === 'food' && !fire.cooking || fire[resource] > F.low[resource]) continue;
-        const amount = Math.min(F.batch[resource], F.capacity[resource] - fire[resource], this.available()[resource]);
-        if (amount > 0) { this.request('supply', fire.id, undefined, 'continuation', { resource, amount }); break; }
-      }
+      this.requestFireSupply(fire.id);
     }
     if (this.state.combat.rewardGranted) for (const goods of this.state.goods) {
       if (this.state.combat.rewardGoods.includes(goods.id) && goods.state === 'ground' && !this.taskFor(goods.id)) this.request('haul', goods.id, undefined, 'continuation');
@@ -340,6 +352,9 @@ export class Economy {
         haul.worker = task.worker; haul.status = 'travelling';
       }
     }
+  }
+  private releasePersonalSupply(task: WorkTask) {
+    for (const v of Object.values(this.state.vitals)) if (v.rest?.supply === task.id) { v.rest.supply = undefined; v.rest.supplyGoal = undefined; }
   }
   private dropCargo(task: WorkTask, position?: Point) {
     const goods = this.state.goods.find(g => g.id === (task.cargo ?? task.target));
@@ -446,7 +461,10 @@ export function decodeEconomy(text: string): Economy {
     if (!v || !number(v.stamina, 100) || !number(v.manualUntil, 1e12) || !number(v.retryAt, 1e12) || !number(v.hurtUntil, 1e12)
       || (template.hp === undefined ? v.hp !== undefined : !number(v.hp, maxHealth(id)))
       || v.meal && (!number(v.meal.remaining, VITAL_CONFIG.mealSeconds) || v.meal.remaining <= 0)
-      || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !RESIDENTS.some(r => r.id === id))) throw new Error('生命体力存档无效');
+      || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !RESIDENTS.some(r => r.id === id)
+        || v.rest.manual !== undefined && typeof v.rest.manual !== 'boolean'
+        || v.rest.supply !== undefined && (!Number.isSafeInteger(v.rest.supply) || v.rest.supply < 1 || !canResidentSupply(id))
+        || v.rest.supplyGoal && (!validPoint(v.rest.supplyGoal) || v.rest.supply === undefined))) throw new Error('生命体力存档无效');
     state.vitals[id] = structuredClone(v);
   }
   const ids = new Set<number>(), targets = new Set<string>(), carriers = new Set<string>();
@@ -458,15 +476,16 @@ export function decodeEconomy(text: string): Economy {
       || task.status === 'storage' && (!['chop', 'mine', 'harvest'].includes(task.kind) || task.progress !== C.workSeconds[task.kind])) throw new Error('任务存档无效');
     if (task.status === 'delivering') {
       const goods = state.goods.find(g => g.id === (task.cargo ?? task.target));
-      if (!['haul', 'supply'].includes(task.kind) || !task.worker || !canResidentWork(task.worker) || carriers.has(task.worker)
+      if (!['haul', 'supply'].includes(task.kind) || !task.worker || !(task.kind === 'supply' ? canResidentSupply(task.worker) : canResidentWork(task.worker)) || carriers.has(task.worker)
         || !goods || goods.state !== 'transit' || goods.carrier !== task.worker) throw new Error('运输任务不一致');
       carriers.add(task.worker);
     }
-    const resumingPickup = task.status === 'travelling' && task.kind === 'haul' && task.origin === 'continuation' && !!task.worker;
+    const personalSupply = task.kind === 'supply' && task.worker && state.vitals[task.worker]?.rest?.supply === task.id;
+    const resumingPickup = task.status === 'travelling' && !!task.worker && (task.kind === 'haul' && task.origin === 'continuation' || personalSupply);
     if (task.kind === 'supply' && (!task.resource || !['wood', 'food'].includes(task.resource) || !Number.isInteger(task.amount) || !number(task.amount, F.batch[task.resource]) || !task.amount
       || pending(task) && (!state.campfires.some(f => f.id === task.target) || task.cargo && !state.goods.some(g => g.id === task.cargo && g.destination === task.target && g.resource === task.resource && g.amount <= task.amount!)))) throw new Error('补给存档无效');
     if (resumingPickup) {
-      if (!canResidentWork(task.worker!) || carriers.has(task.worker!) || !state.goods.some(g => g.id === task.target && g.state === 'ground')) throw new Error('运输任务不一致');
+      if (carriers.has(task.worker!) || (personalSupply ? !canResidentSupply(task.worker!) : !canResidentWork(task.worker!) || !state.goods.some(g => g.id === task.target && g.state === 'ground'))) throw new Error('运输任务不一致');
       carriers.add(task.worker!);
     }
     ids.add(task.id);
@@ -481,6 +500,9 @@ export function decodeEconomy(text: string): Economy {
     if (goods.destination && !state.tasks.some(t => pending(t) && t.kind === 'supply' && t.cargo === goods.id && t.target === goods.destination)) throw new Error('补给物资缺少配送任务');
     if (goods.state === 'transit' && !state.tasks.some(t => t.status === 'delivering' && (t.cargo ?? t.target) === goods.id && t.worker === goods.carrier)) throw new Error('在途资源缺少运输任务');
   }
+  for (const [id, vital] of Object.entries(state.vitals)) if (vital.rest?.supply !== undefined
+    && !state.tasks.some(t => t.id === vital.rest!.supply && t.kind === 'supply' && t.target === vital.rest!.camp && pending(t)
+      && (!t.worker || t.worker === id))) throw new Error('进食补给任务不一致');
   state.nextId = Math.max(0, ...ids, ...state.goods.map(g => Number(g.id.slice(6))), Number.isSafeInteger(raw.nextId) ? raw.nextId - 1 : 0) + 1;
   // Re-establish reservations deterministically from actual inventory on resume.
   const economy = new Economy(state);

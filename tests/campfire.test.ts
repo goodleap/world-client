@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
-import { gridPoint } from '../src/game/world-data.ts';
+import { gridPoint, GRID_SIZE } from '../src/game/world-data.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire, fireAppearance } from '../src/game/campfire.ts';
 import { VITAL_CONFIG as V, vitalIds, health, maxHealth, eat, effort } from '../src/game/vitals.ts';
 import { createNeedsController } from '../src/game/needs-controller.ts';
@@ -21,7 +21,7 @@ function built() {
 }
 function needsHarness(e: Economy) {
   const c = new Combat(e.state.combat, e, () => []);
-  for (const u of c.state.units) u.order = 'hold';
+  for (const u of c.state.units) if (!u.goal) u.order = 'hold';
   const states = Object.fromEntries([...RESIDENTS, ...ENEMIES].map(r => [r.id, { position: { ...r.spawn }, speed: 0, moving: false, working: false, goal: undefined as { x: number; z: number } | undefined }]));
   const residents = {
     needsStatus: (id: string) => states[id], setResting() {}, releaseFarmerWork() {},
@@ -159,4 +159,100 @@ test('fire seats fit the mounted horse and retain reachable approaches on the re
   const seats = Array.from({ length: F.seats }, (_, i) => ({ x: site.x + Math.cos((i + .5) * Math.PI * 2 / F.seats) * F.seatRadius, z: site.z + Math.sin((i + .5) * Math.PI * 2 / F.seats) * F.seatRadius }));
   const path = planWorkApproach({ x: -3.5, z: -10 }, seats, 1.12, WORLD_BOUNDS, economyObstacles([], e.state.sites), []);
   assert(path, 'mounted rider must have a reachable feeding place'); assert(seats.some(s => Math.hypot(s.x - path.at(-1)!.x, s.z - path.at(-1)!.z) < .01));
+});
+
+
+test('automatic meals require stamina below 30 percent and an enabled reachable fire within 30 map cells', () => {
+  const { e, f, site } = built(); Object.assign(f, { enabled: true, wood: 12, food: 12 });
+  const { n, states } = needsHarness(e), v = e.state.vitals.farmer;
+  states.farmer.position = { x: site.x + 30 * GRID_SIZE + .01, z: site.z }; v.stamina = 20;
+  n.update(.01); assert(!v.rest, 'outside radius');
+  states.farmer.position.x = site.x + 30 * GRID_SIZE; v.retryAt = 0; v.stamina = 30.01;
+  n.update(.01); assert(!v.rest, '30 percent alone is not low enough');
+  v.stamina = 29.9; n.update(.01); assert.equal(e.state.vitals.farmer.rest?.camp, f.id);
+  n.manual('farmer'); v.manualUntil = v.retryAt = 0; e.setFire(f.id, false);
+  n.update(.01); assert(!v.rest); assert.equal(f.enabled, false);
+  e.setFire(f.id, true); v.retryAt = 0; v.stamina = 100; v.hp = 20;
+  n.update(.01); assert(!v.rest, 'health alone does not launch an automatic meal');
+  assert(n.request('farmer').ok, 'manual healing remains available');
+});
+
+test('every human can supply an empty fire and eat; animals never carry and reservations are shared', () => {
+  for (const id of ['farmer', 'farmer-2', 'farmer-leader', 'infantry', 'archer', 'cavalry']) {
+    const { e, f } = built(); e.setFire(f.id, true); e.state.vitals[id].stamina = 10;
+    const { n, advance } = needsHarness(e); advance(70);
+    assert(e.state.vitals[id].stamina >= 80, id + ' must have eaten after supplying');
+    assert(e.state.tasks.some(t => t.kind === 'supply' && t.worker === id && t.status === 'done'), id + ' must carry');
+    assert(e.state.inventory.wood < 30 && e.state.inventory.food < 30);
+    assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
+    const before = encodeEconomy(e); n.update(0); e.advance(0); assert.equal(encodeEconomy(e), before);
+  }
+  const { e, f } = built(); e.setFire(f.id, true);
+  for (const id of ['farmer', 'farmer-2', 'infantry', 'dog']) e.state.vitals[id].stamina = 10;
+  const { advance } = needsHarness(e); advance(.3);
+  const tasks = e.state.tasks.filter(t => t.kind === 'supply');
+  assert.equal(tasks.length, 1); assert.notEqual(tasks[0].worker, 'dog');
+  assert.equal(e.assign(tasks[0].id, 'dog').ok, false);
+});
+
+test('a soldier supply survives reload in transit and manual movement drops goods without a second charge', () => {
+  const { e, f } = built(); e.setFire(f.id, true); e.state.vitals.infantry.stamina = 10;
+  const { c, n, advance } = needsHarness(e);
+  for (let i = 0; i < 200 && !e.state.goods.some(g => g.carrier === 'infantry'); i++) advance(.1);
+  const task = e.active('infantry')!; assert.equal(task?.status, 'delivering');
+  const paused = encodeEconomy(e); n.update(0); c.update(0); e.advance(0); assert.equal(encodeEconomy(e), paused);
+  const stock = e.state.inventory.wood, restored = decodeEconomy(encodeEconomy(e));
+  assert.equal(restored.active('infantry')?.status, 'delivering');
+  const next = needsHarness(restored); next.advance(60);
+  assert(restored.state.tasks.some(t => t.id === task.id && t.status === 'done'));
+  assert(restored.state.vitals.infantry.stamina > 70);
+  const u = c.unit('infantry')!; assert.equal(c.move([u.id], { x: -2, z: -10 }), 1); n.manual(u.id);
+  assert.equal(e.state.goods[0].state, 'ground'); assert.equal(e.state.inventory.wood, stock);
+  assert(!e.state.vitals.infantry.rest); assert.equal(u.order, 'move');
+  const resumed = decodeEconomy(encodeEconomy(e));
+  assert(resumed.assign(task.id, 'archer').ok); resumed.arrive(task.id); resumed.arrive(task.id);
+  assert.equal(resumed.state.inventory.wood, stock); assert.equal(resumed.campfire(f.id)!.wood, F.batch.wood);
+});
+
+test('shortages retry without free food, switching off interrupts supply, and normal tasks remain available', () => {
+  const { e, f } = built(); e.setFire(f.id, true); e.state.inventory.wood = e.state.inventory.food = 0;
+  e.state.vitals.farmer.stamina = 10; const { n, advance } = needsHarness(e); advance(10);
+  assert(e.state.vitals.farmer.stamina <= 10 && e.state.vitals.farmer.stamina > 9); assert(!e.active('farmer'));
+  assert.match(n.label('farmer'), /等待仓库/);
+  e.state.inventory.wood = e.state.inventory.food = 12; advance(20);
+  assert(e.state.vitals.farmer.stamina > 10);
+  e.setFire(f.id, false); advance(.1); assert(!e.state.vitals.farmer.rest);
+  assert.equal(n.canTakeWork('farmer'), true);
+  assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
+});
+
+
+test('blocked supply routes wait without charging inventory or retrying navigation every frame', () => {
+  const { e, f } = built(); e.setFire(f.id, true); e.state.vitals.farmer.stamina = 10;
+  let calls = 0, place = { x: -10, z: -10 };
+  const c = new Combat(e.state.combat, e, () => []);
+  const n = createNeedsController(e, {
+    needsStatus: () => ({ position: place, speed: 0, moving: false, working: false, goal: undefined }),
+    setResting() {}, releaseFarmerWork() {},
+    command(point, id) { calls++; if (point.x > 0) return false; place = { ...point }; return id === 'farmer'; },
+  }, c);
+  n.update(.1); n.update(.1); const attempts = calls;
+  for (let i = 0; i < 20; i++) n.update(.1);
+  assert.equal(calls, attempts); assert.equal(e.state.inventory.wood, 30); assert.equal(e.state.goods.length, 0);
+  assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
+});
+
+test('incoming fire interrupts automatic supply to retaliate, preserving paid cargo', () => {
+  const { e, f } = built(); e.setFire(f.id, true); e.state.vitals.infantry.stamina = 10;
+  const { c, advance } = needsHarness(e);
+  for (let i = 0; i < 200 && !e.state.goods.some(g => g.carrier === 'infantry'); i++) advance(.1);
+  const u = c.unit('infantry')!, enemy = c.unit('enemy-archer')!;
+  enemy.position = { x: u.position.x + 3, z: u.position.z }; enemy.order = 'hold';
+  const stock = e.state.inventory.wood;
+  c.state.projectiles.push({ id: c.state.nextAttack++, source: enemy.id, target: u.id,
+    from: { ...enemy.position }, to: { ...u.position }, elapsed: 0, duration: .01, damage: 10 });
+  c.update(.05);
+  assert.equal(u.target, enemy.id); assert(!e.state.vitals[u.id].rest);
+  assert.equal(e.state.goods[0].state, 'ground'); assert.equal(e.state.inventory.wood, stock);
+  assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
 });

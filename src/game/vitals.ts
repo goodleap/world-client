@@ -3,11 +3,11 @@ import { COMBAT_CONFIG } from './combat-config.ts';
 import type { EconomyState } from './economy.ts';
 import type { Point } from './movement.ts';
 
-export const VITAL_CONFIG = { maxStamina: 100, eatAt: 35, stopAt: 85, mealSeconds: 6, mealStamina: 45, mealHealth: 12,
+export const VITAL_CONFIG = { maxStamina: 100, eatAt: 30, foodRadiusCells: 30, stopAt: 85, mealSeconds: 6, mealStamina: 45, mealHealth: 12,
   idleDrain: .04, movingDrain: .12, workDrain: .22, combatDrain: .45, manualGrace: 8, retrySeconds: 5 };
 export interface Vital {
   stamina: number; hp?: number; manualUntil: number; retryAt: number; hurtUntil: number;
-  rest?: { camp: string; goal: Point };
+  rest?: { camp: string; goal: Point; manual?: boolean; supply?: number; supplyGoal?: Point };
   meal?: { remaining: number };
 }
 export type Vitals = Record<string, Vital>;

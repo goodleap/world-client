@@ -34,3 +34,24 @@ export async function selectUnit(page: Page, id: string, touch = false) {
     expect((await snapshot(page)).selection.resident).toBe(id);
   }).toPass({ timeout: 15_000 });
 }
+
+/** Discover the outskirts through the same map drag available to the player. */
+export async function panTo(page: Page, point: { x: number; z: number }, touch = false) {
+  const viewport = page.viewportSize()!, cx = viewport.width / 2, cy = viewport.height / 2;
+  const session = touch ? await page.context().newCDPSession(page) : undefined;
+  for (let i = 0; i < 20; i++) {
+    const { camera } = await snapshot(page), scale = viewport.height / (2 * camera.zoom);
+    if (Math.hypot(camera.target.x - point.x, camera.target.z - point.z) < .4) return;
+    const dx = Math.max(-cx + 45, Math.min(cx - 45, (camera.target.x - point.x) * scale));
+    const dy = Math.max(-cy + 120, Math.min(cy - 120, (point.z - camera.target.z) * Math.cos(camera.beta) * scale));
+    if (session) {
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + dx, y: cy + dy }] });
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
+      await page.mouse.move(cx, cy); await page.mouse.down(); await page.mouse.move(cx + dx, cy + dy, { steps: 3 }); await page.mouse.up();
+    }
+    await expect.poll(async () => { const next = (await snapshot(page)).camera.target; return Math.hypot(next.x - camera.target.x, next.z - camera.target.z); }).toBeGreaterThan(.01);
+  }
+  throw new Error('map drag did not reach the target');
+}

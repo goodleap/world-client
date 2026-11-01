@@ -37,6 +37,8 @@ export const ENEMIES: readonly ResidentDefinition[] = [
  * equipment, animation and movement capabilities. */
 export const roleLeader = (role: ResidentRole) => RESIDENTS.find(resident => resident.role === role && resident.effects?.includes('leader'));
 export const canResidentWork = (id: string) => RESIDENTS.some(resident => resident.id === id && resident.role === 'farmer');
+/** Personal fire supplies may be carried by every friendly human, not animals. */
+export const canResidentSupply = (id: string) => RESIDENTS.some(resident => resident.id === id && resident.role !== 'dog');
 
 // Residents stay out of the planted beds as well as the same solids used by the player.
 export const RESIDENT_OBSTACLES: readonly Obstacle[] = [

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import assert from 'node:assert/strict';
 import { Combat } from '../src/game/combat.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
@@ -30,14 +31,23 @@ test('manual move cancels a windup, retains cooldown and suppresses auto acquisi
   c.update(.05); assert(a.cooldown > 0); assert(!a.attack); assert(!a.target);
   advance(c, 1); assert.equal(a.order, 'move'); assert.equal(b.hp, hp);
 });
-test('retreat remains disengaged after arrival until explicitly re-enabled', () => {
-  const { c, a, b } = setup(); a.home = { x: OUTPOST.x + 4, z: OUTPOST.z };
-  c.attack([a.id], b.id); c.update(.05); assert.equal(c.move([a.id], a.home, true), 1);
-  advance(c, 3); assert.equal(a.order, 'hold'); assert(!a.target); const hp = b.hp;
-  advance(c, 2); assert.equal(b.hp, hp); c.guard([a.id]); c.update(.05); assert(a.target);
+test('idle soldiers do not hunt; both sides retaliate and a manual move wins over incoming hits', () => {
+  const { e, c, a, b } = setup();
+  a.order = 'guard'; b.order = 'hold'; b.goal = { ...b.position }; b.cooldown = 8;
+  c.update(.05); assert.equal(a.target, undefined);
+  c.attack([a.id], b.id); advance(c, .5);
+  assert.equal(b.target, a.id, 'enemy retaliates against its attacker');
+  c.move([a.id], { x: OUTPOST.x + 10, z: OUTPOST.z });
+  const hit = () => c.state.projectiles.push({ id: c.state.nextAttack++, source: b.id, target: a.id,
+    from: { ...b.position }, to: { ...a.position }, elapsed: 0, duration: .01, damage: 5 });
+  hit(); c.update(.05); assert.equal(a.order, 'move'); assert(!a.target); assert(!a.attack);
+  // Once stopped, receiving a fresh hit triggers retaliation without a UI switch.
+  a.order = 'hold'; a.route = []; a.goal = undefined; hit(); c.update(.05);
+  assert.equal(a.target, b.id); assert.equal(a.order, 'guard');
+  const restored = decodeEconomy(encodeEconomy(e)); assert.equal(restored.state.combat.units.find(u => u.id === a.id)!.target, b.id);
 });
 test('projectiles release once, persist through reload, and cannot hit through cover', () => {
-  const { e, c, archer, b } = setup(); c.attack([archer.id], b.id); advance(c, .65);
+  const { e, c, a, archer, b } = setup(); a.position = { x: 0, z: 0 }; c.attack([archer.id], b.id); advance(c, .65);
   assert.equal(c.state.projectiles.length, 1); const hp = b.hp;
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
   advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
@@ -101,4 +111,22 @@ test('pause freezes every combat field; corrupt or old saves are rejected', () =
   const before = encodeEconomy(e); c.update(0); c.update(Number.NaN); assert.equal(encodeEconomy(e), before);
   const bad = JSON.parse(before); bad.combat.units[0].hp = 999; assert.throws(() => decodeEconomy(JSON.stringify(bad)));
   const old = JSON.parse(before); old.version = 5; assert.throws(() => decodeEconomy(JSON.stringify(old)));
+});
+
+test('a picked Babylon destination actually moves the soldier and remains valid across reload', () => {
+  const { e, c, a } = setup();
+  a.position = { x: 0, z: 1.2 };
+  const clicked = new Vector3(-.7, 0, -2), before = { ...a.position };
+  assert.equal(c.move([a.id], clicked), 1);
+  assert.deepEqual(a.goal, { x: clicked.x, z: clicked.z });
+  assert.deepEqual(a.route.at(-1), a.goal);
+  advance(c, .3);
+  assert(Math.hypot(a.position.x - before.x, a.position.z - before.z) > .5, 'the accepted click must move the body');
+  const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
+  assert.deepEqual(next.unit(a.id)!.goal, { x: clicked.x, z: clicked.z });
+  advance(next, 4);
+  assert(Math.hypot(next.unit(a.id)!.position.x - clicked.x, next.unit(a.id)!.position.z - clicked.z) < .15);
+  const state = encodeEconomy(restored);
+  assert.equal(next.move([a.id], new Vector3(NaN, 0, 0)), 0);
+  assert.equal(encodeEconomy(restored), state, 'invalid coordinates must not cancel the previous order');
 });

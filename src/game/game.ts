@@ -1,6 +1,5 @@
 import { createNeedsController } from './needs-controller.ts';
 import { Combat } from './combat.ts';
-import { OUTPOST } from './combat-config.ts';
 import { createCombatView } from './combat-view.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { Engine } from '@babylonjs/core/Engines/engine';
@@ -84,7 +83,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   residents.restoreResidents(economy.state.residents);
   const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
   residents.syncCombat(combat.state.units);
-  const needs = createNeedsController(economy, residents, combat);
+  const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point));
   const combatView = createCombatView(scene);
   combatView.update(combat.state);
   const farmerLeader = roleLeader('farmer');
@@ -101,7 +100,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const combatIds = () => residents.selectedId() ? [residents.selectedId()!] : [];
-  const clearResident = () => { residents.select(); ui.setResident(); ui.setCombatControls(false); };
+  const clearResident = () => { residents.select(); ui.setResident(); ui.setCombatHint(false); };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
     const details = economySelection(economy, object), unit = residents.selectedId();
@@ -225,7 +224,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       const name = residents.select(residents.selectedId() === id ? undefined : id);
       ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!),
         residents.selectedId() === farmerLeader?.id ? economy.state.steward.enabled : undefined);
-      ui.setCombatControls(!!combat.unit(residents.selectedId() ?? ''));
+      ui.setCombatHint(!!combat.unit(residents.selectedId() ?? ''));
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
@@ -318,20 +317,6 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     mapCenter.copyFrom(homeCenter); setPreview();
     overview = false; zoom = defaultZoom();
   });
-  ui.bind('scout-outpost', () => {
-    if (ui.paused || suspended) return;
-    setPreview(); overview = false; mapCenter.set(OUTPOST.x, .5, OUTPOST.z); zoom = defaultZoom();
-    ui.targetHint(combat.state.cleared ? '据点已清理 · 物资需搬运入库' : '敌方小据点 · 选中士兵后点敌人攻击', { ...OUTPOST, y: 2.6 });
-  });
-  ui.bind('combat-retreat', () => {
-    if (ui.paused || suspended) return;
-    const count = combat.move(combatIds(), { x: 0, z: 0 }, true);
-    if (count) needs.manual(combatIds()[0]);
-    const unit = combat.unit(combatIds()[0]);
-    if (unit) ui.targetHint(count ? '撤退回家 · 抵达后待命' : '道路受阻', { ...unit.position, y: 2.6 });
-    save();
-  });
-  ui.bind('combat-auto', () => { if (!ui.paused && !suspended) { combat.guard(combatIds()); if (residents.selectedId()) needs.manual(residents.selectedId()!); save(); } });
   ui.bind('resident-eat', () => {
     if (ui.paused || suspended) return;
     const id = residents.selectedId(); if (!id) return;

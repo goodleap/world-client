@@ -58,7 +58,6 @@ export function createUI(app: HTMLElement) {
       <div class="stops"><span data-stop="cottage">${icon('home')}小屋</span><span data-stop="garden">${icon('leaf')}菜园</span><span data-stop="well">${icon('compass')}水井</span></div>
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
-    <nav class="combat-controls" aria-label="战斗指挥"><button id="scout-outpost">西南据点</button><button id="combat-retreat" hidden>撤退回家</button><button id="combat-auto" hidden>自动战斗</button></nav>
     <nav class="view-controls" aria-label="视角控制">
       <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
     </nav>
@@ -86,7 +85,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">光的颜色 <small>太阳光</small><input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵或弓兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。撤退回家后待命，点击自动战斗恢复索敌。生命归零后停止作战，仍可缓慢移动；到火堆进食补体力并缓慢回血。火堆点燃后由农民从仓库配送木材和粮食。人物与动物体力低时会在空闲后自动就餐，也可选中后点“进食”。熄火停止消耗；关闭烹饪只照明。西南据点清理后物资需要农民搬运入库。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵或弓兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。生命归零后停止作战，仍可缓慢移动；到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。也可选中后点“进食”。熄火停止消耗；关闭烹饪只照明。西南据点清理后物资需要农民搬运入库。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -198,7 +197,7 @@ export function createUI(app: HTMLElement) {
   // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
   const card = get('selection-card');
   const hint = get('target-hint');
-  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls, .combat-controls')];
+  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls')];
   let layoutDirty = true;
   let layout = { width: 0, height: 0, left: 12, right: 12, top: 12, bottom: 12,
     blockers: [] as { x: number; y: number; width: number; height: number }[] };
@@ -263,7 +262,7 @@ export function createUI(app: HTMLElement) {
       get('resident-labels').append(label);
       return label;
     },
-    setCombatControls(active: boolean) { get('combat-retreat').hidden = !active; get('combat-auto').hidden = !active; if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
+    setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
     setVitalLabel(id: string, text: string, enemy: boolean, selected: boolean) {
       const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`); if (!label) return;
       label.classList.add('combat-label'); label.classList.toggle('enemy-label', enemy);

@@ -59,18 +59,25 @@ export class Combat {
   move(ids: readonly string[], point: Point, retreat = false, rest = false) {
     let accepted = 0;
     for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
-      const goal = retreat ? u.home : point;
+      const requested = retreat ? u.home : point;
+      if (!Number.isFinite(requested.x) || !Number.isFinite(requested.z)) continue;
+      // Picking returns a Babylon Vector3 whose x/z are prototype accessors.
+      // Copy coordinates explicitly before pathfinding: a direct path retains
+      // its destination, and spreading a Vector3 loses x/z in live goals/saves.
+      const goal: Point = { x: requested.x, z: requested.z };
       const path = rest ? planWorkApproach(u.position, [goal], .4, WORLD_BOUNDS, this.solids(), this.reservations(u))
         : planMoveDestination(u.position, goal, .4, WORLD_BOUNDS, this.solids(), this.reservations(u));
       if (!path) continue;
       // Cancelling the windup never refunds the committed cooldown.
       u.attack = undefined; u.target = undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
       if (!rest) this.manual(u.id);
-      u.goal = { ...path.at(-1) ?? goal }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
+      const destination = path.at(-1) ?? goal;
+      u.goal = { x: destination.x, z: destination.z }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
     }
     return accepted;
   }
   private manual(id: string) {
+    if (this.economy.active(id)?.kind === 'supply') this.economy.interrupt(this.unit(id)!.position, id);
     const v = this.economy.state.vitals[id]; v.rest = undefined; v.manualUntil = this.economy.state.seconds + VITAL_CONFIG.manualGrace;
   }
   attack(ids: readonly string[], target: string) {
@@ -85,11 +92,27 @@ export class Combat {
   guard(ids: readonly string[]) {
     for (const u of this.controllable(ids)) { this.manual(u.id); u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
   }
-  private damage(target: Fighter, amount: number) {
+  private damage(target: Fighter, amount: number, sourceId: string) {
     if (target.life !== 'active') return;
     target.hp = Math.max(0, target.hp - Math.max(1, amount - fighterStats(target).armor));
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
-    if (target.hp) return;
+    if (target.hp) {
+      const source = this.unit(sourceId), current = target.target && this.unit(target.target);
+      // Both sides retaliate, keeping an existing valid opponent stable.
+      // Player movement/eating wins; an automatic supply trip yields to combat.
+      const manualRest = target.order === 'rest' && this.economy.state.vitals[target.id].rest?.manual;
+      if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order) && !manualRest
+        && !(target.team === 'enemy' && target.goal) && (!current || current.life !== 'active')
+        && distance(target.position, source.position) <= C.acquire + 3
+        && (target.team === 'home' || distance(source.position, OUTPOST) <= OUTPOST.leash)) {
+        this.economy.interrupt(target.position, target.id);
+        this.economy.state.vitals[target.id].rest = undefined;
+        target.order = 'guard'; target.target = source.id; target.goal = undefined; this.stop(target);
+      }
+      return;
+    }
+    this.economy.interrupt(target.position, target.id);
+    this.economy.state.vitals[target.id].rest = undefined;
     this.stop(target); target.attack = undefined; target.target = undefined; target.goal = undefined;
     target.life = target.team === 'home' ? 'injured' : 'defeated';
     target.order = 'hold'; target.planIn = 0;
@@ -118,7 +141,7 @@ export class Combat {
       this.state.projectiles.splice(this.state.projectiles.indexOf(shot), 1);
       const target = this.unit(shot.target);
       // A shot lands at its committed point. A moving target can dodge it.
-      if (target && distance(target.position, shot.to) < .8 && segmentIsClear(shot.from, shot.to, .05, WORLD_BOUNDS, this.solids())) this.damage(target, shot.damage);
+      if (target && distance(target.position, shot.to) < .8 && segmentIsClear(shot.from, shot.to, .05, WORLD_BOUNDS, this.solids())) this.damage(target, shot.damage, shot.source);
     }
     for (const u of this.state.units) {
       const stats = fighterStats(u);
@@ -144,7 +167,7 @@ export class Combat {
           action.released = true;
           if (target?.life === 'active' && distance(u.position, target.position) <= stats.range + .15
             && segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids())) {
-            if (u.role === 'infantry') this.damage(target, stats.attack);
+            if (u.role === 'infantry') this.damage(target, stats.attack, u.id);
             else this.state.projectiles.push({ id: action.id, source: u.id, target: target.id, from: { ...u.position }, to: { ...target.position },
               elapsed: 0, duration: distance(u.position, target.position) / C.projectileSpeed, damage: stats.attack });
           }
@@ -154,9 +177,9 @@ export class Combat {
       }
       let target = u.target ? this.unit(u.target) : undefined;
       if (!target || target.life !== 'active' || target.team === u.team || u.order !== 'attack' && distance(u.position, target.position) > C.acquire + 3) {
-        target = this.state.units.filter(t => t.team !== u.team && t.life === 'active' && distance(u.position, t.position) < C.acquire
-          && (u.team === 'home' || distance(t.position, OUTPOST) <= OUTPOST.leash))
-          .sort((a, b) => distance(u.position, a.position) - distance(u.position, b.position) || a.id.localeCompare(b.id))[0];
+        target = u.team === 'enemy' ? this.state.units.filter(t => t.team !== u.team && t.life === 'active' && distance(u.position, t.position) < C.acquire
+          && distance(t.position, OUTPOST) <= OUTPOST.leash)
+          .sort((a, b) => distance(u.position, a.position) - distance(u.position, b.position) || a.id.localeCompare(b.id))[0] : undefined;
         u.target = target?.id;
         if (!target) { this.stop(u); if (u.order === 'attack') u.order = 'guard'; continue; }
       }

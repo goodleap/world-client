@@ -59,6 +59,8 @@ export function createEconomyController(economy: Economy, world: World, resident
     if (canDispatch) economy.state.steward.nextDecision = economy.state.seconds + .5;
     world.sync();
     for (const id of residents.farmerIds()) {
+      // Personal meals own their delivery route; normal work resumes afterwards.
+      if (economy.state.vitals[id].rest) continue;
       let assigned = residents.farmerWorkState(id);
       const active = economy.active(id);
       if (assigned && assigned.id !== active?.id) { residents.releaseFarmerWork(id); assigned = undefined; }
