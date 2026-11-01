@@ -8,7 +8,7 @@ export const inStewardRange = (point: Point) => Math.hypot(point.x - HOME.x, poi
 
 /** Each quantity is counted at exactly one location in its production pipeline. */
 export function expectedSupply(e: Economy, resource: Resource) {
-  let amount = e.available()[resource] + e.state.goods.filter(g => g.resource === resource).reduce((n, g) => n + g.amount, 0);
+  let amount = e.available()[resource] + e.state.goods.filter(g => g.resource === resource && !g.destination).reduce((n, g) => n + g.amount, 0);
   if (resource === 'food') {
     for (const plot of e.state.plots) if (plot.crop) amount += C.crops[plot.crop].yield;
     for (const t of e.state.tasks) if (pending(t) && t.kind === 'sow' && t.crop) amount += C.crops[t.crop].yield;

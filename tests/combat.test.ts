@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Combat, fighterStats } from '../src/game/combat.ts';
+import { Combat } from '../src/game/combat.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { COMBAT_CONFIG as C, OUTPOST } from '../src/game/combat-config.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
@@ -71,14 +71,16 @@ test('actual map paths and shared crowd follower keep soldiers out of solids and
   });
   assert(c.unit('enemy-guard')!.hp < C.enemyMelee.hp);
 });
-test('injury returns home, waits for food and resumes paid recovery without a second charge', () => {
-  const { e, c, a, b } = setup(); a.hp = 1; b.order = 'guard'; e.state.inventory.food = 0;
-  advance(c, 1); assert.equal(a.life, 'returning'); assert.equal(a.hp, 0);
-  advance(c, 28); assert.equal(a.life, 'recovering'); assert.equal(a.recovery, 0);
-  e.state.inventory.food = 6; advance(c, 3); assert(a.paid); assert.equal(e.state.inventory.food, 0);
+test('injury holds position without automatic home recovery or warehouse food charges', () => {
+  const { e, c, a, b } = setup(); a.hp = 1; b.order = 'guard'; e.state.inventory.food = 30;
+  advance(c, 1); assert.equal(a.life, 'injured'); assert.equal(a.hp, 0);
+  const where = { ...a.position }; advance(c, 35);
+  assert.deepEqual(a.position, where); assert.equal(a.hp, 0); assert.equal(e.state.inventory.food, 30);
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
-  advance(next, 18); assert.equal(next.unit(a.id)!.life, 'active'); assert.equal(next.unit(a.id)!.hp, fighterStats(a).hp);
-  assert.equal(restored.state.inventory.food, 0);
+  advance(next, 30); assert.equal(next.unit(a.id)!.life, 'injured'); assert.equal(next.unit(a.id)!.hp, 0);
+  assert.equal(restored.state.inventory.food, 30);
+  assert.equal(next.move([a.id], { x: OUTPOST.x + 10, z: OUTPOST.z }, true), 1);
+  advance(next, 1); assert(next.unit(a.id)!.position.x > where.x);
 });
 test('outpost reward is a single ground delivery; reload and capacity cannot mint inventory', () => {
   const { e, c } = setup();

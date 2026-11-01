@@ -13,13 +13,16 @@ import type { Economy } from './economy.ts';
 import { createEconomyWorld } from './economy-world.ts';
 import { createLandscapeTerrain, createLandscapeWater } from './landscape-terrain.ts';
 import { createGroundCover } from './ground-cover.ts';
+import { createCampfireView } from './campfire-view.ts';
+import { createBuildingDoors } from './building-doors.ts';
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
   const before = new Set(scene.meshes), land = createLandGrid();
   const objects = new Map<string, WorldObject>();
+  const doors = createBuildingDoors(scene, p, shadows);
   const register = (object: WorldObject, firstMesh: number) => {
     objects.set(object.id, object);
-    for (const mesh of scene.meshes.slice(firstMesh)) mesh.metadata = { worldObjectId: object.id };
+    for (const mesh of scene.meshes.slice(firstMesh)) mesh.metadata = { ...mesh.metadata, worldObjectId: object.id };
   };
   const addObject = (object: WorldObject, build: () => void) => {
     const first = scene.meshes.length; build(); register(object, first);
@@ -29,7 +32,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '仓库',
     x: b.x, z: b.z, radius: b.width / 2, width: b.width, depth: b.depth,
     anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
-  }, () => referenceHouse(scene, p, b));
+  }, () => { referenceHouse(scene, p, b, false); doors.add(b, b.id === 'warehouse'); });
   // Individual farming cells are managed below as native mutable instances.
   // Water is terrain, like the ground and roads: no selectable object metadata.
   // Its shoreline remains in the movement and construction obstacle data.
@@ -46,7 +49,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   // Existing static batching retains the new vertex colors and smooth normals.
   const groups = new Map<NonNullable<Mesh['material']>, Mesh[]>();
   for (const mesh of scene.meshes) {
-    if (before.has(mesh) || !(mesh instanceof Mesh) || !mesh.material) continue;
+    if (before.has(mesh) || !(mesh instanceof Mesh) || !mesh.material || mesh.metadata?.animatedDoor) continue;
     // Babylon requires matching attributes when combining painted and plain parts.
     if (!mesh.isVerticesDataPresent(VertexBuffer.ColorKind)) mesh.setVerticesData(VertexBuffer.ColorKind, new Float32Array(mesh.getTotalVertices() * 4).fill(1));
     if (!mesh.isVerticesDataPresent(VertexBuffer.UVKind)) mesh.setVerticesData(VertexBuffer.UVKind, new Float32Array(mesh.getTotalVertices() * 2));
@@ -80,18 +83,20 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     }
   }
   for (const mesh of scene.meshes) {
-    if (before.has(mesh)) continue;
+    if (before.has(mesh) || mesh.metadata?.animatedDoor) continue;
     mesh.isPickable = !!mesh.metadata?.worldFaceRanges?.length;
     // Ground, walls, roofs and plants all participate in the same soft daylight.
     mesh.receiveShadows = true;
     mesh.freezeWorldMatrix();
     if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
-  const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects);
+  const fires = createCampfireView(scene, p, shadows);
+  const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires);
+  fires.update(economy.state.campfires, 0, { x: 0, z: 0 });
   const cover = createGroundCover(scene);
   const syncCover = () => cover.sync([...economy.state.sites, ...economy.state.plots.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))]);
   syncCover();
-  return { land, objects, ...economyWorld,
+  return { land, objects, doors, fires, ...economyWorld,
     sync: () => { const changed = economyWorld.sync(); if (changed) syncCover(); return changed; },
     selectionMeshes: (id: string) => scene.meshes.filter(m => m.metadata?.worldObjectId === id && !m.name.startsWith('selected-')) };
 }

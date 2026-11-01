@@ -3,11 +3,21 @@ import { ECONOMY_CONFIG as C, RESOURCE_NODES } from './economy-config.ts';
 import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES } from './economy.ts';
 import type { Resource } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
+import { fireIsLit } from './campfire.ts';
 import { BUILDING_TYPES } from './construction.ts';
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
   const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设', goods: '待入库资源' };
   const details: SelectionDetails = { name: object.name, kind: kinds[object.kind], hint: '暂无可用操作', actions: [] };
+  const fire = economy.campfire(object.id);
+  if (fire) {
+    const task = economy.taskFor(object.id);
+    details.showHint = true;
+    details.hint = `${fireIsLit(fire) ? '燃烧' : fire.enabled ? '待补柴' : '熄火'} · 木${fire.wood} 粮${fire.food} 熟食${fire.meals}${task ? ' · 补给中' : ''}`;
+    details.actions = [{ id: 'fire-toggle', label: fire.enabled ? '熄火' : '点火' },
+      { id: 'cook-toggle', label: fire.cooking ? '停止烹饪' : '开启烹饪' }, { id: 'eat-here', label: '在此进食' }];
+    return details;
+  }
   const task = economy.taskFor(object.id);
   if (task) {
     details.hint = `${WORK_NAMES[task.kind]} · ${STATUS_NAMES[task.status]}${task.reason ? ' · ' + task.reason : ''}`;
@@ -48,8 +58,8 @@ export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
     const plotIndex = economy.state.plots.findIndex(plot => plot.id === task.target);
-    const target = plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
-    return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: STATUS_NAMES[task.status],
+    const target = task.kind === 'supply' ? `火堆 · ${RESOURCE_NAMES[task.resource!]} ${task.amount}` : plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
+    return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: task.kind === 'supply' && task.status === 'delivering' ? '送往火堆' : STATUS_NAMES[task.status],
       progress: Math.floor(task.progress / C.workSeconds[task.kind] * 100), reason: task.reason,
       cancellable: pending(task) && task.status !== 'storage' };
   }), active.length);

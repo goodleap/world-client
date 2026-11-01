@@ -9,6 +9,7 @@ export const BUILDING_TYPES = {
   farm: { name: '耕地', columns: 1, rows: 1, height: .1 },
   warehouse: { name: '仓库', columns: 3, rows: 2, height: 2.9 },
   house: { name: '民房', columns: 2, rows: 2, height: 2.5 },
+  campfire: { name: '火堆', columns: 2, rows: 2, height: 1.2 },
 } as const;
 export type BuildingKind = keyof typeof BUILDING_TYPES;
 export interface BuildingSite extends Point { id: string; kind: BuildingKind; width: number; depth: number; height: number }

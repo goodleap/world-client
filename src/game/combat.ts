@@ -8,13 +8,14 @@ import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { COMBAT_CONFIG as C, OUTPOST } from './combat-config.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
+import { effort, VITAL_CONFIG } from './vitals.ts';
 
-export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold';
-export type CombatLife = 'active' | 'returning' | 'recovering' | 'defeated';
+export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold' | 'rest';
+export type CombatLife = 'active' | 'injured' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
   hp: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
-  facing: number; speed: number; cooldown: number; recovery: number; paid: boolean;
+  facing: number; speed: number; cooldown: number;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
   route: Point[]; navigation: RouteState; planIn: number;
 }
@@ -29,7 +30,7 @@ export function initialCombat(): CombatState {
     units: [...RESIDENTS.filter(r => r.id === 'infantry' || r.id === 'archer'), ...ENEMIES].map(r => {
       const role = r.role as CombatRole, team = r.id.startsWith('enemy-') ? 'enemy' as const : 'home' as const;
       return { id: r.id, role, team, position: { ...r.spawn }, home: { ...r.home }, hp: fighterStats({ role, team }).hp,
-        life: 'active', order: 'guard', facing: Math.PI, speed: 0, cooldown: 0, recovery: 0, paid: false,
+        life: 'active', order: 'guard', facing: Math.PI, speed: 0, cooldown: 0,
         route: [], navigation: createRouteState(), planIn: 0 };
     }) };
 }
@@ -55,37 +56,43 @@ export class Combat {
     return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) }));
   }
   private stop(u: Fighter) { u.route = []; u.speed = 0; resetRouteState(u.navigation); }
-  move(ids: readonly string[], point: Point, retreat = false) {
+  move(ids: readonly string[], point: Point, retreat = false, rest = false) {
     let accepted = 0;
-    for (const u of this.controllable(ids)) {
+    for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
       const goal = retreat ? u.home : point;
-      const path = planMoveDestination(u.position, goal, .4, WORLD_BOUNDS, this.solids(), this.reservations(u));
+      const path = rest ? planWorkApproach(u.position, [goal], .4, WORLD_BOUNDS, this.solids(), this.reservations(u))
+        : planMoveDestination(u.position, goal, .4, WORLD_BOUNDS, this.solids(), this.reservations(u));
       if (!path) continue;
       // Cancelling the windup never refunds the committed cooldown.
-      u.attack = undefined; u.target = undefined; u.order = retreat ? 'retreat' : 'move';
+      u.attack = undefined; u.target = undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
+      if (!rest) this.manual(u.id);
       u.goal = { ...path.at(-1) ?? goal }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
     }
     return accepted;
+  }
+  private manual(id: string) {
+    const v = this.economy.state.vitals[id]; v.rest = undefined; v.manualUntil = this.economy.state.seconds + VITAL_CONFIG.manualGrace;
   }
   attack(ids: readonly string[], target: string) {
     const foe = this.unit(target); if (!foe || foe.team !== 'enemy' || foe.life !== 'active') return 0;
     let accepted = 0;
     for (const u of this.controllable(ids)) {
       // Repeated attack clicks do not restart or accelerate an attack.
-      u.order = 'attack'; u.target = foe.id; u.goal = undefined; accepted++;
+      this.manual(u.id); u.order = 'attack'; u.target = foe.id; u.goal = undefined; accepted++;
     }
     return accepted;
   }
   guard(ids: readonly string[]) {
-    for (const u of this.controllable(ids)) { u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
+    for (const u of this.controllable(ids)) { this.manual(u.id); u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
   }
   private damage(target: Fighter, amount: number) {
     if (target.life !== 'active') return;
     target.hp = Math.max(0, target.hp - Math.max(1, amount - fighterStats(target).armor));
+    this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) return;
     this.stop(target); target.attack = undefined; target.target = undefined; target.goal = undefined;
-    target.life = target.team === 'home' ? 'returning' : 'defeated';
-    target.order = 'hold'; target.planIn = 0; target.recovery = 0; target.paid = false;
+    target.life = target.team === 'home' ? 'injured' : 'defeated';
+    target.order = 'hold'; target.planIn = 0;
   }
   private travel(u: Fighter, dt: number, speed: number) {
     const previous = u.position;
@@ -118,30 +125,14 @@ export class Combat {
       u.speed = 0; u.cooldown = Math.max(0, u.cooldown - dt); u.planIn = Math.max(0, u.planIn - dt);
       if (u.life === 'defeated') continue;
       if (u.team === 'home' && distance(u.position, OUTPOST) < OUTPOST.discover) this.state.discovered = true;
-      if (u.life === 'returning') {
-        if (distance(u.position, u.home) < 1.6) { u.life = 'recovering'; this.stop(u); }
-        else {
-          if (!u.route.length && u.planIn <= 0) this.plan(u, [u.home, { x: u.home.x + 1, z: u.home.z }, { x: u.home.x - 1, z: u.home.z }]);
-          this.travel(u, dt, stats.speed * .65);
-        }
-        continue;
-      }
-      if (u.life === 'recovering') {
-        if (!u.paid && this.economy.available().food >= C.recoveryFood) {
-          this.economy.state.inventory.food -= C.recoveryFood; this.economy.revision++; u.paid = true;
-        }
-        if (u.paid) u.recovery = Math.min(C.recoverySeconds, u.recovery + dt);
-        if (u.recovery >= C.recoverySeconds) { u.hp = stats.hp; u.life = 'active'; u.order = 'hold'; }
-        continue;
-      }
-      if (u.order === 'move' || u.order === 'retreat' || u.team === 'enemy' && u.order === 'hold') {
+      if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || u.team === 'enemy' && u.order === 'hold') {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
-          this.travel(u, dt, stats.speed);
-        } else { this.stop(u); u.goal = undefined; u.order = u.team === 'enemy' ? 'guard' : u.order === 'retreat' ? 'hold' : 'guard'; }
+          this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id) * (u.life === 'injured' ? .5 : 1));
+        } else { this.stop(u); u.goal = undefined; u.order = u.team === 'enemy' ? 'guard' : u.order === 'retreat' || u.order === 'rest' || u.life === 'injured' ? 'hold' : 'guard'; }
         continue;
       }
-      if (u.order === 'hold') continue;
+      if (u.life === 'injured' || u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
       if (u.team === 'enemy' && (distance(u.position, OUTPOST) > OUTPOST.leash || u.target && distance(this.unit(u.target)!.position, OUTPOST) > OUTPOST.leash)) {
         u.order = 'hold'; u.goal = { ...u.home }; u.target = undefined; u.attack = undefined; this.stop(u); continue;
       }
@@ -172,7 +163,7 @@ export class Combat {
       const clear = segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids());
       if (distance(u.position, target.position) <= stats.range && clear) {
         this.stop(u); u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
-        if (!u.cooldown) { u.cooldown = stats.interval; u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
+        if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else {
         if (u.planIn <= 0) {
           const radius = stats.range * .8;
@@ -181,7 +172,7 @@ export class Combat {
             .filter(p => segmentIsClear(p, target!.position, .05, WORLD_BOUNDS, this.solids()));
           this.plan(u, points);
         }
-        this.travel(u, dt, stats.speed);
+        this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
       }
     }
     if (!this.state.cleared && this.state.units.filter(u => u.team === 'enemy').every(u => u.life === 'defeated')) {
@@ -194,7 +185,7 @@ export class Combat {
   }
 }
 
-/** Strict v6 save validation. Reject malformed state instead of silently healing,
+/** Strict v7 save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState): CombatState {
   const initial = initialCombat();
@@ -207,9 +198,8 @@ export function decodeCombat(raw: CombatState): CombatState {
   for (const template of initial.units) {
     const units = raw.units.filter(u => u.id === template.id), u = units[0];
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
-      || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 3) || !num(u.recovery, C.recoverySeconds)
-      || typeof u.paid !== 'boolean' || !Number.isFinite(u.facing) || !['active', 'returning', 'recovering', 'defeated'].includes(u.life)
-      || !['guard', 'move', 'attack', 'retreat', 'hold'].includes(u.order) || u.goal && !point(u.goal)
+      || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'injured', 'defeated'].includes(u.life)
+      || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
       || u.target && !initial.units.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
       || u.team === 'home' && u.life === 'defeated' || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');

@@ -25,7 +25,12 @@ export async function clickGround(page: Page, point: { x: number; z: number }, t
 }
 
 export async function selectUnit(page: Page, id: string, touch = false) {
-  const unit = (await snapshot(page)).residents.find(r => r.id === id)!;
-  await clickGround(page, unit.position, touch, id === 'dog' ? .65 : id === 'cavalry' ? 1.6 : 1);
-  await expect.poll(async () => (await snapshot(page)).selection.resident).toBe(id);
+  // Sample and click again only if the previous tap missed a moving unit.
+  // The selection guard avoids turning a successful retry into a deselection.
+  await expect(async () => {
+    const state = await snapshot(page); if (state.selection.resident === id) return;
+    const unit = state.residents.find(r => r.id === id)!;
+    await clickGround(page, unit.position, touch, id === 'dog' ? .65 : id === 'cavalry' ? 1.6 : 1);
+    expect((await snapshot(page)).selection.resident).toBe(id);
+  }).toPass({ timeout: 15_000 });
 }

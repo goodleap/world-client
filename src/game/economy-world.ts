@@ -18,10 +18,12 @@ import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
 import { createLandscapeRock, createLandscapeRockMaterial } from './landscape-rock.ts';
+import type { CampfireView } from './campfire-view.ts';
+import type { BuildingDoors } from './building-doors.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
-export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy, objects: Map<string, WorldObject>) {
+export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy, objects: Map<string, WorldObject>, doors: BuildingDoors, fires: CampfireView) {
   const templates = new Map<string, Mesh[]>();
   const instances = new Map<string, { state: string; meshes: AbstractMesh[] }>();
   const treeMaterials = createTreeMaterials(scene);
@@ -59,6 +61,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     return levels[0];
   }
   function remove(id: string) {
+    doors.remove(id); fires.remove(id);
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
     instances.delete(id); objects.delete(id);
   }
@@ -142,16 +145,22 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const site of economy.state.sites) {
       const built = economy.state.buildings.includes(site.id), task = economy.taskFor(site.id);
       const state = built ? 'built' : task ? 'construction' : 'site';
+      if (built && site.kind === 'campfire') {
+        if (instances.get(site.id)?.state !== 'built') { remove(site.id); instances.set(site.id, { state: 'built', meshes: [] }); fires.add(site); }
+        objects.set(site.id, { ...site, kind: 'building', name: '火堆', radius: 1.35, anchor: { x: site.x, y: 1.6, z: site.z } });
+        continue;
+      }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
         markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? 1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
       () => template(`${site.kind}-${state}`, () => {
-        if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }); return; }
+        if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }, false); return; }
         roundedBox(scene, 'building-footprint', [site.width, .07, site.depth], [0, .035, 0], p.pathLight, .08);
         for (const x of [-site.width / 2, site.width / 2]) for (const z of [-site.depth / 2, site.depth / 2]) {
           roundedBox(scene, 'layout-stake', [.12, task ? .9 : .3, .12], [x, task ? .45 : .15, z], p.timberLight, .03);
         }
         if (task) for (let i = 0; i < 3; i++) roundedBox(scene, 'construction-timber', [1.25, .16, .21], [-.2, .16 + i * .16, .25], p.timber, .035);
       }));
+      if (built) doors.add(site, site.kind === 'warehouse');
     }
     obstacles = economyObstacles(economy.state.depleted, economy.state.sites);
     obstaclesWithFields = [...obstacles, ...economy.state.plots.map(plot => ({

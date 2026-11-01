@@ -1,14 +1,14 @@
 import { DEFAULT_LIGHTING, normalizeLighting } from './game/graphics-settings.ts';
 import type { LightingSettings } from './game/graphics-settings.ts';
 import { ECONOMY_CONFIG } from './game/economy-config.ts';
-import { COMBAT_CONFIG } from './game/combat-config.ts';
+import { CAMPFIRE_CONFIG } from './game/campfire.ts';
 import { ResidentSpeech } from './game/resident-speech.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
 
 export interface SelectionAction { id: string; label: string; disabled?: boolean }
-export interface SelectionDetails { name: string; kind: string; hint: string; actions?: SelectionAction[] }
+export interface SelectionDetails { showHint?: boolean; name: string; kind: string; hint: string; actions?: SelectionAction[] }
 export interface QueueRow { id: number; title: string; status: string; progress: number; reason: string; cancellable: boolean }
 
 const icons = {
@@ -58,7 +58,7 @@ export function createUI(app: HTMLElement) {
       <div class="stops"><span data-stop="cottage">${icon('home')}小屋</span><span data-stop="garden">${icon('leaf')}菜园</span><span data-stop="well">${icon('compass')}水井</span></div>
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
-    <nav class="combat-controls" aria-label="战斗指挥"><button id="select-squad">选择小队</button><button id="scout-outpost">西南据点</button><button id="combat-retreat" hidden>撤退回家</button><button id="combat-auto" hidden>自动战斗</button></nav>
+    <nav class="combat-controls" aria-label="战斗指挥"><button id="scout-outpost">西南据点</button><button id="combat-retreat" hidden>撤退回家</button><button id="combat-auto" hidden>自动战斗</button></nav>
     <nav class="view-controls" aria-label="视角控制">
       <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
     </nav>
@@ -68,6 +68,7 @@ export function createUI(app: HTMLElement) {
       <div id="building-palette" class="building-palette" aria-label="选择建设类型" hidden>
         <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small>开垦 · 无需材料</small></button>
         <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small>木材 ${ECONOMY_CONFIG.warehouseCost.wood} · 石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
+        <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small>石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
         <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
       </div>
       <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
@@ -77,7 +78,7 @@ export function createUI(app: HTMLElement) {
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><p id="selection-hint" class="target-hint" role="status" hidden></p><div id="selection-actions" class="selection-actions"></div></section>
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
-    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
+    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label><button id="resident-eat">进食</button><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
     <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭资源面板">${icon('close')}</button><h2 id="resources-title">家园资源</h2><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
       <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>
@@ -85,7 +86,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">光的颜色 <small>太阳光</small><input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库和民房。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>选择小队可同时指挥步兵、弓兵；点敌人攻击，点空地移动。撤退回家后待命，点击自动战斗恢复索敌。受伤回家后消耗6粮食、20秒恢复。西南据点清理后物资需要农民搬运入库。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵或弓兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。撤退回家后待命，点击自动战斗恢复索敌。生命归零后停止作战，仍可缓慢移动；到火堆进食补体力并缓慢回血。火堆点燃后由农民从仓库配送木材和粮食。人物与动物体力低时会在空闲后自动就餐，也可选中后点“进食”。熄火停止消耗；关闭烹饪只照明。西南据点清理后物资需要农民搬运入库。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -263,13 +264,13 @@ export function createUI(app: HTMLElement) {
       return label;
     },
     setCombatControls(active: boolean) { get('combat-retreat').hidden = !active; get('combat-auto').hidden = !active; if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
-    setCombatLabel(id: string, hp: number, max: number, enemy: boolean, life: string, order: string, paid: boolean, recovery: number) {
+    setVitalLabel(id: string, text: string, enemy: boolean, selected: boolean) {
       const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`); if (!label) return;
       label.classList.add('combat-label'); label.classList.toggle('enemy-label', enemy);
       let status = label.querySelector('small');
       if (!status) { status = document.createElement('small'); label.append(status); }
-      status.textContent = life === 'returning' ? '受伤 · 回家中' : life === 'recovering' ? paid ? `恢复 ${Math.ceil(COMBAT_CONFIG.recoverySeconds - recovery)}秒` : `恢复需${COMBAT_CONFIG.recoveryFood}粮食`
-        : `${Math.ceil(hp)}/${max}${order === 'retreat' ? ' · 撤退' : order === 'hold' ? ' · 待命' : ''}`;
+      status.hidden = !enemy && !selected;
+      if (status.textContent !== text) status.textContent = text;
     },
     sayResident(id: string, text: string, duration = 3.5) {
       if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); }
@@ -378,7 +379,7 @@ export function createUI(app: HTMLElement) {
       if (!details || !visible) return;
       card.setAttribute('aria-label', `${details.name}的操作`);
       const message = get('selection-hint');
-      message.hidden = !!details.actions?.length;
+      message.hidden = !!details.actions?.length && !details.showHint;
       if (!message.hidden && message.textContent !== details.hint) { message.textContent = details.hint; layoutDirty = true; }
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {

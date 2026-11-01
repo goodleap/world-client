@@ -1,23 +1,30 @@
 import { OUTPOST } from '../../src/game/combat-config.ts';
 import { test, expect } from '@playwright/test';
 import { Economy, encodeEconomy } from '../../src/game/economy.ts';
-import { openGame, snapshot, clickGround } from './helpers.ts';
+import { openGame, snapshot, clickGround, selectUnit } from './helpers.ts';
 import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
 
-test('squad combat, committed attacks, retreat, pause and save resume', async ({ page }, info) => {
+test('individual soldiers keep independent commands, selection, pause and saved progress', async ({ page }, info) => {
   test.setTimeout(180_000);
   const e = new Economy(); e.setLeadership(false);
-  e.state.combat.units.find(u => u.id === 'infantry')!.position = { x: OUTPOST.x + 4, z: OUTPOST.z + 2 };
-  e.state.combat.units.find(u => u.id === 'archer')!.position = { x: OUTPOST.x + 4, z: OUTPOST.z + 4 };
+  for (const u of e.state.combat.units) u.order = 'hold';
+  e.state.combat.units.find(u => u.id === 'infantry')!.position = { x: OUTPOST.x + 1, z: OUTPOST.z + 2 };
+  e.state.combat.units.find(u => u.id === 'archer')!.position = { x: OUTPOST.x + 3, z: OUTPOST.z + 3 };
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: ECONOMY_SAVE_KEY, value: encodeEconomy(e) });
   const errors = await openGame(page);
-  await page.getByRole('button', { name: '选择小队', exact: true }).click();
+  await expect(page.getByRole('button', { name: '选择小队', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '西南据点', exact: true }).click();
   await expect.poll(async () => (await snapshot(page)).camera.target.x).toBeLessThan(OUTPOST.x + .5);
+  await selectUnit(page, 'infantry');
   let s = await snapshot(page);
   await clickGround(page, s.combat.units.find(u => u.id === 'enemy-guard')!.position, false, 1);
   expect((await snapshot(page)).selection.resident).toBe('infantry');
-  expect((await snapshot(page)).squad).toBe(true);
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order).toBe('hold');
+  await selectUnit(page, 'archer');
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.order).toBe('attack');
+  await clickGround(page, (await snapshot(page)).combat.units.find(u => u.id === 'enemy-archer')!.position, false, 1);
+  expect((await snapshot(page)).selection.resident).toBe('archer');
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.target).toBe('enemy-guard');
   await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'enemy-guard')!.hp, { timeout: 40_000 }).toBeLessThan(65);
   await page.screenshot({ path: info.outputPath('combat-desktop.png') });
   await page.getByRole('button', { name: '设置', exact: true }).click();
@@ -30,13 +37,15 @@ test('squad combat, committed attacks, retreat, pause and save resume', async ({
   await page.screenshot({ path: info.outputPath('settings-desktop.png') });
   await page.getByRole('button', { name: '继续游戏', exact: true }).click();
   await clickGround(page, { x: OUTPOST.x + 1, z: OUTPOST.z + 5 });
-  expect((await snapshot(page)).selection.resident).toBe('infantry');
-  expect((await snapshot(page)).combat.units.filter(u => u.team === 'home').every(u => u.order === 'move')).toBe(true);
+  expect((await snapshot(page)).selection.resident).toBe('archer');
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order).toBe('move');
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.order).not.toBe('move');
   await page.getByRole('button', { name: '撤退回家', exact: true }).click();
   s = await snapshot(page);
-  expect(s.combat.units.filter(u => u.team === 'home').every(u => u.order === 'retreat' && !u.target && !u.attack)).toBe(true);
+  expect(s.combat.units.find(u => u.id === 'archer')).toMatchObject({ order: 'retreat', target: undefined, attack: undefined });
+  expect(s.combat.units.find(u => u.id === 'infantry')!.order).not.toBe('retreat');
   await page.getByRole('button', { name: '取消选中', exact: true }).click();
-  expect((await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.order).toBe('retreat');
+  expect((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order).toBe('retreat');
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const hp = (await snapshot(page)).combat.units.map(u => u.hp);
   await page.getByRole('button', { name: '回到主菜单', exact: true }).click();

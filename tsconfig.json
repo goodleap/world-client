@@ -27,6 +27,7 @@
     "vite.config.ts",
     "playwright.config.ts",
     "studies/review.ts",
-    "studies/calibration.ts"
+    "studies/calibration.ts",
+    "studies/campfire.ts"
   ]
 }

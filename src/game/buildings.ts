@@ -41,7 +41,7 @@ function gable(scene: Scene, p: Palette, x: number, z: number, width: number, de
   const mesh = new Mesh('cream-gable', scene); data.applyToMesh(mesh); mesh.position.set(x, height, z); mesh.material = p.plaster;
 }
 
-export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: number; z: number; width: number; depth: number; height: number }) {
+export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: number; z: number; width: number; depth: number; height: number }, includeDoor = true) {
   const { x, z, width: w, depth: d, height: h } = b;
   const front = z - d / 2;
   const walls = roundedBox(scene, `${b.id}-walls`, [w, h, d], [x, h / 2 + .12, z], p.cream, .16);
@@ -64,10 +64,10 @@ export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: num
   // Recessed teal door, warm timber casing, and stone doorstep.
   const doorX = x - .35;
   roundedBox(scene, 'door-recess', [1.18, 2.12, .1], [doorX, 1.16, front - .025], p.woodDark, .045);
-  roundedBox(scene, 'door', [1.0, 1.96, .12], [doorX, 1.19, front - .13], p.sage, .035);
+  if (includeDoor) roundedBox(scene, 'door', [1.0, 1.96, .12], [doorX, 1.19, front - .13], p.sage, .035);
   for (const dx of [-.58, .58]) roundedBox(scene, 'door-casing', [.13, 2.16, .18], [doorX + dx, 1.19, front - .19], p.timberLight, .04);
   roundedBox(scene, 'door-casing-top', [1.25, .14, .18], [doorX, 2.27, front - .19], p.timberLight, .04);
-  ellipsoid(scene, 'brass-door-knob', [.13, .13, .12], [doorX + .32, 1.1, front - .24], p.golden);
+  if (includeDoor) ellipsoid(scene, 'brass-door-knob', [.13, .13, .12], [doorX + .32, 1.1, front - .24], p.golden);
   roundedBox(scene, 'door-step', [1.35, .17, .65], [doorX, .13, front - .4], p.stoneLight, .06);
   roundedBox(scene, 'door-step-lower', [1.48, .12, .45], [doorX, .06, front - .8], p.stoneLight, .05);
   const windowXs = w > 4 ? [x - 1.43, x + 1.14] : [x + .85];

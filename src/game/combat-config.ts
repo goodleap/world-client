@@ -5,7 +5,7 @@ export const COMBAT_CONFIG = {
   archer: { hp: 90, attack: 18, armor: 1, interval: 1.65, windup: .55, recovery: .4, range: 7, speed: 4.8 },
   enemyMelee: { hp: 65, attack: 12, armor: 2, interval: 1.6, windup: .48, recovery: .4, range: 1.6, speed: 3.3 },
   enemyArcher: { hp: 50, attack: 10, armor: 0, interval: 2, windup: .65, recovery: .4, range: 6, speed: 3 },
-  acquire: 8, projectileSpeed: 14, recoveryFood: 6, recoverySeconds: 20,
+  acquire: 8, projectileSpeed: 14,
   reward: { wood: 24, stone: 16, food: 12 },
 };
 export type CombatRole = 'infantry' | 'archer';
