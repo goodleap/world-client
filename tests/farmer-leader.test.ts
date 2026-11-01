@@ -115,3 +115,10 @@ test('disabled leadership persists, leaves ordinary work available and chains de
   h.economy.setLeadership(true); h.controller.update(.01);
   assert(h.farmers.every(farmer => h.economy.active(farmer.id)), 're-enabling fills only current vacancies');
 });
+test('claiming an old steward order while disabled stays silent and preserves ordinary work', () => {
+  const h = crew(); h.controller.update(.01);
+  const task = h.economy.active('farmer')!; h.economy.interrupt(undefined, 'farmer');
+  h.economy.setLeadership(false); const count = h.dispatched.length;
+  h.controller.update(.1); assert.equal(h.dispatched.length, count);
+  assert.equal(h.economy.active('farmer')?.id, task.id);
+});

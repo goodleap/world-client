@@ -1,0 +1,42 @@
+[
+  {
+    "role": "infantry",
+    "view": "front",
+    "completed": 2
+  },
+  {
+    "role": "infantry",
+    "view": "side",
+    "completed": 2
+  },
+  {
+    "role": "infantry",
+    "view": "game",
+    "completed": 2
+  },
+  {
+    "role": "infantry",
+    "view": "mobile",
+    "completed": 2
+  },
+  {
+    "role": "archer",
+    "view": "front",
+    "completed": 2
+  },
+  {
+    "role": "archer",
+    "view": "side",
+    "completed": 2
+  },
+  {
+    "role": "archer",
+    "view": "game",
+    "completed": 2
+  },
+  {
+    "role": "archer",
+    "view": "mobile",
+    "completed": 2
+  }
+]

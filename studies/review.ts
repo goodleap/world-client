@@ -57,6 +57,7 @@ function pose(name = params.get('clip') || 'Walk', phase = 0) {
   const group = groups.find(g => g.name === name);
   if (!group) throw new Error(`Unknown review clip: ${name}`);
   group.start(true); group.pause(); group.goToFrame(group.from + phase * (group.to - group.from));
+  if ('bowPose' in loaded) (loaded as { bowPose: (phase?: number) => void }).bowPose(name === 'BowShot' ? phase : undefined);
   scene.render();
 }
 function view(name: string) {
@@ -74,6 +75,13 @@ function view(name: string) {
   scene.render();
 }
 pose(); view('front');
+scene.onBeforeRenderObservable.add(() => {
+  const bow = groups.find(g => g.name === 'BowShot');
+  if ('bowPose' in loaded && bow?.isPlaying) {
+    const frame = bow.animatables[0]?.masterFrame ?? bow.from;
+    (loaded as { bowPose: (phase?: number) => void }).bowPose((frame - bow.from) / (bow.to - bow.from));
+  }
+});
 engine.runRenderLoop(() => scene.render());
 addEventListener('resize', () => engine.resize());
 Object.assign(window, { review: { pose, view, mapLOD, scene, loaded, engine,

@@ -1,3 +1,6 @@
+import { initialCombat, decodeCombat } from './combat.ts';
+import type { CombatState } from './combat.ts';
+import { OUTPOST } from './combat-config.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { WAREHOUSE_DOOR, WORLD_BOUNDS, GRID_SIZE } from './world-data.ts';
 import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
@@ -23,7 +26,8 @@ export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
-  version: 5; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  combat: CombatState;
+  version: 6; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食' };
@@ -41,7 +45,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(): EconomyState {
   return {
-    version: 5, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    combat: initialCombat(), version: 6, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -63,6 +67,7 @@ export class Economy {
   }
   placeBuilding(kind: BuildingKind, point: Point, occupants: readonly Obstacle[] = []): { ok: boolean; message: string; task?: WorkTask } {
     if (!Object.hasOwn(BUILDING_TYPES, kind)) return { ok: false, message: '未知建筑类型' };
+    if (!this.state.combat.cleared && Math.hypot(point.x - OUTPOST.x, point.z - OUTPOST.z) < OUTPOST.leash + 2) return { ok: false, message: '先清理附近的敌方据点' };
     const farm = kind === 'farm';
     if (farm ? this.state.plots.length >= 10000 : this.state.sites.length >= 100) return { ok: false, message: '已达到家园用地上限' };
     const site = buildingAt(kind, point, farm ? `plot-${this.state.nextPlotId}` : `site-${this.state.nextSiteId}`);
@@ -82,6 +87,16 @@ export class Economy {
     if (result.ok) this.state.nextSiteId++;
     else this.state.sites.pop();
     return result;
+  }
+  /** One transaction with combat.rewardGranted; output uses normal hauling and capacity. */
+  dropReward(point: Point, reward: Inventory) {
+    const ids: string[] = [];
+    for (const [i, resource] of resources.entries()) {
+      const id = `goods-${this.state.nextId++}`; ids.push(id);
+      this.state.goods.push({ id, resource, amount: reward[resource],
+        x: point.x + (i - 1), z: point.z, state: 'ground' });
+    }
+    this.changed(); return ids;
   }
   plot(id: string) { return this.state.plots.find(p => p.id === id); }
   warehouseDoors(): Point[] { return [WAREHOUSE_DOOR, ...this.state.sites.filter(s => s.kind === 'warehouse' && this.state.buildings.includes(s.id)).map(buildingDoor)]; }
@@ -221,6 +236,9 @@ export class Economy {
   advance(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     this.state.seconds += seconds;
+    if (this.state.combat.rewardGranted) for (const goods of this.state.goods) {
+      if (this.state.combat.rewardGoods.includes(goods.id) && goods.state === 'ground' && !this.taskFor(goods.id)) this.request('haul', goods.id, undefined, 'continuation');
+    }
     for (const plot of this.state.plots) if (plot.crop && plot.growth < C.crops[plot.crop].growthSeconds) {
       const previous = Math.floor(plot.growth / C.crops[plot.crop].growthSeconds * 3);
       plot.growth = Math.min(C.crops[plot.crop].growthSeconds, plot.growth + seconds);
@@ -303,11 +321,12 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 5) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 6) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
+  state.combat = decodeCombat(raw.combat);
   state.inventory = { ...raw.inventory };
   state.seconds = number(raw.seconds, 1e12) ? raw.seconds : 0;
   if (raw.steward) {

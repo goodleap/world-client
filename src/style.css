@@ -1050,7 +1050,7 @@ kbd {
 .placement-status button { min-height:44px; padding:6px 10px; background:#e8edda; }
 
 /* Keep the retained map visible while adjusting its two native lights. */
-.settings-dialog { width:min(340px,calc(100% - 32px)); padding:20px; margin:84px 20px auto auto; max-height:calc(100dvh - 100px); }
+.settings-dialog { width:min(340px,calc(100% - 32px)); padding:20px; inset:0; margin:auto; max-height:calc(100dvh - 32px); overflow-y:auto; }
 .settings-dialog::backdrop { background:transparent; backdrop-filter:none; }
 .settings-dialog h2 { margin-bottom:12px; }
 .settings-dialog .settings-toggle { min-height:44px; margin-bottom:8px; }
@@ -1070,5 +1070,15 @@ kbd {
 .leader-command input { width:20px; height:20px; accent-color:#617f4c; }
 .target-hint { width:max-content; max-width:min(240px,calc(100vw - 24px)); margin:0; padding:8px 12px; border-radius:10px; background:#3e5639f2; color:#fffbed; font-size:12px; line-height:1.4; text-align:center; pointer-events:none; }
 .floating-hint { position:absolute; left:0; top:0; z-index:var(--layer-actions); }
-@media(max-width:600px) { .settings-dialog { margin:70px auto auto; max-height:calc(100dvh - 86px); padding:16px; } }
-@media(max-height:600px) { .settings-dialog { margin:16px 16px auto auto; max-height:calc(100dvh - 32px); } }
+@media(max-width:600px) { .settings-dialog { margin:auto; max-height:calc(100dvh - 32px); padding:16px; } }
+@media(max-height:600px) { .settings-dialog { margin:auto; max-height:calc(100dvh - 32px); } }
+
+.resident-speech::after { left:var(--tail-x,50%); }
+.resident-speech.speech-below::after { top:-6px; bottom:auto; }
+
+.combat-controls { position:absolute; right:16px; bottom:90px; display:flex; flex-direction:column; gap:5px; z-index:var(--layer-actions); }
+.combat-controls button { min-height:44px; padding:8px 12px; border:1px solid #e3ead5; border-radius:12px; background:#fffbeded; color:#40543f; font-size:12px; }
+.combat-label small { display:block; font-size:10px; line-height:14px; color:#305e36; text-align:center; }
+.enemy-label { color:#9e2c22; }
+.enemy-label small { color:#9e2c22; }
+@media(max-height:500px) { .combat-controls { right:12px; bottom:70px; flex-direction:row; flex-wrap:wrap; max-width:240px; justify-content:flex-end; } }

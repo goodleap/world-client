@@ -5,6 +5,7 @@ export class ResidentSpeech {
     const queue = this.queues.get(actor) ?? [];
     queue.push({ text, remaining: duration, duration }); this.queues.set(actor, queue);
   }
+  clear(actor: string) { this.queues.delete(actor); }
   advance(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     for (const [id, queue] of this.queues) {

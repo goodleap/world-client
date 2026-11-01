@@ -1,3 +1,5 @@
+import type { Fighter } from './combat.ts';
+import { fighterStats } from './combat.ts';
 import type { SavedResident } from './economy.ts';
 import { isBlocked } from './movement.ts';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -12,7 +14,7 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
-import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
+import { COMMAND_RUN_SPEED_MULTIPLIER, HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
@@ -43,7 +45,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const selectionMaterial = new StandardMaterial('unit-selection', scene);
   selectionMaterial.emissiveColor = Color3.FromHexString('#62e4ff'); selectionMaterial.disableLighting = true;
-  const actors = RESIDENTS.map((definition, index) => {
+  const enemyMaterial = new StandardMaterial('enemy-marker', scene);
+  enemyMaterial.emissiveColor = Color3.FromHexString('#b54835'); enemyMaterial.disableLighting = true;
+  const actors = [...RESIDENTS, ...ENEMIES].map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);
     const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random);
@@ -62,7 +66,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if (definition.role === 'dog') { hit.position.y = .65; hit.scaling.set(.9, .8, 1.2); }
     hit.metadata = { selectionKind: 'resident', id: definition.id };
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
-    marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
+    marker.parent = root; marker.position.y = 0.08; marker.material = definition.id.startsWith('enemy-') ? enemyMaterial : selectionMaterial; marker.isPickable = false; marker.setEnabled(definition.id.startsWith('enemy-'));
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
     return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
@@ -80,7 +84,12 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   type Work = { id: number; target: Point; status: 'travelling' | 'arrived' | 'working' | 'blocked' };
   const works = new Map<string, Work>();
   let farmerBones: Bone[] = [];
-  type Motion = 'idle' | 'walk' | 'run' | 'work';
+  type Motion = 'idle' | 'walk' | 'run' | 'work' | 'attack';
+  const combatPoses = new Map<string, Fighter>();
+  const combatClips = new Map<string, AnimationGroup>();
+  const playingAttack = new Map<string, number>();
+  const bowPoses = new Map<string, (phase?: number) => void>();
+  const selectedGroup = new Set<string>();
   type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup; work?: AnimationGroup;
     walkSpeed: number; runSpeed: number; motion: Motion };
   const locomotion = new Map<string, Locomotion>();
@@ -122,10 +131,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
     stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
-      actors.filter(other => other !== actor).map(other => ({ id: other.definition.id, position: other.state.position,
+      actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({ id: other.definition.id, position: other.state.position,
         radius: other.settings.bodyRadius, moving: other.movementSpeed > .08, purposeful: !!other.route.length || !!other.state.target,
         waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting })));
-  const workNeighbours = (actor: typeof actors[number]) => actors.filter(other => other !== actor).map(other => ({
+  const workNeighbours = (actor: typeof actors[number]) => actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({
     position: other.state.position, radius: other.settings.bodyRadius, destination: other.route.at(-1),
   }));
   const advanceRoute = (actor: typeof actors[number], seconds: number) => {
@@ -145,23 +154,23 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const clips = locomotion.get(id);
     if (!clips) return;
     if (motion !== clips.motion) {
-      clips.walk.stop(); clips.run.stop(); clips.idle?.stop(); clips.work?.stop();
+      clips.walk.stop(); clips.run.stop(); clips.idle?.stop(); clips.work?.stop(); combatClips.get(id)?.stop();
       // Run starts at a running phase. Walk's first frame carries the complete
       // neutral pose, so stopping Run must reset Walk rather than reset Run.
       if (motion === 'idle') {
         if (clips.work && clips.idle) clips.idle.play(true);
         else (clips.idle ?? clips.walk).reset();
-      } else (motion === 'work' ? clips.work : motion === 'run' ? clips.run : clips.walk)?.play(true);
+      } else if (motion !== 'attack') (motion === 'work' ? clips.work : motion === 'run' ? clips.run : clips.walk)?.play(true);
       clips.motion = motion;
     }
     if (motion === 'work' && clips.work) clips.work.speedRatio = (speed || 1) * HUMAN_SPEED_MULTIPLIER;
-    else if (motion !== 'idle') {
+    else if (motion !== 'idle' && motion !== 'attack') {
       const clip = motion === 'run' ? clips.run : clips.walk;
       clip.speedRatio = speed / (motion === 'run' ? clips.runSpeed : clips.walkSpeed);
     }
   };
   return {
-    occupancy: () => actors.map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
+    occupancy: () => actors.filter(a => combatPoses.get(a.definition.id)?.life !== 'defeated').map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer');
       for (const [index, actor] of farmers.entries()) {
@@ -198,20 +207,27 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       report?.(1);
     },
     async loadSoldierModels(report?: ResourceProgress) {
-      for (const [index, asset] of soldierAssets.entries()) {
-        const roleProgress = (fraction: number) => report?.((index + fraction) / soldierAssets.length);
-        const actor = actors.find(entry => entry.definition.role === asset.role)!;
+      const soldiers = actors.filter(actor => soldierAssets.some(asset => asset.role === actor.definition.role));
+      for (const [index, actor] of soldiers.entries()) {
+        const asset = soldierAssets.find(a => a.role === actor.definition.role)!;
+        const roleProgress = (fraction: number) => report?.((index + fraction) / soldiers.length);
         const result = await library.instantiate(asset.role, actor.root);
-        loadingProgress.begin(asset.role + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
+        loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         result.animationGroups.forEach(group => group.stop());
         const { walk, run, idle } = result;
         if (!walk || !run || (asset.mounted && !idle)) throw new Error(`${asset.role} is missing its locomotion clips`);
         registerLocomotion(actor.definition.id, walk, run, asset.mounted ? {
           idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountMetadata.gaits.RideRun.speed,
         } : {});
+        if (asset.role === 'archer') bowPoses.set(actor.definition.id, result.bowPose);
+        const attack = result.animationGroups.find(g => g.name === (asset.role === 'archer' ? 'BowShot' : 'SwordSlash'));
+        if (!asset.mounted) {
+          if (!attack) throw new Error(`${asset.role} is missing its shared attack clip`);
+          combatClips.set(actor.definition.id, attack);
+        }
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
-        loadingProgress.done(asset.role + ':attach');
+        loadingProgress.done(actor.definition.id + ':attach');
         const meshNames = result.meshes.map(mesh => mesh.name);
         await attachGeometry(actor.definition.id, result.meshes, fraction => roleProgress(.8 + .2 * fraction));
         characterModels.set(actor.definition.id, {
@@ -220,7 +236,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           animations: result.animationGroups.map(group => group.name),
         });
         characterBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
-        report?.((index + 1) / soldierAssets.length);
+        report?.((index + 1) / soldiers.length);
       }
     },
     async loadRolePlaceholders(report?: ResourceProgress) {
@@ -238,6 +254,30 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (actor.definition.role === 'cavalry') actor.animal?.mesh.setEnabled(false);
       }
       report?.(1);
+    },
+    combatNeighbours: () => actors.filter(a => !combatPoses.has(a.definition.id)).map(a => ({ id: a.definition.id, position: a.state.position,
+      radius: a.definition.bodyRadius, moving: a.movementSpeed > .08, purposeful: !!a.route.length, waiting: a.navigation.waiting })),
+    syncCombat(units: Fighter[]) {
+      for (const u of units) {
+        combatPoses.set(u.id, u);
+        const actor = actors.find(a => a.definition.id === u.id)!;
+        actor.state.position = { ...u.position }; actor.route = []; actor.state.target = undefined;
+        actor.root.position.set(u.position.x, 0, u.position.z);
+        actor.root.setEnabled(u.life !== 'defeated'); actor.label.hidden = u.life === 'defeated';
+        actor.facing = u.facing; actor.root.rotationQuaternion ??= Quaternion.Identity();
+        Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
+        actor.movementSpeed = u.speed;
+        ui.setCombatLabel(u.id, u.hp, fighterStats(u).hp, u.team === 'enemy', u.life, u.order, u.paid, u.recovery);
+        const clip = combatClips.get(u.id);
+        if (u.attack && clip) {
+          setMotion(u.id, 'attack');
+          if (playingAttack.get(u.id) !== u.attack.id) { clip.start(false); clip.pause(); playingAttack.set(u.id, u.attack.id); }
+          // Sample native exported tracks from authoritative game time, including after load.
+          const phase = Math.min(1, u.attack.elapsed / (fighterStats(u).windup + fighterStats(u).recovery));
+          clip.goToFrame(clip.from + phase * (clip.to - clip.from));
+          bowPoses.get(u.id)?.(phase);
+        } else { bowPoses.get(u.id)?.(); playingAttack.delete(u.id); setMotion(u.id, u.speed > .08 ? 'run' : 'idle', u.speed); }
+      }
     },
     farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
     saveResidents: (): Record<string, SavedResident> => Object.fromEntries(actors.map(actor => [actor.definition.id, {
@@ -287,12 +327,16 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }),
     farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
     select(id?: string) {
-      selected?.marker.setEnabled(false);
+      selectedGroup.clear(); actors.forEach(a => a.marker.setEnabled(a.definition.id.startsWith('enemy-')));
       selected = actors.find((actor) => actor.definition.id === id);
       selected?.marker.setEnabled(true);
       return selected?.definition.name;
     },
-    selectionMeshes: () => selected ? [...selected.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== selected!.marker && !m.metadata?.selectionKind), ...(characterLODs.get(selected.definition.id) ?? []).flatMap(p => [p.source, p.detail, ...(p.far ? [p.far] : [])])] : [],
+    selectSquad() { selectedGroup.clear(); for (const a of actors) { const yes = a.definition.id === 'infantry' || a.definition.id === 'archer'; a.marker.setEnabled(yes || a.definition.id.startsWith('enemy-')); if (yes) selectedGroup.add(a.definition.id); } selected = actors.find(a => a.definition.id === 'infantry'); },
+    selectionMeshes: () => actors.filter(a => selectedGroup.size ? selectedGroup.has(a.definition.id) : a === selected).flatMap(a => [
+      ...a.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== a.marker && !m.metadata?.selectionKind),
+      ...(characterLODs.get(a.definition.id) ?? []).flatMap(p => [p.source, p.detail, ...(p.far ? [p.far] : [])]),
+    ]),
     selectedId: () => selected?.definition.id,
     selectedCanMove: () => !!selected,
     canWork: canResidentWork,
@@ -334,6 +378,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const ticks = Math.max(1, Math.ceil(Math.min(frameElapsed, .5) / .05));
       const seconds = frameSeconds / ticks, activeElapsed = Math.min(frameElapsed, .5) / ticks;
       for (let tick = 0; tick < ticks; tick++) for (const actor of actors) {
+        if (combatPoses.has(actor.definition.id)) continue;
         actor.movementSpeed = 0;
         if (seconds <= 0) continue;
         const work = works.get(actor.definition.id);
@@ -368,7 +413,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
-        const crowd: Obstacle[] = actors.filter((other) => other !== actor).map((other) => ({
+        const crowd: Obstacle[] = actors.filter((other) => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map((other) => ({
           kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
         }));
         const blockers = crowd.filter((other) => other.kind === 'circle'
@@ -419,7 +464,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const actor of actors) {
         labelPoint.set(actor.state.position.x, actor.definition.labelHeight, actor.state.position.z);
         const projected = Vector3.Project(labelPoint, identity, scene.getTransformMatrix(), viewport);
-        const visible = projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
+        const visible = combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
         actor.label.hidden = !visible;
         ui.positionSpeech(actor.definition.id, projected.x, projected.y, visible);
         if (visible) actor.label.style.transform = `translate(${projected.x}px, ${projected.y}px) translate(-50%, -100%)`;

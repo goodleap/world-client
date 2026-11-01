@@ -1,3 +1,6 @@
+import { Combat } from './combat.ts';
+import { OUTPOST } from './combat-config.ts';
+import { createCombatView } from './combat-view.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
@@ -78,9 +81,13 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     scene.dispose(); engine.dispose(); throw error;
   }
   residents.restoreResidents(economy.state.residents);
+  const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
+  residents.syncCombat(combat.state.units);
+  const combatView = createCombatView(scene);
+  combatView.update(combat.state);
   const farmerLeader = roleLeader('farmer');
   const controller = createEconomyController(economy, world, residents, !!farmerLeader, (worker, task) => {
-    if (!farmerLeader) return;
+    if (!farmerLeader || !economy.state.steward.enabled) return;
     const name = RESIDENTS.find(r => r.id === worker)?.name ?? '农民';
     const index = economy.state.plots.findIndex(p => p.id === task.target);
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
@@ -91,7 +98,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
-  const clearResident = () => { residents.select(); ui.setResident(); };
+  let squad = false;
+  const combatIds = () => squad ? ['infantry', 'archer'] : residents.selectedId() ? [residents.selectedId()!] : [];
+  const clearResident = () => { squad = false; residents.select(); ui.setResident(); ui.setCombatControls(false); };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
     const details = economySelection(economy, object), unit = residents.selectedId();
@@ -197,11 +206,19 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
     const hit = scene.pick(x, y, mesh => mesh.isVisible && (mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldObjectId || !!mesh.metadata?.worldFaceRanges?.length));
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
-      clearWorld();
       const id = hit.pickedMesh.metadata.id;
+      const fighter = combat.unit(id);
+      if (fighter?.team === 'enemy') {
+        const count = combat.attack(combatIds(), id);
+        ui.targetHint(count ? '攻击' : '先选择步兵、弓兵或小队', { ...fighter.position, y: 2.6 });
+        if (count) { clearWorld(); setPreview(); save(); }
+        return;
+      }
+      clearWorld(); squad = false;
       const name = residents.select(residents.selectedId() === id ? undefined : id);
       ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!),
         residents.selectedId() === farmerLeader?.id ? economy.state.steward.enabled : undefined);
+      ui.setCombatControls(!!combat.unit(residents.selectedId() ?? ''));
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
@@ -226,7 +243,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     if (distance <= 0 || !Number.isFinite(distance)) return;
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
-      const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
+      const isCombat = combatIds().some(id => !!combat.unit(id));
+      const result = isCombat ? { ok: combat.move(combatIds(), point) > 0, message: '无法到达或正在受伤恢复' }
+        : controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
       if (result.ok) { clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
       // The destination marker already confirms success. Only failures need
       // text, anchored to the attempted destination rather than the HUD.
@@ -280,6 +299,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   ui.bindLeadership(enabled => {
     if (ui.paused || suspended || residents.selectedId() !== farmerLeader?.id) return;
     economy.setLeadership(enabled);
+    if (!enabled && farmerLeader) ui.clearResidentSpeech(farmerLeader.id);
     refreshEconomy(); save();
   });
   ui.bindLighting(lighting, value => {
@@ -291,6 +311,23 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     mapCenter.copyFrom(homeCenter); setPreview();
     overview = false; zoom = defaultZoom();
   });
+  ui.bind('select-squad', () => {
+    if (ui.paused || suspended) return;
+    clearWorld(); squad = true; residents.selectSquad(); ui.setResident('步兵 + 弓兵'); ui.setCombatControls(true);
+  });
+  ui.bind('scout-outpost', () => {
+    if (ui.paused || suspended) return;
+    setPreview(); overview = false; mapCenter.set(OUTPOST.x, .5, OUTPOST.z); zoom = defaultZoom();
+    ui.targetHint(combat.state.cleared ? '据点已清理 · 物资需搬运入库' : '敌方小据点 · 选择小队后点敌人攻击', { ...OUTPOST, y: 2.6 });
+  });
+  ui.bind('combat-retreat', () => {
+    if (ui.paused || suspended) return;
+    const count = combat.move(combatIds(), { x: 0, z: 0 }, true);
+    const unit = combat.unit(combatIds()[0]);
+    if (unit) ui.targetHint(count ? '撤退回家 · 抵达后待命' : '正在受伤恢复或道路受阻', { ...unit.position, y: 2.6 });
+    save();
+  });
+  ui.bind('combat-auto', () => { if (!ui.paused && !suspended) { combat.guard(combatIds()); save(); } });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
   // Babylon owns scheduling. A paused panel needs one final frame (for example
@@ -306,7 +343,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     freshFrame = false;
     const elapsed = resuming ? 0 : engine.getDeltaTime() / 1000;
     const cameraDt = ui.paused ? 0 : Math.min(elapsed, 0.25);
-    const dt = Math.min(elapsed, 0.05);
+    const dt = Math.min(elapsed, 0.25);
     // Navigation clamps long frames. Keep the skeletal gait on the same clock
     // so a slow device does not run the feet faster than the character moves.
     // Babylon's animation clock also uses wall time between scene renders.
@@ -332,11 +369,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     if (!resuming) {
       if (!ui.paused) {
-        ui.advanceSpeech(elapsed);
-        controller.update(elapsed);
-        residents.update(dt, previewRole, elapsed);
-        simulationSeconds += elapsed;
-        uiElapsed += elapsed; saveElapsed += elapsed;
+        ui.advanceSpeech(dt);
+        controller.update(dt);
+        combat.update(dt); residents.syncCombat(combat.state.units); combatView.update(combat.state);
+        residents.update(dt, previewRole, dt);
+        simulationSeconds += dt;
+        uiElapsed += dt; saveElapsed += dt;
         if (uiElapsed >= .25) { refreshEconomy(); uiElapsed = 0; }
         if (savedRevision !== economy.revision || saveElapsed >= 5) {
           save(); savedRevision = economy.revision; saveElapsed = 0;
@@ -448,6 +486,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       selectionFeedback: selectionFeedback.snapshot(),
       placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
+      combat: structuredClone(combat.state),
+      squad,
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
         object: selectedWorld && { id: selectedWorld.id, name: selectedWorld.name, kind: selectedWorld.kind } },

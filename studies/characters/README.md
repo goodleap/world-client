@@ -2,7 +2,7 @@
 
 2026-10-31 起，基础人体、20 根标准骨骼及全部人类动作统一在此维护。职业通过 `roles.json` 引用身体、衣物、装备和适用动作。马有独立的 17 根骨骼与动作；骑手使用基础人体的骑乘动作。
 
-- `characters.blend`：统一 Blender 制作源。`BaseHumanRig` 上维护 Walk、Run、Hammer、CarryWalk、CarryRun、RideIdle、RideWalk、RideRun；`HorseRig` 使用 HorseRideIdle、HorseRideWalk、HorseRideRun。
+- `characters.blend`：统一 Blender 制作源。`BaseHumanRig` 上维护 Walk、Run、Hammer、CarryWalk、CarryRun、RideIdle、RideWalk、RideRun、SwordSlash、BowShot；`HorseRig` 使用 HorseRideIdle、HorseRideWalk、HorseRideRun。
 - `Role.base/farmer/infantry/archer/cavalry` 集合引用同一批共享对象。默认仅启用基础人物集合；切换职业时只启用一个职业集合，避免衣物叠在一起。公共部件不是五份可独立修改的身体。
 - `characters.glb`：游戏加载的共享身体、职业部件、两个独立 skin 和动作库。
 - `characters-lod.glb`：对应 LOD 几何，不带第二套动画；运行时沿用角色实例的材质与骨骼。
@@ -39,3 +39,17 @@ python3 tools/verify_character_library.py
 ```
 
 远景档不携带动画，发布文件额外约 3.18 MB；普通应用构建不运行此生成器，也不包含 meshoptimizer 运行时依赖。
+
+## 首轮战斗动作（2026-11-01）
+
+统一库追加 `SwordSlash` 与 `BowShot`，由同目录 `combat-actions.json` 定义手部目标、准备／释放／恢复相位。`tools/build_combat_actions.py` 使用既有 CarryWalk 中性姿势和固定 20 根骨骼，以两节 IK 生成 30 Hz 轨道；只追加动画 buffer，原几何、权重、绑定和原有动作逐字节保留。`tools/sync_combat_authoring.py` 把这两个动作同步到现有 `characters.blend` 的 BaseHumanRig，保留原有部件和动作；后续修改保持参数源与制作源同步。
+
+```sh
+python3 tools/build_combat_actions.py
+blender -b -t 2 --python tools/sync_combat_authoring.py
+python3 tools/verify_character_library.py
+```
+
+生成工具需要 numpy/scipy；它们不是游戏运行时依赖。脚本重跑替换自己的动画区段，不无限追加未引用数据。弓弦端点来自原资源手骨绑定空间，记录于 `bow-string.json`；射箭期间用 Babylon 原生可更新线段显示弓弦和搭箭，准备／释放由统一动作阶段驱动。击中计算不依赖动画或渲染回调。
+
+使用实际 Babylon 动作审查：启动 `VITE_E2E=true npm run dev -- --host 127.0.0.1 --port 5175`，运行 `node tools/review_combat.mjs`，会记录完整周期、正侧面／游戏／手机截图与骨架样本。录像需要 Playwright 可用的 ffmpeg；本云环境通过 `/workspace/.playwright/ffmpeg-1013/ffmpeg-linux` 使用已有 `/usr/bin/ffmpeg`，相应运行命令加 `PLAYWRIGHT_BROWSERS_PATH=/workspace/.playwright`。

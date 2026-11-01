@@ -1,0 +1,74 @@
+[
+  {
+    "width": 320,
+    "index": 0,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 320,
+    "index": 1,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 320,
+    "index": 2,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  },
+  {
+    "width": 320,
+    "index": 3,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  },
+  {
+    "width": 393,
+    "index": 0,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 393,
+    "index": 1,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 393,
+    "index": 2,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  },
+  {
+    "width": 393,
+    "index": 3,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  },
+  {
+    "width": 1280,
+    "index": 0,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 1280,
+    "index": 1,
+    "nameHeight": 22.5,
+    "gap": 12
+  },
+  {
+    "width": 1280,
+    "index": 2,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  },
+  {
+    "width": 1280,
+    "index": 3,
+    "nameHeight": 34.796875,
+    "gap": 12.203125
+  }
+]

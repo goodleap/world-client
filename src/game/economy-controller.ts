@@ -95,7 +95,7 @@ export function createEconomyController(economy: Economy, world: World, resident
         if (!task) break;
         const destination = world.workPoints(task.target);
         const path = destination && residents.planFarmerWork(destination.points, id);
-        if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); if (task.origin === 'steward') onDispatch(id, task); break; }
+        if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); if (economy.state.steward.enabled && task.origin === 'steward') onDispatch(id, task); break; }
         economy.defer(task.id, '暂时无法到达，稍后重试');
       }
     }

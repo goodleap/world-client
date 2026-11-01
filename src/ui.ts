@@ -1,6 +1,7 @@
 import { DEFAULT_LIGHTING, normalizeLighting } from './game/graphics-settings.ts';
 import type { LightingSettings } from './game/graphics-settings.ts';
 import { ECONOMY_CONFIG } from './game/economy-config.ts';
+import { COMBAT_CONFIG } from './game/combat-config.ts';
 import { ResidentSpeech } from './game/resident-speech.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
@@ -57,6 +58,7 @@ export function createUI(app: HTMLElement) {
       <div class="stops"><span data-stop="cottage">${icon('home')}小屋</span><span data-stop="garden">${icon('leaf')}菜园</span><span data-stop="well">${icon('compass')}水井</span></div>
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
+    <nav class="combat-controls" aria-label="战斗指挥"><button id="select-squad">选择小队</button><button id="scout-outpost">西南据点</button><button id="combat-retreat" hidden>撤退回家</button><button id="combat-auto" hidden>自动战斗</button></nav>
     <nav class="view-controls" aria-label="视角控制">
       <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
     </nav>
@@ -83,7 +85,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">光的颜色 <small>太阳光</small><input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库和民房。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；成功下令后自动取消选择，指令仍会执行。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库和民房。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>选择小队可同时指挥步兵、弓兵；点敌人攻击，点空地移动。撤退回家后待命，点击自动战斗恢复索敌。受伤回家后消耗6粮食、20秒恢复。西南据点清理后物资需要农民搬运入库。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -195,7 +197,7 @@ export function createUI(app: HTMLElement) {
   // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
   const card = get('selection-card');
   const hint = get('target-hint');
-  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls')];
+  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls, .combat-controls')];
   let layoutDirty = true;
   let layout = { width: 0, height: 0, left: 12, right: 12, top: 12, bottom: 12,
     blockers: [] as { x: number; y: number; width: number; height: number }[] };
@@ -260,18 +262,38 @@ export function createUI(app: HTMLElement) {
       get('resident-labels').append(label);
       return label;
     },
+    setCombatControls(active: boolean) { get('combat-retreat').hidden = !active; get('combat-auto').hidden = !active; if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
+    setCombatLabel(id: string, hp: number, max: number, enemy: boolean, life: string, order: string, paid: boolean, recovery: number) {
+      const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`); if (!label) return;
+      label.classList.add('combat-label'); label.classList.toggle('enemy-label', enemy);
+      let status = label.querySelector('small');
+      if (!status) { status = document.createElement('small'); label.append(status); }
+      status.textContent = life === 'returning' ? '受伤 · 回家中' : life === 'recovering' ? paid ? `恢复 ${Math.ceil(COMBAT_CONFIG.recoverySeconds - recovery)}秒` : `恢复需${COMBAT_CONFIG.recoveryFood}粮食`
+        : `${Math.ceil(hp)}/${max}${order === 'retreat' ? ' · 撤退' : order === 'hold' ? ' · 待命' : ''}`;
+    },
     sayResident(id: string, text: string, duration = 3.5) {
       if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); }
       speech.say(id, text, duration);
     },
+    clearResidentSpeech(id: string) { speech.clear(id); const bubble = bubbles.get(id); if (bubble) { bubble.hidden = true; bubble.textContent = ''; } },
     advanceSpeech(seconds: number) { speech.advance(seconds); },
     positionSpeech(id: string, x: number, y: number, visible: boolean) {
       const bubble = bubbles.get(id); if (!bubble) return;
       const text = speech.current(id); bubble.hidden = !text || !visible;
       if (bubble.hidden) return;
       bubble.textContent = text!;
-      const half = Math.min(100, canvas.clientWidth / 2 - 12);
-      bubble.style.transform = `translate(${Math.max(half + 8, Math.min(canvas.clientWidth - half - 8, x))}px, ${Math.max(70, y - 26)}px) translate(-50%, -100%)`;
+      const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`);
+      const nameHeight = label?.offsetHeight ?? 0;
+      const w = bubble.offsetWidth, h = bubble.offsetHeight, gap = 12; // includes the 6px tail
+      const left = Math.max(8, Math.min(canvas.clientWidth - w - 8, x - w / 2));
+      let top = y - nameHeight - gap - h;
+      const below = top < 8;
+      if (below) top = y + gap;
+      bubble.classList.toggle('speech-below', below);
+      // If neither side fits, hide instead of laying speech on top of a name.
+      bubble.hidden = top < 8 || top + h > canvas.clientHeight - 8;
+      bubble.style.setProperty('--tail-x', `${Math.max(10, Math.min(w - 16, x - left))}px`);
+      bubble.style.transform = `translate(${left}px, ${top}px)`;
     },
     get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
     pauseForBackground() { backgroundPaused = true; if (!loading) showBackgroundPause(); },

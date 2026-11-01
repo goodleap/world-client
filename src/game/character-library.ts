@@ -1,10 +1,13 @@
+import { Quaternion } from '@babylonjs/core/Maths/math.vector';
+import combatActions from '../../studies/characters/combat-actions.json';
+import { createBowString } from './bow-string.ts';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Geometry } from '@babylonjs/core/Meshes/geometry';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import type { AssetContainer } from '@babylonjs/core/assetContainer';
 import { loadingProgress } from '../loading-progress.ts';
@@ -87,9 +90,26 @@ export function createCharacterLibrary(scene: Scene) {
         if (!found) throw new Error(`基础人物动作库缺少 ${name}`);
         return found;
       };
+      const originalString = role === 'archer' ? meshes.find(m => m.name === 'Bow • taut linen string') : undefined;
+      const heldArrow = role === 'archer' ? meshes.filter(m => m.name.startsWith('Held arrow •')) : [];
+      const roots = instance.rootNodes.filter((node): node is TransformNode => node instanceof TransformNode).map(node => ({ node, rotation: node.rotationQuaternion?.clone() ?? Quaternion.Identity() }));
+      const drawn = combatActions.BowShot.keys[2];
+      const bowYaw = Math.atan2(drawn.left[0] - drawn.right[0], drawn.right[2] - drawn.left[2]);
+      const hand = (name: string) => instance.skeletons.flatMap(s => s.bones).find(b => b.name === name)?.getTransformNode();
+      const right = hand('hand.R'), left = hand('hand.L');
+      const bow = originalString && right && left ? createBowString(scene, right, left) : undefined;
+      if (originalString) originalString.isPickable = false;
+      // Exclude the rigid string from batching so the authored bow can draw.
+      const renderedMeshes = meshes.filter(m => m !== originalString && !heldArrow.includes(m));
       instanceCount++;
       instances.push({ role, meshes, skeletons: instance.skeletons });
-      return { ...instance, meshes, walk: clip(config.walk), run: clip(config.run), work: clip('Hammer'),
+      return { ...instance, meshes: renderedMeshes, bowPose(phase?: number) {
+        if (!bow || !originalString) return;
+        const turn = phase === undefined ? 0 : Math.min(1, phase / .22, (1 - phase) / .22);
+        for (const { node, rotation } of roots) node.rotationQuaternion = Quaternion.RotationYawPitchRoll(-bowYaw * turn, 0, 0).multiply(rotation);
+        for (const mesh of heldArrow) mesh.setEnabled(phase === undefined);
+        originalString.setEnabled(!bow.update(phase));
+      }, walk: clip(config.walk), run: clip(config.run), work: clip('Hammer'),
         idle: config.mounted ? clip('RideIdle') : undefined };
     },
     async attachLOD(sources: readonly AbstractMesh[]): Promise<CharacterLOD[]> {

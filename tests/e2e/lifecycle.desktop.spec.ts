@@ -1,9 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { openGame, snapshot } from './helpers.ts';
+import { Economy, encodeEconomy } from '../../src/game/economy.ts';
+import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
+import { OUTPOST } from '../../src/game/combat-config.ts';
 
 test('background lifecycle freezes simulation and poses, clears input, and preserves manual pause', async ({ page }) => {
   test.setTimeout(180_000);
+  const economy = new Economy();
+  economy.state.combat.units.find(u => u.id === 'infantry')!.position = { x: OUTPOST.x + 3, z: OUTPOST.z + 2 };
+  economy.state.combat.units.find(u => u.id === 'archer')!.position = { x: OUTPOST.x + 4, z: OUTPOST.z + 4 };
+  await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: ECONOMY_SAVE_KEY, value: encodeEconomy(economy) });
   const errors = await openGame(page);
+  await expect.poll(async () => (await snapshot(page)).combat.units.some(u => !!u.target)).toBe(true);
   // Exercise the actual browser event handlers deterministically. Chromium's
   // headless focus/background flags do not reliably hide tabs in CI.
   for (const reason of ['visibility', 'blur', 'pagehide'] as const) {
@@ -24,6 +32,8 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     const later = await snapshot(page);
     expect(later.frames).toBe(frozen.frames);
     expect(later.simulationSeconds).toBe(frozen.simulationSeconds);
+    expect(later.combat).toEqual(frozen.combat);
+    expect(later.economy).toEqual(frozen.economy);
     expect(later.residents).toEqual(frozen.residents);
     expect(later.leaderModel.pose).toEqual(frozen.leaderModel.pose);
     expect(later.farmerLegPose).toEqual(frozen.farmerLegPose);
@@ -42,6 +52,8 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     }), reason);
     expect(first.suspended).toBe(false);
     expect(first.simulationSeconds).toBe(frozen.simulationSeconds);
+    expect(first.combat).toEqual(frozen.combat);
+    expect(first.economy).toEqual(frozen.economy);
     expect(first.residents.map(r => r.position)).toEqual(frozen.residents.map(r => r.position));
     expect(first.leaderModel.pose).toEqual(frozen.leaderModel.pose);
     expect(first.farmerLegPose).toEqual(frozen.farmerLegPose);
