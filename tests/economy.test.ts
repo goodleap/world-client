@@ -8,7 +8,7 @@ function finish(economy: Economy) {
   const task = economy.claim(); assert.ok(task); economy.arrive(task.id); economy.advance(C.workSeconds[task.kind]);
   const goods = economy.state.goods.at(-1);
   if (goods && economy.state.inventory[goods.resource] + goods.amount <= economy.capacity()[goods.resource]) {
-    const haul = economy.request('haul', goods.id).task!; economy.assign(haul.id); economy.arrive(haul.id); economy.arrive(haul.id);
+    const haul = economy.taskFor(goods.id)!; economy.assign(haul.id); economy.arrive(haul.id); economy.arrive(haul.id);
   }
   return task;
 }
@@ -86,7 +86,7 @@ test('save/load retains partial work and crop growth without offline catch-up or
   assert.equal(restored.state.tasks[0].status, 'waiting'); assert.equal(restored.state.tasks[0].progress, 1.25);
   const resumed = restored.claim()!; restored.arrive(resumed.id); restored.advance(1.75);
   assert.equal(restored.state.inventory.food, 0);
-  const haul = restored.request('haul', restored.state.goods[0].id).task!; restored.claim(); restored.arrive(haul.id); restored.arrive(haul.id);
+  const haul = restored.taskFor(restored.state.goods[0].id)!; restored.claim(); restored.arrive(haul.id); restored.arrive(haul.id);
   assert.equal(restored.state.inventory.food, 8);
   const again = decodeEconomy(encodeEconomy(restored)); again.advance(10); assert.equal(again.state.inventory.food, 8);
 });
@@ -121,7 +121,7 @@ test('two farming cycles retain tilled soil, free the farmer while growing, and 
     assert.equal(e.plot(id)!.tilled, true);
     assert.equal(e.plot(id)!.crop, undefined);
     const goods = e.state.goods.at(-1)!; assert.equal(goods.crop, crop);
-    e.request('haul', goods.id); const haul = e.claim()!; e.arrive(haul.id); e.arrive(haul.id);
+    const haul = e.active()!; e.arrive(haul.id); e.arrive(haul.id);
     assert.equal(e.state.inventory.food, before + C.crops[crop].yield);
   }
   assert.equal(e.plot(id)!.harvests, 2);

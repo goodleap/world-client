@@ -380,7 +380,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           let remaining = Math.min(activeElapsed, .5);
           while (remaining > 1e-8 && actor.route.length) {
             const step = Math.min(remaining, .05);
-            if (advanceRoute(actor, step).unreachable) { actor.route = []; ui.toast('目标暂时无法到达'); break; }
+            if (advanceRoute(actor, step).unreachable) { actor.route = []; ui.targetHint('目标暂时无法到达', { x: actor.root.position.x, y: 2, z: actor.root.position.z }); break; }
             remaining -= step;
           }
           velocity = { x: (actor.state.position.x - before.x) / seconds, z: (actor.state.position.z - before.z) / seconds };

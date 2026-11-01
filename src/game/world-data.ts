@@ -1,5 +1,4 @@
 import type { Bounds, Obstacle, Point } from './movement.ts';
-import { landscapePreview } from './landscape-mode.ts';
 import { createLandscapeLayout } from './landscape-layout.ts';
 import { insidePolygon } from './polygon.ts';
 
@@ -21,24 +20,10 @@ export const BUILDINGS = [
 export const WAREHOUSE = BUILDINGS[1];
 export const HOME = BUILDINGS[0];
 export const WAREHOUSE_DOOR = { x: WAREHOUSE.x, z: WAREHOUSE.z - WAREHOUSE.depth / 2 - .75 };
-export const POND = { ...gridPoint(91, 40), radius: 7 * GRID_SIZE };
-export const LANDSCAPE = landscapePreview ? createLandscapeLayout(gridPoint, GRID_SIZE) : undefined;
-export const WATER_OBSTACLE: Obstacle = LANDSCAPE ? { kind: 'polygon', ...LANDSCAPE.lake } : { kind: 'circle', ...POND };
-export const ROADS = LANDSCAPE?.roadControls ?? [
-  [[44, 0], [45, 15], [49, 30], [50, 49], [45, 61], [28, 77], [7, 82]],
-  [[15, 26], [30, 35], [44, 49], [56, 49], [66, 35], [72, 22], [91, 18]],
-  [[50, 49], [58, 53], [69, 61], [77, 82], [80, 100]],
-] .map(path => path.map(([x, z]) => gridPoint(x, z)));
-const grove = (count: number, cx: number, cy: number, rx: number, ry: number, seed: number) => Array.from({ length: count }, (_, i) => {
-  const angle = i * 2.39996 + seed, radius = Math.sqrt((i + .5) / count);
-  return { ...gridPoint(cx + Math.cos(angle) * rx * radius, cy + Math.sin(angle) * ry * radius), scale: 1.2 + (i % 4) * .18, tone: i % 3 };
-});
-export const TREES: readonly (Point & { scale: number; tone: number; rotation?: number })[] = LANDSCAPE?.trees ?? [
-  { ...gridPoint(44, 49), scale: 1, tone: 0 }, { ...gridPoint(43, 53), scale: 1.1, tone: 1 },
-  ...grove(65, 17, 18, 15, 17, 1), ...grove(24, 16, 89, 14, 8, 2),
-  ...grove(15, 87, 88, 10, 9, 3), ...grove(16, 73, 6, 23, 4, 4),
-  ...grove(10, 29, 58, 12, 14, 5),
-];
+export const LANDSCAPE = createLandscapeLayout(gridPoint, GRID_SIZE);
+export const WATER_OBSTACLE: Obstacle = { kind: 'polygon', ...LANDSCAPE.lake };
+export const ROADS = LANDSCAPE.roadControls;
+export const TREES = LANDSCAPE.trees;
 export const FENCES: readonly Point[] = [];
 export interface Landmark { id: string; name: string; label: string; description: string; x: number; z: number; range: number }
 export const LANDMARKS: readonly Landmark[] = [];
@@ -55,7 +40,7 @@ export function createLandGrid(): LandCell[] {
     const p = gridPoint(column + .5, row + .5);
     let type: LandType = 'grass';
     if (column >= 51 && column < 55 && row >= 52 && row < 55) type = 'garden';
-    if (LANDSCAPE ? insidePolygon(p, LANDSCAPE.lake) : Math.hypot(p.x - POND.x, p.z - POND.z) < POND.radius) type = 'water';
+    if (insidePolygon(p, LANDSCAPE.lake)) type = 'water';
     if (BUILDINGS.some(b => Math.abs(p.x - b.x) < b.width / 2 && Math.abs(p.z - b.z) < b.depth / 2)) type = 'building';
     cells.push({ ...p, type });
   }

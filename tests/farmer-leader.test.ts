@@ -84,3 +84,34 @@ test('the leader can resume delivering without losing or duplicating goods', () 
   invalid.tasks[0].worker = invalid.goods[0].carrier = 'infantry';
   assert.throws(() => decodeEconomy(JSON.stringify(invalid)), /运输任务不一致/);
 });
+
+test('leadership never queues future orders while every farmer is occupied or moving manually', () => {
+  const h = crew();
+  for (const farmer of h.farmers) h.moves.add(farmer.id);
+  h.controller.update(1);
+  assert.equal(h.economy.state.tasks.length, 0);
+  h.moves.delete('farmer-2'); h.controller.update(1);
+  assert.equal(h.economy.state.tasks.length, 1);
+  assert.equal(h.economy.active('farmer-2')?.origin, 'steward');
+  for (let i = 0; i < 30; i++) h.controller.update(1);
+  assert.equal(h.economy.state.tasks.length, 1, 'a travelling worker is occupied, even as other crops mature');
+});
+
+test('disabled leadership persists, leaves ordinary work available and chains delivery to the producer', () => {
+  const h = crew(); h.economy.setLeadership(false); h.controller.update(1);
+  assert.equal(h.economy.state.tasks.length, 0);
+  assert.equal(decodeEconomy(encodeEconomy(h.economy)).state.steward.enabled, false);
+  assert(h.controller.command(leader.id, { kind: 'work', work: 'chop', target: 'tree-0' }).ok);
+  h.work.get(leader.id)!.status = 'arrived'; h.controller.update(.01); h.controller.update(5);
+  const haul = h.economy.active(leader.id)!;
+  assert.equal(haul.kind, 'haul'); assert.equal(haul.target, h.economy.state.goods[0].id);
+  assert.equal(h.economy.active('farmer'), undefined, 'another idle farmer cannot steal the producer’s delivery');
+  assert.equal(h.economy.state.inventory.wood, 8);
+  h.work.get(leader.id)!.status = 'arrived'; h.controller.update(.01);
+  assert.equal(h.economy.active(leader.id)?.status, 'delivering');
+  h.work.get(leader.id)!.status = 'arrived'; h.controller.update(.01);
+  assert.equal(h.economy.state.inventory.wood, 24); assert.equal(h.economy.state.goods.length, 0);
+  h.controller.update(10); assert.equal(h.economy.active(leader.id), undefined);
+  h.economy.setLeadership(true); h.controller.update(.01);
+  assert(h.farmers.every(farmer => h.economy.active(farmer.id)), 're-enabling fills only current vacancies');
+});

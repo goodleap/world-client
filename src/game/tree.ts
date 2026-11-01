@@ -7,7 +7,6 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import type { Scene } from '@babylonjs/core/scene.js';
 import trunkGeometry from './tree-trunk.json' with { type: 'json' };
 import trunkLOD from './tree-trunk-lod.json' with { type: 'json' };
-import { landscapePreview } from './landscape-mode.ts';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { seededRandom } from './landscape-layout.ts';
@@ -36,7 +35,7 @@ export function createTreeMaterials(scene: Scene) {
   const bark = new StandardMaterial('tree-bark', scene);
   bark.diffuseColor = Color3.White();
   bark.specularColor = Color3.Black();
-  if (landscapePreview) {
+  {
     // One shared, seamless painted leaf map for all crowns and all LODs.
     // Small leaf groups live in the texture rather than separate geometry.
     const texture = new DynamicTexture('woodland-canopy-leaves', 512, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
@@ -79,8 +78,7 @@ export function createReferenceTree(scene: Scene, materials: ReturnType<typeof c
   const geometry = detail === 'near' ? trunkGeometry : trunkLOD[detail];
   data.positions = geometry.positions; data.normals = geometry.normals; data.indices = geometry.indices;
   data.applyToMesh(trunk); trunk.material = materials.bark;
-  if (landscapePreview) gradient(trunk, '#6c6341', '#948351', '#baaa6d');
-  else gradient(trunk, '#b67435', '#cb8c45', '#dda452');
+  gradient(trunk, '#6c6341', '#948351', '#baaa6d');
   meshes.push(trunk);
   // Overlapping, asymmetrical lobes form one rounded crown, with visible forks below.
   const lobes = [
@@ -98,8 +96,7 @@ export function createReferenceTree(scene: Scene, materials: ReturnType<typeof c
     crown.rotation.z = Math.sin(i * 2.4) * 0.12;
     crown.material = materials.foliage;
     const hue = variation % 3;
-    if (landscapePreview) gradient(crown, '#4d7055', hue === 1 ? '#91ac6c' : '#84a061', hue === 2 ? '#c2cd87' : '#b7c680');
-    else gradient(crown, '#469b58', hue === 1 ? '#65b943' : '#5fb442', hue === 2 ? '#b9dc54' : '#bde052');
+    gradient(crown, '#4d7055', hue === 1 ? '#91ac6c' : '#84a061', hue === 2 ? '#c2cd87' : '#b7c680');
     meshes.push(crown);
   }
   for (const mesh of meshes) {

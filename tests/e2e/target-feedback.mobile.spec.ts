@@ -1,0 +1,48 @@
+import { test, expect } from '@playwright/test';
+import { initialEconomy } from '../../src/game/economy.ts';
+import { gridPoint } from '../../src/game/world-data.ts';
+import { openGame, snapshot, selectUnit, clickGround } from './helpers.ts';
+
+test('growth and placement hints follow their targets; the selected leader has a persisted command switch', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const state = initialEconomy(); state.steward.enabled = false;
+  await page.addInitScript(state => {
+    if (!localStorage.getItem('world-basic-economy-v1')) localStorage.setItem('world-basic-economy-v1', JSON.stringify(state));
+  }, state);
+  const errors = await openGame(page);
+  const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-1')!;
+  await page.touchscreen.tap(plot.screen.x, plot.screen.y);
+  await expect(page.locator('#selection-hint')).toContainText('生长中');
+  await expect(page.locator('#selection-hint')).toBeVisible();
+  await expect(page.locator('#toast')).not.toHaveClass(/visible/);
+  const before = await page.locator('#selection-hint').boundingBox();
+  expect(before!.y + before!.height).toBeLessThan(plot.screen.y);
+  await page.locator('#game').dispatchEvent('wheel', { deltaX: 32, deltaY: 0, deltaMode: 0 });
+  await expect.poll(async () => (await page.locator('#selection-hint').boundingBox())!.x).toBeLessThan(before!.x - 20);
+  await page.screenshot({ path: info.outputPath('growth-at-target.png'), scale: 'css' });
+  await page.locator('#reset').tap();
+  await page.locator('#building-toggle').tap(); await page.locator('#build-farm').tap();
+  await clickGround(page, gridPoint(51.5, 52.5), true);
+  await expect(page.locator('#target-hint')).toContainText('耕地');
+  await expect(page.locator('#target-hint')).toBeVisible();
+  const failure = await page.locator('#target-hint').boundingBox();
+  expect(failure!.y).toBeGreaterThan(200);
+  await page.screenshot({ path: info.outputPath('placement-at-target.png'), scale: 'css' });
+  await page.locator('#cancel-building').tap();
+  await selectUnit(page, 'farmer', true);
+  await expect(page.locator('#leader-command-control')).not.toBeVisible();
+  await selectUnit(page, 'farmer-leader', true);
+  await expect(page.locator('#leader-command-control')).toBeVisible();
+  await expect(page.locator('#leader-command-enabled')).not.toBeChecked();
+  await page.locator('#leader-command-enabled').check();
+  expect((await snapshot(page)).economy.steward.enabled).toBe(true);
+  expect((await snapshot(page)).selection.resident).toBe('farmer-leader');
+  await page.locator('#leader-command-enabled').uncheck();
+  expect((await snapshot(page)).economy.steward.enabled).toBe(false);
+  await page.screenshot({ path: info.outputPath('leader-command-toggle.png'), scale: 'css' });
+  await expect(page.locator('#steward-status')).toHaveCount(0);
+  await page.locator('#settings').tap(); await page.locator('#return-menu').tap();
+  await openGame(page);
+  expect((await snapshot(page)).economy.steward.enabled).toBe(false);
+  expect(errors).toEqual([]);
+});

@@ -6,7 +6,7 @@ import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
-import { createDaylight, createMapShadowLOD } from './lighting.ts';
+import { applyDaylight, createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
@@ -32,23 +32,23 @@ import { createMoveFeedback } from './move-feedback.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
-import { readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
-import { landscapePreview } from './landscape-mode.ts';
+import { readLighting, saveLighting, readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   scene.shadowsEnabled = readShadowsEnabled();
-  scene.clearColor = Color4.FromHexString(landscapePreview ? '#7b8e5dff' : '#c4dd9fff');
+  scene.clearColor = Color4.FromHexString('#7b8e5dff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
   const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.5, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
-  const shadows = createDaylight(scene, mobile);
-  const configureShadowLOD = mobile || landscapePreview ? createMapShadowLOD(scene, shadows, camera) : undefined;
+  let lighting = readLighting();
+  const shadows = createDaylight(scene, mobile, lighting);
+  const configureShadowLOD = createMapShadowLOD(scene, shadows, camera);
   configureShadowLOD?.();
   const palette = createPalette(scene);
   let saveWarning = false;
@@ -90,7 +90,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const moveFeedback = createMoveFeedback(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
-  const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); };
+  const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const clearResident = () => { residents.select(); ui.setResident(); };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
@@ -131,21 +131,19 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         const id = residents.selectedId();
         const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);
         if (result.ok && id) { setPreview(); clearResident(); }
-        ui.toast(result.message);
+        ui.targetHint(result.message, selectedWorld.anchor);
       }
     }
     world.sync(); refreshEconomy(); save();
   };
   ui.bindEconomy(performAction, id => {
     if (ui.paused || suspended) return;
-    if (economy.cancel(id)) { ui.toast('已取消作业'); world.sync(); refreshEconomy(); save(); }
+    if (economy.cancel(id)) { world.sync(); refreshEconomy(); save(); }
   });
   refreshEconomy();
   const projectionIdentity = Matrix.Identity();
-  const reviewView = landscapePreview ? new URLSearchParams(location.search).get('view') : null;
-  const reviewCenter = reviewView === 'shore' ? new Vector3(25, .5, 14) : reviewView === 'wide' ? new Vector3(8, .5, 0) : new Vector3(GRID_SIZE, .5, -2);
-  const defaultZoom = () => reviewView === 'wide' ? (mobile ? 40 : 32) : reviewView === 'shore' ? (mobile ? 20 : 16)
-    : 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
+  const homeCenter = new Vector3(GRID_SIZE, .5, -2);
+  const defaultZoom = () => 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
   let zoom = defaultZoom();
   let overview = false;
   let previewRole: 'farmer' | 'leader' | undefined;
@@ -153,8 +151,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const setPreview = (role?: 'farmer' | 'leader') => {
     previewRole = role;
     previewZoom = 1;
-    // Keep close-up self-shadows at full detail; the ordinary touch map uses
-    // the smaller target. Babylon retains the caster list when resizing.
+    // Keep close-up self-shadows at full detail; the touch map uses the smaller
+    // target. Babylon retains the caster list when resizing.
     const shadowSize = role || !mobile ? 2048 : 1024;
     if (shadows.mapSize !== shadowSize) shadows.mapSize = shadowSize;
     configureShadowLOD?.(!!role);
@@ -173,8 +171,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const lifecycle = new AbortController();
   const target = new Vector3();
-  const mapCenter = reviewCenter.clone();
-  camera.target.copyFrom(reviewCenter);
+  const mapCenter = homeCenter.clone();
+  camera.target.copyFrom(homeCenter);
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
     if (previewRole) previewZoom = Math.max(0.8, Math.min(1.8, previewZoom + delta * 0.15));
@@ -202,7 +200,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       clearWorld();
       const id = hit.pickedMesh.metadata.id;
       const name = residents.select(residents.selectedId() === id ? undefined : id);
-      ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!));
+      ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!),
+        residents.selectedId() === farmerLeader?.id ? economy.state.steward.enabled : undefined);
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
@@ -214,10 +213,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
           const task = economy.taskFor(object.id), actions = economySelection(economy, object).actions ?? [];
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
           if (action) performAction(action);
-          else if (actions.length && !residents.canWork(residents.selectedId()!)) ui.toast('此作业需要农民');
+          else if (actions.length && !residents.canWork(residents.selectedId()!)) ui.targetHint('此作业需要农民', object.anchor);
         }
-        const details = economySelection(economy, object);
-        if (!details.actions?.length) ui.toast(details.hint === '暂无可用操作' ? object.name : details.hint);
         return;
       }
     }
@@ -228,7 +225,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     if (residents.selectedCanMove()) {
       const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
       if (result.ok) { clearSelection(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
-      ui.toast(result.message);
+      // The destination marker already confirms success. Only failures need
+      // text, anchored to the attempted destination rather than the HUD.
+      if (!result.ok) ui.targetHint(result.message, { x: point.x, y: .2, z: point.z });
     }
     else clearSelection();
   }, gesture => {
@@ -272,12 +271,22 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   ui.bindShadows(scene.shadowsEnabled, enabled => {
     scene.shadowsEnabled = enabled;
-    if (!saveShadowsEnabled(enabled)) ui.toast('阴影设置已生效，浏览器未能保存此偏好');
+    if (!saveShadowsEnabled(enabled)) ui.settingsNotice('阴影设置已生效，浏览器未能保存此偏好');
+    freshFrame = true; requestRender();
+  });
+  ui.bindLeadership(enabled => {
+    if (ui.paused || suspended || residents.selectedId() !== farmerLeader?.id) return;
+    economy.setLeadership(enabled);
+    refreshEconomy(); save();
+  });
+  ui.bindLighting(lighting, value => {
+    lighting = value; applyDaylight(scene, lighting);
+    if (!saveLighting(lighting)) ui.settingsNotice('光照已生效，浏览器未能保存此偏好');
     freshFrame = true; requestRender();
   });
   ui.bind('reset', () => {
-    mapCenter.copyFrom(reviewCenter); setPreview();
-    overview = false; zoom = defaultZoom();  ui.toast('回到初始视角');
+    mapCenter.copyFrom(homeCenter); setPreview();
+    overview = false; zoom = defaultZoom();
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
@@ -311,7 +320,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       // Keep the camera and destination together so keyup leaves no follow tail.
       if (!keyboardPanning) mapCenter.copyFrom(camera.target);
       setPreview(); overview = false;
-      mapCenter.x += direction.x * dt * 7; mapCenter.z += direction.z * dt * 7; clampCenter();
+      // Fixed world speed, twice the former 7 units/s, independent of zoom.
+      mapCenter.x += direction.x * cameraDt * 14; mapCenter.z += direction.z * cameraDt * 14; clampCenter();
       camera.target.copyFrom(mapCenter);
     }
     keyboardPanning = !!(direction.x || direction.z);
@@ -352,6 +362,12 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
       ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
     }
+    if (ui.hintAnchor) {
+      const anchor = ui.hintAnchor;
+      const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
+        scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
+      ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
+    }
     renderedFrames++;
     const sample = metrics.record(cpuStart, performance.now());
     if (sample) {
@@ -368,6 +384,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     input.reset();
     if (suspended) {
       engine.stopRenderLoop(render);
+      ui.pauseForBackground();
       save();
       if (!previewRole && !overview) mapCenter.copyFrom(camera.target);
     } else {
@@ -387,7 +404,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   }, lifecycleOptions);
   document.addEventListener('freeze', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
   document.addEventListener('resume', () => { pageHidden = false; reconcileVisibility(); }, lifecycleOptions);
-  if (!suspended) engine.runRenderLoop(render);
+  if (suspended) ui.pauseForBackground();
+  else engine.runRenderLoop(render);
   try {
     await loadingProgress.run('shaders', '材质、纹理与着色器就绪', () => scene.whenReadyAsync());
     const failed = loadingProgress.snapshot().find(item => item.state === 'failed' && item.kind === 'download');
@@ -406,6 +424,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   return {
     save,
     diagnosticReport: () => ({
+      lighting: { ...lighting },
       performance: { ...compactPerformanceLog(performanceDiagnostics.snapshot()), paused: ui.paused, suspended, renderedFrames },
       camera: cameraState(),
       shadows: {
@@ -419,6 +438,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     markPerformance: performanceDiagnostics.mark,
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
+      lighting: { ...lighting },
       camera: cameraState(),
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),

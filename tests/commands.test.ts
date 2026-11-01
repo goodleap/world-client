@@ -67,9 +67,11 @@ test('direct work preempts automatic work, reuses queued tasks and preserves the
   h.arrive(); c.update(.5);
   assert.ok(c.command('farmer', { kind: 'work', work: 'harvest', target: 'plot-0' }).ok);
   assert.equal(h.residents.farmerWorkState()?.status, 'working'); assert.equal(harvest.progress, .5);
-  c.update(2.5); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8); assert.equal(e.active()?.id, till.id);
+  c.update(2.5); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8); assert.equal(e.active()?.kind, 'haul');
+  h.arrive(); h.arrive();
+  assert.equal(e.state.inventory.food, 8); assert.equal(e.active()?.id, till.id);
   h.arrive(); c.update(3 - progress);
-  assert.equal(till.status, 'done'); assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 8);
+  assert.equal(till.status, 'done'); assert.equal(e.state.inventory.food, 8); assert.equal(e.state.goods.length, 0);
 });
 
 test('dogs and soldiers accept movement while unsupported or invalid work cannot interrupt an existing command', () => {

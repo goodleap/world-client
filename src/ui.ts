@@ -1,3 +1,5 @@
+import { DEFAULT_LIGHTING, normalizeLighting } from './game/graphics-settings.ts';
+import type { LightingSettings } from './game/graphics-settings.ts';
 import { ECONOMY_CONFIG } from './game/economy-config.ts';
 import { ResidentSpeech } from './game/resident-speech.ts';
 import type { Landmark } from './game/world-data.ts';
@@ -43,7 +45,6 @@ export function createUI(app: HTMLElement) {
     <aside class="economy-bar" aria-label="家园资源">
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
-    <p id="steward-status" class="steward-status" role="status"></p>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
       <p class="queue-note">农民·领头参与作业，并指挥农民经营小屋周围 30 格。手动指令优先，资源送到仓库才入库。</p>
@@ -72,11 +73,17 @@ export function createUI(app: HTMLElement) {
     </nav>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
-    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
+    <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><p id="selection-hint" class="target-hint" role="status" hidden></p><div id="selection-actions" class="selection-actions"></div></section>
+    <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
+    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
     <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭资源面板">${icon('close')}</button><h2 id="resources-title">家园资源</h2><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></dialog>
-    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库和民房。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；成功下令后自动取消选择，指令仍会执行。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
+      <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>
+      <label for="sunlight">太阳光 <output id="sunlight-value"></output><input id="sunlight" type="range" min="0" max="2" step="0.01"></label>
+      <label for="sun-color" class="light-color">光的颜色 <small>太阳光</small><input id="sun-color" type="color"></label>
+      <button id="reset-lighting">恢复默认光照</button>
+    </div><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库和民房。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；成功下令后自动取消选择，指令仍会执行。<br>新指令优先，完成后恢复自主行为；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -106,11 +113,23 @@ export function createUI(app: HTMLElement) {
   const options = { signal: abort.signal };
   let nearby: Landmark | undefined;
   let loading = true;
+  let backgroundPaused = false;
   let toastTimer: ReturnType<typeof setTimeout>;
+  let hintTimer: ReturnType<typeof setTimeout> | undefined;
+  let hintPersistent = false;
+  let hintAnchor: { x: number; y: number; z: number } | undefined;
   function focusGame() { if (!dialogs.some(dialog => dialog.open)) canvas.focus({ preventScroll: true }); }
   let onPauseChange = () => {};
   let onLeave: (destination: 'menu' | 'exit') => void = () => {};
   const showDialog = (dialog: HTMLDialogElement) => { if (!dialog.open) dialog.showModal(); onPauseChange(); };
+  // Settings is the explicit pause screen. Only its Continue action resumes.
+  settings.querySelector<HTMLButtonElement>('.dialog-close')!.hidden = true;
+  const closeDialog = (dialog: HTMLDialogElement) => { if (dialog !== settings) dialog.close(); };
+  function showBackgroundPause() {
+    for (const dialog of dialogs) if (dialog !== settings && dialog.open) dialog.close();
+    get('settings-notice').textContent = '游戏已在后台暂停，点击继续游戏恢复。';
+    showDialog(settings);
+  }
   let onAction: (id: string) => void = () => {};
   let onCancel: (id: number) => void = () => {};
   let actionsKey = '', inventoryKey = '', queueKey = '';
@@ -130,18 +149,23 @@ export function createUI(app: HTMLElement) {
     if (button) { onCancel(Number(button.dataset.cancel)); focusGame(); }
   }, options);
   for (const dialog of dialogs) {
-    dialog.querySelector('button')!.addEventListener('click', () => dialog.close(), options);
+    dialog.querySelector('button')!.addEventListener('click', () => closeDialog(dialog), options);
+    dialog.addEventListener('cancel', event => { if (dialog === settings) event.preventDefault(); }, options);
     dialog.addEventListener('close', () => { onPauseChange(); focusGame(); }, options);
     dialog.addEventListener('click', (event) => {
       if (event.target !== dialog) return;
       const bounds = dialog.getBoundingClientRect();
-      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog(dialog);
     }, options);
   }
   get('home-resources').addEventListener('click', () => showDialog(resources), options);
   get('settings').addEventListener('click', () => showDialog(settings), options);
   get('settings-help').addEventListener('click', () => showDialog(help), options);
-  get('continue-game').addEventListener('click', () => settings.close(), options);
+  get('continue-game').addEventListener('click', () => {
+    backgroundPaused = false;
+    get('settings-notice').textContent = '离开前会保存当前进度。';
+    settings.close();
+  }, options);
   get('return-menu').addEventListener('click', () => onLeave('menu'), options);
   get('exit-game').addEventListener('click', () => onLeave('exit'), options);
   get('start-walking').addEventListener('click', () => help.close(), options);
@@ -170,27 +194,35 @@ export function createUI(app: HTMLElement) {
 
   // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
   const card = get('selection-card');
+  const hint = get('target-hint');
   const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls')];
   let layoutDirty = true;
-  let layout = { width: 0, height: 0, cardWidth: 0, cardHeight: 0, left: 12, right: 12, top: 12, bottom: 12,
+  let layout = { width: 0, height: 0, left: 12, right: 12, top: 12, bottom: 12,
     blockers: [] as { x: number; y: number; width: number; height: number }[] };
   const layoutObserver = new ResizeObserver(() => { layoutDirty = true; });
-  for (const element of [app, card, ...fixedControls]) layoutObserver.observe(element);
-  const positionSelection = (x: number, y: number, visible: boolean) => {
-    if (card.hidden) return;
-    card.style.visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
-    if (card.style.visibility === 'hidden') return;
+  for (const element of [app, card, hint, ...fixedControls]) layoutObserver.observe(element);
+  const overlaySizes = new Map<HTMLElement, { width: number; height: number }>();
+  let cardBounds: { x: number; y: number; width: number; height: number } | undefined;
+  const positionOverlay = (element: HTMLElement, x: number, y: number, visible: boolean) => {
+    if (element === card) cardBounds = undefined;
+    if (element.hidden) return;
+    element.style.visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
+    if (element.style.visibility === 'hidden') return;
     if (layoutDirty) {
+      overlaySizes.clear();
       const bounds = app.getBoundingClientRect(), style = getComputedStyle(app);
       const inset = (edge: string) => Math.max(12, parseFloat(style.getPropertyValue(`--safe-${edge}`)) || 0);
-      layout = { width: bounds.width, height: bounds.height, cardWidth: card.offsetWidth, cardHeight: card.offsetHeight,
+      layout = { width: bounds.width, height: bounds.height,
         left: inset('left'), right: inset('right'), top: inset('top'), bottom: inset('bottom'),
         blockers: fixedControls.filter(element => !element.hidden).map(element => {
           const r = element.getBoundingClientRect(); return { x: r.left - bounds.left, y: r.top - bounds.top, width: r.width, height: r.height };
         }) };
       layoutDirty = false;
     }
-    const { width, height, cardWidth: w, cardHeight: h, blockers } = layout;
+    if (!overlaySizes.has(element)) overlaySizes.set(element, { width: element.offsetWidth, height: element.offsetHeight });
+    const { width: w, height: h } = overlaySizes.get(element)!;
+    const { width, height } = layout;
+    const blockers = element === hint && !card.hidden && cardBounds ? [...layout.blockers, cardBounds] : layout.blockers;
     const candidates = [{ x: x - w / 2, y: y - h - 18 }, { x: x - w / 2, y: y + 18 },
       { x: x + 18, y: y - h / 2 }, { x: x - w - 18, y: y - h / 2 }];
     for (const b of blockers) candidates.push({ x: x - w / 2, y: b.y - h - 8 }, { x: x - w / 2, y: b.y + b.height + 8 },
@@ -201,11 +233,17 @@ export function createUI(app: HTMLElement) {
         y: Math.max(layout.top, Math.min(height - h - layout.bottom, candidate.y)) };
       const overlap = blockers.reduce((sum, b) => sum + Math.max(0, Math.min(p.x + w + 4, b.x + b.width) - Math.max(p.x - 4, b.x))
         * Math.max(0, Math.min(p.y + h + 4, b.y + b.height) - Math.max(p.y - 4, b.y)), 0);
+      // Prefer directly above the target whenever it fits. Candidates beside
+      // unrelated controls can be closer to the anchor but cover the target.
+      if (candidate === candidates[0] && overlap === 0 && p.y + h <= y - 12) { best = p; break; }
+      const coversTarget = Math.max(0, Math.min(p.x + w, x + 12) - Math.max(p.x, x - 12))
+        * Math.max(0, Math.min(p.y + h, y + 12) - Math.max(p.y, y - 12));
       const distance = (p.x + w / 2 - x) ** 2 + (p.y + h / 2 - y) ** 2;
-      const value = overlap * 1e6 + distance;
+      const value = (overlap + coversTarget) * 1e6 + distance;
       if (value < score) { score = value; best = p; }
     }
-    card.style.transform = `translate(${Math.round(best.x)}px, ${Math.round(best.y)}px)`;
+    element.style.transform = `translate(${Math.round(best.x)}px, ${Math.round(best.y)}px)`;
+    if (element === card) cardBounds = { ...best, width: w, height: h };
   };
 
   return {
@@ -235,11 +273,32 @@ export function createUI(app: HTMLElement) {
       const half = Math.min(100, canvas.clientWidth / 2 - 12);
       bubble.style.transform = `translate(${Math.max(half + 8, Math.min(canvas.clientWidth - half - 8, x))}px, ${Math.max(70, y - 26)}px) translate(-50%, -100%)`;
     },
-    get paused() { return loading || dialogs.some(dialog => dialog.open); },
+    get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
+    pauseForBackground() { backgroundPaused = true; if (!loading) showBackgroundPause(); },
     bindPause(callback: () => void) { onPauseChange = callback; },
     bindShadows(enabled: boolean, callback: (enabled: boolean) => void) {
       const toggle = get<HTMLInputElement>('shadows-enabled'); toggle.checked = enabled;
       toggle.addEventListener('change', () => callback(toggle.checked), options);
+    },
+    bindLighting(initial: LightingSettings, callback: (settings: LightingSettings) => void) {
+      const environment = get<HTMLInputElement>('environment-light'), sunlight = get<HTMLInputElement>('sunlight'), color = get<HTMLInputElement>('sun-color');
+      const show = (value: LightingSettings) => {
+        environment.value = String(value.environment); sunlight.value = String(value.sunlight); color.value = value.sunColor;
+        get('environment-light-value').textContent = value.environment.toFixed(2);
+        get('sunlight-value').textContent = value.sunlight.toFixed(2);
+      };
+      show(initial);
+      const update = () => {
+        const value = normalizeLighting({ environment: environment.valueAsNumber, sunlight: sunlight.valueAsNumber, sunColor: color.value });
+        show(value); callback(value);
+      };
+      for (const input of [environment, sunlight, color]) input.addEventListener('input', update, options);
+      get('reset-lighting').addEventListener('click', () => { show(DEFAULT_LIGHTING); callback({ ...DEFAULT_LIGHTING }); }, options);
+    },
+    settingsNotice(text: string) { get('settings-notice').textContent = text; },
+    bindLeadership(callback: (enabled: boolean) => void) {
+      const toggle = get<HTMLInputElement>('leader-command-enabled');
+      toggle.addEventListener('change', () => { callback(toggle.checked); focusGame(); }, options);
     },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
     bindDiagnostics(callback: () => unknown) { diagnostics = callback; },
@@ -255,9 +314,8 @@ export function createUI(app: HTMLElement) {
       get('landmark-prompt').hidden = !landmark;
       if (landmark) get('nearby-name').textContent = landmark.name;
     },
-    ready() { loading = false; onPauseChange(); focusGame(); },
+    ready() { loading = false; if (backgroundPaused) showBackgroundPause(); onPauseChange(); focusGame(); },
     bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
-    setSteward(text: string) { get('steward-status').textContent = text; },
     setResources(values: { name: string; amount: number; capacity: number; reserved: number; ground?: number; transit?: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
       get('inventory').replaceChildren(...values.map(value => {
@@ -292,11 +350,14 @@ export function createUI(app: HTMLElement) {
       }
     },
     setSelection(details?: SelectionDetails) {
-      const visible = !!details?.actions?.length;
+      const visible = !!details && (!!details.actions?.length || details.hint !== '暂无可用操作');
       if (card.hidden && visible) card.style.visibility = 'hidden';
       card.hidden = !visible;
       if (!details || !visible) return;
       card.setAttribute('aria-label', `${details.name}的操作`);
+      const message = get('selection-hint');
+      message.hidden = !!details.actions?.length;
+      if (!message.hidden && message.textContent !== details.hint) { message.textContent = details.hint; layoutDirty = true; }
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {
         actionsKey = key;
@@ -305,11 +366,13 @@ export function createUI(app: HTMLElement) {
         }));
       }
     },
-    positionSelection,
-    setResident(name?: string, canWork = false) {
+    positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(card, x, y, visible),
+    setResident(name?: string, canWork = false, leadership?: boolean) {
       get('resident-selection').hidden = !name;
       get('resident-name').textContent = name ?? '';
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
+      get('leader-command-control').hidden = leadership === undefined;
+      get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
       layoutDirty = true;
     },
     setPerformance(sample?: FrameSample, triangles?: number) {
@@ -323,7 +386,20 @@ export function createUI(app: HTMLElement) {
       get('toast').textContent = message; get('toast').classList.add('visible');
       toastTimer = setTimeout(() => get('toast').classList.remove('visible'), 2200);
     },
-    dispose() { abort.abort(); layoutObserver.disconnect(); clearTimeout(toastTimer); for (const dialog of dialogs) dialog.close(); },
+    targetHint(message: string, anchor: { x: number; y: number; z: number }, persistent = false) {
+      clearTimeout(hintTimer); hintAnchor = { ...anchor }; hintPersistent = persistent;
+      if (hint.textContent !== message || hint.hidden) { hint.textContent = message; layoutDirty = true; }
+      if (hint.hidden) hint.style.visibility = 'hidden';
+      hint.hidden = false;
+      if (!persistent) hintTimer = setTimeout(() => { hint.hidden = true; hintAnchor = undefined; }, 2200);
+    },
+    clearTargetHint(persistentOnly = false) {
+      if (persistentOnly && !hintPersistent) return;
+      clearTimeout(hintTimer); hint.hidden = true; hintAnchor = undefined;
+    },
+    get hintAnchor() { return hintAnchor; },
+    positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y, visible),
+    dispose() { abort.abort(); layoutObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }
 

@@ -8,8 +8,8 @@ function gather() {
   return e;
 }
 function collect(e: Economy) {
-  const t = e.request('haul', e.state.goods[0].id).task!;
-  assert.equal(e.claim()?.id, t.id); e.arrive(t.id); return t;
+  const t = e.taskFor(e.state.goods[0].id)!;
+  assert.equal(e.active()?.id, t.id); e.arrive(t.id); return t;
 }
 test('production stays on ground and in transit until one warehouse delivery', () => {
   const e = gather(); assert.equal(e.state.inventory.wood, 8);
@@ -44,5 +44,17 @@ test('save restores in-transit ownership, positions, manager clock and a manual 
   assert.deepEqual(JSON.parse(JSON.stringify(resumed.state.residents)), e.state.residents);
   assert.equal(resumed.state.steward.nextDecision, e.state.steward.nextDecision);
   resumed.arrive(t.id); resumed.arrive(t.id);
+  assert.equal(resumed.state.inventory.wood, 24); assert.equal(resumed.state.goods.length, 0);
+});
+
+test('saving between gathering and pickup keeps the delivery with its producer', () => {
+  const e = gather(), producer = e.active()!.worker;
+  const resumed = decodeEconomy(encodeEconomy(e));
+  const pickup = resumed.active(producer)!;
+  assert.equal(pickup.kind, 'haul'); assert.equal(pickup.origin, 'continuation');
+  assert.equal(pickup.status, 'travelling');
+  assert.equal(resumed.state.goods[0].state, 'ground');
+  assert.equal(resumed.claim('farmer-2'), undefined);
+  resumed.arrive(pickup.id); resumed.arrive(pickup.id);
   assert.equal(resumed.state.inventory.wood, 24); assert.equal(resumed.state.goods.length, 0);
 });

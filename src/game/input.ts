@@ -75,7 +75,50 @@ export class MovementInput {
       const tap = this.tap; this.tap = undefined;
       if (tap) onTap(tap.x, tap.y);
     }, options);
-    canvas.addEventListener('wheel', (event) => { event.preventDefault(); onZoom(Math.max(-6, Math.min(6, event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1) * 0.035))); }, { ...options, passive: false });
+    let wheelMode: 'pan' | 'zoom' = 'pan', lastWheel = -Infinity;
+    let safariScale: number | undefined;
+    canvas.addEventListener('wheel', event => {
+      event.preventDefault();
+      if (safariScale !== undefined) return;
+      const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+      if (event.ctrlKey) {
+        // Chromium/Firefox expose a trackpad pinch as ctrl+wheel. Reuse the
+        // touch pinch's ground anchor and multiplicative scale.
+        const center = { x: event.clientX, y: event.clientY };
+        onPinch({ scale: Math.exp(-Math.max(-100, Math.min(100, event.deltaY * factor)) * .01), previousCenter: center, center });
+        lastWheel = -Infinity; return;
+      }
+      const started = event.timeStamp - lastWheel > 180;
+      if (started) {
+        // WheelEvent has no device type. Recognize line/page and conventional
+        // 100/120px wheel detents; keep pixel scrolling (including inertia) in
+        // one pan gesture so its speed never changes the operation mid-stream.
+        const detent = !event.deltaX && Number.isInteger(event.deltaY)
+          && Math.abs(event.deltaY) >= 100 && (event.deltaY % 100 === 0 || event.deltaY % 120 === 0);
+        wheelMode = !event.shiftKey && (event.deltaMode !== 0 || detent) ? 'zoom' : 'pan';
+      }
+      lastWheel = event.timeStamp;
+      if (wheelMode === 'zoom') onZoom(Math.max(-6, Math.min(6, event.deltaY * factor * .035)));
+      else onPan(-event.deltaX * factor, -event.deltaY * factor, started);
+    }, { ...options, passive: false });
+    // Safari on macOS provides native gesture events for trackpad pinching.
+    // Touchscreen pointers already use the two-pointer path above.
+    canvas.addEventListener('gesturestart', event => {
+      event.preventDefault();
+      if (this.pointers.size < 2) safariScale = (event as Event & { scale: number }).scale || 1;
+    }, { ...options, passive: false });
+    canvas.addEventListener('gesturechange', event => {
+      event.preventDefault();
+      const gesture = event as Event & { scale: number; clientX: number; clientY: number };
+      if (safariScale === undefined || this.pointers.size >= 2 || !(gesture.scale > 0)) return;
+      const rect = canvas.getBoundingClientRect();
+      const center = { x: Number.isFinite(gesture.clientX) ? gesture.clientX : rect.left + rect.width / 2,
+        y: Number.isFinite(gesture.clientY) ? gesture.clientY : rect.top + rect.height / 2 };
+      onPinch({ scale: gesture.scale / safariScale, previousCenter: center, center });
+      safariScale = gesture.scale;
+    }, { ...options, passive: false });
+    canvas.addEventListener('gestureend', () => { safariScale = undefined; }, options);
+    window.addEventListener('blur', () => { safariScale = undefined; lastWheel = -Infinity; }, options);
   }
   private measurePinch() {
     const [a, b] = this.pointers.values();

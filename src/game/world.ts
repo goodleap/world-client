@@ -1,9 +1,8 @@
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { BUILDINGS, createLandGrid, FENCES, POND, GRID_SIZE, LANDSCAPE } from './world-data';
+import { BUILDINGS, createLandGrid, FENCES, GRID_SIZE } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox } from './environment-shapes';
 import { referenceHouse } from './buildings';
@@ -12,9 +11,8 @@ import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { createEconomyWorld } from './economy-world.ts';
-import { createTerrain } from './terrain.ts';
+import { createLandscapeTerrain, createLandscapeWater } from './landscape-terrain.ts';
 import { createGroundCover } from './ground-cover.ts';
-import { createLandscapeWater } from './landscape-terrain.ts';
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
   const before = new Set(scene.meshes), land = createLandGrid();
@@ -26,7 +24,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   const addObject = (object: WorldObject, build: () => void) => {
     const first = scene.meshes.length; build(); register(object, first);
   };
-  const roads = createTerrain(scene, p);
+  createLandscapeTerrain(scene, p);
   for (const b of BUILDINGS) addObject({
     id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '仓库',
     x: b.x, z: b.z, radius: b.width / 2, width: b.width, depth: b.depth,
@@ -34,20 +32,8 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   }, () => referenceHouse(scene, p, b));
   // Individual farming cells are managed below as native mutable instances.
   const firstPondMesh = scene.meshes.length;
-  if (LANDSCAPE) {
-    const water = createLandscapeWater(scene);
-    register({ id: 'pond', kind: 'scenery', name: '湖泊', ...water, anchor: { x: water.x, y: .05, z: water.z } }, firstPondMesh);
-  } else {
-  const water = MeshBuilder.CreateDisc('pond-water', { radius: POND.radius, tessellation: 64 }, scene);
-  water.rotation.x = Math.PI / 2; water.position.set(POND.x, .035, POND.z); water.material = p.water;
-  for (let i = 0; i < 60; i++) {
-    const a = i * Math.PI * 2 / 60, r = POND.radius + .2;
-    const stone = roundedBox(scene, 'pond-stone', [1.5, .6 + i % 3 * .15, 1], [POND.x + Math.sin(a) * r, .3, POND.z + Math.cos(a) * r], i % 3 ? p.stoneLight : p.stone, .2);
-    stone.rotation.y = a;
-  }
-  register({ id: 'pond', kind: 'scenery', name: '湖泊', x: POND.x, z: POND.z, radius: POND.radius,
-    anchor: { x: POND.x, y: .05, z: POND.z } }, firstPondMesh);
-  }
+  const water = createLandscapeWater(scene);
+  register({ id: 'pond', kind: 'scenery', name: '湖泊', ...water, anchor: { x: water.x, y: .05, z: water.z } }, firstPondMesh);
   for (const [index, { x, z }] of FENCES.entries()) {
     const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);
@@ -102,7 +88,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects);
-  const cover = createGroundCover(scene, roads);
+  const cover = createGroundCover(scene);
   const syncCover = () => cover.sync([...economy.state.sites, ...economy.state.plots.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))]);
   syncCover();
   return { land, objects, ...economyWorld,

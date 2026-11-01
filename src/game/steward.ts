@@ -1,5 +1,5 @@
 import { Economy, pending } from './economy.ts';
-import type { CropKind, Resource } from './economy.ts';
+import type { CropKind, Resource, WorkKind } from './economy.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES } from './economy-config.ts';
 import { GRID_SIZE, HOME } from './world-data.ts';
 import type { Point } from './movement.ts';
@@ -28,31 +28,39 @@ export function chooseCrop(e: Economy): CropKind {
 }
 export function createSteward(economy: Economy) {
   return {
-    update() {
-      if (!economy.state.steward.enabled || economy.state.seconds < economy.state.steward.nextDecision) return;
-      economy.state.steward.nextDecision = economy.state.seconds + .5;
-      for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) {
-        economy.request('haul', goods.id, undefined, 'steward');
+    /** Called only after one idle farmer has exhausted existing runnable jobs.
+     * Consider alternatives, but commit exactly one order for that vacancy. */
+    requestWork(position: Point = HOME) {
+      if (!economy.state.steward.enabled) return;
+      const capacity = economy.capacity();
+      const candidates: { kind: WorkKind; target: string; point: Point; priority: number; crop?: CropKind }[] = [];
+      for (const goods of economy.state.goods) if (goods.state === 'ground' && inStewardRange(goods)
+        && economy.state.inventory[goods.resource] < capacity[goods.resource] && !economy.taskFor(goods.id)) {
+        candidates.push({ kind: 'haul', target: goods.id, point: goods, priority: 0 });
       }
       const managed = economy.state.plots.filter(inStewardRange);
-      for (const definition of managed) {
-        const plot = economy.plot(definition.id)!;
-        if (economy.state.inventory.food < economy.capacity().food && plot.crop && !economy.taskFor(plot.id)) economy.request('harvest', plot.id, undefined, 'steward');
-      }
-      for (const plot of managed) {
-        if (economy.state.inventory.food >= economy.capacity().food || expectedSupply(economy, 'food') >= economy.capacity().food) break;
-        if (!plot.tilled || plot.crop || economy.taskFor(plot.id)) continue;
-        economy.request('sow', plot.id, chooseCrop(economy), 'steward');
+      if (economy.state.inventory.food < capacity.food) {
+        const canSow = expectedSupply(economy, 'food') < capacity.food;
+        for (const plot of managed) {
+          if (economy.taskFor(plot.id)) continue;
+          if (plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds) candidates.push({ kind: 'harvest', target: plot.id, point: plot, priority: 1 });
+          else if (canSow && plot.tilled && !plot.crop) candidates.push({ kind: 'sow', target: plot.id, point: plot, crop: chooseCrop(economy), priority: 2 });
+        }
       }
       for (const resource of ['wood', 'stone'] as const) {
-        // The warehouse limit replaces the former small comfort stock. Count
-        // incoming goods/jobs to avoid scheduling an unbounded surplus, while
-        // workers keep harvesting and delivering everything already committed.
-        if (economy.state.inventory[resource] >= economy.capacity()[resource] || expectedSupply(economy, resource) >= economy.capacity()[resource]) continue;
-        const node = RESOURCE_NODES.filter(n => n.kind === resource && inStewardRange(n) && !economy.state.depleted.includes(n.id) && !economy.taskFor(n.id))
-          .sort((a, b) => Math.hypot(a.x - HOME.x, a.z - HOME.z) - Math.hypot(b.x - HOME.x, b.z - HOME.z))[0];
-        if (node) economy.request(resource === 'wood' ? 'chop' : 'mine', node.id, undefined, 'steward');
+        if (economy.state.inventory[resource] >= capacity[resource] || expectedSupply(economy, resource) >= capacity[resource]) continue;
+        const needed = economy.state.tasks.filter(t => pending(t) && t.kind === 'build' && !t.reserved)
+          .reduce((sum, t) => sum + economy.cost('build', t.target)[resource], 0);
+        const priority = needed > economy.available()[resource] ? .5 : 4;
+        for (const node of RESOURCE_NODES) if (node.kind === resource && inStewardRange(node)
+          && !economy.state.depleted.includes(node.id) && !economy.taskFor(node.id)) {
+          candidates.push({ kind: resource === 'wood' ? 'chop' : 'mine', target: node.id, point: node, priority });
+        }
       }
+      candidates.sort((a, b) => a.priority - b.priority
+        || Math.hypot(a.point.x - position.x, a.point.z - position.z) - Math.hypot(b.point.x - position.x, b.point.z - position.z));
+      const job = candidates[0];
+      return job && economy.request(job.kind, job.target, job.crop, 'steward').task;
     },
   };
 }

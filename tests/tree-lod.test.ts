@@ -6,12 +6,13 @@ import { Camera } from '@babylonjs/core/Cameras/camera.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import '@babylonjs/core/Meshes/instancedMesh.js';
-import { attachTreeLOD, createReferenceTree, createTreeMaterials } from '../src/game/tree.ts';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { attachTreeLOD, createReferenceTree } from '../src/game/tree.ts';
 
 test('tree LOD preserves its full extent and reduces both bark and crown geometry', () => {
   const engine = new NullEngine(), scene = new Scene(engine);
   try {
-    const materials = createTreeMaterials(scene);
+    const materials = { foliage: new StandardMaterial('foliage', scene), bark: new StandardMaterial('bark', scene) };
     const levels = (['near', 'medium', 'far'] as const).map(detail => createReferenceTree(scene, materials, 0, 0, 1, 0, detail));
     const triangles = levels.map(parts => parts.reduce((sum, mesh) => sum + mesh.getTotalIndices() / 3, 0));
     assert.equal(triangles[0], 26508, 'the close-up mesh is unchanged');
@@ -33,7 +34,7 @@ test('tree LOD preserves its full extent and reduces both bark and crown geometr
 test('native instance LOD follows orthographic coverage and survives shadow selection and harvesting', () => {
   const engine = new NullEngine(), scene = new Scene(engine);
   try {
-    const materials = createTreeMaterials(scene);
+    const materials = { foliage: new StandardMaterial('foliage', scene), bark: new StandardMaterial('bark', scene) };
     const levels = (['near', 'medium', 'far'] as const).map(detail => {
       const parts = createReferenceTree(scene, materials, 0, 0, 1, 0, detail);
       const bark = parts[0], crown = Mesh.MergeMeshes(parts.slice(1), true, true)!;

@@ -31,7 +31,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   let pointer: { id: number; x: number; y: number; dragging: boolean } | undefined;
   let cursor: { x: number; y: number } | undefined;
   const showPalette = (show: boolean) => { palette.hidden = !show; toggle.setAttribute('aria-expanded', String(show)); };
-  const hidePreview = () => { for (const m of meshes) m.setEnabled(false); candidate = undefined; };
+  const hidePreview = () => { for (const m of meshes) m.setEnabled(false); candidate = undefined; ui.clearTargetHint(); };
   function cancel() { active = false; cursor = undefined; pointer = undefined; hidePreview(); ui.setPlacement(false); showPalette(false); }
   function begin(nextKind: BuildingKind) { if (blocked()) return; onBegin(); kind = nextKind; active = true; ui.setPlacement(true, `${BUILDING_TYPES[kind].name} · 选择位置`); }
   function preview(x: number, y: number) {
@@ -60,17 +60,18 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     }
     for (; index < edges.length; index++) edges[index].setEnabled(false);
     fill.setEnabled(true);
-    ui.setPlacement(true, reason || `${type.name} · 点击或松手放置`);
+    ui.setPlacement(true, `${type.name} · 点击或松手放置`);
+    if (reason) ui.targetHint(reason, { x: candidate.x, y: .2, z: candidate.z }, true);
+    else ui.clearTargetHint(true);
   }
   function place(x: number, y: number) {
     if (!active || blocked()) return;
     preview(x, y);
     if (!candidate) return;
-    if (reason) { ui.toast(reason); return; }
+    if (reason) return;
     const result = economy.placeBuilding(kind, candidate, occupants());
-    ui.toast(result.message);
     if (result.ok) { cancel(); onPlaced(result.task!.target); }
-    else ui.setPlacement(true, result.message);
+    else ui.targetHint(result.message, { x: candidate.x, y: .2, z: candidate.z });
   }
   toggle.addEventListener('click', () => {
     if (blocked()) return;

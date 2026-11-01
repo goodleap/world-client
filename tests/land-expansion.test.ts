@@ -46,9 +46,10 @@ test('dynamic farmland restores partial tilling and joins automatic sowing witho
   assert.equal(resumed.taskFor(task.target)?.progress, 1.25);
   resumed.arrive(resumed.claim()!.id); resumed.advance(C.workSeconds.till - 1.25);
   assert(resumed.plot(task.target)?.tilled);
-  createSteward(resumed).update();
+  for (const plot of resumed.state.plots) if (plot.id !== task.target) { plot.crop = 'wheat'; plot.growth = 0; }
+  createSteward(resumed).requestWork(resumed.plot(task.target)!);
   assert.equal(resumed.taskFor(task.target)?.kind, 'sow');
-  assert.equal(resumed.state.tasks.filter(t => pending(t) && t.kind === 'sow').length, 11);
+  assert.equal(resumed.state.tasks.filter(t => pending(t) && t.kind === 'sow').length, 1);
   assert.equal(resumed.state.plots.length, 13, 'the leader uses player-created land instead of opening land independently');
 });
 
@@ -86,11 +87,12 @@ test('cancelling warehouse construction releases materials and never adds capaci
 test('a larger farm cannot starve a requested warehouse of construction materials', () => {
   const e = new Economy(), warehouse = e.placeBuilding('warehouse', gridPoint(55.5, 57)).task!;
   assert.equal(warehouse.reserved, false);
-  createSteward(e).update();
-  assert(e.state.tasks.filter(t => t.kind === 'sow').length > 6);
+  createSteward(e).requestWork();
+  assert.equal(e.state.tasks.filter(t => t.origin === 'steward').length, 1);
   const material = e.claim('farmer')!;
   assert(['chop', 'mine'].includes(material.kind), 'required materials precede repeated automatic crop jobs');
   e.cancel(warehouse.id);
+  createSteward(e).requestWork();
   assert.equal(e.claim('farmer-2')?.kind, 'harvest', 'ordinary crop priority resumes after construction is cancelled');
 });
 

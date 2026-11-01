@@ -18,7 +18,7 @@ const color = (hex: string) => Color3.FromHexString(hex);
 /** Native opaque terrain/ribbons and mipmapped painted color maps: no screen
  * filters, reflection pass, per-frame texture painting or tessellated grass. */
 export function createLandscapeTerrain(scene: Scene, palette: Palette) {
-  const layout = LANDSCAPE!;
+  const layout = LANDSCAPE;
   roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], palette.earth, .28);
   const random = seededRandom(layout.seed);
   function texture(name: string, size: number) {
@@ -109,7 +109,7 @@ export function createLandscapeTerrain(scene: Scene, palette: Palette) {
 }
 
 export function createLandscapeWater(scene: Scene) {
-  const lake = LANDSCAPE!.lake;
+  const lake = LANDSCAPE.lake;
   // The fixed lake is star-shaped about this interior point; tests verify the
   // rings remain inside its shoreline. All bands share one native ribbon draw.
   const center = new Vector3(lake.x + 1.5, .037, lake.z);

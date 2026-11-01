@@ -11,10 +11,11 @@ export type Inventory = Record<Resource, number>;
 export type CropKind = keyof typeof C.crops;
 export type WorkKind = keyof typeof C.workSeconds;
 export type TaskStatus = 'waiting' | 'travelling' | 'working' | 'delivering' | 'storage' | 'done' | 'cancelled' | 'invalid';
+export type TaskOrigin = 'manual' | 'steward' | 'continuation';
 export interface FarmPlot extends Point { id: string; tilled: boolean; crop?: CropKind; growth: number; harvests?: number; lastCrop?: CropKind }
 export interface WorkTask {
   id: number; kind: WorkKind; target: string; crop?: CropKind; status: TaskStatus;
-  worker?: string; origin?: 'manual' | 'steward';
+  worker?: string; origin?: TaskOrigin;
   progress: number; reserved: boolean; reason: string; retryAt: number;
 }
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string }
@@ -22,7 +23,7 @@ export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
-  version: 4; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 5; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食' };
@@ -40,7 +41,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(): EconomyState {
   return {
-    version: 4, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    version: 5, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -52,6 +53,14 @@ export class Economy {
   readonly state: EconomyState;
   revision = 0;
   constructor(state = initialEconomy()) { this.state = state; }
+  setLeadership(enabled: boolean) {
+    if (this.state.steward.enabled === enabled) return;
+    this.state.steward.enabled = enabled;
+    this.state.steward.nextDecision = 0;
+    // Already accepted work and its delivery continue; this only controls
+    // whether the leader may issue new orders to idle farmers.
+    this.changed();
+  }
   placeBuilding(kind: BuildingKind, point: Point, occupants: readonly Obstacle[] = []): { ok: boolean; message: string; task?: WorkTask } {
     if (!Object.hasOwn(BUILDING_TYPES, kind)) return { ok: false, message: '未知建筑类型' };
     const farm = kind === 'farm';
@@ -115,7 +124,7 @@ export class Economy {
     if (missing.length) { task.reason = '缺少' + missing.map(key => `${RESOURCE_NAMES[key]} ${cost[key] - available[key]}`).join('、'); return false; }
     task.reserved = true; task.reason = ''; return true;
   }
-  request(kind: WorkKind, target: string, crop?: CropKind, origin: 'manual' | 'steward' = 'manual'): { ok: boolean; message: string; task?: WorkTask } {
+  request(kind: WorkKind, target: string, crop?: CropKind, origin: TaskOrigin = 'manual'): { ok: boolean; message: string; task?: WorkTask } {
     const invalid = this.invalidReason(kind, target, crop);
     if (invalid) return { ok: false, message: invalid };
     if (this.taskFor(target)) return { ok: false, message: '该目标已有任务' };
@@ -246,11 +255,19 @@ export class Economy {
     }
     if (task.kind === 'chop' || task.kind === 'mine') this.state.depleted.push(task.target);
     if (task.kind === 'build') this.state.buildings.push(task.target);
+    task.status = 'done'; task.reserved = false; task.reason = ''; this.changed();
     for (const resource of resources) if (output[resource]) {
       const point = this.plot(task.target) ?? RESOURCE_NODES.find(n => n.id === task.target)!;
-      this.state.goods.push({ id: `goods-${task.id}`, resource, amount: output[resource], crop: task.kind === 'harvest' ? plot!.lastCrop : undefined, x: point.x, z: point.z, state: 'ground' });
+      const goods: Goods = { id: `goods-${task.id}`, resource, amount: output[resource], crop: task.kind === 'harvest' ? plot!.lastCrop : undefined, x: point.x, z: point.z, state: 'ground' };
+      this.state.goods.push(goods);
+      // Finishing production frees its queue slot. Its actual output gets one
+      // delivery task, reserved immediately for the producer before another
+      // idle worker can take it. This works with leadership switched off too.
+      const haul = this.request('haul', goods.id, undefined, 'continuation').task!;
+      if (task.worker && this.state.inventory[resource] < this.capacity()[resource]) {
+        haul.worker = task.worker; haul.status = 'travelling';
+      }
     }
-    task.status = 'done'; task.reserved = false; task.reason = ''; this.changed();
   }
   private dropCargo(task: WorkTask, position?: Point) {
     const goods = this.state.goods.find(g => g.id === task.target);
@@ -286,7 +303,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 4) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 5) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
@@ -347,12 +364,17 @@ export function decodeEconomy(text: string): Economy {
         || !goods || goods.state !== 'transit' || goods.carrier !== task.worker) throw new Error('运输任务不一致');
       carriers.add(task.worker);
     }
+    const resumingPickup = task.status === 'travelling' && task.kind === 'haul' && task.origin === 'continuation' && !!task.worker;
+    if (resumingPickup) {
+      if (!canResidentWork(task.worker!) || carriers.has(task.worker!) || !state.goods.some(g => g.id === task.target && g.state === 'ground')) throw new Error('运输任务不一致');
+      carriers.add(task.worker!);
+    }
     ids.add(task.id);
     if (pending(task)) { if (targets.has(task.target)) throw new Error('重复目标'); targets.add(task.target); }
     state.tasks.push({ id: task.id, kind: task.kind, target: task.target, crop: task.crop,
-      status: task.status === 'travelling' || task.status === 'working' ? 'waiting' : task.status,
-      worker: task.status === 'delivering' ? task.worker : undefined,
-      origin: task.origin === 'steward' ? 'steward' : 'manual', progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: number(task.retryAt, 1e12) ? task.retryAt : 0 });
+      status: task.status === 'travelling' && !resumingPickup || task.status === 'working' ? 'waiting' : task.status,
+      worker: task.status === 'delivering' || resumingPickup ? task.worker : undefined,
+      origin: task.origin === 'steward' || task.origin === 'continuation' ? task.origin : 'manual', progress: task.progress, reserved: false, reason: task.status === 'storage' ? '等待入库' : '', retryAt: number(task.retryAt, 1e12) ? task.retryAt : 0 });
   }
   for (const goods of state.goods) if (goods.state === 'transit' && !state.tasks.some(t => t.status === 'delivering' && t.target === goods.id && t.worker === goods.carrier)) throw new Error('在途资源缺少运输任务');
   state.nextId = Math.max(0, ...ids, ...state.goods.map(g => Number(g.id.slice(6))), Number.isSafeInteger(raw.nextId) ? raw.nextId - 1 : 0) + 1;

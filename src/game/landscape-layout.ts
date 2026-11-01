@@ -23,7 +23,7 @@ export function createCurvedRoadPaths(roads: readonly Point[][], gridSize: numbe
   });
 }
 
-/** A fixed-seed review area. Curves are Babylon's native Catmull–Rom curves;
+/** A reproducible map. Curves are Babylon's native Catmull–Rom curves;
  * placement rules reserve the playable village, paths and working approaches. */
 export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point, gridSize: number, seed = LANDSCAPE_SEED) {
   const random = seededRandom(seed);
@@ -49,11 +49,13 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
     { ...gridPoint(59, 44), scale: 1, rotation: .5 },
     { ...gridPoint(40, 49), scale: 1.2, rotation: 2.1 },
   ];
-  // The first review is concentrated around home and the west shore. Later map
-  // regions deliberately wait for visual approval instead of multiplying assets.
+  // Keep the approved village/shore composition and extend the same mixed
+  // groves across the surrounding map, leaving clearings between clusters.
   const patches = [
     [34, 38, 8, 8, 23], [33, 58, 9, 8, 22], [42, 31, 11, 5, 17],
     [58, 34, 5, 9, 17], [59, 63, 6, 5, 16], [40, 69, 9, 5, 15],
+    [17, 18, 13, 13, 30], [19, 43, 11, 12, 25], [16, 71, 12, 11, 26],
+    [28, 89, 15, 6, 20], [56, 12, 8, 8, 19], [51, 88, 7, 8, 20], [90, 91, 6, 5, 10],
   ];
   const crowded = (p: Point, radius: number) => trees.some(n => Math.hypot(p.x - n.x, p.z - n.z) < n.scale * .5 + radius + 1.05)
     || rocks.some(n => Math.hypot(p.x - n.x, p.z - n.z) < n.scale * .85 + radius + 1.05);
@@ -61,6 +63,7 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
     const column = p.x / gridSize + 50, row = 50 - p.z / gridSize;
     if (column > 43 && column < 58 && row > 43 && row < 59) return false;
     if (polygonDistance(p, lake) < 2.2 + size) return false;
+    if (rock && !trees.some(tree => Math.hypot(tree.x - p.x, tree.z - p.z) < 10)) return false;
     if (reserved.some(([a, b]) => segmentDistanceSquared(p, a, b) < (2.3 + size) ** 2)) return false;
     return !crowded(p, size * (rock ? .85 : .5));
   }

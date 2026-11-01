@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { openGame, snapshot } from './helpers.ts';
+import { initialEconomy } from '../../src/game/economy.ts';
 
 test.use({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
 
 test('phone actions stay touchable at screen edges and settings isolate input through nested dialogs', async ({ page }, info) => {
   test.setTimeout(180_000);
+  const state = initialEconomy(); state.steward.enabled = false;
+  await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
   const errors = await openGame(page);
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);
@@ -36,11 +39,12 @@ test('phone actions stay touchable at screen edges and settings isolate input th
   await expect(page.locator('#settings-dialog')).toBeVisible();
   expect((await snapshot(page)).manualPaused).toBe(true);
   await page.screenshot({ path: info.outputPath('phone-settings.png'), scale: 'css' });
-  // Dismissing the backdrop must not also click the map underneath it.
+  // The backdrop neither resumes nor clicks through to the map.
   await page.touchscreen.tap(5, 847);
-  await expect(page.locator('#settings-dialog')).not.toBeVisible();
+  await expect(page.locator('#settings-dialog')).toBeVisible();
   expect((await snapshot(page)).selection.object?.id).toBe('plot-0');
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
+  await page.locator('#continue-game').tap();
 
   await page.setViewportSize({ width: 320, height: 568 });
   await page.evaluate(() => {

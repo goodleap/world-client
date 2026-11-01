@@ -1,4 +1,4 @@
-import { GRID_SIZE, MAP_SIZE, ROADS, LANDSCAPE } from './world-data.ts';
+import { GRID_SIZE, MAP_SIZE, ROADS } from './world-data.ts';
 import type { Point } from './movement.ts';
 import { createCurvedRoadPaths } from './landscape-layout.ts';
 
@@ -6,11 +6,10 @@ import { createCurvedRoadPaths } from './landscape-layout.ts';
 export const ROAD_HALF_WIDTH = 20 / 1024 * MAP_SIZE / 2;
 /** Low-frequency width changes and a wider village junction, in world units. */
 export function roadHalfWidthAt(p: Point) {
-  if (!LANDSCAPE) return ROAD_HALF_WIDTH;
   return 1.15 + .20 * Math.sin(p.x * .16 + p.z * .11) + .12 * Math.cos(p.z * .27)
     + .65 * Math.exp(-(p.x * p.x + (p.z - GRID_SIZE) ** 2) / 55);
 }
-export const ROAD_PATHS = createCurvedRoadPaths(ROADS, GRID_SIZE, LANDSCAPE ? GRID_SIZE / 4 : GRID_SIZE);
+export const ROAD_PATHS = createCurvedRoadPaths(ROADS, GRID_SIZE, GRID_SIZE / 4);
 
 export function nearRoad(point: Point, clearance: number) {
   return ROAD_PATHS.some(path => path.some((a, i) => {

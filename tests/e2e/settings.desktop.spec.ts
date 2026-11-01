@@ -1,12 +1,22 @@
 import { test, expect } from '@playwright/test';
 import { openGame, snapshot } from './helpers.ts';
+import { Economy } from '../../src/game/economy.ts';
+import { gridPoint } from '../../src/game/world-data.ts';
 
 test('native settings and child dialogs block gameplay, preserve actions, save to menu and stop on exit', async ({ page }, info) => {
   test.setTimeout(240_000);
+  const economy = new Economy(); economy.setLeadership(false);
+  const siteId = economy.placeBuilding('house', gridPoint(44, 56)).task!.target;
+  await page.addInitScript(state => {
+    if (!localStorage.getItem('world-basic-economy-v1')) localStorage.setItem('world-basic-economy-v1', JSON.stringify(state));
+  }, economy.state);
   const errors = await openGame(page);
-  const site = (await snapshot(page)).objects.find(o => o.id === 'site-1')!;
+  const frame = (await snapshot(page)).frames;
+  await page.locator('#game').dispatchEvent('wheel', { deltaX: -200, deltaY: 0, deltaMode: 0 });
+  await expect.poll(async () => (await snapshot(page)).frames).toBeGreaterThan(frame);
+  const site = (await snapshot(page)).objects.find(o => o.id === siteId)!;
   await page.mouse.click(site.screen.x, site.screen.y);
-  await page.getByRole('button', { name: '建设民房', exact: true }).click();
+  await expect(page.getByRole('button', { name: '取消作业', exact: true })).toBeVisible();
   await page.keyboard.down('KeyD');
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const frozen = await snapshot(page);
@@ -24,7 +34,7 @@ test('native settings and child dialogs block gameplay, preserve actions, save t
   await expect(page.locator('#selection-card')).toBeVisible();
   const center = (await snapshot(page)).camera.x;
   await page.waitForTimeout(300); expect((await snapshot(page)).camera.x).toBe(center);
-  expect((await snapshot(page)).selection.object?.id).toBe('site-1');
+  expect((await snapshot(page)).selection.object?.id).toBe(siteId);
   await page.getByRole('button', { name: '设置', exact: true }).click();
   // Storage failure keeps the live game and its modal intact.
   const storageWrite = await page.evaluateHandle(() => Storage.prototype.setItem);

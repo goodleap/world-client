@@ -48,6 +48,14 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     // The physical key/pointer were never released while away. They must not
     // keep panning or turn the eventual pointer-up into a tap/command.
     await page.mouse.up(); await page.keyboard.up('KeyD');
+    await expect(page.locator('#settings-dialog')).toBeVisible();
+    await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(0);
+    await page.waitForTimeout(500);
+    expect((await snapshot(page)).simulationSeconds).toBe(frozen.simulationSeconds);
+    // Escape and backdrop cannot silently undo a pause caused by backgrounding.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#settings-dialog')).toBeVisible();
+    await page.locator('#continue-game').click();
     await expect.poll(async () => (await snapshot(page)).simulationSeconds).toBeGreaterThan(frozen.simulationSeconds);
     expect((await snapshot(page)).camera.x).toBe(frozen.camera.x);
     expect((await snapshot(page)).selection.resident).toBeUndefined();

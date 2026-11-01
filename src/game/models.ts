@@ -6,27 +6,21 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial.js';
 import type { Material } from '@babylonjs/core/Materials/material.js';
 import type { Scene } from '@babylonjs/core/scene';
-import { landscapePreview } from './landscape-mode.ts';
 
 export function createPalette(scene: Scene) {
   const colors = {
-    grass: '#83ba38', grassLight: '#a5cc44', grassDark: '#5b9e2d', earth: '#b47b3f',
-    path: '#e9ba68', pathLight: '#f1ce88', cream: '#f9e6c0', plaster: '#f9e6c0',
+    grass: '#82965b', grassLight: '#a2ad73', grassDark: '#4d6c46', earth: '#7c6849',
+    path: '#c8bd8b', pathLight: '#d5c99c', cream: '#f9e6c0', plaster: '#f9e6c0',
     terracotta: '#db512b', roofLight: '#ee6634', roofDark: '#ad3c25', sage: '#247f72',
     timber: '#aa6b30', timberLight: '#c48b43', woodDark: '#784521', window: '#1b777e',
-    leaf: '#4ca244', leafLight: '#87bf36', leafDark: '#2f8643', golden: '#e9b73e',
-    stone: '#b4b0a3', stoneLight: '#d7d0bb', soil: '#a86637', water: '#26b1ce',
+    leaf: '#5b7d47', leafLight: '#9eaf63', leafDark: '#365b40', golden: '#e9b73e',
+    stone: '#74786b', stoneLight: '#a5a58e', soil: '#795435', water: '#26b1ce',
     waterLight: '#90d8df', flower: '#fff5d4', linen: '#f7d182', shirt: '#3475b6',
     pants: '#425b64', skin: '#f9ae78', hair: '#63371e', boot: '#75401f', blush: '#e77d60',
     flax: '#f6dca6', sandCloth: '#d6a765', workCloth: '#ad6c34', leather: '#a85d27',
     leatherDark: '#6f3619', metal: '#9daab3', metalLight: '#d9e1dc', straw: '#e4ba61',
     horse: '#bd7132', dogFur: '#e49a3d', dogCream: '#ffe0a0', nose: '#342721',
   };
-  if (landscapePreview) Object.assign(colors, {
-    grass: '#82965b', grassLight: '#a2ad73', grassDark: '#4d6c46', earth: '#7c6849',
-    path: '#c8bd8b', pathLight: '#d5c99c', stone: '#74786b', stoneLight: '#a5a58e', soil: '#795435',
-    leaf: '#5b7d47', leafLight: '#9eaf63', leafDark: '#365b40',
-  });
   return Object.fromEntries(Object.entries(colors).map(([name, color]) => {
     const material = new StandardMaterial(name, scene);
     material.diffuseColor = Color3.FromHexString(color);

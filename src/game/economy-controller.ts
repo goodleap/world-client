@@ -4,7 +4,7 @@ import type { createResidents } from './residents.ts';
 import type { createEconomyWorld } from './economy-world.ts';
 import type { CropKind, WorkKind, WorkTask } from './economy.ts';
 import type { Point } from './movement.ts';
-import { createSteward, inStewardRange, stewardStatus } from './steward.ts';
+import { createSteward, stewardStatus } from './steward.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
 type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
@@ -46,10 +46,22 @@ export function createEconomyController(economy: Economy, world: World, resident
     if (seconds <= 0) return;
     for (const id of residents.farmerIds()) economy.updateCargo(residents.farmerPosition(id), id);
     economy.advance(seconds);
-    if (automatic) steward.update();
-    for (const goods of economy.state.goods) if (inStewardRange(goods) && !economy.taskFor(goods.id)) economy.request('haul', goods.id, undefined, 'steward');
+    const canDispatch = automatic && economy.state.steward.enabled && economy.state.seconds >= economy.state.steward.nextDecision;
+    if (canDispatch) economy.state.steward.nextDecision = economy.state.seconds + .5;
+    world.sync();
     for (const id of residents.farmerIds()) {
-      const assigned = residents.farmerWorkState(id), active = economy.active(id);
+      let assigned = residents.farmerWorkState(id);
+      const active = economy.active(id);
+      if (assigned && assigned.id !== active?.id) { residents.releaseFarmerWork(id); assigned = undefined; }
+      // A completed gathering job can already own its delivery. Restore the
+      // matching route before considering any other work for this farmer.
+      if (!assigned && active && !residents.hasMoveCommand(id)) {
+        const destination = world.workPoints(active.status === 'delivering' ? 'warehouse' : active.target, residents.farmerPosition(id));
+        const path = destination && residents.planFarmerWork(destination.points, id);
+        if (path && destination) residents.startFarmerWork(active.id, path, destination.target, id);
+        else economy.defer(active.id, '暂时无法到达，稍后重试', residents.farmerPosition(id));
+        assigned = residents.farmerWorkState(id);
+      }
       if (assigned?.status === 'travelling' && active && (assigned.waitingFor ?? 0) > 1 && assigned.approachOccupied
         && economy.state.seconds >= (approachRetry.get(id) ?? 0)) {
         approachRetry.set(id, economy.state.seconds + 2);
@@ -57,12 +69,6 @@ export function createEconomyController(economy: Economy, world: World, resident
         const path = destination && residents.planFarmerWork(destination.points, id);
         if (path && destination) { residents.startFarmerWork(active.id, path, destination.target, id); active.reason = ''; }
         else active.reason = '作业点被占用，等待空位';
-      }
-      if (!assigned && active?.status === 'delivering') {
-        const destination = world.workPoints('warehouse', residents.farmerPosition(id))!;
-        const path = residents.planFarmerWork(destination.points, id);
-        if (path) residents.startFarmerWork(active.id, path, destination.target, id);
-        else economy.defer(active.id, '仓库暂时无法到达', residents.farmerPosition(id));
       }
       if (assigned && assigned.id !== active?.id) residents.releaseFarmerWork(id);
       else if (assigned?.status === 'blocked') {
@@ -79,8 +85,14 @@ export function createEconomyController(economy: Economy, world: World, resident
       }
       world.sync();
       if (residents.hasMoveCommand(id)) continue;
-      if (!economy.active(id)) for (let attempts = 0; attempts < ECONOMY_CONFIG.queueLimit; attempts++) {
-        const task = economy.claim(id, residents.farmerPosition(id)); if (!task) break;
+      let requested = false;
+      if (!economy.active(id)) for (let attempts = 0; attempts <= ECONOMY_CONFIG.queueLimit; attempts++) {
+        let task = economy.claim(id, residents.farmerPosition(id));
+        if (!task && canDispatch && !requested) {
+          requested = true;
+          if (steward.requestWork(residents.farmerPosition(id))) task = economy.claim(id, residents.farmerPosition(id));
+        }
+        if (!task) break;
         const destination = world.workPoints(task.target);
         const path = destination && residents.planFarmerWork(destination.points, id);
         if (destination && path) { residents.startFarmerWork(task.id, path, destination.target, id); if (task.origin === 'steward') onDispatch(id, task); break; }

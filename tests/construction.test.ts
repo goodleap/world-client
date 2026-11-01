@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { buildingAt, placementReason } from '../src/game/construction.ts';
-import { GRID_SIZE, HOME, WAREHOUSE_DOOR, POND, gridPoint } from '../src/game/world-data.ts';
+import { GRID_SIZE, HOME, WAREHOUSE_DOOR, LANDSCAPE, gridPoint } from '../src/game/world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from '../src/game/economy-config.ts';
 
 test('free placement snaps footprint edges, queues unfunded work, rejects overlap and releases cancelled land', () => {
@@ -23,7 +23,7 @@ test('free placement snaps footprint edges, queues unfunded work, rejects overla
 
 test('placement reserves farm, water, resources, residents, loose goods and entrances', () => {
   const e = new Economy();
-  for (const point of [HOME, POND, FARM_PLOTS[0], RESOURCE_NODES[0], WAREHOUSE_DOOR, { x: 1000, z: 0 }]) {
+  for (const point of [HOME, LANDSCAPE.lake, FARM_PLOTS[0], RESOURCE_NODES[0], WAREHOUSE_DOOR, { x: 1000, z: 0 }]) {
     assert.equal(e.placeBuilding('house', point).ok, false, JSON.stringify(point));
   }
   const point = gridPoint(44, 56), site = buildingAt('house', point);
@@ -34,7 +34,7 @@ test('placement reserves farm, water, resources, residents, loose goods and entr
 
 test('dynamic building coordinates and partial work survive save/load; obsolete versions are rejected', () => {
   const e = new Economy(); e.state.inventory = { wood: 30, stone: 20, food: 0 };
-  const result = e.placeBuilding('house', gridPoint(58, 58)); assert.ok(result.ok, result.message);
+  const result = e.placeBuilding('house', gridPoint(44, 56)); assert.ok(result.ok, result.message);
   const task = e.claim()!; e.arrive(task.id); e.advance(2);
   const resumed = decodeEconomy(encodeEconomy(e));
   assert.deepEqual(resumed.state.sites, e.state.sites); assert.equal(resumed.state.tasks[0].progress, 2);

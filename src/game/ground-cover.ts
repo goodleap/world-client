@@ -6,7 +6,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { BuildingSite } from './construction.ts';
 import type { Point } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, MAP_SIZE, POND, LANDSCAPE } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, MAP_SIZE, LANDSCAPE } from './world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
 import { ellipsoid, tintHeight } from './environment-shapes.ts';
 import { polygonDistance } from './polygon.ts';
@@ -16,15 +16,9 @@ type Footprint = Pick<BuildingSite, 'x' | 'z' | 'width' | 'depth'>;
 type Plant = Point & { size: number; rotation: number; flower: boolean };
 const CHUNK_SIZE = 12, SPACING = 1.8, MARGIN = .42;
 const inFootprint = (p: Point, b: Footprint) => Math.abs(p.x - b.x) < b.width / 2 + MARGIN && Math.abs(p.z - b.z) < b.depth / 2 + MARGIN;
-function distanceToSegment(p: Point, a: Point, b: Point) {
-  const dx = b.x - a.x, dz = b.z - a.z;
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
-  return Math.hypot(p.x - a.x - t * dx, p.z - a.z - t * dz);
-}
-
 /** Shared native thin instances: rounded silhouettes, one draw per visible
  * patch/type, no individual meshes, animation callbacks or shadow-map draws. */
-export function createGroundCover(scene: Scene, roads: { paths: Point[][]; roadHalfWidth: number }) {
+export function createGroundCover(scene: Scene) {
   const material = new StandardMaterial('meadow-plants', scene);
   material.diffuseColor = Color3.White(); material.specularColor = Color3.Black();
   function template(flower: boolean) {
@@ -52,19 +46,17 @@ export function createGroundCover(scene: Scene, roads: { paths: Point[][]; roadH
   const templates = [template(false), template(true)];
   const chunks = new Map<string, { mesh: Mesh; plants: Plant[]; visible?: Plant[] }>();
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
-  const segments = roads.paths.flatMap(points => points.slice(1).map((b, i) => [points[i], b] as const));
   let seed = 19331;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   for (let z = -MAP_SIZE / 2 + SPACING; z < MAP_SIZE / 2 - SPACING; z += SPACING) {
     for (let x = -MAP_SIZE / 2 + SPACING; x < MAP_SIZE / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
-        size: (LANDSCAPE ? .45 : .65) + random() * .5, rotation: random() * Math.PI * 2, flower: random() < (LANDSCAPE ? .08 : .30) };
-      if (LANDSCAPE && (Math.abs(plant.x) > 40 || Math.abs(plant.z) > 40
-        || random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27)))) continue;
+        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < .08 };
+      if (random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27))) continue;
       if (random() < .22 || footprints.some(b => inFootprint(plant, b))
-        || (LANDSCAPE ? polygonDistance(plant, LANDSCAPE.lake) < 1.8 : Math.hypot(plant.x - POND.x, plant.z - POND.z) < POND.radius + .9)
+        || polygonDistance(plant, LANDSCAPE.lake) < 1.8
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
-        || (LANDSCAPE ? nearRoad(plant, MARGIN) : segments.some(([a, b]) => distanceToSegment(plant, a, b) < roads.roadHalfWidth + MARGIN))) continue;
+        || nearRoad(plant, MARGIN)) continue;
       const cx = Math.floor(plant.x / CHUNK_SIZE), cz = Math.floor(plant.z / CHUNK_SIZE);
       const key = `${cx},${cz}:${plant.flower ? 'flowers' : 'grass'}`;
       let chunk = chunks.get(key);

@@ -45,7 +45,7 @@ export function checkFarmerLeader(touch = false) {
     expect(leader.humanRigId).not.toBe(farmer.humanRigId);
     await expect(page.locator(`[data-resident="${leaderId}"]`)).toHaveClass(/resident-leader/);
     await expect(page.locator(`[data-resident="${leaderId}"]`)).toHaveText('农民·领头');
-    await expect(page.locator('#steward-status')).toContainText('农民·领头：');
+    await expect(page.locator('#steward-status')).toHaveCount(0);
     await expect(page.locator(`[data-speaker="${leaderId}"]`)).toContainText('农民，去');
     await expect.poll(async () => (await snapshot(page)).economy.tasks.filter(task => task.worker && ['travelling', 'working', 'delivering'].includes(task.status)).length).toBe(3);
     await freezeWorkingLeader(page);

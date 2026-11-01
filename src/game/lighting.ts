@@ -9,7 +9,8 @@ import { Engine } from '@babylonjs/core/Engines/engine';
 import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
-import { landscapePreview } from './landscape-mode.ts';
+import { DEFAULT_LIGHTING } from './graphics-settings.ts';
+import type { LightingSettings } from './graphics-settings.ts';
 
 /** Match native shadow LOD to the sun's actual orthographic footprint. A tree
  * occupying a few shadow texels should not submit its close-up geometry.
@@ -48,15 +49,15 @@ export function createMapShadowLOD(scene: Scene, shadows: ShadowGenerator, mainC
 }
 
 /** Shared by the single-asset review and the demo; no exposure/saturation filter. */
-export function createDaylight(scene: Scene, mobile = false) {
+export function createDaylight(scene: Scene, mobile = false, settings: LightingSettings = DEFAULT_LIGHTING) {
   const sky = new HemisphericLight('sky', new Vector3(0, 1, 0), scene);
-  sky.intensity = 0.82;
-  sky.diffuse = Color3.FromHexString('#fffdf6');
-  sky.groundColor = Color3.FromHexString('#dce5e0');
+  sky.intensity = settings.environment;
+  sky.diffuse = Color3.FromHexString('#e9efdf');
+  sky.groundColor = Color3.FromHexString('#b1c39b');
   // A lateral sun keeps ground shadows visible beside roofs and large heads.
   const sun = new DirectionalLight('sun', new Vector3(0.9, -1.3, 0.3), scene);
-  sun.position.set(-18, 26, -6); sun.intensity = 0.42;
-  sun.diffuse = Color3.FromHexString('#fff8ed');
+  sun.position.set(-18, 26, -6); sun.intensity = settings.sunlight;
+  sun.diffuse = Color3.FromHexString(settings.sunColor);
   sun.autoCalcShadowZBounds = true;
   const shadows = new ShadowGenerator(mobile ? 1024 : 2048, sun);
   // Large exponential blur erased small characters' contact shadows. PCF
@@ -67,17 +68,13 @@ export function createDaylight(scene: Scene, mobile = false) {
     shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
   } else shadows.usePoissonSampling = true;
   shadows.bias = 0.0005; shadows.normalBias = 0.02;
-  shadows.setDarkness(0.18);
-  if (landscapePreview) {
-    // Balance the fill against the key light; StandardMaterial processes its
-    // diffuse/vertex colors in gamma space, unlike the imported PBR albedo.
-    // Preserve each native material's pipeline instead of double-converting it.
-    sky.intensity = .72;
-    sky.diffuse = Color3.FromHexString('#e9efdf');
-    sky.groundColor = Color3.FromHexString('#b1c39b');
-    sun.intensity = .56;
-    sun.diffuse = Color3.FromHexString('#fff4e2');
-    shadows.setDarkness(.14);
-  }
+  shadows.setDarkness(.14);
   return shadows;
+}
+
+/** Native light uniforms update the retained scene without rebuilding materials. */
+export function applyDaylight(scene: Scene, settings: LightingSettings) {
+  const sky = scene.getLightByName('sky'), sun = scene.getLightByName('sun');
+  if (sky) sky.intensity = settings.environment;
+  if (sun) { sun.intensity = settings.sunlight; sun.diffuse.copyFrom(Color3.FromHexString(settings.sunColor)); }
 }

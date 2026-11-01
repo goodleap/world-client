@@ -12,7 +12,7 @@ import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE, LANDSCAPE } from './world-data.ts';
+import { TREES, GRID_SIZE } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
@@ -25,7 +25,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
   const templates = new Map<string, Mesh[]>();
   const instances = new Map<string, { state: string; meshes: AbstractMesh[] }>();
   const treeMaterials = createTreeMaterials(scene);
-  const rockMaterial = LANDSCAPE ? createLandscapeRockMaterial(scene) : undefined;
+  const rockMaterial = createLandscapeRockMaterial(scene);
   const carrot = new StandardMaterial('carrot-orange', scene);
   carrot.diffuseColor = Color3.FromHexString('#f28328'); carrot.specularColor = Color3.Black();
   function template(name: string, build: () => void): Mesh[] {
@@ -112,12 +112,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         () => treeTemplate(tree.tone), tree.scale, tree.rotation);
       } else show({ id: node.id, kind: 'rock', name: '石材', x: node.x, z: node.z, radius: .75 * node.scale,
         anchor: { x: node.x, y: .75, z: node.z } }, 'rock', () => template('rock', () => {
-        if (rockMaterial) { createLandscapeRock(scene, rockMaterial); return; }
-        for (const [i, [x, y, z, size]] of [[0, .43, .12, .88], [-.36, .22, -.20, .54], [.35, .26, -.16, .60]].entries()) {
-          const rock = roundedBox(scene, 'resource-rock', [size, size * .86, size * .9], [x, y, z], i === 0 ? p.stoneLight : p.stone, size * .20);
-          rock.rotation.y = i * .7; rock.rotation.z = (i - 1) * .12;
-        }
-      }), node.scale, LANDSCAPE ? node.rotation : 0);
+        createLandscapeRock(scene, rockMaterial);
+      }), node.scale, node.rotation);
     }
     for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);
     for (const plot of economy.state.plots) {

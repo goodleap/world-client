@@ -4,7 +4,6 @@ import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES } from './ec
 import type { Resource } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
 import { BUILDING_TYPES } from './construction.ts';
-import { roleLeader } from './resident-data.ts';
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
   const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设', goods: '待入库资源' };
@@ -39,13 +38,11 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
     const cost = economy.cost('build', object.id), site = economy.state.sites.find(s => s.id === object.id)!;
     details.hint = `需木材 ${cost.wood}、石材 ${cost.stone}`;
     details.actions = [{ id: 'build', label: `建造${BUILDING_TYPES[site.kind].name}` }];
-  } else if (object.kind === 'building') details.hint = `${object.name}已建成`;
+  }
   return details;
 }
 
 export function updateEconomyUI(ui: GameUI, economy: Economy) {
-  const ground = economy.state.goods.filter(g => g.state === 'ground').length, transit = economy.state.goods.filter(g => g.state === 'transit').length;
-  ui.setSteward(`${roleLeader('farmer')?.name ?? '农民'}：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
   const reserved = economy.reserved();
   ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: economy.capacity()[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
