@@ -33,7 +33,7 @@ export interface EconomyState {
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState;
   vitals: Vitals; campfires: Campfire[];
-  version: 7; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 8; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食' };
@@ -51,7 +51,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(): EconomyState {
   return {
-    combat: initialCombat(), vitals: initialVitals(), campfires: [], version: 7, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    combat: initialCombat(), vitals: initialVitals(), campfires: [], version: 8, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -79,7 +79,7 @@ export class Economy {
     const site = buildingAt(kind, point, farm ? `plot-${this.state.nextPlotId}` : `site-${this.state.nextSiteId}`);
     const reason = placementReason(site, this.state, occupants);
     if (reason) return { ok: false, message: reason };
-    const obstacles = economyObstacles(this.state.depleted, farm ? this.state.sites : [...this.state.sites, site]);
+    const obstacles = economyObstacles(this.state.depleted, farm ? this.state.sites : [...this.state.sites, site], this.state.buildings);
     if (!this.warehouseDoors().some(door => findPath(door, farm ? site : buildingDoor(site), .35, WORLD_BOUNDS, obstacles))) return { ok: false, message: '此处无法到达，请换一处空地' };
     if (farm) {
       this.state.plots.push({ id: site.id, x: site.x, z: site.z, tilled: false, growth: 0 });
@@ -398,7 +398,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 7) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 8) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
@@ -462,7 +462,6 @@ export function decodeEconomy(text: string): Economy {
       || (template.hp === undefined ? v.hp !== undefined : !number(v.hp, maxHealth(id)))
       || v.meal && (!number(v.meal.remaining, VITAL_CONFIG.mealSeconds) || v.meal.remaining <= 0)
       || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !RESIDENTS.some(r => r.id === id)
-        || v.rest.manual !== undefined && typeof v.rest.manual !== 'boolean'
         || v.rest.supply !== undefined && (!Number.isSafeInteger(v.rest.supply) || v.rest.supply < 1 || !canResidentSupply(id))
         || v.rest.supplyGoal && (!validPoint(v.rest.supplyGoal) || v.rest.supply === undefined))) throw new Error('生命体力存档无效');
     state.vitals[id] = structuredClone(v);

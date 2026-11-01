@@ -4,16 +4,16 @@ import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
 import { openGame, snapshot, clickGround, selectUnit } from './helpers.ts';
 
 test('build, carry warehouse supplies, cook, heal, pause and reload the same partial meal', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 24, stone: 8, food: 16 };
   const soldier = e.state.combat.units.find(u => u.id === 'infantry')!;
   Object.assign(soldier, { hp: 0, life: 'injured', order: 'hold', position: { x: -2.7, z: -10 } });
-  e.state.vitals.infantry.stamina = 15; e.state.vitals.infantry.manualUntil = 1e9;
+  e.state.vitals.infantry.stamina = 100; // Injury alone must trigger automatic healing.
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: ECONOMY_SAVE_KEY, value: encodeEconomy(e) });
   const errors = await openGame(page);
   await page.locator('#building-toggle').click(); await page.locator('#build-campfire').click();
   await clickGround(page, { x: -6, z: -10 });
-  await expect.poll(async () => (await snapshot(page)).economy.campfires.length, { timeout: 60_000 }).toBe(1);
+  await expect.poll(async () => (await snapshot(page)).economy.campfires.length, { timeout: 120_000 }).toBe(1);
   let s = await snapshot(page), site = s.economy.sites[0];
   expect(s.economy.inventory.stone).toBe(0); expect(s.economy.campfires[0]).toMatchObject({ enabled: false, wood: 0, food: 0 });
   await clickGround(page, site, false, .3);
@@ -21,10 +21,10 @@ test('build, carry warehouse supplies, cook, heal, pause and reload the same par
   await page.locator('[data-action="fire-toggle"]').click();
   await expect.poll(async () => (await snapshot(page)).economy.goods.some(g => g.destination === site.id && g.state === 'transit'), { timeout: 40_000 }).toBe(true);
   s = await snapshot(page); expect(s.economy.campfires[0].wood).toBe(0); expect(s.doors.find(d => d.id === 'warehouse')!.uses).toBeGreaterThan(0);
-  await expect.poll(async () => (await snapshot(page)).economy.campfires[0].food, { timeout: 60_000 }).toBeGreaterThan(0);
-  expect((await snapshot(page)).fires.states[0].state).toBe('lit');
+  await expect.poll(async () => (await snapshot(page)).economy.campfires[0].food, { timeout: 120_000 }).toBeGreaterThan(0);
+  expect(['lit', 'cooking']).toContain((await snapshot(page)).fires.states[0].state);
   await page.screenshot({ path: info.outputPath('supplied-fire-desktop.png') });
-  await selectUnit(page, 'infantry'); await page.locator('#resident-eat').click();
+  await selectUnit(page, 'infantry'); await expect(page.locator('#resident-eat, [data-action="eat-here"]')).toHaveCount(0);
   await expect.poll(async () => (await snapshot(page)).fires.states[0].state).toBe('cooking');
   await page.screenshot({ path: info.outputPath('cooking-desktop.png') });
   await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.hp, { timeout: 40_000 }).toBeGreaterThan(0);

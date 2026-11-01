@@ -1,6 +1,7 @@
 import { OBSTACLES, TREES, LANDSCAPE, gridPoint } from './world-data.ts';
 import type { Obstacle } from './movement.ts';
 import type { BuildingSite } from './construction.ts';
+import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
  * FIFO among executable jobs; reserve before work, spend on
@@ -26,10 +27,12 @@ export const RESOURCE_NODES = [
   ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, x: tree.x, z: tree.z, radius: .5 * tree.scale, yield: 16 })),
   ...LANDSCAPE.rocks.map((rock, i) => ({ ...rock, id: `rock-${i}`, kind: 'stone' as const, radius: .85 * rock.scale, yield: 12 })),
 ];
-export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = []): Obstacle[] {
+export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = [], built: readonly string[] = sites.map(s => s.id)): Obstacle[] {
   return [
     ...OBSTACLES.filter(o => !TREES.some(t => t.x === o.x && t.z === o.z)),
     ...RESOURCE_NODES.filter(n => !depleted.includes(n.id)).map((n): Obstacle => ({ kind: 'circle', x: n.x, z: n.z, radius: n.radius })),
-    ...sites.map((s): Obstacle => ({ kind: 'box', x: s.x, z: s.z, halfWidth: s.width / 2 + .12, halfDepth: s.depth / 2 + .12 })),
+    ...sites.map((s): Obstacle => s.kind === 'campfire' && built.includes(s.id)
+      ? { kind: 'circle', x: s.x, z: s.z, radius: CAMPFIRE_SHAPE.radius }
+      : { kind: 'box', x: s.x, z: s.z, halfWidth: s.width / 2 + .12, halfDepth: s.depth / 2 + .12 }),
   ];
 }

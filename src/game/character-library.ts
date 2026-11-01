@@ -85,6 +85,18 @@ export function createCharacterLibrary(scene: Scene) {
         horse.dispose();
         instance.animationGroups.splice(instance.animationGroups.indexOf(horse), 1);
       }
+      if (config.mounted) {
+        const idle = instance.animationGroups.find(g => g.name === 'RideIdle')!;
+        const attack = instance.animationGroups.find(g => g.name === 'LanceThrust')!;
+        // Keep the independent horse rig in its authored standing pose during
+        // the thrust. Native constant tracks also reset the previous run pose.
+        for (const track of idle.targetedAnimations) if (track.target.name.startsWith('Horse.')) {
+          const animation = track.animation.clone();
+          const value = animation.getKeys()[0].value;
+          animation.setKeys([{ frame: attack.from, value: value.clone() }, { frame: attack.to, value: value.clone() }]);
+          attack.addTargetedAnimation(animation, track.target);
+        }
+      }
       const clip = (name: string) => {
         const found = instance.animationGroups.find(group => group.name === name);
         if (!found) throw new Error(`基础人物动作库缺少 ${name}`);

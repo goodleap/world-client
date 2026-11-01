@@ -33,7 +33,8 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
     }
     return Math.abs(site.x - o.x) < footprint.halfWidth + o.halfWidth && Math.abs(site.z - o.z) < footprint.halfDepth + o.halfDepth;
   };
-  const obstacles = economyObstacles(state.depleted, state.sites);
+  // Placement reserves grid footprints, independently of built-model collision.
+  const obstacles = economyObstacles(state.depleted, state.sites, []);
   if (obstacles.some(overlaps)) return '此处有建筑、资源或水域';
   if (site.kind === 'farm' && nearRoad(site, Math.hypot(site.width, site.depth) / 2)) return '请在道路旁的空地开垦';
   // Farmland may share cell edges so players can extend an existing field.
@@ -42,7 +43,7 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
     && Math.abs(site.z - p.z) < (site.depth + GRID_SIZE) / 2 + fieldMargin)) return '此处已有耕地';
   if (state.goods.some(g => g.state === 'ground' && overlaps({ ...g, kind: 'circle', radius: .4 }))) return '请先搬走地面的资源';
   if (occupants.some(overlaps)) return '请避开人物和动物';
-  if ([...BUILDINGS, ...state.sites].some(b => isBlocked(buildingDoor(b), .5, [footprint]))) return '请留出建筑入口';
-  if (site.kind !== 'farm' && isBlocked(buildingDoor(site), .5, obstacles)) return '门前需要留出通行空间';
+  if ([...BUILDINGS, ...state.sites].some(b => (!('kind' in b) || b.kind !== 'campfire') && isBlocked(buildingDoor(b), .5, [footprint]))) return '请留出建筑入口';
+  if (site.kind !== 'farm' && site.kind !== 'campfire' && isBlocked(buildingDoor(site), .5, obstacles)) return '门前需要留出通行空间';
   return '';
 }

@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-01",
+  "environment": "cloud Chromium / SwiftShader; simulated Pixel 7, not a physical iPhone",
+  "unitTests": {
+    "passed": 148,
+    "failed": 0
+  },
+  "browserScenarios": {
+    "passed": 10,
+    "latestAffectedRetestBatches": [
+      5,
+      1
+    ],
+    "initialIssues": [
+      "60-second wall-clock timeouts before simulated construction/transport finished",
+      "retreat fixture clicked mounted body rather than empty ground"
+    ],
+    "resolved": true
+  },
+  "build": "TypeScript and Vite production build passed",
+  "assetAudit": {
+    "farParts": 180,
+    "primitiveComparisons": 600,
+    "unchangedAnimationChannels": 993,
+    "rigs": [
+      20,
+      17
+    ]
+  },
+  "motionReview": {
+    "roles": [
+      "infantry",
+      "archer",
+      "cavalry"
+    ],
+    "views": [
+      "front",
+      "side",
+      "game",
+      "mobile"
+    ],
+    "minimumNativeLoopsPerView": 2,
+    "rigPhaseSamples": 72,
+    "additionalFullFrameReviewSamples": 24
+  }
+}

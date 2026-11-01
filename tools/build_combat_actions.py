@@ -1,6 +1,6 @@
 """Append shared attack tracks without touching geometry, binds or old clips.
 Authoring source: studies/characters/combat-actions.json. Two-bone IK preserves
-bone lengths. Uniform 30 Hz samples; runtime uses native AnimationGroups.
+bone lengths. Uniform 31 phase samples; runtime uses native AnimationGroups.
 Requires numpy/scipy (offline tooling only). Re-running replaces the appended
 section instead of retaining unused accessors. Run from the repository root.
 """
@@ -19,13 +19,15 @@ if base:
     binary = binary[:base['bytes']]
 else:
     g['extras']['combatBase'] = {'accessors':len(g['accessors']), 'views':len(g['bufferViews']), 'bytes':len(binary)}
-g['animations'] = [x for x in g['animations'] if x['name'] not in ('SwordSlash','BowShot')]
-clip = next(x for x in g['animations'] if x['name']=='CarryWalk')
-pose = {}
-for ch in clip['channels']:
-    sampler = clip['samplers'][ch['sampler']]; accessor = g['accessors'][sampler['output']]
-    width = 4 if accessor['type']=='VEC4' else 3
-    pose[ch['target']['node'],ch['target']['path']] = np.array(struct.unpack('<'+'f'*width,a.accessor(sampler['output'])[:width*4]))
+g['animations'] = [x for x in g['animations'] if x['name'] not in ('SwordSlash','BowShot','LanceThrust')]
+def base_pose(name):
+    clip = next(x for x in g['animations'] if x['name']==name)
+    values = {}
+    for ch in clip['channels']:
+        sampler = clip['samplers'][ch['sampler']]; accessor = g['accessors'][sampler['output']]
+        width = 4 if accessor['type']=='VEC4' else 3
+        values[ch['target']['node'],ch['target']['path']] = np.array(struct.unpack('<'+'f'*width,a.accessor(sampler['output'])[:width*4]))
+    return values
 parents={child:i for i,n in enumerate(g['nodes']) for child in n.get('children',[])}
 names={n['name']:i for i,n in enumerate(g['nodes'])}
 
@@ -36,7 +38,6 @@ def world(values):
         m[:3,3]=values.get((i,'translation'),n.get('translation',[0,0,0]))
         result[i]=result.get(parents.get(i),np.eye(4))@m
     return result
-neutral=world(pose)
 def unit(v): return v / np.linalg.norm(v)
 def aim(old, direction):
     start=old.apply([0,1,0]); end=unit(direction); cross=np.cross(start,end)
@@ -68,13 +69,14 @@ def accessor(data,kind):
     if kind=='SCALAR':item.update(min=[float(min(data))],max=[float(max(data))])
     g['accessors'].append(item);return idx
 
-for name in ('SwordSlash','BowShot'):
+for name in ('SwordSlash','BowShot','LanceThrust'):
     spec=recipe[name];keys=spec['keys'];count=31; frames=[]
+    pose=base_pose(spec.get('base','CarryWalk'));neutral=world(pose)
     for i in range(count):
         t=i/(count-1); k=next((j for j in range(len(keys)-1) if keys[j+1]['phase']>=t),len(keys)-2)
         p,q=keys[k],keys[k+1];f=(t-p['phase'])/(q['phase']-p['phase']);f=f*f*(3-2*f)
         values={key:value.copy() for key,value in pose.items()}
-        # Neutral endpoints match the shared carry stance exactly.
+        # Neutral endpoints match the shared carry or mounted stance exactly.
         if i not in (0,count-1):
             for side,field in [('R','right'),('L','left')]:
                 if field in p:arm(values,side,np.array(p[field])*(1-f)+np.array(q[field])*f,p.get('wrist',0)*(1-f)+q.get('wrist',0)*f if side=='R' else 0)
@@ -92,4 +94,4 @@ for name in ('SwordSlash','BowShot'):
 g['buffers'][0]['byteLength']=len(binary)
 encoded=json.dumps(g,separators=(',',':')).encode();encoded+=b' '*(-len(encoded)%4);binary+=b'\0'*(-len(binary)%4)
 path.write_bytes(struct.pack('<4sII',b'glTF',2,28+len(encoded)+len(binary))+struct.pack('<I4s',len(encoded),b'JSON')+encoded+struct.pack('<I4s',len(binary),b'BIN\0')+binary)
-print('Shared SwordSlash/BowShot written; original mesh and animation buffers retained.')
+print('Shared SwordSlash/BowShot/LanceThrust written; original mesh and animation buffers retained.')

@@ -7,13 +7,13 @@ export const VITAL_CONFIG = { maxStamina: 100, eatAt: 30, foodRadiusCells: 30, s
   idleDrain: .04, movingDrain: .12, workDrain: .22, combatDrain: .45, manualGrace: 8, retrySeconds: 5 };
 export interface Vital {
   stamina: number; hp?: number; manualUntil: number; retryAt: number; hurtUntil: number;
-  rest?: { camp: string; goal: Point; manual?: boolean; supply?: number; supplyGoal?: Point };
+  rest?: { camp: string; goal: Point; supply?: number; supplyGoal?: Point };
   meal?: { remaining: number };
 }
 export type Vitals = Record<string, Vital>;
-const fighters = new Set(['infantry', 'archer', ...ENEMIES.map(r => r.id)]);
+const fighters = new Set(['infantry', 'archer', 'cavalry', ...ENEMIES.map(r => r.id)]);
 export function maxHealth(id: string) {
-  if (id === 'infantry' || id === 'archer') return COMBAT_CONFIG[id].hp;
+  if (id === 'infantry' || id === 'archer' || id === 'cavalry') return COMBAT_CONFIG[id].hp;
   if (id.startsWith('enemy-')) return id === 'enemy-archer' ? COMBAT_CONFIG.enemyArcher.hp : COMBAT_CONFIG.enemyMelee.hp;
   return id === 'horse' ? 160 : id === 'dog' ? 80 : 100;
 }

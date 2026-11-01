@@ -222,11 +222,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountMetadata.gaits.RideRun.speed,
         } : {});
         if (asset.role === 'archer') bowPoses.set(actor.definition.id, result.bowPose);
-        const attack = result.animationGroups.find(g => g.name === (asset.role === 'archer' ? 'BowShot' : 'SwordSlash'));
-        if (!asset.mounted) {
-          if (!attack) throw new Error(`${asset.role} is missing its shared attack clip`);
-          combatClips.set(actor.definition.id, attack);
-        }
+        const attack = result.animationGroups.find(g => g.name === (asset.role === 'archer' ? 'BowShot' : asset.mounted ? 'LanceThrust' : 'SwordSlash'));
+        if (!attack) throw new Error(`${asset.role} is missing its shared attack clip`);
+        combatClips.set(actor.definition.id, attack);
         actor.human!.mesh.setEnabled(false);
         actor.animal?.mesh.setEnabled(false);
         loadingProgress.done(actor.definition.id + ':attach');

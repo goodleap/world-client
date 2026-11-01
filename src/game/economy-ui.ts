@@ -15,7 +15,7 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
     details.showHint = true;
     details.hint = `${fireIsLit(fire) ? '燃烧' : fire.enabled ? '待补柴' : '熄火'} · 木${fire.wood} 粮${fire.food} 熟食${fire.meals}${task ? ' · 补给中' : ''}`;
     details.actions = [{ id: 'fire-toggle', label: fire.enabled ? '熄火' : '点火' },
-      { id: 'cook-toggle', label: fire.cooking ? '停止烹饪' : '开启烹饪' }, { id: 'eat-here', label: '在此进食' }];
+      { id: 'cook-toggle', label: fire.cooking ? '停止烹饪' : '开启烹饪' }];
     return details;
   }
   const task = economy.taskFor(object.id);

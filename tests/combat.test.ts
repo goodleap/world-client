@@ -1,7 +1,7 @@
 import test from 'node:test';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import assert from 'node:assert/strict';
-import { Combat } from '../src/game/combat.ts';
+import { Combat, fighterRadius } from '../src/game/combat.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { COMBAT_CONFIG as C, OUTPOST } from '../src/game/combat-config.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
@@ -19,10 +19,10 @@ function advance(c: Combat, seconds: number, check = () => {}) { for (let i = 0;
 test('melee windup hits once and repeated clicks cannot bypass cooldown', () => {
   const { c, a, b } = setup(); c.attack([a.id], b.id); c.update(.05);
   const serial = a.attack!.id; const hp = b.hp;
-  advance(c, .3, () => { c.attack([a.id], b.id); assert.equal(a.attack!.id, serial); });
+  for (let i = 0; i < 5; i++) { c.attack([a.id], b.id); c.update((C.infantry.windup - .01) / 5); assert.equal(a.attack!.id, serial); }
   assert.equal(b.hp, hp);
-  advance(c, .15); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
-  advance(c, .6, () => c.attack([a.id], b.id)); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
+  c.update(.02); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
+  advance(c, C.infantry.recovery, () => c.attack([a.id], b.id)); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
   assert(a.cooldown > 0);
 });
 test('manual move cancels a windup, retains cooldown and suppresses auto acquisition throughout travel', () => {
@@ -47,13 +47,14 @@ test('idle soldiers do not hunt; both sides retaliate and a manual move wins ove
   const restored = decodeEconomy(encodeEconomy(e)); assert.equal(restored.state.combat.units.find(u => u.id === a.id)!.target, b.id);
 });
 test('projectiles release once, persist through reload, and cannot hit through cover', () => {
-  const { e, c, a, archer, b } = setup(); a.position = { x: 0, z: 0 }; c.attack([archer.id], b.id); advance(c, .65);
+  const { e, c, a, archer, b } = setup(); a.position = { x: 0, z: 0 }; archer.position = { x: OUTPOST.x + 2, z: OUTPOST.z }; c.attack([archer.id], b.id); advance(c, .05 + C.archer.windup);
+  c.guard([archer.id]); b.cooldown = 8;
   assert.equal(c.state.projectiles.length, 1); const hp = b.hp;
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
   advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
   advance(next, .3); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
   const blocked = decodeEconomy(encodeEconomy(e));
-  const wall: Obstacle = { kind: 'box', x: OUTPOST.x + 3, z: OUTPOST.z, halfWidth: .2, halfDepth: 10 };
+  const wall: Obstacle = { kind: 'box', x: OUTPOST.x + 1.4, z: OUTPOST.z, halfWidth: .2, halfDepth: 10 };
   const cover = new Combat(blocked.state.combat, blocked, () => [wall]); advance(cover, .4);
   assert.equal(cover.unit(b.id)!.hp, hp);
 });
@@ -73,11 +74,11 @@ test('enemy target is stable and chase is limited to the outpost', () => {
 test('actual map paths and shared crowd follower keep soldiers out of solids and apart', () => {
   const e = new Economy(), solids = economyObstacles([], []), c = new Combat(e.state.combat, e, () => solids);
   const allies = c.state.units.filter(u => u.team === 'home');
-  assert.equal(c.attack(allies.map(u => u.id), 'enemy-guard'), 2);
+  assert.equal(c.attack(allies.map(u => u.id), 'enemy-guard'), 3);
   advance(c, 20, () => {
-    for (const u of c.state.units) assert(!isBlocked(u.position, .399, solids), `${u.id} crossed terrain`);
+    for (const u of c.state.units) assert(!isBlocked(u.position, fighterRadius(u) - .001, solids), `${u.id} crossed terrain`);
     const live = c.state.units.filter(u => u.life !== 'defeated');
-    for (let i = 0; i < live.length; i++) for (const v of live.slice(i + 1)) assert(Math.hypot(live[i].position.x - v.position.x, live[i].position.z - v.position.z) >= .795);
+    for (let i = 0; i < live.length; i++) for (const v of live.slice(i + 1)) assert(Math.hypot(live[i].position.x - v.position.x, live[i].position.z - v.position.z) >= fighterRadius(live[i]) + fighterRadius(v) - .005);
   });
   assert(c.unit('enemy-guard')!.hp < C.enemyMelee.hp);
 });
@@ -129,4 +130,39 @@ test('a picked Babylon destination actually moves the soldier and remains valid 
   const state = encodeEconomy(restored);
   assert.equal(next.move([a.id], new Vector3(NaN, 0, 0)), 0);
   assert.equal(encodeEconomy(restored), state, 'invalid coordinates must not cancel the previous order');
+});
+
+
+test('both sides sustain at least triple the former attack cadence, including mounted melee', () => {
+  for (const [id, previous] of [['infantry', 1.3], ['archer', 1.65], ['cavalry', 1.3], ['enemy-guard', 1.6], ['enemy-archer', 2]] as const) {
+    const { c } = setup();
+    const attacker = c.unit(id)!, target = c.unit(attacker.team === 'home' ? 'enemy-guard' : 'infantry')!;
+    attacker.position = { x: OUTPOST.x, z: OUTPOST.z }; target.position = { x: OUTPOST.x + 1.58, z: OUTPOST.z };
+    for (const other of c.state.units) if (other !== attacker && other !== target) other.position = { x: 20, z: 20 };
+    attacker.order = 'attack'; attacker.target = target.id; target.cooldown = 8;
+    const starts: number[] = []; let last = 0;
+    for (let i = 0; i < 80; i++) {
+      target.hp = 140; target.life = 'active'; c.update(.05);
+      if (attacker.attack && attacker.attack.id !== last) { last = attacker.attack.id; starts.push(i * .05); }
+    }
+    assert(starts.length >= 6, id);
+    for (let i = 1; i < starts.length; i++) assert(starts[i] - starts[i - 1] <= previous / 3 + 1e-8, id + ' actual cadence');
+    if (id === 'cavalry') assert.equal(c.state.projectiles.length, 0, 'lance settles melee damage');
+  }
+});
+
+test('foot soldiers reach a mounted opponent without overlapping the horse; cavalry saves active attacks', () => {
+  const { e, c, b } = setup(), rider = c.unit('cavalry')!;
+  for (const u of c.state.units) if (u !== b && u !== rider) u.position = { x: 20, z: 20 };
+  rider.position = { x: OUTPOST.x + 4, z: OUTPOST.z }; rider.cooldown = 8;
+  b.order = 'guard'; const hp = rider.hp;
+  advance(c, 2, () => assert(Math.hypot(rider.position.x - b.position.x, rider.position.z - b.position.z) >= fighterRadius(rider) + fighterRadius(b) - .005));
+  assert(rider.hp < hp, 'enemy can hit mounted target');
+  rider.cooldown = 0; c.attack([rider.id], b.id); c.update(.05); assert(rider.attack);
+  const restored = decodeEconomy(encodeEconomy(e));
+  assert.deepEqual(restored.state.combat.units.find(u => u.id === rider.id)!.attack, rider.attack);
+  const next = new Combat(restored.state.combat, restored, () => []);
+  const before = encodeEconomy(restored); next.update(0); assert.equal(encodeEconomy(restored), before);
+  assert.equal(next.move([rider.id], { x: OUTPOST.x + 10, z: OUTPOST.z }), 1);
+  assert(!next.unit(rider.id)!.attack); assert(next.unit(rider.id)!.cooldown > 0);
 });

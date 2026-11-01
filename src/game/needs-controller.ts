@@ -20,10 +20,10 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   const status = (id: string) => residents.needsStatus(id);
   const position = (id: string) => combat.unit(id)?.position ?? status(id).position;
   const needs = (id: string) => bodiesFor(id).some(body => needsFood(e.state, body, V.stopAt));
-  const hungry = (id: string) => bodiesFor(id).some(body => e.state.vitals[body].stamina < V.eatAt);
-  const available = (id: string, manual = false) => e.state.campfires.filter(f => f.enabled
+  const hungry = (id: string) => bodiesFor(id).some(body => needsFood(e.state, body, V.eatAt));
+  const available = (id: string) => e.state.campfires.filter(f => f.enabled
     && (f.cooking || f.meals > 0 || bodiesFor(id).some(b => e.state.vitals[b].meal))
-    && (manual || distance(position(id), e.state.sites.find(s => s.id === f.id)!) <= V.foodRadiusCells * GRID_SIZE));
+    && distance(position(id), e.state.sites.find(s => s.id === f.id)!) <= V.foodRadiusCells * GRID_SIZE);
   const free = (id: string) => {
     const u = combat.unit(id), v = e.state.vitals[id];
     return e.state.seconds >= v.manualUntil && e.state.seconds >= v.retryAt && e.state.seconds >= v.hurtUntil
@@ -49,10 +49,10 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       else if (!u) residents.releaseFarmerWork(id);
     }
   }
-  function request(id: string, preferred?: string, manual = true) {
+  function request(id: string, preferred?: string) {
     if (!RESIDENTS.some(r => r.id === id)) return { ok: false, message: '请选择我方人物或动物' };
-    if (!needs(id)) return { ok: false, message: '体力充足，生命完好' };
-    const candidates = available(id, manual).filter(f => !preferred || f.id === preferred).sort((a, b) =>
+    if (!hungry(id) || !free(id)) return { ok: false, message: '尚无需休整或正在执行指令' };
+    const candidates = available(id).filter(f => !preferred || f.id === preferred).sort((a, b) =>
       distance(position(id), e.state.sites.find(s => s.id === a.id)!) - distance(position(id), e.state.sites.find(s => s.id === b.id)!));
     for (const fire of candidates) {
       const site = e.state.sites.find(s => s.id === fire.id)!;
@@ -61,11 +61,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         const point = { x: site.x + Math.cos(angle) * F.seatRadius, z: site.z + Math.sin(angle) * F.seatRadius };
         if (Object.entries(e.state.vitals).some(([other, v]) => other !== id && v.rest && distance(v.rest.goal, point) < 2.4)) continue;
         const goal = move(id, [point]); if (!goal) continue;
-        if (manual && e.active(id)) {
-          e.interrupt(position(id), id); residents.releaseFarmerWork(id);
-          move(id, [goal]);
-        }
-        e.state.vitals[id].rest = { camp: fire.id, goal, manual };
+        e.state.vitals[id].rest = { camp: fire.id, goal };
         residents.setResting(id, true); notes.delete(id); e.revision++;
         return { ok: true, message: '前往火堆进食休整' };
       }
@@ -124,7 +120,6 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   const moving = (id: string) => combat.unit(id) ? !!combat.unit(id)!.route.length : status(id).moving;
   for (const r of RESIDENTS) if (e.state.vitals[r.id].rest) residents.setResting(r.id, true);
   return {
-    request,
     manual(id: string) {
       // Called after an accepted click, so preserve the newly installed route.
       finish(id, false); e.state.vitals[id].manualUntil = e.state.seconds + V.manualGrace;
@@ -141,7 +136,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         if (!vital.rest) {
           residents.setResting(r.id, false); notes.delete(r.id);
           if (free(r.id) && hungry(r.id)) {
-            if (!request(r.id, undefined, false).ok) vital.retryAt = e.state.seconds + V.retrySeconds;
+            if (!request(r.id).ok) vital.retryAt = e.state.seconds + V.retrySeconds;
           }
           continue;
         }

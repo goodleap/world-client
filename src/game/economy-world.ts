@@ -19,6 +19,7 @@ import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
 import { createLandscapeRock, createLandscapeRockMaterial } from './landscape-rock.ts';
 import type { CampfireView } from './campfire-view.ts';
+import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 import type { BuildingDoors } from './building-doors.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
@@ -147,7 +148,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       const state = built ? 'built' : task ? 'construction' : 'site';
       if (built && site.kind === 'campfire') {
         if (instances.get(site.id)?.state !== 'built') { remove(site.id); instances.set(site.id, { state: 'built', meshes: [] }); fires.add(site); }
-        objects.set(site.id, { ...site, kind: 'building', name: '火堆', radius: 1.35, anchor: { x: site.x, y: 1.6, z: site.z } });
+        objects.set(site.id, { id: site.id, x: site.x, z: site.z, kind: 'building', name: '火堆', radius: CAMPFIRE_SHAPE.radius, anchor: { x: site.x, y: 1.6, z: site.z } });
         continue;
       }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
@@ -162,7 +163,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       }));
       if (built) doors.add(site, site.kind === 'warehouse');
     }
-    obstacles = economyObstacles(economy.state.depleted, economy.state.sites);
+    obstacles = economyObstacles(economy.state.depleted, economy.state.sites, economy.state.buildings);
     obstaclesWithFields = [...obstacles, ...economy.state.plots.map(plot => ({
       kind: 'box' as const, x: plot.x, z: plot.z, halfWidth: GRID_SIZE / 2, halfDepth: GRID_SIZE / 2,
     }))];

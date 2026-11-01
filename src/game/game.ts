@@ -129,10 +129,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     if (!selectedWorld || ui.paused || suspended) return;
     const target = selectedWorld.id;
     const fire = economy.campfire(target);
-    if (fire && (action === 'fire-toggle' || action === 'cook-toggle' || action === 'eat-here')) {
+    if (fire && (action === 'fire-toggle' || action === 'cook-toggle')) {
       if (action === 'fire-toggle') economy.setFire(target, !fire.enabled);
       if (action === 'cook-toggle') economy.setCooking(target, !fire.cooking);
-      if (action === 'eat-here') ui.targetHint(needs.request(residents.selectedId() ?? '', target).message, selectedWorld.anchor);
     } else if (action === 'cancel') {
       const task = economy.taskFor(target); if (task) economy.cancel(task.id);
     } else {
@@ -216,7 +215,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       const fighter = combat.unit(id);
       if (fighter?.team === 'enemy') {
         const count = combat.attack(combatIds(), id);
-        ui.targetHint(count ? '攻击' : '先选择一名步兵或弓兵', { ...fighter.position, y: 2.6 });
+        ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: 2.6 });
         if (count) { needs.manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
         return;
       }
@@ -316,12 +315,6 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   ui.bind('reset', () => {
     mapCenter.copyFrom(homeCenter); setPreview();
     overview = false; zoom = defaultZoom();
-  });
-  ui.bind('resident-eat', () => {
-    if (ui.paused || suspended) return;
-    const id = residents.selectedId(); if (!id) return;
-    const result = needs.request(id);
-    ui.targetHint(result.message, { ...residents.needsStatus(id).position, y: 2.6 }); save();
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;

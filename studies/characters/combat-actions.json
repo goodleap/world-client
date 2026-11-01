@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "basis": "CarryWalk neutral pose; existing 20-bone rig, +Y up, +Z forward, metres; no root motion",
+  "version": 2,
+  "basis": "Existing 20-bone human rig, +Y up, +Z forward, metres; no root motion. CarryWalk for foot soldiers; RideIdle for mounted lance thrust. Trial attack tempo 3.5x.",
   "SwordSlash": {
-    "duration": 0.8,
+    "duration": 0.2285714285714286,
     "keys": [
       {
         "phase": 0,
@@ -52,7 +52,7 @@
     ]
   },
   "BowShot": {
-    "duration": 0.95,
+    "duration": 0.2714285714285714,
     "keys": [
       {
         "phase": 0,
@@ -131,6 +131,57 @@
           0.44,
           0.005
         ]
+      }
+    ]
+  },
+  "LanceThrust": {
+    "base": "RideIdle",
+    "duration": 0.2285714285714286,
+    "keys": [
+      {
+        "phase": 0,
+        "right": [
+          -0.401,
+          1.12,
+          -0.095
+        ],
+        "wrist": 0
+      },
+      {
+        "phase": 0.28,
+        "right": [
+          -0.46,
+          1.29,
+          -0.16
+        ],
+        "wrist": 1.6
+      },
+      {
+        "phase": 0.475,
+        "right": [
+          -0.43,
+          1.3,
+          0.18
+        ],
+        "wrist": 1.7
+      },
+      {
+        "phase": 0.68,
+        "right": [
+          -0.45,
+          1.25,
+          0.07
+        ],
+        "wrist": 1.6
+      },
+      {
+        "phase": 1,
+        "right": [
+          -0.401,
+          1.12,
+          -0.095
+        ],
+        "wrist": 0
       }
     ]
   }

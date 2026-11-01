@@ -10,10 +10,10 @@ const roles = (process.argv[3] || 'infantry,archer').split(',');
 for (const role of roles) {
   const context = await browser.newContext({ viewport: { width: 540, height: 600 }, recordVideo: { dir: output, size: { width: 540, height: 600 } } });
   const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
-  const clip = role === 'archer' ? 'BowShot' : 'SwordSlash';
-  await page.goto(`${process.env.REVIEW_BASE || 'http://127.0.0.1:5175'}/studies/review.html?role=${role}&clip=${clip}`);
+  const clip = role === 'archer' ? 'BowShot' : role === 'cavalry' ? 'LanceThrust' : 'SwordSlash';
+  await page.goto(`${process.env.REVIEW_BASE || 'http://127.0.0.1:5175'}/studies/review.html?role=${role}&clip=${clip}${role === 'cavalry' ? '&center=1.4&centerZ=.35&height=4.2' : '&center=1.05&height=2.6'}`);
   await page.waitForFunction(() => !!window.review, null, { timeout: 90_000 });
-  for (const view of ['front', 'side', 'game', 'mobile']) {
+  for (const view of (process.env.REVIEW_VIEWS || 'front,side,game,mobile').split(',')) {
     await page.setViewportSize(view === 'mobile' ? { width: 320, height: 568 } : { width: 540, height: 600 });
     await page.evaluate(({ view, clip }) => {
       const review = window.review, group = review.loaded.animationGroups.find(g => g.name === clip);

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "infantry",
+    "previousInterval": 1.3,
+    "simulationStep": 0.05,
+    "attackStarts": [
+      0,
+      0.4,
+      0.8,
+      1.2,
+      1.6,
+      2,
+      2.4,
+      2.8,
+      3.2,
+      3.6
+    ],
+    "maxMeasuredInterval": 0.4,
+    "frequencyMultiplier": 3.25,
+    "comparisonBasis": "previous interval for the same role"
+  },
+  {
+    "id": "archer",
+    "previousInterval": 1.65,
+    "simulationStep": 0.05,
+    "attackStarts": [
+      0,
+      0.5,
+      1,
+      1.5,
+      2,
+      2.5,
+      3,
+      3.5
+    ],
+    "maxMeasuredInterval": 0.5,
+    "frequencyMultiplier": 3.3,
+    "comparisonBasis": "previous interval for the same role"
+  },
+  {
+    "id": "cavalry",
+    "previousInterval": 1.3,
+    "simulationStep": 0.05,
+    "attackStarts": [
+      0,
+      0.4,
+      0.8,
+      1.2,
+      1.6,
+      2,
+      2.4,
+      2.8,
+      3.2,
+      3.6
+    ],
+    "maxMeasuredInterval": 0.4,
+    "frequencyMultiplier": 3.25,
+    "comparisonBasis": "previous infantry interval; cavalry previously had no attack"
+  },
+  {
+    "id": "enemy-guard",
+    "previousInterval": 1.6,
+    "simulationStep": 0.05,
+    "attackStarts": [
+      0,
+      0.5,
+      1,
+      1.5,
+      2,
+      2.5,
+      3,
+      3.5
+    ],
+    "maxMeasuredInterval": 0.5,
+    "frequencyMultiplier": 3.2,
+    "comparisonBasis": "previous interval for the same role"
+  },
+  {
+    "id": "enemy-archer",
+    "previousInterval": 2,
+    "simulationStep": 0.05,
+    "attackStarts": [
+      0,
+      0.6,
+      1.2,
+      1.8,
+      2.4,
+      3,
+      3.6
+    ],
+    "maxMeasuredInterval": 0.6,
+    "frequencyMultiplier": 3.333,
+    "comparisonBasis": "previous interval for the same role"
+  }
+]

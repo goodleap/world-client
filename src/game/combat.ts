@@ -25,9 +25,13 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'>) {
   return u.team === 'home' ? C[u.role] : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
+export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : .4;
+// Melee reach accounts for the target body, so foot soldiers can strike a
+// mounted opponent without routing into the horse's collision circle.
+const reach = (u: Fighter, target: Fighter) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, fighterRadius(target) - .4));
 export function initialCombat(): CombatState {
   return { nextAttack: 1, discovered: false, cleared: false, rewardGranted: false, rewardGoods: [], projectiles: [],
-    units: [...RESIDENTS.filter(r => r.id === 'infantry' || r.id === 'archer'), ...ENEMIES].map(r => {
+    units: [...RESIDENTS.filter(r => r.id === 'infantry' || r.id === 'archer' || r.id === 'cavalry'), ...ENEMIES].map(r => {
       const role = r.role as CombatRole, team = r.id.startsWith('enemy-') ? 'enemy' as const : 'home' as const;
       return { id: r.id, role, team, position: { ...r.spawn }, home: { ...r.home }, hp: fighterStats({ role, team }).hp,
         life: 'active', order: 'guard', facing: Math.PI, speed: 0, cooldown: 0,
@@ -49,7 +53,7 @@ export class Combat {
   unit(id: string) { return this.state.units.find(u => u.id === id); }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
-    return [...this.civilians(), ...this.state.units.filter(n => n !== u && n.life !== 'defeated').map(n => ({ id: n.id, position: n.position, radius: .4,
+    return [...this.civilians(), ...this.state.units.filter(n => n !== u && n.life !== 'defeated').map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n),
       moving: n.speed > .08, purposeful: !!n.route.length, waiting: n.navigation.waiting }))];
   }
   private reservations(u: Fighter) {
@@ -65,8 +69,8 @@ export class Combat {
       // Copy coordinates explicitly before pathfinding: a direct path retains
       // its destination, and spreading a Vector3 loses x/z in live goals/saves.
       const goal: Point = { x: requested.x, z: requested.z };
-      const path = rest ? planWorkApproach(u.position, [goal], .4, WORLD_BOUNDS, this.solids(), this.reservations(u))
-        : planMoveDestination(u.position, goal, .4, WORLD_BOUNDS, this.solids(), this.reservations(u));
+      const path = rest ? planWorkApproach(u.position, [goal], fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u))
+        : planMoveDestination(u.position, goal, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u));
       if (!path) continue;
       // Cancelling the windup never refunds the committed cooldown.
       u.attack = undefined; u.target = undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
@@ -99,9 +103,8 @@ export class Combat {
     if (target.hp) {
       const source = this.unit(sourceId), current = target.target && this.unit(target.target);
       // Both sides retaliate, keeping an existing valid opponent stable.
-      // Player movement/eating wins; an automatic supply trip yields to combat.
-      const manualRest = target.order === 'rest' && this.economy.state.vitals[target.id].rest?.manual;
-      if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order) && !manualRest
+      // Player movement wins; automatic meals/supply yield to combat.
+      if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order)
         && !(target.team === 'enemy' && target.goal) && (!current || current.life !== 'active')
         && distance(target.position, source.position) <= C.acquire + 3
         && (target.team === 'home' || distance(source.position, OUTPOST) <= OUTPOST.leash)) {
@@ -119,14 +122,14 @@ export class Combat {
   }
   private travel(u: Fighter, dt: number, speed: number) {
     const previous = u.position;
-    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, .4, WORLD_BOUNDS, this.solids(), this.neighbours(u));
+    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.neighbours(u));
     u.position = step.position; u.speed = distance(previous, u.position) / dt;
     if (u.speed > .01) u.facing = Math.atan2(u.position.x - previous.x, u.position.z - previous.z);
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
   }
   private plan(u: Fighter, points: Point[]) {
     u.planIn = .8;
-    u.route = planWorkApproach(u.position, points, .4, WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
+    u.route = planWorkApproach(u.position, points, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
   }
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
@@ -165,9 +168,9 @@ export class Combat {
         if (target) u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
         if (!action.released && action.elapsed >= stats.windup) {
           action.released = true;
-          if (target?.life === 'active' && distance(u.position, target.position) <= stats.range + .15
+          if (target?.life === 'active' && distance(u.position, target.position) <= reach(u, target) + .15
             && segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids())) {
-            if (u.role === 'infantry') this.damage(target, stats.attack, u.id);
+            if (u.role !== 'archer') this.damage(target, stats.attack, u.id);
             else this.state.projectiles.push({ id: action.id, source: u.id, target: target.id, from: { ...u.position }, to: { ...target.position },
               elapsed: 0, duration: distance(u.position, target.position) / C.projectileSpeed, damage: stats.attack });
           }
@@ -184,12 +187,12 @@ export class Combat {
         if (!target) { this.stop(u); if (u.order === 'attack') u.order = 'guard'; continue; }
       }
       const clear = segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids());
-      if (distance(u.position, target.position) <= stats.range && clear) {
+      if (distance(u.position, target.position) <= reach(u, target) && clear) {
         this.stop(u); u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
         if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else {
         if (u.planIn <= 0) {
-          const radius = stats.range * .8;
+          const radius = Math.max(reach(u, target) * .8, fighterRadius(u) + fighterRadius(target) + .1);
           const points = Array.from({ length: 12 }, (_, i) => ({ x: target!.position.x + Math.cos(i * Math.PI / 6) * radius,
             z: target!.position.z + Math.sin(i * Math.PI / 6) * radius }))
             .filter(p => segmentIsClear(p, target!.position, .05, WORLD_BOUNDS, this.solids()));
@@ -208,7 +211,7 @@ export class Combat {
   }
 }
 
-/** Strict v7 save validation. Reject malformed state instead of silently healing,
+/** Strict v8 save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState): CombatState {
   const initial = initialCombat();

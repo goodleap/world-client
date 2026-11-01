@@ -12,6 +12,7 @@ import { ellipsoid, roundedBox } from './environment-shapes.ts';
 import { fireAppearance } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
 import type { Point } from './movement.ts';
+import { CAMPFIRE_SHAPE as SHAPE } from './campfire-shape.ts';
 
 /** A stone ring, charred logs and a removable roasting spit. Two pooled native
  * lights, no shadow maps, glow post-processes, smoke or particle emitters. */
@@ -42,9 +43,9 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
     if (items.has(site.id)) return;
     const root = new TransformNode(site.id + ':base', scene), flame = new TransformNode(site.id + ':flame', scene), roast = new TransformNode(site.id + ':roast', scene);
     const stone: Mesh[] = [];
-    for (let i = 0; i < 11; i++) {
-      const a = i * Math.PI * 2 / 11;
-      const rock = ellipsoid(scene, 'hearth-stone', [.62, .4 + .05 * (i % 3), .52], [Math.cos(a) * 1.02, .22, Math.sin(a) * 1.02], i % 3 ? p.stoneLight : p.stone, 8);
+    for (let i = 0; i < SHAPE.stones; i++) {
+      const a = i * Math.PI * 2 / SHAPE.stones;
+      const rock = ellipsoid(scene, 'hearth-stone', [SHAPE.stoneWidth, .4 + .05 * (i % 3), SHAPE.stoneDepth], [Math.cos(a) * SHAPE.orbit, .22, Math.sin(a) * SHAPE.orbit], i % 3 ? p.stoneLight : p.stone, 8);
       rock.rotation.y = -a; rock.rotation.z = .1 * Math.sin(i * 7); stone.push(rock);
     }
     stone.push(ellipsoid(scene, 'hearth-ash', [1.9, .14, 1.9], [0, .09, 0], ash, 12));

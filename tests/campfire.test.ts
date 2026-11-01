@@ -11,6 +11,10 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { createPalette } from '../src/game/models.ts';
 import { createCampfireView } from '../src/game/campfire-view.ts';
+import { CAMPFIRE_SHAPE } from '../src/game/campfire-shape.ts';
+import { economyObstacles } from '../src/game/economy-config.ts';
+import { isBlocked } from '../src/game/movement.ts';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 
 function built() {
   const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 30, food: 30, stone: 20 };
@@ -90,10 +94,10 @@ test('all controlled bodies drain stamina; exhausted workers and rider/horse can
   assert.equal(effort(e.state.vitals, 'farmer'), .5); assert.equal(effort(e.state.vitals, 'cavalry'), .5);
 });
 test('dog, rider and horse consume distinct meals; manual orders interrupt rest without cancelling another unit', () => {
-  const { e, f } = built(); Object.assign(f, { enabled: true, wood: 12, food: 12, meals: 3 });
+  const { e, f, site } = built(); Object.assign(f, { enabled: true, wood: 12, food: 12, meals: 3 });
   for (const id of ['dog', 'cavalry', 'horse']) e.state.vitals[id].stamina = 0;
-  const { n, advance } = needsHarness(e); assert(n.request('dog', f.id).ok); assert(n.request('cavalry', f.id).ok);
-  advance(1); assert.equal(f.meals, 0);
+  const { c, n, advance } = needsHarness(e); c.unit('cavalry')!.position = { x: site.x + 4, z: site.z - 4 };
+  advance(3); assert.equal(f.meals, 0);
   for (const id of ['dog', 'cavalry', 'horse']) assert(e.state.vitals[id].stamina > 5);
   n.manual('dog'); assert.equal(e.state.vitals.dog.rest, undefined); assert(e.state.vitals.cavalry.rest);
   const stamina = e.state.vitals.dog.stamina; advance(1); assert(e.state.vitals.dog.stamina <= stamina);
@@ -102,8 +106,8 @@ test('dog, rider and horse consume distinct meals; manual orders interrupt rest 
 test('injured soldier walks to food and heals gradually, no fire means no automatic health or inventory changes', () => {
   const { e, f, site } = built(), { c, n, advance } = needsHarness(e); const u = c.unit('infantry')!;
   u.hp = 0; u.life = 'injured'; u.position = { x: site.x + 4, z: site.z + 4 };
-  advance(4); assert.equal(u.hp, 0); assert.equal(n.request(u.id).ok, false); assert.equal(e.state.inventory.food, 30);
-  Object.assign(f, { enabled: true, wood: 10, food: 8, meals: 1 }); assert(n.request(u.id).ok);
+  advance(4); assert.equal(u.hp, 0); assert(!e.state.vitals[u.id].rest); assert.equal(e.state.inventory.food, 30);
+  Object.assign(f, { enabled: true, wood: 10, food: 8, meals: 1 }); e.state.vitals[u.id].retryAt = 0; n.update(.01); assert(e.state.vitals[u.id].rest);
   advance(10); assert(u.hp > 0 && u.hp < maxHealth(u.id)); assert.equal(u.life, 'active');
   assert(!u.attack); assert(!u.target); assert(e.state.vitals[u.id].rest);
   const before = encodeEconomy(e); n.update(0); c.update(0); e.advance(0); assert.equal(encodeEconomy(e), before);
@@ -126,6 +130,30 @@ test('fire render states follow stock and cooking; local light count remains cap
   view.remove('fire-1'); assert(!scene.getTransformNodeByName('fire-1:base')); scene.dispose(); engine.dispose();
 });
 
+test('built fire collision follows the actual stone circle, while construction reserves its grid footprint', () => {
+  const { e, site } = built();
+  const builtSolids = economyObstacles([], [site], [site.id]), construction = economyObstacles([], [site], []);
+  for (const [offset, body] of [[1.45, .4], [1.85, 1.12]]) {
+    const corner = { x: site.x + offset, z: site.z + offset };
+    assert(!isBlocked(corner, body, builtSolids), 'empty corner is walkable');
+    assert(isBlocked(corner, body, construction), 'unfinished grid site remains reserved');
+    assert(isBlocked({ x: site.x + CAMPFIRE_SHAPE.radius + body - .01, z: site.z }, body, builtSolids));
+  }
+  assert.equal(e.placeBuilding('house', site).ok, false, 'construction cannot overlap the reserved cells');
+  const engine = new NullEngine(), scene = new Scene(engine), view = createCampfireView(scene, createPalette(scene));
+  view.add({ id: 'measure', x: 0, z: 0 });
+  let outer = 0;
+  for (const mesh of scene.meshes.filter(m => m.metadata?.worldObjectId === 'measure')) {
+    const xyz = mesh.getVerticesData('position')!; mesh.computeWorldMatrix(true);
+    for (let i = 0; i < xyz.length; i += 3) {
+      const p = Vector3.TransformCoordinates(Vector3.FromArray(xyz, i), mesh.getWorldMatrix());
+      outer = Math.max(outer, Math.hypot(p.x, p.z));
+    }
+  }
+  assert(outer <= CAMPFIRE_SHAPE.radius && CAMPFIRE_SHAPE.radius - outer < .03, `rendered radius ${outer}`);
+  scene.dispose(); engine.dispose();
+});
+
 test('an injured diner waits when every fire seat is occupied instead of eating at a distant fallback point', () => {
   const { e, f, site } = built(); Object.assign(f, { enabled: true, wood: 10, meals: 4 });
   const blockers = Array.from({ length: F.seats }, (_, i) => ({ id: `blocker-${i}`, position: {
@@ -138,17 +166,18 @@ test('an injured diner waits when every fire seat is occupied instead of eating 
     needsStatus: () => ({ position: u.position, speed: 0, moving: false, working: false, goal: undefined }),
     setResting() {}, releaseFarmerWork() {}, command: () => false,
   }, c);
-  assert.equal(n.request(u.id, f.id).ok, false); assert.equal(u.order, 'hold'); assert.equal(u.goal, undefined); assert.equal(f.meals, 4);
+  n.update(.01); assert(!e.state.vitals[u.id].rest); assert.equal(u.order, 'hold'); assert.equal(u.goal, undefined); assert.equal(f.meals, 4);
 });
 
-test('recent damage blocks eating but never cancels a commanded trip to the fire', () => {
-  const { e, f, site } = built(), { c, n, advance } = needsHarness(e), u = c.unit('infantry')!;
+test('automatic healing waits for recent damage and explicit commands, then resumes without an eating button', () => {
+  const { e, f, site } = built(), { c, advance } = needsHarness(e), u = c.unit('infantry')!;
   Object.assign(f, { enabled: true, wood: 10, meals: 2 });
   Object.assign(u, { hp: 10, position: { x: site.x + 3, z: site.z + 3 } });
   e.state.vitals[u.id].hurtUntil = e.state.seconds + 3;
-  const before = { ...u.position }; assert(n.request(u.id, f.id).ok); advance(1);
-  assert.notDeepEqual(u.position, before); assert(e.state.vitals[u.id].rest); assert.equal(u.hp, 10); assert.equal(f.meals, 2);
-  advance(3); assert(u.hp > 10);
+  e.state.vitals[u.id].manualUntil = e.state.seconds + 4;
+  const before = { ...u.position }; advance(3);
+  assert.deepEqual(u.position, before); assert(!e.state.vitals[u.id].rest); assert.equal(u.hp, 10);
+  advance(4); assert(e.state.vitals[u.id].rest); assert(u.hp > 10);
 });
 
 test('fire seats fit the mounted horse and retain reachable approaches on the real map', async () => {
@@ -162,7 +191,7 @@ test('fire seats fit the mounted horse and retain reachable approaches on the re
 });
 
 
-test('automatic meals require stamina below 30 percent and an enabled reachable fire within 30 map cells', () => {
+test('automatic meals require low stamina or injury and an enabled reachable fire within 30 map cells', () => {
   const { e, f, site } = built(); Object.assign(f, { enabled: true, wood: 12, food: 12 });
   const { n, states } = needsHarness(e), v = e.state.vitals.farmer;
   states.farmer.position = { x: site.x + 30 * GRID_SIZE + .01, z: site.z }; v.stamina = 20;
@@ -173,8 +202,7 @@ test('automatic meals require stamina below 30 percent and an enabled reachable 
   n.manual('farmer'); v.manualUntil = v.retryAt = 0; e.setFire(f.id, false);
   n.update(.01); assert(!v.rest); assert.equal(f.enabled, false);
   e.setFire(f.id, true); v.retryAt = 0; v.stamina = 100; v.hp = 20;
-  n.update(.01); assert(!v.rest, 'health alone does not launch an automatic meal');
-  assert(n.request('farmer').ok, 'manual healing remains available');
+  n.update(.01); assert(v.rest, 'injury alone launches automatic healing at full stamina');
 });
 
 test('every human can supply an empty fire and eat; animals never carry and reservations are shared', () => {
