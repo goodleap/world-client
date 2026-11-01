@@ -33,7 +33,7 @@ function setup(economy = new Economy()) {
 }
 
 test('manual movement owns the farmer until arrival and resumes partial work without spending reserved materials twice', () => {
-  const state = initialEconomy(); state.inventory = { wood: 24, stone: 16, food: 0 };
+  const state = initialEconomy(); state.inventory = { wood: 24, stone: 16, food: 0, iron: 0 };
   const h = setup(new Economy(state)), { economy: e, controller: c } = h;
   const build = e.placeBuilding('house', gridPoint(44, 56)).task!;
   c.update(.01); h.arrive(); c.update(2);
@@ -51,7 +51,7 @@ test('manual movement owns the farmer until arrival and resumes partial work wit
   assert.equal(restored.state.tasks[0].progress, progress);
   assert.deepEqual(restored.reserved(), e.reserved());
   h.moves.delete('farmer'); c.update(.01); h.arrive(); c.update(8 - progress);
-  assert.equal(build.status, 'done'); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0 });
+  assert.equal(build.status, 'done'); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
   c.update(20); assert.deepEqual(e.state.buildings, ['site-0']);
 });
 

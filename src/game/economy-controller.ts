@@ -16,7 +16,7 @@ export function createEconomyController(economy: Economy, world: World, resident
   const approachRetry = new Map<string, number>();
   function storageChange(action: () => void, from?: Point) {
     const before = { ...economy.state.inventory }; action();
-    if (before.wood !== economy.state.inventory.wood || before.stone !== economy.state.inventory.stone || before.food !== economy.state.inventory.food) onStorageUse(from);
+    if (before.wood !== economy.state.inventory.wood || before.stone !== economy.state.inventory.stone || before.food !== economy.state.inventory.food || before.iron !== economy.state.inventory.iron) onStorageUse(from);
   }
   function destination(task: WorkTask, from?: Point) {
     const target = task.kind === 'supply' ? task.status === 'delivering' ? task.target : task.cargo ?? 'warehouse'
@@ -54,7 +54,8 @@ export function createEconomyController(economy: Economy, world: World, resident
   function update(seconds: number) {
     if (seconds <= 0) return;
     for (const id of residents.farmerIds()) economy.updateCargo(residents.farmerPosition(id), id);
-    storageChange(() => economy.advance(seconds));
+    const workshop = economy.state.tasks.find(t => t.status === 'working' && (t.kind === 'tools' || t.kind === 'arms'));
+    storageChange(() => economy.advance(seconds), workshop?.worker ? residents.farmerPosition(workshop.worker) : undefined);
     const canDispatch = automatic && economy.state.steward.enabled && economy.state.seconds >= economy.state.steward.nextDecision;
     if (canDispatch) economy.state.steward.nextDecision = economy.state.seconds + .5;
     world.sync();

@@ -1,6 +1,6 @@
 import type { Point, Obstacle } from './movement.ts';
 import { isBlocked } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { nearRoad } from './road-layout.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
@@ -23,6 +23,9 @@ export const buildingDoor = (site: Pick<BuildingSite, 'x' | 'z' | 'depth'>): Poi
 export function placementReason(site: BuildingSite, state: { depleted: string[]; sites: BuildingSite[]; plots: Point[]; goods: (Point & { state: string })[] }, occupants: readonly Obstacle[] = []): string {
   if (!Number.isFinite(site.x) || !Number.isFinite(site.z) || site.x - site.width / 2 < WORLD_BOUNDS.minX + 1
     || site.x + site.width / 2 > WORLD_BOUNDS.maxX - 1 || site.z - site.depth / 2 < WORLD_BOUNDS.minZ + 1 || site.z + site.depth / 2 > WORLD_BOUNDS.maxZ - 1) return '请放在地图范围内';
+  const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * (site.width / 2 + .35), z: site.z + z * (site.depth / 2 + .35) }));
+  if (!LANDSCAPE.regions.some(r => r.build && corners.every(p => insidePolygon(p, r.area)))) return '请在区域内的平坦空地建设';
+  if (nearRoad(site, Math.hypot(site.width, site.depth) / 2 + .7)) return '请留出通道，在道路旁建设';
   const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .35, halfDepth: site.depth / 2 + .35 };
   const overlaps = (o: Obstacle) => {
     if (o.kind === 'circle') return isBlocked(o, o.radius, [footprint]);

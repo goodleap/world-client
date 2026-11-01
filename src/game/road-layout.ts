@@ -1,9 +1,9 @@
-import { GRID_SIZE, MAP_SIZE, ROADS } from './world-data.ts';
+import { GRID_SIZE, ROADS } from './world-data.ts';
 import type { Point } from './movement.ts';
 import { createCurvedRoadPaths } from './landscape-layout.ts';
 
 // Rendering and land placement share the same native curves and road width.
-export const ROAD_HALF_WIDTH = 20 / 1024 * MAP_SIZE / 2;
+export const ROAD_HALF_WIDTH = GRID_SIZE * .95;
 /** Low-frequency width changes and a wider village junction, in world units. */
 export function roadHalfWidthAt(p: Point) {
   return 1.15 + .20 * Math.sin(p.x * .16 + p.z * .11) + .12 * Math.cos(p.z * .27)

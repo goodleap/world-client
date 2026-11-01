@@ -42,7 +42,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (!Number.isFinite(distance) || distance <= 0) { hidePreview(); return; }
     const point = ray.origin.add(ray.direction.scale(distance));
     candidate = buildingAt(kind, point);
-    reason = placementReason(candidate, economy.state, occupants());
+    reason = economy.regionLocked(candidate) || placementReason(candidate, economy.state, occupants());
     const color = Color3.FromHexString(reason ? '#ff826f' : '#62e4ff');
     fillMaterial.emissiveColor.copyFrom(color); edgeMaterial.emissiveColor.copyFrom(color);
     const { width, depth } = candidate;

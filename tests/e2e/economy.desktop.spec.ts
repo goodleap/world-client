@@ -34,7 +34,7 @@ test('six jobs run through automatic navigation, shared work, inventory and cons
   await page.getByRole('button', { name: '收起作业队列' }).click();
   await expect.poll(async () => (await snapshot(page)).economy.buildings, { timeout: 150_000 }).toEqual(['site-1']);
   const completed = await snapshot(page);
-  expect(completed.economy.inventory).toEqual({ wood: 12, stone: 8, food: 8 });
+  expect(completed.economy.inventory).toEqual({ wood: 12, stone: 8, food: 8, iron: 0 });
   expect(completed.economy.depleted.sort()).toEqual(['rock-1', 'tree-11']);
   expect(completed.economy.tasks.every(task => task.status === 'done')).toBe(true);
   expect(completed.objects.find(o => o.id === 'site-1')!.kind).toBe('building');

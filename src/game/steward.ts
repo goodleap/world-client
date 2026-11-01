@@ -13,7 +13,7 @@ export function expectedSupply(e: Economy, resource: Resource) {
     for (const plot of e.state.plots) if (plot.crop) amount += C.crops[plot.crop].yield;
     for (const t of e.state.tasks) if (pending(t) && t.kind === 'sow' && t.crop) amount += C.crops[t.crop].yield;
   } else for (const t of e.state.tasks) if (pending(t) && t.kind === (resource === 'wood' ? 'chop' : 'mine')) {
-    amount += RESOURCE_NODES.find(n => n.id === t.target)?.yield ?? 0;
+    amount += (RESOURCE_NODES.find(n => n.id === t.target && n.kind === resource)?.yield ?? 0);
   }
   return amount;
 }
@@ -53,7 +53,7 @@ export function createSteward(economy: Economy) {
           .reduce((sum, t) => sum + economy.cost('build', t.target)[resource], 0);
         const priority = needed > economy.available()[resource] ? .5 : 4;
         for (const node of RESOURCE_NODES) if (node.kind === resource && inStewardRange(node)
-          && !economy.state.depleted.includes(node.id) && !economy.taskFor(node.id)) {
+          && !economy.regionLocked(node) && !economy.state.depleted.includes(node.id) && !economy.taskFor(node.id)) {
           candidates.push({ kind: resource === 'wood' ? 'chop' : 'mine', target: node.id, point: node, priority });
         }
       }

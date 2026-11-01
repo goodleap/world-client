@@ -1,7 +1,6 @@
 import type { GameUI, SelectionDetails } from '../ui.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES } from './economy-config.ts';
-import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES } from './economy.ts';
-import type { Resource } from './economy.ts';
+import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES, resources } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
 import { fireIsLit } from './campfire.ts';
 import { BUILDING_TYPES } from './construction.ts';
@@ -30,6 +29,11 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
     details.hint = `${RESOURCE_NAMES[goods.resource]} ${goods.amount} · 尚未入库`;
     details.actions = [{ id: 'haul', label: '运送仓库' }]; return details;
   }
+  if (object.id === 'warehouse' || economy.state.sites.some(s => s.id === object.id && s.kind === 'warehouse' && economy.state.buildings.includes(s.id))) {
+    details.showHint = true; details.hint = `工具 ${economy.state.upgrades.tools}/3 · 装备 ${economy.state.upgrades.arms}/3`;
+    details.actions = [{ id: 'tools', label: '工具 · 铁8 木4', disabled: economy.state.upgrades.tools >= C.upgradeLimit }, { id: 'arms', label: '装备 · 铁12 木6', disabled: economy.state.upgrades.arms >= C.upgradeLimit }];
+    return details;
+  }
   const plot = economy.plot(object.id);
   if (plot) {
     if (!plot.tilled) { details.hint = '未开垦'; details.actions = [{ id: 'till', label: '开垦' }]; }
@@ -43,7 +47,10 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
   } else if (object.kind === 'tree' || object.kind === 'rock') {
     const node = RESOURCE_NODES.find(n => n.id === object.id)!;
     details.hint = `${RESOURCE_NAMES[node.kind]} +${node.yield}`;
-    details.actions = [{ id: object.kind === 'tree' ? 'chop' : 'mine', label: object.kind === 'tree' ? '伐木' : '采石' }];
+    details.showHint = true;
+    const locked = economy.regionLocked(node);
+    if (locked) details.hint = locked;
+    details.actions = [{ id: node.kind === 'wood' ? 'chop' : node.kind === 'food' ? 'gather' : 'mine', label: node.kind === 'wood' ? '伐木' : node.kind === 'food' ? '采集' : '采矿', disabled: !!locked }];
   } else if (object.kind === 'site') {
     const cost = economy.cost('build', object.id), site = economy.state.sites.find(s => s.id === object.id)!;
     details.hint = `需木材 ${cost.wood}、石材 ${cost.stone}`;
@@ -54,11 +61,11 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
 
 export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const reserved = economy.reserved();
-  ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: economy.capacity()[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
+  ui.setResources(resources.map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: economy.capacity()[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
     const plotIndex = economy.state.plots.findIndex(plot => plot.id === task.target);
-    const target = task.kind === 'supply' ? `火堆 · ${RESOURCE_NAMES[task.resource!]} ${task.amount}` : plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
+    const target = task.target === 'warehouse' ? '仓库工坊' : task.target.startsWith('iron-') ? '铁矿' : task.target.startsWith('forage-') ? '林间食物' : task.kind === 'supply' ? `火堆 · ${RESOURCE_NAMES[task.resource!]} ${task.amount}` : plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
     return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: task.kind === 'supply' && task.status === 'delivering' ? '送往火堆' : STATUS_NAMES[task.status],
       progress: Math.floor(task.progress / C.workSeconds[task.kind] * 100), reason: task.reason,
       cancellable: pending(task) && task.status !== 'storage' };

@@ -33,7 +33,7 @@ test('placement reserves farm, water, resources, residents, loose goods and entr
 });
 
 test('dynamic building coordinates and partial work survive save/load; obsolete versions are rejected', () => {
-  const e = new Economy(); e.state.inventory = { wood: 30, stone: 20, food: 0 };
+  const e = new Economy(); e.state.inventory = { wood: 30, stone: 20, food: 0, iron: 0 };
   const result = e.placeBuilding('house', gridPoint(44, 56)); assert.ok(result.ok, result.message);
   const task = e.claim()!; e.arrive(task.id); e.advance(2);
   const resumed = decodeEconomy(encodeEconomy(e));

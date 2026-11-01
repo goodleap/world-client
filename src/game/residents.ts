@@ -469,7 +469,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const actor of actors) {
         labelPoint.set(actor.state.position.x, actor.definition.labelHeight, actor.state.position.z);
         const projected = Vector3.Project(labelPoint, identity, scene.getTransformMatrix(), viewport);
-        const visible = combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
+        const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;
+        const visible = closeEnough && combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
         actor.label.hidden = !visible;
         const labelX = Math.max(actor.label.offsetWidth / 2 + 8, Math.min(width - actor.label.offsetWidth / 2 - 8, projected.x));
         const labelY = Math.max(actor.label.offsetHeight + 8, projected.y);

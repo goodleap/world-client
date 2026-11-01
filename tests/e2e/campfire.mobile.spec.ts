@@ -6,7 +6,7 @@ import { openGame, snapshot, clickGround, selectUnit } from './helpers.ts';
 test('touch fire controls, dog and horse meals, and manual move override', async ({ page }, info) => {
   test.setTimeout(150_000);
   const e = new Economy(); e.setLeadership(false); e.state.inventory.stone = 8;
-  const placed = e.placeBuilding('campfire', { x: -6, z: -10 }); expect(placed.ok).toBe(true);
+  const placed = e.placeBuilding('campfire', { x: -10, z: -10 }); expect(placed.ok).toBe(true);
   const t = e.claim()!; e.arrive(t.id); e.advance(8);
   Object.assign(e.state.campfires[0], { wood: 12, food: 12, meals: 3 });
   e.state.residents.dog = { position: { x: -6, z: -6.5 } }; e.state.combat.units.find(u => u.id === 'cavalry')!.position = { x: -3.5, z: -10 };

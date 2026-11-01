@@ -54,7 +54,7 @@ test('dynamic farmland restores partial tilling and joins automatic sowing witho
 });
 
 test('only completed warehouses add shared capacity and delivery doors; reservations spend once', () => {
-  const e = new Economy(); e.state.inventory = { wood: 60, stone: 40, food: 0 };
+  const e = new Economy(); e.state.inventory = { wood: 60, stone: 40, food: 0, iron: 0 };
   const result = e.placeBuilding('warehouse', gridPoint(55.5, 57));
   assert(result.ok, result.message); const task = result.task!, site = e.state.sites[0];
   assert.deepEqual(e.reserved(), C.warehouseCost);
@@ -64,9 +64,9 @@ test('only completed warehouses add shared capacity and delivery doors; reservat
   const resumed = decodeEconomy(encodeEconomy(e));
   assert.deepEqual(resumed.reserved(), C.warehouseCost);
   resumed.arrive(resumed.claim()!.id); resumed.advance(C.workSeconds.build - 2);
-  assert.deepEqual(resumed.capacity(), { wood: 4000, stone: 4000, food: 8000 });
+  assert.deepEqual(resumed.capacity(), { wood: 4000, stone: 4000, food: 8000, iron: 1600 });
   assert.deepEqual(resumed.warehouseDoors(), [WAREHOUSE_DOOR, buildingDoor(site)]);
-  assert.deepEqual(resumed.state.inventory, { wood: 36, stone: 24, food: 0 });
+  assert.deepEqual(resumed.state.inventory, { wood: 36, stone: 24, food: 0, iron: 0 });
   resumed.advance(100); assert.equal(resumed.state.inventory.wood, 36);
   resumed.state.inventory.wood = C.capacity.wood + 1;
   assert.equal(decodeEconomy(encodeEconomy(resumed)).state.inventory.wood, 2001);
@@ -79,7 +79,7 @@ test('cancelling warehouse construction releases materials and never adds capaci
   const task = e.placeBuilding('warehouse', gridPoint(55.5, 57)).task!;
   assert(e.cancel(task.id));
   assert.deepEqual(e.state.inventory, C.warehouseCost);
-  assert.deepEqual(e.reserved(), { wood: 0, stone: 0, food: 0 });
+  assert.deepEqual(e.reserved(), { wood: 0, stone: 0, food: 0, iron: 0 });
   assert.deepEqual(e.capacity(), C.capacity);
   assert.equal(decodeEconomy(encodeEconomy(e)).state.sites.length, 0);
 });

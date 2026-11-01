@@ -69,5 +69,5 @@ test('demo spawn is walkable and the land grid records all terrain categories', 
   const grid = createLandGrid();
   assert.equal(grid.length, MAP_CELLS * MAP_CELLS);
   // Roads are separate continuous geometry; the land grid stores terrain use.
-  assert.deepEqual(new Set(grid.map((cell) => cell.type)), new Set(['grass', 'garden', 'water', 'building']));
+  assert.deepEqual(new Set(grid.map((cell) => cell.type)), new Set(['grass', 'garden', 'water', 'building', 'wildland']));
 });

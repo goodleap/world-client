@@ -12,7 +12,7 @@ import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE } from './world-data.ts';
+import { TREES, GRID_SIZE, LANDSCAPE } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
@@ -60,6 +60,12 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const source of levels[0]) attachTreeLOD(source,
       levels[1].find(mesh => mesh.material === source.material)!, levels[2].find(mesh => mesh.material === source.material)!);
     return levels[0];
+  }
+  for (const [i, tree] of LANDSCAPE.sceneryTrees.entries()) for (const source of treeTemplate(tree.tone)) {
+    const mesh = source.createInstance(`forest-scenery-${i}`);
+    mesh.position.set(tree.x, .84, tree.z); mesh.scaling.setAll(tree.scale); mesh.rotation.y = tree.rotation;
+    mesh.isPickable = false; mesh.receiveShadows = true; mesh.freezeWorldMatrix();
+    shadows.addShadowCaster(mesh, false);
   }
   function remove(id: string) {
     doors.remove(id); fires.remove(id);
@@ -114,9 +120,24 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         show({ id: node.id, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
           anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale } }, 'tree',
         () => treeTemplate(tree.tone), tree.scale, tree.rotation);
-      } else show({ id: node.id, kind: 'rock', name: '石材', x: node.x, z: node.z, radius: .75 * node.scale,
-        anchor: { x: node.x, y: .75, z: node.z } }, 'rock', () => template('rock', () => {
-        createLandscapeRock(scene, rockMaterial);
+      } else if (node.kind === 'food') {
+        show({ id: node.id, kind: 'rock', name: '林间果丛', x: node.x, z: node.z, radius: .9,
+          anchor: { x: node.x, y: 1.1, z: node.z } }, 'forage', () => template('forage', () => {
+          // Dense, rounded leafy shrub from the vegetation reference; a full
+          // volume of overlapping leaves, with fruit visible from game view.
+          const fruit = new StandardMaterial('wild-fruit', scene); fruit.diffuseColor = Color3.FromHexString('#b94b38'); fruit.specularColor = Color3.Black();
+          for (let ring = 0; ring < 3; ring++) for (let i = 0; i < 9 - ring * 2; i++) {
+            const a = i * Math.PI * 2 / (9 - ring * 2) + ring * .6, r = .50 - ring * .14;
+            const leaf = ellipsoid(scene, 'forage-leaf', [.46, .30, .62], [Math.cos(a) * r, .28 + ring * .27, Math.sin(a) * r], i % 3 ? p.leaf : p.leafLight, 8);
+            leaf.rotation.set(.25 + ring * .18, -a, .1); tintHeight(leaf, '#377338', '#b2ce61');
+          }
+          for (const [x, y, z] of [[-.48, .58, -.46], [.41, .72, -.38], [.18, .94, .1], [-.3, .8, .34]]) {
+            for (let i = 0; i < 3; i++) ellipsoid(scene, 'wild-fruit', [.15, .16, .15], [x + (i % 2) * .10, y + (i === 2 ? .1 : 0), z], fruit, 8);
+          }
+        }), node.scale, node.rotation);
+      } else show({ id: node.id, kind: 'rock', name: node.kind === 'iron' ? '铁矿' : '石材', x: node.x, z: node.z, radius: .75 * node.scale,
+        anchor: { x: node.x, y: .9, z: node.z } }, node.kind, () => template(node.kind, () => {
+        createLandscapeRock(scene, rockMaterial, node.kind === 'iron');
       }), node.scale, node.rotation);
     }
     for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);

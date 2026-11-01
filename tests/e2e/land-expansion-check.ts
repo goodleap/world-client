@@ -24,7 +24,7 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 export function checkLandExpansion(touch = false) {
   test('compact build menu places adjacent farmland and a working warehouse; reset sits at bottom right', async ({ page }, info) => {
     test.setTimeout(240_000);
-    const state = initialEconomy(); state.steward.enabled = false; state.inventory = { wood: 60, stone: 40, food: 0 };
+    const state = initialEconomy(); state.steward.enabled = false; state.inventory = { wood: 60, stone: 40, food: 0, iron: 0 };
     const errors = await setup(page, state);
     const click = async (selector: string) => { if (touch) await page.locator(selector).tap(); else await page.locator(selector).click(); };
     const initial = await snapshot(page), viewport = page.viewportSize()!;
@@ -61,7 +61,7 @@ export function checkLandExpansion(touch = false) {
     await expect.poll(async () => (await snapshot(page)).economy.sites[0]?.kind).toBe('warehouse');
     await expect.poll(async () => (await snapshot(page)).economy.buildings, { timeout: 60_000 }).toEqual(['site-0']);
     expect((await snapshot(page)).objects.find(o => o.id === 'site-0')).toMatchObject({ name: '仓库', kind: 'building' });
-    expect((await snapshot(page)).economy.inventory).toEqual({ wood: 36, stone: 24, food: 0 });
+    expect((await snapshot(page)).economy.inventory).toEqual({ wood: 36, stone: 24, food: 0, iron: 0 });
     await click('#home-resources');
     await expect(page.locator('#inventory')).toContainText('木材 36/4000');
     await expect(page.locator('#inventory')).toContainText('粮食 0/8000');
@@ -80,7 +80,7 @@ export function checkLandExpansion(touch = false) {
     await expect(page.locator('#loading')).toHaveClass(/\bloaded\b/, { timeout: 60_000 });
     const restored = await snapshot(page);
     expect(restored.economy.plots).toHaveLength(14); expect(restored.economy.buildings).toEqual(['site-0']);
-    expect(restored.economy.inventory).toEqual({ wood: 36, stone: 24, food: 0 });
+    expect(restored.economy.inventory).toEqual({ wood: 36, stone: 24, food: 0, iron: 0 });
     expect(errors).toEqual([]);
   });
 

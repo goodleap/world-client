@@ -2,6 +2,7 @@ import type { Point, Bounds } from './movement.ts';
 
 export interface PolygonArea extends Point {
   points: readonly Point[];
+  holes?: readonly PolygonArea[];
   bounds: Bounds;
 }
 
@@ -17,7 +18,7 @@ export function segmentDistanceSquared(p: Point, a: Point, b: Point) {
   return (p.x - a.x - t * dx) ** 2 + (p.z - a.z - t * dz) ** 2;
 }
 
-export function insidePolygon(p: Point, area: PolygonArea) {
+export function insidePolygon(p: Point, area: PolygonArea): boolean {
   const { bounds: b, points } = area;
   if (p.x < b.minX || p.x > b.maxX || p.z < b.minZ || p.z > b.maxZ) return false;
   let inside = false;
@@ -26,13 +27,13 @@ export function insidePolygon(p: Point, area: PolygonArea) {
     if (segmentDistanceSquared(p, a, b) < 1e-12) return true;
     if ((a.z > p.z) !== (b.z > p.z) && p.x < (b.x - a.x) * (p.z - a.z) / (b.z - a.z) + a.x) inside = !inside;
   }
-  return inside;
+  return inside && !area.holes?.some(hole => insidePolygon(p, hole));
 }
 
 export function polygonDistance(p: Point, area: PolygonArea) {
   let squared = Infinity;
-  for (let i = 0; i < area.points.length; i++) squared = Math.min(squared,
-    segmentDistanceSquared(p, area.points[i], area.points[(i + 1) % area.points.length]));
+  for (const ring of [area, ...area.holes ?? []]) for (let i = 0; i < ring.points.length; i++) squared = Math.min(squared,
+    segmentDistanceSquared(p, ring.points[i], ring.points[(i + 1) % ring.points.length]));
   return Math.sqrt(squared) * (insidePolygon(p, area) ? -1 : 1);
 }
 
@@ -42,6 +43,10 @@ export function sweepHitsPolygon(from: Point, to: Point, radius: number, area: P
   if (Math.max(from.x, to.x) + radius < b.minX || Math.min(from.x, to.x) - radius > b.maxX
     || Math.max(from.z, to.z) + radius < b.minZ || Math.min(from.z, to.z) - radius > b.maxZ) return false;
   if (insidePolygon(from, area) || insidePolygon(to, area)) return true;
+  return sweepHitsBoundary(from, to, radius, area) || (area.holes?.some(hole => sweepHitsBoundary(from, to, radius, hole)) ?? false);
+}
+
+function sweepHitsBoundary(from: Point, to: Point, radius: number, area: PolygonArea) {
   const cross = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
   for (let i = 0; i < area.points.length; i++) {
     const a = area.points[i], c = area.points[(i + 1) % area.points.length];

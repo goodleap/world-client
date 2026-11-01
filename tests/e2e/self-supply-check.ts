@@ -5,8 +5,8 @@ import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
 import { openGame, snapshot, selectUnit, panTo } from './helpers.ts';
 
 export async function checkSelfSupply(page: Page, info: TestInfo, id: 'infantry' | 'cavalry', touch: boolean) {
-  const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 24, food: 16, stone: 8 };
-  expect(e.placeBuilding('campfire', { x: -6, z: -10 }).ok).toBe(true);
+  const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 24, food: 16, stone: 8, iron: 0 };
+  expect(e.placeBuilding('campfire', { x: -10, z: -10 }).ok).toBe(true);
   const t = e.claim()!; e.arrive(t.id); e.advance(8); const fire = e.state.campfires[0]; e.setFire(fire.id, true);
   e.state.vitals[id].stamina = 10;
   if (id === 'cavalry') e.state.vitals.horse.stamina = 10;

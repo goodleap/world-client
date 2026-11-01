@@ -67,7 +67,7 @@ test('outpost clear creates transportable reward and survives reload exactly onc
   await openGame(page);
   await expect(page.locator('.combat-controls')).toHaveCount(0);
   await panTo(page, OUTPOST);
-  await expect.poll(async () => (await snapshot(page)).combat.cleared, { timeout: 60_000 }).toBe(true);
+  await expect.poll(async () => (await snapshot(page)).combat.camps.find(c => c.id === 'quarry')!.cleared, { timeout: 60_000 }).toBe(true);
   const cleared = await snapshot(page);
   expect(cleared.economy.goods).toHaveLength(3);
   expect(cleared.economy.inventory).toEqual(e.state.inventory);
@@ -77,6 +77,6 @@ test('outpost clear creates transportable reward and survives reload exactly onc
   await page.getByRole('button', { name: '继续游戏', exact: true }).click();
   await expect(page.locator('#loading')).toHaveClass(/loaded/, { timeout: 60_000 });
   const restored = await snapshot(page);
-  expect(restored.combat.rewardGranted).toBe(true);
+  expect(restored.combat.camps.find(c => c.id === 'quarry')!.rewardGranted).toBe(true);
   expect(restored.economy.goods.map(g => g.id).sort()).toEqual(cleared.economy.goods.map(g => g.id).sort());
 });

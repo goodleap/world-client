@@ -97,15 +97,15 @@ test('outpost reward is a single ground delivery; reload and capacity cannot min
   const { e, c } = setup();
   for (const u of c.state.units.filter(u => u.team === 'enemy')) { u.hp = 0; u.life = 'defeated'; }
   const inventory = { ...e.state.inventory }; c.update(.05);
-  assert(c.state.rewardGranted); assert.equal(e.state.goods.length, 3); assert.deepEqual(e.state.inventory, inventory);
+  assert(c.state.rewardGranted); assert.equal(e.state.goods.length, 7); assert.deepEqual(e.state.inventory, inventory);
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
-  advance(next, 2); restored.advance(.05); assert.equal(restored.state.goods.length, 3);
+  advance(next, 2); restored.advance(.05); assert.equal(restored.state.goods.length, 7);
   assert.deepEqual(restored.state.inventory, inventory);
   const wood = restored.state.goods.find(g => g.resource === 'wood')!;
   const task = restored.taskFor(wood.id)!; restored.assign(task.id); restored.arrive(task.id);
   restored.state.inventory.wood = restored.capacity().wood - 1; restored.arrive(task.id);
   assert.equal(wood.amount, C.reward.wood - 1); assert.equal(restored.state.inventory.wood, restored.capacity().wood);
-  next.update(.05); assert.equal(restored.state.goods.length, 3);
+  next.update(.05); assert.equal(restored.state.goods.length, 7);
 });
 test('pause freezes every combat field; corrupt or old saves are rejected', () => {
   const { e, c, a, b } = setup(); c.attack([a.id], b.id); c.update(.05);

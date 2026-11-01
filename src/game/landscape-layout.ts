@@ -1,9 +1,11 @@
 import { Curve3 } from '@babylonjs/core/Maths/math.path.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.pure.js';
-import { polygonArea, polygonDistance, segmentDistanceSquared } from './polygon.ts';
+import { polygonArea, polygonDistance } from './polygon.ts';
 import type { Point } from './movement.ts';
 
-export const LANDSCAPE_SEED = 20261101;
+import { MAP_CONFIG, ROUTE_LAYOUT, createRegions, pathDistanceSquared } from './map-regions.ts';
+
+export const LANDSCAPE_SEED = MAP_CONFIG.seed;
 export function seededRandom(seed: number) {
   return () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
 }
@@ -23,62 +25,45 @@ export function createCurvedRoadPaths(roads: readonly Point[][], gridSize: numbe
   });
 }
 
-/** A reproducible map. Curves are Babylon's native Catmull–Rom curves;
- * placement rules reserve the playable village, paths and working approaches. */
-export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point, gridSize: number, seed = LANDSCAPE_SEED) {
-  const random = seededRandom(seed);
-  const roadControls = [
-    [[46, 0], [43, 21], [47, 36], [50, 49], [44, 63], [28, 75], [4, 80]],
-    [[8, 33], [26, 35], [39, 45], [50, 49], [60, 51], [64, 56], [62, 75], [66, 100]],
-  ].map(path => path.map(([x, z]) => gridPoint(x, z)));
-  const controls = [[72, 20], [84, 15], [96, 22], [96, 40], [92, 53], [97, 69], [88, 82], [77, 77], [74, 65], [67, 56], [68, 47], [64, 37]];
-  const shoreline = Curve3.CreateCatmullRomSpline(controls.map(([x, z]) => {
-    const p = gridPoint(x, z); return new Vector3(p.x, 0, p.z);
-  }), 16, true).getPoints();
-  // Native closed curves repeat the first point. Keep the polygon non-degenerate.
-  if (Vector3.DistanceSquared(shoreline[0], shoreline.at(-1)!) < 1e-10) shoreline.pop();
+/** Region graph authored from the user's clearing/corridor reference. */
+export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point, gridSize: number, seed: number = LANDSCAPE_SEED) {
+  const random = seededRandom(seed), local = (x: number, z: number) => ({ x: x * gridSize, z: z * gridSize });
+  const roadControls = ROUTE_LAYOUT.map(route => route.map(([x, z]) => local(x, z)));
+  const paths = createCurvedRoadPaths(roadControls, gridSize, gridSize * 1.5);
+  const terrain = createRegions(gridSize, paths);
+  const controls = [[12, 21], [15, 30], [24, 29], [33, 25], [34, 16], [29, 8], [21, 7], [14, 12]];
+  const shoreline = Curve3.CreateCatmullRomSpline(controls.map(([x, z]) => new Vector3(x * gridSize, 0, z * gridSize)), 8, true).getPoints();
+  shoreline.pop();
   const lake = polygonArea(shoreline.map(({ x, z }) => ({ x, z })));
-  const reserved = createCurvedRoadPaths(roadControls, gridSize, gridSize / 4).flatMap(path => path.slice(1).map((p, i) => [path[i], p] as const));
   type Tree = Point & { scale: number; tone: number; rotation: number };
   type Rock = Point & { scale: number; rotation: number };
-  const trees: Tree[] = [
-    { ...gridPoint(44, 49), scale: 1, tone: 0, rotation: .7 },
-    { ...gridPoint(43, 53), scale: 1.1, tone: 1, rotation: 2.3 },
-  ];
-  const rocks: Rock[] = [
-    { ...gridPoint(59, 44), scale: 1, rotation: .5 },
-    { ...gridPoint(40, 49), scale: 1.2, rotation: 2.1 },
-  ];
-  // Keep the approved village/shore composition and extend the same mixed
-  // groves across the surrounding map, leaving clearings between clusters.
-  const patches = [
-    [34, 38, 8, 8, 23], [33, 58, 9, 8, 22], [42, 31, 11, 5, 17],
-    [58, 34, 5, 9, 17], [59, 63, 6, 5, 16], [40, 69, 9, 5, 15],
-    [17, 18, 13, 13, 30], [19, 43, 11, 12, 25], [16, 71, 12, 11, 26],
-    [28, 89, 15, 6, 20], [56, 12, 8, 8, 19], [51, 88, 7, 8, 20], [90, 91, 6, 5, 10],
-  ];
-  const crowded = (p: Point, radius: number) => trees.some(n => Math.hypot(p.x - n.x, p.z - n.z) < n.scale * .5 + radius + 1.05)
-    || rocks.some(n => Math.hypot(p.x - n.x, p.z - n.z) < n.scale * .85 + radius + 1.05);
-  function allowed(p: Point, size: number, rock: boolean) {
-    const column = p.x / gridSize + 50, row = 50 - p.z / gridSize;
-    if (column > 43 && column < 58 && row > 43 && row < 59) return false;
-    if (polygonDistance(p, lake) < 2.2 + size) return false;
-    if (rock && !trees.some(tree => Math.hypot(tree.x - p.x, tree.z - p.z) < 10)) return false;
-    if (reserved.some(([a, b]) => segmentDistanceSquared(p, a, b) < (2.3 + size) ** 2)) return false;
-    return !crowded(p, size * (rock ? .85 : .5));
-  }
-  for (const [cx, cz, rx, rz, count] of patches) {
-    let placed = 0;
-    for (let attempt = 0; placed < count && attempt < count * 100; attempt++) {
-      const angle = random() * Math.PI * 2, radius = Math.sqrt(random());
-      const p = gridPoint(cx + Math.cos(angle) * rx * radius, cz + Math.sin(angle) * rz * radius);
-      const scale = (.95 + random() * .65) * (placed % 4 === 2 ? 1.3 : 1);
-      if (!allowed(p, scale, placed % 4 === 2)) continue;
-      const rotation = random() * Math.PI * 2;
-      if (placed % 4 === 2) rocks.push({ ...p, scale, rotation });
-      else trees.push({ ...p, scale, tone: Math.floor(random() * 3), rotation });
+  const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 1), scale: 1, tone: 0, rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), scale: 1.1, tone: 1, rotation: 2.3 }];
+  const rocks: Rock[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 + 9, MAP_CONFIG.rows / 2 - 6), scale: 1, rotation: .5 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 10, MAP_CONFIG.rows / 2 - 1), scale: 1.2, rotation: 2.1 }];
+  const iron: Rock[] = [], forage: Rock[] = [], sceneryTrees: Tree[] = [];
+  const roadDistance = (p: Point) => Math.sqrt(Math.min(...paths.flatMap(path => path.slice(1).map((b, i) => pathDistanceSquared(p, path[i], b)))));
+  const crowded = (p: Point) => [...trees, ...rocks, ...iron, ...forage].some(t => Math.hypot(p.x - t.x, p.z - t.z) < 3.8);
+  for (const region of terrain.regions) {
+    const count = region.id === 'home' ? 9 : region.id === 'woodland' ? 22 : region.id === 'orchard' ? 18 : region.id === 'quarry' ? 14 : region.id === 'pass' ? 9 : 7;
+    for (let placed = 0, attempt = 0; placed < count && attempt < 800; attempt++) {
+      const a = random() * Math.PI * 2, r = .55 + random() * .3;
+      const point = { x: region.x + Math.cos(a) * region.rx * gridSize * r, z: region.z + Math.sin(a) * region.rz * gridSize * r };
+      if (region.id === 'home' && point.x > -9 && point.x < 17 && point.z > -13 && point.z < 11 || roadDistance(point) < 4.7 || crowded(point)) continue;
+      if (polygonDistance(point, region.area) > -2.6) continue;
+      const common = { ...point, scale: .9 + random() * .4, rotation: random() * Math.PI * 2 };
+      if (region.id === 'quarry' && placed % 2 === 0 || region.id === 'pass' && placed % 3 === 0) iron.push(common);
+      else if (region.id === 'orchard' && placed % 2 === 0 || region.id === 'woodland' && placed % 4 === 0 || region.id === 'home' && placed === 0) forage.push({ ...common, scale: 1 });
+      else if (region.id === 'quarry' || region.id === 'stone-hollow' || placed % 4 === 2) rocks.push(common);
+      else trees.push({ ...common, tone: Math.floor(random() * 3) });
       placed++;
     }
   }
-  return { seed, lake, trees, rocks, roadControls };
+  // Static woodland is scenery backed by an unwalkable terrain bank. Cutting
+  // resource trees never erases the region boundary or opens a phantom shortcut.
+  for (let z = -MAP_CONFIG.rows / 2 + 3; z < MAP_CONFIG.rows / 2 - 3; z += 4.6) for (let x = -MAP_CONFIG.columns / 2 + 3; x < MAP_CONFIG.columns / 2 - 3; x += 4.6) {
+    const point = local(x + random() * 2, z + random() * 2);
+    if (terrain.contains(point) || polygonDistance(point, lake) < 3 || roadDistance(point) < 5
+      || terrain.playable.some(a => Math.abs(polygonDistance(point, a)) < 2)) continue;
+    sceneryTrees.push({ ...point, scale: 1 + random() * .75, tone: Math.floor(random() * 3), rotation: random() * Math.PI * 2 });
+  }
+  return { seed, lake, trees, rocks, iron, forage, sceneryTrees, roadControls, ...terrain };
 }

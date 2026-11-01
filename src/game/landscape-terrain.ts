@@ -8,10 +8,14 @@ import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Palette } from './models.ts';
-import { LANDSCAPE, MAP_SIZE, GRID_SIZE } from './world-data.ts';
+import { LANDSCAPE, MAP_SIZE, MAP_WIDTH, MAP_DEPTH, GRID_SIZE } from './world-data.ts';
 import { ROAD_PATHS, ROAD_HALF_WIDTH, roadHalfWidthAt } from './road-layout.ts';
 import { roundedBox } from './environment-shapes.ts';
 import { seededRandom } from './landscape-layout.ts';
+import clipping from 'polygon-clipping';
+import earcut from 'earcut';
+import { Vector4 } from '@babylonjs/core/Maths/math.vector';
+import { Color4 } from '@babylonjs/core/Maths/math.color';
 
 const color = (hex: string) => Color3.FromHexString(hex);
 
@@ -19,31 +23,36 @@ const color = (hex: string) => Color3.FromHexString(hex);
  * filters, reflection pass, per-frame texture painting or tessellated grass. */
 export function createLandscapeTerrain(scene: Scene, palette: Palette) {
   const layout = LANDSCAPE;
-  roundedBox(scene, 'earth-bank', [MAP_SIZE, .85, MAP_SIZE], [0, -.53, 0], palette.earth, .28);
+  roundedBox(scene, 'earth-bank', [MAP_WIDTH, .85, MAP_DEPTH], [0, -.53, 0], palette.earth, .28);
   const random = seededRandom(layout.seed);
   function texture(name: string, size: number) {
     const t = new DynamicTexture(name, size, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
     t.anisotropicFilteringLevel = Math.min(8, scene.getEngine().getCaps().maxAnisotropy || 1);
     return t;
   }
-  const size = 2048, pixels = size / MAP_SIZE;
+  const size = 2048;
   const colors = texture('woodland-ground-colors', size), ctx = colors.getContext() as CanvasRenderingContext2D;
   ctx.fillStyle = '#82965b'; ctx.fillRect(0, 0, size, size);
   // Ground +z maps to UV v=1, the top of an invertY DynamicTexture.
-  ctx.save(); ctx.translate(size / 2, size / 2); ctx.scale(pixels, -pixels);
+  ctx.save(); ctx.translate(size / 2, size / 2); ctx.scale(size / MAP_WIDTH, -size / MAP_DEPTH);
   function patch(x: number, z: number, radius: number, color: string, stretch = 1) {
     ctx.save(); ctx.translate(x, z); ctx.rotate(random() * Math.PI); ctx.scale(1, stretch);
     const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
     gradient.addColorStop(0, color); gradient.addColorStop(.55, color); gradient.addColorStop(1, color.slice(0, 7) + '00');
     ctx.fillStyle = gradient; ctx.fillRect(-radius, -radius, radius * 2, radius * 2); ctx.restore();
   }
-  for (let i = 0; i < 150; i++) patch((random() - .5) * MAP_SIZE, (random() - .5) * MAP_SIZE,
+  for (let i = 0; i < 150; i++) patch((random() - .5) * MAP_WIDTH, (random() - .5) * MAP_DEPTH,
     2 + random() * 7, ['#b6b77a55', '#526e4d40', '#a3ae6d50'][i % 3], .5 + random() * .6);
+  for (const region of layout.regions) {
+    const gravel = region.id === 'quarry' || region.id === 'stone-hollow' || region.id === 'pass';
+    patch(region.x, region.z, Math.min(region.rx, region.rz) * GRID_SIZE,
+      gravel ? '#a0957955' : region.id === 'lowland' ? '#b0bb7055' : '#96a56522', .9);
+  }
   // Forest soil follows the generated vegetation rather than a repeated tile.
   for (const tree of layout.trees) patch(tree.x, tree.z, tree.scale * 3.5, '#335d4390', .85);
   for (const rock of layout.rocks) patch(rock.x, rock.z, rock.scale * 1.7, '#66734f65', .8);
   for (let i = 0; i < 14000; i++) {
-    const x = (random() - .5) * MAP_SIZE, z = (random() - .5) * MAP_SIZE;
+    const x = (random() - .5) * MAP_WIDTH, z = (random() - .5) * MAP_DEPTH;
     const length = .09 + random() * .23;
     ctx.strokeStyle = i % 4 ? '#c2c99742' : '#44664945'; ctx.lineWidth = .035 + random() * .025;
     ctx.beginPath(); ctx.moveTo(x - .1, z); ctx.quadraticCurveTo(x - .06, z - length * .65, x - .14, z - length);
@@ -69,8 +78,26 @@ export function createLandscapeTerrain(scene: Scene, palette: Palette) {
   detail.wrapU = detail.wrapV = Texture.WRAP_ADDRESSMODE; detail.uScale = detail.vScale = MAP_SIZE / 7; detail.update();
   meadow.detailMap.texture = detail; meadow.detailMap.isEnabled = true;
   meadow.detailMap.diffuseBlendLevel = .55; meadow.detailMap.bumpLevel = 0;
-  const ground = MeshBuilder.CreateGround('meadow', { width: MAP_SIZE, height: MAP_SIZE }, scene);
+  const ground = MeshBuilder.CreateGround('meadow', { width: MAP_WIDTH, height: MAP_DEPTH }, scene);
   ground.position.y = .012; ground.material = meadow; ground.receiveShadows = true;
+
+  // Babylon's polygon builder provides native indexed top/wall geometry.
+  // Only the 2D union is external; the same polygon is used by collision.
+  const bank = new StandardMaterial('forest-bank', scene);
+  bank.diffuseColor = Color3.White(); bank.specularColor = Color3.Black();
+  const lakeRing: [number, number][] = layout.lake.points.map(p => [p.x, p.z]);
+  const forests = clipping.difference(layout.blocked, [lakeRing]);
+  const c4 = (hex: string) => { const c = color(hex); return new Color4(c.r, c.g, c.b, 1); };
+  for (const rings of forests) {
+    const toShape = (ring: number[][]) => ring.slice(0, -1).map(([x, z]) => new Vector3(x, 0, z));
+    const mesh = MeshBuilder.ExtrudePolygon('woodland-solid-bank', {
+      shape: toShape(rings[0]), holes: rings.slice(1).map(toShape), depth: .8,
+      faceColors: [c4('#416849'), c4('#6d7550'), c4('#416849')],
+      faceUV: [new Vector4(0, 0, 1, 1), new Vector4(0, 0, 1, 1), new Vector4(0, 0, 1, 1)],
+      sideOrientation: Mesh.DOUBLESIDE,
+    }, scene, earcut);
+    mesh.position.y = .84; mesh.material = bank; mesh.receiveShadows = true;
+  }
 
   const sand = texture('woodland-road-grain', 256), grain = sand.getContext() as CanvasRenderingContext2D;
   grain.fillStyle = '#ffffff'; grain.fillRect(0, 0, 256, 256);
@@ -92,8 +119,8 @@ export function createLandscapeTerrain(scene: Scene, palette: Palette) {
       const rows = [-1, 1].map(side => path.map((p, i) => {
         const tangent = path[Math.min(i + 1, path.length - 1)].subtract(path[Math.max(0, i - 1)]).normalize();
         const half = roadHalfWidthAt(p) * layer.width;
-        return new Vector3(Math.max(-MAP_SIZE / 2, Math.min(MAP_SIZE / 2, p.x + tangent.z * half * side)), layer.y,
-          Math.max(-MAP_SIZE / 2, Math.min(MAP_SIZE / 2, p.z - tangent.x * half * side)));
+        return new Vector3(Math.max(-MAP_WIDTH / 2, Math.min(MAP_WIDTH / 2, p.x + tangent.z * half * side)), layer.y,
+          Math.max(-MAP_DEPTH / 2, Math.min(MAP_DEPTH / 2, p.z - tangent.x * half * side)));
       }));
       const road = MeshBuilder.CreateRibbon('woodland-road', { pathArray: rows, sideOrientation: Mesh.DOUBLESIDE }, scene);
       const positions = road.getVerticesData(VertexBuffer.PositionKind)!, uvs: number[] = [];

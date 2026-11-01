@@ -39,19 +39,19 @@ test('FIFO skips unfunded construction, gathers materials, reserves once and spe
   assert.deepEqual(e.reserved(), C.houseCost); assert.equal(e.state.inventory.wood, 24);
   e.arrive(build.id); e.advance(C.workSeconds.build - .5);
   assert.equal(e.state.inventory.wood, 24); assert.equal(e.state.buildings.length, 0);
-  e.advance(.5); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0 });
-  assert.deepEqual(e.state.buildings, ['site-0']); assert.deepEqual(e.reserved(), { wood: 0, stone: 0, food: 0 });
+  e.advance(.5); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
+  assert.deepEqual(e.state.buildings, ['site-0']); assert.deepEqual(e.reserved(), { wood: 0, stone: 0, food: 0, iron: 0 });
   e.advance(100); assert.equal(e.state.inventory.wood, 12);
   assert.equal(e.request('build', 'site-0').ok, false);
 });
 
 test('concurrent requests cannot double reserve, and cancellation releases resources without spending', () => {
-  const state = initialEconomy(); state.inventory = { wood: 12, stone: 8, food: 0 };
-  const e = new Economy(state), first = e.placeBuilding('house', gridPoint(44, 56)).task!, second = e.placeBuilding('house', gridPoint(48, 59)).task!;
+  const state = initialEconomy(); state.inventory = { wood: 12, stone: 8, food: 0, iron: 0 };
+  const e = new Economy(state), first = e.placeBuilding('house', gridPoint(44, 56)).task!, second = e.placeBuilding('house', gridPoint(55, 57)).task!;
   assert.equal(first.reserved, true); assert.equal(second.reserved, false);
-  assert.deepEqual(e.available(), { wood: 0, stone: 0, food: 0 });
+  assert.deepEqual(e.available(), { wood: 0, stone: 0, food: 0, iron: 0 });
   e.claim(); e.arrive(first.id); e.advance(2); assert.ok(e.cancel(first.id));
-  assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0 });
+  assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
   assert.equal(e.claim()!.id, second.id); assert.ok(second.reserved);
   assert.equal(e.cancel(first.id), false);
 });

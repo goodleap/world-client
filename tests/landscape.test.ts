@@ -25,9 +25,9 @@ test('concave water admits its bay but blocks crossings, narrow shores and fully
 
 test('landscape seeds are reproducible, mixed resources have clearance and starting buildings remain accessible', () => {
   const layout = createLandscapeLayout(gridPoint, GRID_SIZE);
-  assert.deepEqual(createLandscapeLayout(gridPoint, GRID_SIZE), layout);
-  assert.notDeepEqual(createLandscapeLayout(gridPoint, GRID_SIZE, 20261102).trees, layout.trees);
-  assert.ok(layout.trees.length >= 70 && layout.rocks.length >= 20);
+  assert.equal(JSON.stringify(createLandscapeLayout(gridPoint, GRID_SIZE)), JSON.stringify(layout));
+  assert.notDeepEqual(createLandscapeLayout(gridPoint, GRID_SIZE, 20261103).trees, layout.trees);
+  assert.ok(layout.trees.length >= 30 && layout.rocks.length >= 20 && layout.iron.length >= 8 && layout.forage.length >= 8);
   const nodes = [...layout.trees.map(n => ({ ...n, radius: n.scale * .5 })), ...layout.rocks.map(n => ({ ...n, radius: n.scale * .85 }))];
   const roads = createCurvedRoadPaths(layout.roadControls, GRID_SIZE);
   for (const [i, node] of nodes.entries()) {
@@ -36,7 +36,7 @@ test('landscape seeds are reproducible, mixed resources have clearance and start
     for (const b of BUILDINGS) assert.ok(Math.abs(node.x - b.x) > b.width / 2 + .6 || Math.abs(node.z - b.z) > b.depth / 2 + 1.5);
     for (const path of roads) for (let j = 1; j < path.length; j++) assert.ok(segmentDistanceSquared(node, path[j - 1], path[j]) > (node.scale * .5 + .7) ** 2);
   }
-  assert.ok(layout.rocks.every(rock => layout.trees.some(tree => Math.hypot(tree.x - rock.x, tree.z - rock.z) < 12)), 'rocks belong to mixed groves');
+  assert.ok(layout.regions.some(r => r.id === 'quarry' && layout.iron.some(n => insidePolygon(n, r.area))), 'iron has a distinct mine region');
   for (const point of [gridPoint(50, 50), gridPoint(51.5, 55.5), gridPoint(55.5, 57)]) assert.ok(polygonDistance(point, layout.lake) > 5);
 });
 

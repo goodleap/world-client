@@ -1,0 +1,144 @@
+{
+  "date": "2026-11-01",
+  "base": {
+    "world-client": "d4394d9",
+    "world-design": "3dec89b"
+  },
+  "environment": {
+    "node": "24.19.0",
+    "babylon": "9.32.1",
+    "browser": "Chromium /usr/bin/chromium, SwiftShader",
+    "desktop_viewport": "1280x900",
+    "mobile_emulation": "Pixel 7 portrait",
+    "real_iphone_tested": false
+  },
+  "checks": {
+    "typecheck": {
+      "command": "npm run typecheck",
+      "result": "passed; also required by each browser web-server build"
+    },
+    "production_build": {
+      "command": "npm run build",
+      "result": "passed"
+    },
+    "logic_tests": {
+      "command": "npm test",
+      "passed": 156,
+      "failed": 0,
+      "skipped": 0
+    },
+    "browser": {
+      "distinct_scenarios_passed": 8,
+      "scope": "Related scenarios across serial runs; this is not a claim that all repository browser tests were run.",
+      "scenarios": [
+        {
+          "project": "desktop-chromium",
+          "file": "tests/e2e/combat.desktop.spec.ts",
+          "case": "mounted melee and archer keep independent commands, selection, pause and saved progress",
+          "result": "passed"
+        },
+        {
+          "project": "desktop-chromium",
+          "file": "tests/e2e/combat.desktop.spec.ts",
+          "case": "outpost clear creates transportable reward and survives reload exactly once",
+          "result": "passed"
+        },
+        {
+          "project": "desktop-chromium",
+          "file": "tests/e2e/single-soldier.desktop.spec.ts",
+          "case": "single soldiers move to repeated mouse destinations and resume a saved route",
+          "result": "passed"
+        },
+        {
+          "project": "mobile-chromium",
+          "file": "tests/e2e/single-soldier.mobile.spec.ts",
+          "case": "single soldiers move to touch destinations and resume a saved route",
+          "result": "passed"
+        },
+        {
+          "project": "desktop-chromium",
+          "file": "tests/e2e/regions.desktop.spec.ts",
+          "case": "region map and resource models render in the playable scene",
+          "result": "passed"
+        },
+        {
+          "project": "desktop-chromium",
+          "file": "tests/e2e/regional-economy.desktop.spec.ts",
+          "case": "mine, deliver, process at an expanded warehouse, pause and reload",
+          "result": "passed"
+        },
+        {
+          "project": "mobile-chromium",
+          "file": "tests/e2e/regional-economy.mobile.spec.ts",
+          "case": "mine, deliver, process at an expanded warehouse, pause and reload",
+          "result": "passed"
+        },
+        {
+          "project": "mobile-chromium",
+          "file": "tests/e2e/regions.mobile.spec.ts",
+          "case": "mobile forage actions remain compact and forest ground refuses construction",
+          "result": "passed"
+        }
+      ],
+      "resolved_test_failures": [
+        "Mining fixture placed a farmer directly in front of the rock, intercepting the pointer pick. Moved the fixture farmer aside, then desktop and mobile mining/delivery/processing passed.",
+        "The camera-pan helper issued a final drag shorter than the interaction threshold, producing a tap. Ignore residual pans below 10 pixels and use actual camera projection for target clicks; the mobile forage/construction scenario then passed."
+      ],
+      "setup_note": "Regional processing starts from a seeded captured mining region and a completed regional warehouse. Subsequent mining, hauling, processing, pause and reload use actual UI input and navigation."
+    }
+  },
+  "map_measurements": {
+    "trial_columns": 100,
+    "trial_rows": 100,
+    "regions": 9,
+    "connections": 10,
+    "major_loops": 2,
+    "dead_end_branches": 2,
+    "inaccessible_fraction_sampled_at_one_world_unit": 0.6985544217687075,
+    "resource_nodes": {
+      "wood": 39,
+      "stone": 28,
+      "food": 11,
+      "iron": 10
+    },
+    "scenery_trees": 236
+  },
+  "visual_review": {
+    "method": "Actual Babylon game rendering viewed directly in desktop and emulated mobile screenshots.",
+    "checked": [
+      "overall region and corridor layout",
+      "home scene and reused character/building assets",
+      "rounded berry foliage and visible fruit",
+      "iron mineral coloring",
+      "desktop/mobile warehouse action placement",
+      "centered settings dialog",
+      "mobile forage action and rejected forest construction"
+    ],
+    "corrected": "Removed forest-bank self-shadow casting after observed stripe artifacts; banks still receive shadows.",
+    "screenshots": [
+      "archer-arrived.png",
+      "combat-desktop.png",
+      "forage-mobile.png",
+      "forage.png",
+      "forest-no-build-mobile.png",
+      "home.png",
+      "infantry-arrived-after-reload.png",
+      "map-overview.png",
+      "mine-workshop.png",
+      "mobile-archer-arrived.png",
+      "mobile-infantry-arrived-after-reload.png",
+      "mobile-mine-workshop.png",
+      "mobile-workshop-paused.png",
+      "outpost-cleared.png",
+      "settings-desktop.png",
+      "workshop-paused.png"
+    ]
+  },
+  "limitations": [
+    "Cloud software-rendering frame rates do not represent iPhone performance; no real-device sustained performance or heat check.",
+    "Fixed current layout and trial dimensions, not an infinite or procedural world.",
+    "No hunting/new wildlife, separate forge, individual equipment inventory, home defense, or newly opened shortcut mechanism in this batch.",
+    "Heavy guard reuses current infantry visuals; no new heavy-armor model.",
+    "Save schema v9 requires a new game; old maps are not migrated or silently deleted."
+  ]
+}

@@ -5,7 +5,7 @@ import { segmentIsClear } from './wander.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import type { RouteState, Neighbour } from './route-following.ts';
 import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
-import { COMBAT_CONFIG as C, OUTPOST } from './combat-config.ts';
+import { COMBAT_CONFIG as C, ENCOUNTERS } from './combat-config.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
 import { effort, VITAL_CONFIG } from './vitals.ts';
@@ -20,20 +20,21 @@ export interface Fighter {
   route: Point[]; navigation: RouteState; planIn: number;
 }
 export interface Projectile { id: number; source: string; target: string; from: Point; to: Point; elapsed: number; duration: number; damage: number }
-export interface CombatState { units: Fighter[]; projectiles: Projectile[]; nextAttack: number; discovered: boolean; cleared: boolean; rewardGranted: boolean; rewardGoods: string[] }
+export interface CampState { id: string; cleared: boolean; discovered: boolean; rewardGranted: boolean; respawnAt: number; cycle: number }
+export interface CombatState { camps: CampState[]; units: Fighter[]; projectiles: Projectile[]; nextAttack: number; discovered: boolean; cleared: boolean; rewardGranted: boolean; rewardGoods: string[] }
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
-export function fighterStats(u: Pick<Fighter, 'role' | 'team'>) {
-  return u.team === 'home' ? C[u.role] : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
+export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
+  return u.team === 'home' ? C[u.role] : ENEMIES.find(r => r.id === u.id)?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : .4;
 // Melee reach accounts for the target body, so foot soldiers can strike a
 // mounted opponent without routing into the horse's collision circle.
 const reach = (u: Fighter, target: Fighter) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, fighterRadius(target) - .4));
 export function initialCombat(): CombatState {
-  return { nextAttack: 1, discovered: false, cleared: false, rewardGranted: false, rewardGoods: [], projectiles: [],
+  return { camps: ENCOUNTERS.map(c => ({ id: c.id, cleared: false, discovered: false, rewardGranted: false, respawnAt: 0, cycle: 0 })), nextAttack: 1, discovered: false, cleared: false, rewardGranted: false, rewardGoods: [], projectiles: [],
     units: [...RESIDENTS.filter(r => r.id === 'infantry' || r.id === 'archer' || r.id === 'cavalry'), ...ENEMIES].map(r => {
       const role = r.role as CombatRole, team = r.id.startsWith('enemy-') ? 'enemy' as const : 'home' as const;
-      return { id: r.id, role, team, position: { ...r.spawn }, home: { ...r.home }, hp: fighterStats({ role, team }).hp,
+      return { id: r.id, role, team, position: { ...r.spawn }, home: { ...r.home }, hp: fighterStats({ id: r.id, role, team }).hp,
         life: 'active', order: 'guard', facing: Math.PI, speed: 0, cooldown: 0,
         route: [], navigation: createRouteState(), planIn: 0 };
     }) };
@@ -50,6 +51,8 @@ export class Combat {
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
   }
+  private camp(u: Fighter) { return ENCOUNTERS.find(c => c.id === ENEMIES.find(r => r.id === u.id)?.camp)!; }
+  private stats(u: Fighter) { const base = fighterStats(u), level = u.team === 'home' ? this.economy.state.upgrades.arms : 0; return { ...base, attack: base.attack + level * 3, armor: base.armor + level }; }
   unit(id: string) { return this.state.units.find(u => u.id === id); }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
@@ -98,7 +101,7 @@ export class Combat {
   }
   private damage(target: Fighter, amount: number, sourceId: string) {
     if (target.life !== 'active') return;
-    target.hp = Math.max(0, target.hp - Math.max(1, amount - fighterStats(target).armor));
+    target.hp = Math.max(0, target.hp - Math.max(1, amount - this.stats(target).armor));
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) {
       const source = this.unit(sourceId), current = target.target && this.unit(target.target);
@@ -107,7 +110,7 @@ export class Combat {
       if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order)
         && !(target.team === 'enemy' && target.goal) && (!current || current.life !== 'active')
         && distance(target.position, source.position) <= C.acquire + 3
-        && (target.team === 'home' || distance(source.position, OUTPOST) <= OUTPOST.leash)) {
+        && (target.team === 'home' || distance(source.position, this.camp(target)) <= this.camp(target).leash)) {
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
         target.order = 'guard'; target.target = source.id; target.goal = undefined; this.stop(target);
@@ -147,10 +150,10 @@ export class Combat {
       if (target && distance(target.position, shot.to) < .8 && segmentIsClear(shot.from, shot.to, .05, WORLD_BOUNDS, this.solids())) this.damage(target, shot.damage, shot.source);
     }
     for (const u of this.state.units) {
-      const stats = fighterStats(u);
+      const stats = this.stats(u);
       u.speed = 0; u.cooldown = Math.max(0, u.cooldown - dt); u.planIn = Math.max(0, u.planIn - dt);
       if (u.life === 'defeated') continue;
-      if (u.team === 'home' && distance(u.position, OUTPOST) < OUTPOST.discover) this.state.discovered = true;
+      if (u.team === 'home') for (const camp of this.state.camps) { const definition = ENCOUNTERS.find(c => c.id === camp.id)!; if (distance(u.position, definition) < definition.discover) camp.discovered = true; }
       if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || u.team === 'enemy' && u.order === 'hold') {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
@@ -159,7 +162,7 @@ export class Combat {
         continue;
       }
       if (u.life === 'injured' || u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
-      if (u.team === 'enemy' && (distance(u.position, OUTPOST) > OUTPOST.leash || u.target && distance(this.unit(u.target)!.position, OUTPOST) > OUTPOST.leash)) {
+      if (u.team === 'enemy' && (distance(u.position, this.camp(u)) > this.camp(u).leash || u.target && distance(this.unit(u.target)!.position, this.camp(u)) > this.camp(u).leash)) {
         u.order = 'hold'; u.goal = { ...u.home }; u.target = undefined; u.attack = undefined; this.stop(u); continue;
       }
       if (u.attack) {
@@ -181,10 +184,20 @@ export class Combat {
       let target = u.target ? this.unit(u.target) : undefined;
       if (!target || target.life !== 'active' || target.team === u.team || u.order !== 'attack' && distance(u.position, target.position) > C.acquire + 3) {
         target = u.team === 'enemy' ? this.state.units.filter(t => t.team !== u.team && t.life === 'active' && distance(u.position, t.position) < C.acquire
-          && distance(t.position, OUTPOST) <= OUTPOST.leash)
+          && distance(t.position, this.camp(u)) <= this.camp(u).leash && segmentIsClear(u.position, t.position, .05, WORLD_BOUNDS, this.solids()))
           .sort((a, b) => distance(u.position, a.position) - distance(u.position, b.position) || a.id.localeCompare(b.id))[0] : undefined;
         u.target = target?.id;
-        if (!target) { this.stop(u); if (u.order === 'attack') u.order = 'guard'; continue; }
+        if (!target) {
+          const patrol = u.team === 'enemy' ? this.camp(u).patrol : [];
+          if (patrol.length) {
+            const offset = Number(u.id.slice(-1)) * 1.1;
+            const index = Math.floor(this.economy.state.seconds / 12) % patrol.length;
+            const goal = { x: patrol[index].x + offset, z: patrol[index].z };
+            if (distance(u.position, goal) > .5 && u.planIn <= 0 && !u.route.length) { this.plan(u, [goal]); u.planIn = 3; }
+            this.travel(u, dt, stats.speed * .65);
+          } else this.stop(u);
+          if (u.order === 'attack') u.order = 'guard'; continue;
+        }
       }
       const clear = segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids());
       if (distance(u.position, target.position) <= reach(u, target) && clear) {
@@ -201,17 +214,34 @@ export class Combat {
         this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
       }
     }
-    if (!this.state.cleared && this.state.units.filter(u => u.team === 'enemy').every(u => u.life === 'defeated')) {
-      this.state.cleared = true; this.state.discovered = true;
+    for (const camp of this.state.camps) {
+      const config = ENCOUNTERS.find(c => c.id === camp.id)!;
+      const units = this.state.units.filter(u => u.team === 'enemy' && this.camp(u).id === camp.id);
+      if (!camp.cleared && units.every(u => u.life === 'defeated')) {
+        camp.cleared = camp.discovered = true;
+        camp.respawnAt = config.repeat ? this.economy.state.seconds + config.repeat : 0;
+      }
+      if (camp.cleared && !camp.rewardGranted) {
+        camp.rewardGranted = true;
+        this.state.rewardGoods.push(...this.economy.dropReward(config, config.reward));
+      }
+      if (camp.cleared && config.repeat && this.economy.state.seconds >= camp.respawnAt
+        && ![...this.civilians().map(n => n.position), ...Object.values(this.economy.state.residents).map(r => r.position), ...this.state.units.filter(u => u.team === 'home').map(u => u.position)]
+          .some(p => distance(p, config) < config.leash + 8)
+        && !this.economy.state.sites.some(s => distance(s, config) < config.leash + 8)) {
+        // Patrol routes only. Captured construction regions never repopulate.
+        camp.cleared = camp.rewardGranted = false; camp.cycle++;
+        for (const u of units) { u.hp = fighterStats(u).hp; u.life = 'active'; u.order = 'guard'; u.position = { ...u.home }; u.cooldown = 0; this.economy.state.vitals[u.id].stamina = 100; this.economy.state.vitals[u.id].hurtUntil = 0; }
+      }
     }
-    if (this.state.cleared && !this.state.rewardGranted) {
-      this.state.rewardGranted = true;
-      this.state.rewardGoods = this.economy.dropReward(OUTPOST, C.reward);
-    }
+    this.state.discovered = this.state.camps.some(c => c.discovered);
+    this.state.cleared = this.state.camps.every(c => c.cleared);
+    this.state.rewardGranted = this.state.cleared;
+    this.state.rewardGoods = this.state.rewardGoods.filter(id => this.economy.state.goods.some(g => g.id === id));
   }
 }
 
-/** Strict v8 save validation. Reject malformed state instead of silently healing,
+/** Strict v9 save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState): CombatState {
   const initial = initialCombat();
@@ -219,8 +249,11 @@ export function decodeCombat(raw: CombatState): CombatState {
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
   if (!raw || !Array.isArray(raw.units) || raw.units.length !== initial.units.length || !Array.isArray(raw.projectiles) || raw.projectiles.length > 20
     || !Number.isSafeInteger(raw.nextAttack) || raw.nextAttack < 1 || typeof raw.discovered !== 'boolean' || typeof raw.cleared !== 'boolean'
-    || typeof raw.rewardGranted !== 'boolean' || raw.rewardGranted !== raw.cleared || !Array.isArray(raw.rewardGoods) || raw.rewardGoods.length !== (raw.rewardGranted ? 3 : 0)
+    || typeof raw.rewardGranted !== 'boolean' || raw.rewardGranted !== raw.cleared || !Array.isArray(raw.rewardGoods) || raw.rewardGoods.length > 1000
     || new Set(raw.rewardGoods).size !== raw.rewardGoods.length || !raw.rewardGoods.every(id => /^goods-\d+$/.test(id))) throw new Error('战斗存档无效');
+  if (!Array.isArray(raw.camps) || raw.camps.length !== ENCOUNTERS.length || new Set(raw.camps.map(c => c.id)).size !== ENCOUNTERS.length
+    || raw.camps.some(c => !ENCOUNTERS.some(d => d.id === c.id) || typeof c.cleared !== 'boolean' || typeof c.discovered !== 'boolean'
+      || c.rewardGranted !== c.cleared || !num(c.respawnAt, 1e12) || !Number.isSafeInteger(c.cycle) || c.cycle < 0)) throw new Error('区域存档无效');
   for (const template of initial.units) {
     const units = raw.units.filter(u => u.id === template.id), u = units[0];
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
@@ -233,7 +266,7 @@ export function decodeCombat(raw: CombatState): CombatState {
       || !num(u.attack.elapsed, 3) || typeof u.attack.released !== 'boolean' || !raw.units.some(t => t.id === u.attack!.target && t.team !== u.team))) throw new Error('攻击存档无效');
     u.navigation = createRouteState(); u.planIn = 0; u.speed = 0;
   }
-  if (raw.cleared !== raw.units.filter(u => u.team === 'enemy').every(u => u.life === 'defeated')) throw new Error('据点存档不一致');
+  if (raw.cleared !== raw.camps.every(c => c.cleared) || raw.camps.some(c => c.cleared !== raw.units.filter(u => ENEMIES.find(r => r.id === u.id)?.camp === c.id).every(u => u.life === 'defeated'))) throw new Error('据点存档不一致');
   const ids = new Set<number>();
   for (const p of raw.projectiles) {
     const source = raw.units.find(u => u.id === p.source), target = raw.units.find(u => u.id === p.target);

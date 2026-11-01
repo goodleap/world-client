@@ -6,7 +6,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { BuildingSite } from './construction.ts';
 import type { Point } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, MAP_SIZE, LANDSCAPE } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, MAP_WIDTH, MAP_DEPTH, LANDSCAPE } from './world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
 import { ellipsoid, tintHeight } from './environment-shapes.ts';
 import { polygonDistance } from './polygon.ts';
@@ -48,12 +48,12 @@ export function createGroundCover(scene: Scene) {
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
   let seed = 19331;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-  for (let z = -MAP_SIZE / 2 + SPACING; z < MAP_SIZE / 2 - SPACING; z += SPACING) {
-    for (let x = -MAP_SIZE / 2 + SPACING; x < MAP_SIZE / 2 - SPACING; x += SPACING) {
+  for (let z = -MAP_DEPTH / 2 + SPACING; z < MAP_DEPTH / 2 - SPACING; z += SPACING) {
+    for (let x = -MAP_WIDTH / 2 + SPACING; x < MAP_WIDTH / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
         size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < .08 };
       if (random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27))) continue;
-      if (random() < .22 || footprints.some(b => inFootprint(plant, b))
+      if (!LANDSCAPE.contains(plant) || random() < .22 || footprints.some(b => inFootprint(plant, b))
         || polygonDistance(plant, LANDSCAPE.lake) < 1.8
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
         || nearRoad(plant, MARGIN)) continue;

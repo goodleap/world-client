@@ -7,7 +7,7 @@ import { openGame, snapshot, selectUnit, clickGround, panTo } from './helpers.ts
 test('mounted pointer movement reaches empty fire corners and goes around the stone circle', async ({ page }, info) => {
   test.setTimeout(150_000);
   const e = new Economy(); e.setLeadership(false); e.state.inventory.stone = 8;
-  expect(e.placeBuilding('campfire', { x: -6, z: -10 }).ok).toBe(true);
+  expect(e.placeBuilding('campfire', { x: -10, z: -10 }).ok).toBe(true);
   const t = e.claim()!; e.arrive(t.id); e.advance(8); const site = e.state.sites[0];
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: ECONOMY_SAVE_KEY, value: encodeEconomy(e) });
   const errors = await openGame(page); await panTo(page, site);

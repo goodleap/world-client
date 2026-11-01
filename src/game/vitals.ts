@@ -14,7 +14,7 @@ export type Vitals = Record<string, Vital>;
 const fighters = new Set(['infantry', 'archer', 'cavalry', ...ENEMIES.map(r => r.id)]);
 export function maxHealth(id: string) {
   if (id === 'infantry' || id === 'archer' || id === 'cavalry') return COMBAT_CONFIG[id].hp;
-  if (id.startsWith('enemy-')) return id === 'enemy-archer' ? COMBAT_CONFIG.enemyArcher.hp : COMBAT_CONFIG.enemyMelee.hp;
+  if (id.startsWith('enemy-')) return ENEMIES.find(r => r.id === id)?.variant === 'heavy' ? COMBAT_CONFIG.enemyHeavy.hp : ENEMIES.find(r => r.id === id)?.role === 'archer' ? COMBAT_CONFIG.enemyArcher.hp : COMBAT_CONFIG.enemyMelee.hp;
   return id === 'horse' ? 160 : id === 'dog' ? 80 : 100;
 }
 export const vitalIds = [...RESIDENTS, ...ENEMIES].map(r => r.id).concat('horse');

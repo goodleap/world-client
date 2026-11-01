@@ -44,6 +44,9 @@ export async function panTo(page: Page, point: { x: number; z: number }, touch =
     if (Math.hypot(camera.target.x - point.x, camera.target.z - point.z) < .4) return;
     const dx = Math.max(-cx + 45, Math.min(cx - 45, (camera.target.x - point.x) * scale));
     const dy = Math.max(-cy + 120, Math.min(cy - 120, (point.z - camera.target.z) * Math.cos(camera.beta) * scale));
+    // A final sub-threshold touch becomes a tap, not a pan. Projection helpers
+    // use the actual camera, so exact centering is unnecessary for picking.
+    if (Math.hypot(dx, dy) < 10) { await session?.detach(); return; }
     if (session) {
       await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
       await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + dx, y: cy + dy }] });

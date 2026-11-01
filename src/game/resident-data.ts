@@ -1,4 +1,4 @@
-import { OUTPOST } from './combat-config.ts';
+import { OUTPOST, ENCOUNTERS } from './combat-config.ts';
 import { WORLD_BOUNDS, OBSTACLES } from './world-data.ts';
 import type { Obstacle, Point } from './movement.ts';
 import type { WanderSettings } from './wander.ts';
@@ -9,6 +9,7 @@ export interface ResidentDefinition {
   id: string; role: ResidentRole; name: string; spawn: Point; home: Point;
   areaRadius: number; bodyRadius: number; speed: number; labelHeight: number;
   effects?: readonly ResidentEffect[];
+  camp?: string; variant?: 'heavy' | 'patrol';
 }
 
 // Runtime human tempo; authored strides and economy clocks stay unchanged.
@@ -28,9 +29,16 @@ export const RESIDENTS: readonly ResidentDefinition[] = [
 
 /** Same shared infantry/archer assets; allegiance is gameplay data. */
 export const ENEMIES: readonly ResidentDefinition[] = [
-  { id: 'enemy-guard', role: 'infantry', name: '据点守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
-  { id: 'enemy-sentry', role: 'infantry', name: '据点哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
-  { id: 'enemy-archer', role: 'archer', name: '据点弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.15 },
+  { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
+  { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
+  { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.15 },
+  ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.id === 'pass' ? 3 : 2 }, (_, i): ResidentDefinition => ({
+    id: `enemy-${c.id}-${i}`, role: c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
+    variant: c.id === 'pass' && i === 0 ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
+    name: c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : '巡逻兵',
+    spawn: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) }, home: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
+    areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.4,
+  }))),
 ];
 
 /** Leadership is an additional effect; the ordinary role still owns work,
