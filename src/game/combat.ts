@@ -23,8 +23,9 @@ export interface Projectile { id: number; source: string; target: string; from: 
 export interface CampState { id: string; cleared: boolean; discovered: boolean; rewardGranted: boolean; respawnAt: number; cycle: number }
 export interface CombatState { camps: CampState[]; units: Fighter[]; projectiles: Projectile[]; nextAttack: number; discovered: boolean; cleared: boolean; rewardGranted: boolean; rewardGoods: string[] }
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
+const enemyDefinitions = new Map(ENEMIES.map(enemy => [enemy.id, enemy]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
-  return u.team === 'home' ? C[u.role] : ENEMIES.find(r => r.id === u.id)?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
+  return u.team === 'home' ? C[u.role] : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : .4;
 // Melee reach accounts for the target body, so foot soldiers can strike a
@@ -48,12 +49,20 @@ export class Combat {
   private economy: Economy;
   private solids: () => readonly Obstacle[];
   private civilians: () => Neighbour[];
+  private units: Map<string, Fighter>;
+  private statCache = new Map<string, { level: number; value: ReturnType<typeof fighterStats> }>();
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
+    this.units = new Map(state.units.map(unit => [unit.id, unit]));
   }
-  private camp(u: Fighter) { return ENCOUNTERS.find(c => c.id === ENEMIES.find(r => r.id === u.id)?.camp)!; }
-  private stats(u: Fighter) { const base = fighterStats(u), level = u.team === 'home' ? this.economy.state.upgrades.arms : 0; return { ...base, attack: base.attack + level * 3, armor: base.armor + level }; }
-  unit(id: string) { return this.state.units.find(u => u.id === id); }
+  private camp(u: Fighter) { return ENCOUNTERS.find(c => c.id === enemyDefinitions.get(u.id)?.camp)!; }
+  private stats(u: Fighter) {
+    const level = u.team === 'home' ? this.economy.state.upgrades.arms : 0, cached = this.statCache.get(u.id);
+    if (cached?.level === level) return cached.value;
+    const base = fighterStats(u), value = { ...base, attack: base.attack + level * 3, armor: base.armor + level };
+    this.statCache.set(u.id, { level, value }); return value;
+  }
+  unit(id: string) { return this.units.get(id); }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
     return [...this.civilians(), ...this.state.units.filter(n => n !== u && n.life !== 'defeated').map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n),
@@ -62,7 +71,7 @@ export class Combat {
   private reservations(u: Fighter) {
     return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) }));
   }
-  private stop(u: Fighter) { u.route = []; u.speed = 0; resetRouteState(u.navigation); }
+  private stop(u: Fighter) { u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
   move(ids: readonly string[], point: Point, retreat = false, rest = false) {
     let accepted = 0;
     for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
@@ -183,9 +192,17 @@ export class Combat {
       }
       let target = u.target ? this.unit(u.target) : undefined;
       if (!target || target.life !== 'active' || target.team === u.team || u.order !== 'attack' && distance(u.position, target.position) > C.acquire + 3) {
-        target = u.team === 'enemy' ? this.state.units.filter(t => t.team !== u.team && t.life === 'active' && distance(u.position, t.position) < C.acquire
-          && distance(t.position, this.camp(u)) <= this.camp(u).leash && segmentIsClear(u.position, t.position, .05, WORLD_BOUNDS, this.solids()))
-          .sort((a, b) => distance(u.position, a.position) - distance(u.position, b.position) || a.id.localeCompare(b.id))[0] : undefined;
+        target = undefined;
+        if (u.team === 'enemy') {
+          const camp = this.camp(u); let nearest = C.acquire;
+          for (const candidate of this.state.units) {
+            if (candidate.team === u.team || candidate.life !== 'active') continue;
+            const d = distance(u.position, candidate.position);
+            if (d >= C.acquire || d > nearest || d === nearest && target && candidate.id.localeCompare(target.id) >= 0
+              || distance(candidate.position, camp) > camp.leash || !segmentIsClear(u.position, candidate.position, .05, WORLD_BOUNDS, this.solids())) continue;
+            target = candidate; nearest = d;
+          }
+        }
         u.target = target?.id;
         if (!target) {
           const patrol = u.team === 'enemy' ? this.camp(u).patrol : [];

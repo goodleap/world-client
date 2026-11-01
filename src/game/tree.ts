@@ -10,6 +10,7 @@ import trunkLOD from './tree-trunk-lod.json' with { type: 'json' };
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { seededRandom } from './landscape-layout.ts';
+import { landscapeTexture } from './landscape-textures.ts';
 
 export type TreeDetail = 'near' | 'medium' | 'far';
 
@@ -38,21 +39,24 @@ export function createTreeMaterials(scene: Scene) {
   {
     // One shared, seamless painted leaf map for all crowns and all LODs.
     // Small leaf groups live in the texture rather than separate geometry.
-    const texture = new DynamicTexture('woodland-canopy-leaves', 512, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
-    const ctx = texture.getContext() as CanvasRenderingContext2D, random = seededRandom(919);
-    ctx.fillStyle = '#c7d4a8'; ctx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 260; i++) {
-      const x = random() * 512, y = random() * 512, angle = random() * Math.PI * 2;
-      const size = 7 + random() * 10;
-      ctx.fillStyle = ['#edf0c7', '#95ad7a', '#b3c695', '#e2e8b7'][i % 4];
-      for (const dx of [-512, 0, 512]) for (const dy of [-512, 0, 512]) {
-        ctx.save(); ctx.translate(x + dx, y + dy); ctx.rotate(angle);
-        ctx.beginPath(); ctx.moveTo(-size, 0); ctx.quadraticCurveTo(0, -size * .8, size, 0);
-        ctx.quadraticCurveTo(0, size * .35, -size, 0); ctx.fill(); ctx.restore();
+    const texture = landscapeTexture('woodland-canopy-leaves', scene) ?? new DynamicTexture('woodland-canopy-leaves', 512, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
+    if (texture instanceof DynamicTexture) {
+      const ctx = texture.getContext() as CanvasRenderingContext2D, random = seededRandom(919);
+      ctx.fillStyle = '#c7d4a8'; ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 260; i++) {
+        const x = random() * 512, y = random() * 512, angle = random() * Math.PI * 2;
+        const size = 7 + random() * 10;
+        ctx.fillStyle = ['#edf0c7', '#95ad7a', '#b3c695', '#e2e8b7'][i % 4];
+        for (const dx of [-512, 0, 512]) for (const dy of [-512, 0, 512]) {
+          ctx.save(); ctx.translate(x + dx, y + dy); ctx.rotate(angle);
+          ctx.beginPath(); ctx.moveTo(-size, 0); ctx.quadraticCurveTo(0, -size * .8, size, 0);
+          ctx.quadraticCurveTo(0, size * .35, -size, 0); ctx.fill(); ctx.restore();
+        }
       }
+      texture.update();
     }
     texture.wrapU = texture.wrapV = Texture.WRAP_ADDRESSMODE;
-    texture.update(); foliage.diffuseTexture = texture;
+    foliage.diffuseTexture = texture;
   }
   return { foliage, bark };
 }

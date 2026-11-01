@@ -17,6 +17,7 @@ import { createCharacterMaterialSetup } from './character-materials.ts';
 import { attachMeshLOD } from './character-lod.ts';
 import type { CharacterLOD } from './character-lod.ts';
 import catalog from '../../studies/characters/roles.json';
+import { batchCharacterMaterials } from './character-material-batching.ts';
 
 export type CharacterRole = keyof typeof catalog.roles;
 const parts: Record<string, { name: string; horse: boolean }> = catalog.parts;
@@ -56,7 +57,11 @@ export function createCharacterLibrary(scene: Scene) {
       return container;
     };
     const [high, low, far] = await Promise.all([loadOne(modelAssets.characters), loadOne(modelAssets.characterLOD), loadOne(modelAssets.characterFarLOD)]);
-    prepareMaterials(high.materials);
+    for (const container of [high, low, far]) {
+      prepareMaterials(container.materials);
+      batchCharacterMaterials(container.meshes);
+      for (const material of new Set(container.meshes.map(mesh => mesh.material))) material?.freeze();
+    }
     humanActions = high.animationGroups.filter(group => !group.name.startsWith('Horse')).map(group => group.name);
     return { high, low, far };
   })();
@@ -115,8 +120,11 @@ export function createCharacterLibrary(scene: Scene) {
       const renderedMeshes = meshes.filter(m => m !== originalString && !heldArrow.includes(m));
       instanceCount++;
       instances.push({ role, meshes, skeletons: instance.skeletons });
+      let bowPhase: number | undefined | false = false;
       return { ...instance, meshes: renderedMeshes, bowPose(phase?: number) {
         if (!bow || !originalString) return;
+        if (bowPhase === phase) return;
+        bowPhase = phase;
         const turn = phase === undefined ? 0 : Math.min(1, phase / .22, (1 - phase) / .22);
         for (const { node, rotation } of roots) node.rotationQuaternion = Quaternion.RotationYawPitchRoll(-bowYaw * turn, 0, 0).multiply(rotation);
         for (const mesh of heldArrow) mesh.setEnabled(phase === undefined);

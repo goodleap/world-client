@@ -110,6 +110,18 @@ export function createUI(app: HTMLElement) {
   const dialogs = [settings, help, detail, resources];
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
+  const residentLabels = new Map<string, HTMLElement>();
+  const residentStatuses = new Map<string, HTMLElement>();
+  const residentSizes = new Map<HTMLElement, { width: number; height: number }>();
+  const residentSizeObserver = new ResizeObserver(entries => {
+    for (const entry of entries) residentSizes.delete(entry.target as HTMLElement);
+  });
+  const residentSize = (element?: HTMLElement) => {
+    if (!element) return { width: 0, height: 0 };
+    let size = residentSizes.get(element);
+    if (!size) { size = { width: element.offsetWidth, height: element.offsetHeight }; residentSizes.set(element, size); }
+    return size;
+  };
   const discovered = new Set<string>();
   const abort = new AbortController();
   const options = { signal: abort.signal };
@@ -260,31 +272,34 @@ export function createUI(app: HTMLElement) {
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
       if (leader) { label.classList.add('resident-leader'); label.title = '领头 · 参与作业并指挥同职业居民'; }
       get('resident-labels').append(label);
+      residentLabels.set(id, label); residentSizeObserver.observe(label);
       return label;
     },
+    residentLabelSize: (id: string) => residentSize(residentLabels.get(id)),
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
     setVitalLabel(id: string, text: string, enemy: boolean, selected: boolean) {
-      const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`); if (!label) return;
+      const label = residentLabels.get(id); if (!label) return;
       label.classList.add('combat-label'); label.classList.toggle('enemy-label', enemy);
-      let status = label.querySelector('small');
-      if (!status) { status = document.createElement('small'); label.append(status); }
-      status.hidden = !enemy && !selected;
-      if (status.textContent !== text) status.textContent = text;
+      let status = residentStatuses.get(id);
+      if (!status) { status = document.createElement('small'); label.append(status); residentStatuses.set(id, status); }
+      if (status.hidden !== (!enemy && !selected) || status.textContent !== text) {
+        status.hidden = !enemy && !selected; status.textContent = text; residentSizes.delete(label);
+      }
     },
     sayResident(id: string, text: string, duration = 3.5) {
-      if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); }
+      if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); residentSizeObserver.observe(bubble); }
       speech.say(id, text, duration);
     },
     clearResidentSpeech(id: string) { speech.clear(id); const bubble = bubbles.get(id); if (bubble) { bubble.hidden = true; bubble.textContent = ''; } },
     advanceSpeech(seconds: number) { speech.advance(seconds); },
     positionSpeech(id: string, x: number, y: number, visible: boolean) {
       const bubble = bubbles.get(id); if (!bubble) return;
-      const text = speech.current(id); bubble.hidden = !text || !visible;
+      const text = speech.current(id), hidden = !text || !visible;
+      if (bubble.hidden !== hidden) { bubble.hidden = hidden; residentSizes.delete(bubble); }
       if (bubble.hidden) return;
-      bubble.textContent = text!;
-      const label = app.querySelector<HTMLElement>(`[data-resident="${id}"]`);
-      const nameHeight = label?.offsetHeight ?? 0;
-      const w = bubble.offsetWidth, h = bubble.offsetHeight, gap = 12; // includes the 6px tail
+      if (bubble.textContent !== text) { bubble.textContent = text!; residentSizes.delete(bubble); }
+      const nameHeight = residentSize(residentLabels.get(id)).height;
+      const { width: w, height: h } = residentSize(bubble), gap = 12; // includes the 6px tail
       const left = Math.max(8, Math.min(canvas.clientWidth - w - 8, x - w / 2));
       let top = y - nameHeight - gap - h;
       const below = top < 8;
@@ -292,8 +307,10 @@ export function createUI(app: HTMLElement) {
       bubble.classList.toggle('speech-below', below);
       // If neither side fits, hide instead of laying speech on top of a name.
       bubble.hidden = top < 8 || top + h > canvas.clientHeight - 8;
-      bubble.style.setProperty('--tail-x', `${Math.max(10, Math.min(w - 16, x - left))}px`);
-      bubble.style.transform = `translate(${left}px, ${top}px)`;
+      const tail = `${Math.max(10, Math.min(w - 16, x - left)).toFixed(2)}px`;
+      if (bubble.style.getPropertyValue('--tail-x') !== tail) bubble.style.setProperty('--tail-x', tail);
+      const transform = `translate(${Math.round(left * 100) / 100}px, ${Math.round(top * 100) / 100}px)`;
+      if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
     get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
     pauseForBackground() { backgroundPaused = true; if (!loading) showBackgroundPause(); },
@@ -421,7 +438,7 @@ export function createUI(app: HTMLElement) {
     },
     get hintAnchor() { return hintAnchor; },
     positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y, visible),
-    dispose() { abort.abort(); layoutObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
+    dispose() { abort.abort(); layoutObserver.disconnect(); residentSizeObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }
 

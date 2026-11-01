@@ -11,6 +11,7 @@ import { GRID_SIZE } from './world-data.ts';
 type Residents = Pick<ReturnType<typeof createResidents>, 'needsStatus' | 'setResting' | 'command' | 'releaseFarmerWork'>;
 type Rest = NonNullable<Vital['rest']>;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
+const allResidents = [...RESIDENTS, ...ENEMIES];
 
 /** Meals and personal supplies share economy reservations, goods and game time.
  * Movement still uses the existing crowd routes; manual orders always interrupt. */
@@ -127,7 +128,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     canTakeWork(id: string) { return !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
     update(seconds: number) {
       if (!Number.isFinite(seconds) || seconds <= 0) return;
-      for (const r of [...RESIDENTS, ...ENEMIES]) {
+      for (const r of allResidents) {
         const u = combat.unit(r.id); if (u?.life === 'defeated') continue;
         const state = status(r.id), vital = e.state.vitals[r.id];
         const rate = vital.rest && !(u ? u.speed > .08 : state.moving) ? 0 : u?.attack || u?.target ? V.combatDrain : state.working ? V.workDrain : state.speed > .08 ? V.movingDrain : V.idleDrain;

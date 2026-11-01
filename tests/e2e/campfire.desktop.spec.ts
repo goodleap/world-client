@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { Economy, encodeEconomy, decodeEconomy } from '../../src/game/economy.ts';
 import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
-import { openGame, snapshot, clickGround, selectUnit } from './helpers.ts';
+import { openGame, snapshot, clickGround, selectUnit, panTo } from './helpers.ts';
 
 test('build, carry warehouse supplies, cook, heal, pause and reload the same partial meal', async ({ page }, info) => {
   test.setTimeout(360_000);
@@ -11,6 +11,9 @@ test('build, carry warehouse supplies, cook, heal, pause and reload the same par
   e.state.vitals.infantry.stamina = 100; // Injury alone must trigger automatic healing.
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: ECONOMY_SAVE_KEY, value: encodeEconomy(e) });
   const errors = await openGame(page);
+  // At the current home zoom this point projects onto the bottom-left
+  // placement hint. Center the actual plot before clicking the world.
+  await panTo(page, { x: -10, z: -10 });
   await page.locator('#building-toggle').click(); await page.locator('#build-campfire').click();
   await clickGround(page, { x: -10, z: -10 });
   await expect.poll(async () => (await snapshot(page)).economy.campfires.length, { timeout: 120_000 }).toBe(1);

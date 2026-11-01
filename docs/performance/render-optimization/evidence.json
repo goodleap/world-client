@@ -1,0 +1,1298 @@
+{
+  "baseline": "99b9e80",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "browser": "Cloud Chromium / SwiftShader, not iPhone",
+  "viewport": {
+    "width": 412,
+    "height": 839
+  },
+  "before": {
+    "samples": [
+      {
+        "zoom": 18,
+        "draws": 697,
+        "triangles": 1867156,
+        "shadowDraws": 447,
+        "shadowTriangles": 924186,
+        "activeMeshes": 286
+      },
+      {
+        "zoom": 40,
+        "draws": 715,
+        "triangles": 1910326,
+        "shadowDraws": 447,
+        "shadowTriangles": 988056,
+        "activeMeshes": 389
+      },
+      {
+        "zoom": 77,
+        "draws": 797,
+        "triangles": 2378450,
+        "shadowDraws": 448,
+        "shadowTriangles": 1141332,
+        "activeMeshes": 628
+      }
+    ],
+    "frozen": 634
+  },
+  "after": {
+    "samples": [
+      {
+        "zoom": 18,
+        "draws": 308,
+        "triangles": 1495966,
+        "shadowDraws": 140,
+        "shadowTriangles": 552996,
+        "activeMeshes": 204
+      },
+      {
+        "zoom": 40,
+        "draws": 326,
+        "triangles": 1539136,
+        "shadowDraws": 140,
+        "shadowTriangles": 616866,
+        "activeMeshes": 307
+      },
+      {
+        "zoom": 77,
+        "draws": 452,
+        "triangles": 2312810,
+        "shadowDraws": 228,
+        "shadowTriangles": 1051128,
+        "activeMeshes": 503
+      }
+    ],
+    "frozen": 827,
+    "loadedTextures": [
+      {
+        "name": "woodland-ground-colors",
+        "url": "http://127.0.0.1:4174/terrain/woodland-ground-colors.ktx2",
+        "format": 37808,
+        "size": {
+          "width": 2048,
+          "height": 2048
+        },
+        "gamma": true
+      },
+      {
+        "name": "woodland-meadow-strokes",
+        "url": "http://127.0.0.1:4174/terrain/woodland-meadow-strokes.ktx2",
+        "format": 37808,
+        "size": {
+          "width": 512,
+          "height": 512
+        },
+        "gamma": true
+      },
+      {
+        "name": "woodland-road-grain",
+        "url": "http://127.0.0.1:4174/terrain/woodland-road-grain.ktx2",
+        "format": 37808,
+        "size": {
+          "width": 256,
+          "height": 256
+        },
+        "gamma": true
+      },
+      {
+        "name": "woodland-water-ripples",
+        "url": "http://127.0.0.1:4174/terrain/woodland-water-ripples.ktx2",
+        "format": 37808,
+        "size": {
+          "width": 512,
+          "height": 512
+        },
+        "gamma": true
+      },
+      {
+        "name": "woodland-canopy-leaves",
+        "url": "http://127.0.0.1:4174/terrain/woodland-canopy-leaves.ktx2",
+        "format": 37808,
+        "size": {
+          "width": 512,
+          "height": 512
+        },
+        "gamma": true
+      }
+    ],
+    "envelopes": [
+      {
+        "name": "farmer",
+        "radius": 2.8187004676828717
+      },
+      {
+        "name": "farmer-2",
+        "radius": 2.8187004676828717
+      },
+      {
+        "name": "farmer-leader",
+        "radius": 2.8187004676828717
+      },
+      {
+        "name": "infantry",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "archer",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "cavalry-animal",
+        "radius": 3.84890011465776
+      },
+      {
+        "name": "enemy-guard",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-sentry",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-archer",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-pass-0",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-pass-1",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-pass-2",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-patrol-0",
+        "radius": 2.9977728446812484
+      },
+      {
+        "name": "enemy-patrol-1",
+        "radius": 2.9977728446812484
+      }
+    ]
+  },
+  "roleComparisons": [
+    {
+      "pose": "farmer-false-front-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-front-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-side-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-side-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-game-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-game-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-front-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-front-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-side-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-side-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 2.8935185185185184e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-game-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-game-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-front-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-front-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-side-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-side-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-game-Walk",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-game-Hammer",
+      "partsBefore": 25,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-front-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-front-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-side-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-side-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-game-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-false-game-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-front-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-front-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-side-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-side-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-game-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-true-game-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-front-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-front-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-side-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-side-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-game-CarryRun",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "infantry-far-game-SwordSlash",
+      "partsBefore": 27,
+      "partsAfter": 15,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-front-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-front-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-side-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 10,
+        "mean": 2.604166666666667e-05,
+        "channelsOverOne": 3
+      }
+    },
+    {
+      "pose": "archer-false-side-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-game-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-game-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-front-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-front-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-side-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-side-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-game-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-game-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-front-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-front-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-side-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-side-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-game-CarryRun",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-game-BowShot",
+      "partsBefore": 30,
+      "partsAfter": 14,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-front-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-front-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-side-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-side-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-game-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-false-game-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-front-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-front-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-side-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-side-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-game-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-true-game-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-front-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-front-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-side-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-side-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-game-RideRun",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "cavalry-far-game-LanceThrust",
+      "partsBefore": 40,
+      "partsAfter": 19,
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    }
+  ],
+  "textureVerification": {
+    "report": [
+      {
+        "name": "woodland-ground-colors",
+        "max": 4,
+        "mean": 0.1276988983154297,
+        "channelsOver8": 0,
+        "format": 37808,
+        "url": "http://127.0.0.1:4174/terrain/woodland-ground-colors.ktx2?v=178a8b92",
+        "size": {
+          "width": 2048,
+          "height": 2048
+        }
+      },
+      {
+        "name": "woodland-meadow-strokes",
+        "max": 7,
+        "mean": 0.016176223754882812,
+        "channelsOver8": 0,
+        "format": 37808,
+        "url": "http://127.0.0.1:4174/terrain/woodland-meadow-strokes.ktx2?v=178a8b92",
+        "size": {
+          "width": 512,
+          "height": 512
+        }
+      },
+      {
+        "name": "woodland-road-grain",
+        "max": 2,
+        "mean": 0.006039619445800781,
+        "channelsOver8": 0,
+        "format": 37808,
+        "url": "http://127.0.0.1:4174/terrain/woodland-road-grain.ktx2?v=178a8b92",
+        "size": {
+          "width": 256,
+          "height": 256
+        }
+      },
+      {
+        "name": "woodland-canopy-leaves",
+        "max": 7,
+        "mean": 0.026401519775390625,
+        "channelsOver8": 0,
+        "format": 37808,
+        "url": "http://127.0.0.1:4174/terrain/woodland-canopy-leaves.ktx2?v=178a8b92",
+        "size": {
+          "width": 512,
+          "height": 512
+        }
+      },
+      {
+        "name": "woodland-water-ripples",
+        "max": 2,
+        "mean": 0.0058841705322265625,
+        "channelsOver8": 0,
+        "format": 37808,
+        "url": "http://127.0.0.1:4174/terrain/woodland-water-ripples.ktx2?v=178a8b92",
+        "size": {
+          "width": 512,
+          "height": 512
+        }
+      }
+    ],
+    "fallback": {
+      "ready": true,
+      "url": "http://127.0.0.1:4174/terrain/woodland-ground-colors.png?v=178a8b92",
+      "format": 5
+    }
+  },
+  "errors": [],
+  "materialShader": {
+    "shader": {
+      "specular": false,
+      "colorDetailOnly": true,
+      "colorOnlyCode": true
+    },
+    "off": [
+      51,
+      51,
+      51,
+      255
+    ],
+    "on": [
+      113,
+      82,
+      57,
+      255
+    ],
+    "offAgain": [
+      51,
+      51,
+      51,
+      255
+    ],
+    "frozen": true,
+    "activePointLight": true
+  },
+  "finalRoleRecheck": [
+    {
+      "pose": "farmer-false-front-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-front-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-side-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-side-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-game-Walk",
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-false-game-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-front-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-front-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-side-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-side-Hammer",
+      "difference": {
+        "max": 1,
+        "mean": 2.8935185185185184e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-game-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-true-game-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-front-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-front-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-side-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-side-Hammer",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-game-Walk",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "farmer-far-game-Hammer",
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-front-CarryRun",
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-front-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-side-CarryRun",
+      "difference": {
+        "max": 10,
+        "mean": 2.604166666666667e-05,
+        "channelsOverOne": 3
+      }
+    },
+    {
+      "pose": "archer-false-side-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-game-CarryRun",
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-false-game-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-front-CarryRun",
+      "difference": {
+        "max": 1,
+        "mean": 1.4467592592592592e-06,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-front-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-side-CarryRun",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-side-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-game-CarryRun",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-true-game-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-front-CarryRun",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-front-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-side-CarryRun",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-side-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-game-CarryRun",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    },
+    {
+      "pose": "archer-far-game-BowShot",
+      "difference": {
+        "max": 0,
+        "mean": 0,
+        "channelsOverOne": 0
+      }
+    }
+  ],
+  "validation": {
+    "logicTests": 160,
+    "logicPassed": 160,
+    "typecheck": "passed",
+    "build": "passed; existing engine chunk size warning",
+    "browserScenarios": 10,
+    "browserPassed": 10,
+    "browserRuns": [
+      "first: 9 passed, 1 misplaced click; trace confirmed HUD intercepted the click",
+      "final: campfire construction, lighting, shadow settings all passed after centering build plot and revalidating frozen materials"
+    ]
+  }
+}

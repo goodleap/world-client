@@ -1,0 +1,198 @@
+
+> world-client@0.1.0 test
+> node --test --test-isolation=none tests/*.test.ts
+
+BJS - [15:03:38]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:38]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:39]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:39]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:39]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:39]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:40]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:40]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:42]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:43]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:43]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:43]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:43]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:43]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:46]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:46]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:47]: Babylon.js v9.32.1 - Null engine
+BJS - [15:03:47]: Babylon.js v9.32.1 - Null engine
+✔ farmer uses the base skeleton, bind pose and unchanged head geometry (22.00885ms)
+✔ farmer reuses every Walk and Run channel, including timing, instead of sped-up walking (4.036341ms)
+✔ shared Hammer is a stationary looping work clip with fixed foot support (0.679164ms)
+✔ soldier production leaves every base-human source and asset unchanged (26.675602ms)
+✔ infantry retains the base human skin, skeleton and body geometry (13.95078ms)
+✔ infantry preserves the complete shared gait and timing with only carried-weapon arm adaptation (1.872141ms)
+✔ archer retains the base human skin, skeleton and body geometry (11.220816ms)
+✔ archer preserves the complete shared gait and timing with only carried-weapon arm adaptation (1.404556ms)
+✔ mounted cavalry retains all original human bones, geometry and source Walk/Run channels (13.282152ms)
+✔ cavalry adds distinct mounted idle, four-beat walk and airborne trot clips (0.567746ms)
+✔ base map LOD preserves source binding and valid skin weights without duplicate animations (35.141727ms)
+✔ farmer map LOD preserves source binding and valid skin weights without duplicate animations (51.228165ms)
+✔ infantry map LOD preserves source binding and valid skin weights without duplicate animations (43.029222ms)
+✔ cavalry map LOD preserves source binding and valid skin weights without duplicate animations (67.170686ms)
+✔ archer map LOD preserves source binding and valid skin weights without duplicate animations (41.572847ms)
+✔ native door motion preserves its hinge, handles repeated visitors and freezes with game time (19.97744ms)
+✔ fire is built with stone; off never consumes fuel or food, toggling preserves partial fuel/cooking (20.916134ms)
+✔ cooking is independent of frame subdivisions and waits for actual diner demand (0.243838ms)
+✔ supply reserves then physically picks up and deposits one batch; interrupted/reloaded cargo is never charged twice (15.077177ms)
+✔ cancelled outbound cargo returns via normal hauling and obeys warehouse capacity (10.130353ms)
+✔ one paid food portion restores stamina faster than health, saving and pause preserve the remaining portion (10.740923ms)
+✔ all controlled bodies drain stamina; exhausted workers and rider/horse can still move and deliver supplies (16.645159ms)
+✔ dog, rider and horse consume distinct meals; manual orders interrupt rest without cancelling another unit (20.102608ms)
+✔ injured soldier walks to food and heals gradually, no fire means no automatic health or inventory changes (22.217175ms)
+✔ strict saves reject invalid local stock, duplicated vitality health and orphaned deliveries (13.687743ms)
+✔ fire render states follow stock and cooking; local light count remains capped (62.165344ms)
+✔ built fire collision follows the actual stone circle, while construction reserves its grid footprint (28.137073ms)
+✔ an injured diner waits when every fire seat is occupied instead of eating at a distant fallback point (17.378735ms)
+✔ automatic healing waits for recent damage and explicit commands, then resumes without an eating button (23.668822ms)
+✔ fire seats fit the mounted horse and retain reachable approaches on the real map (12.234574ms)
+✔ automatic meals require low stamina or injury and an enabled reachable fire within 30 map cells (12.528216ms)
+✔ every human can supply an empty fire and eat; animals never carry and reservations are shared (485.974959ms)
+✔ a soldier supply survives reload in transit and manual movement drops goods without a second charge (81.093472ms)
+✔ shortages retry without free food, switching off interrupts supply, and normal tasks remain available (45.142406ms)
+✔ blocked supply routes wait without charging inventory or retrying navigation every frame (13.312407ms)
+✔ incoming fire interrupts automatic supply to retaliate, preserving paid cargo (13.192637ms)
+✔ native screen-coverage LOD switches differently sized parts together under orthographic zoom (6.668498ms)
+✔ material batching preserves linear color, normals and geometry; different surface responses stay separate (9.506353ms)
+✔ shared geometry keeps same-color parts shared without recoloring excluded or differently colored parts (7.533261ms)
+✔ melee windup hits once and repeated clicks cannot bypass cooldown (2.34264ms)
+✔ manual move cancels a windup, retains cooldown and suppresses auto acquisition throughout travel (1.657978ms)
+✔ idle soldiers do not hunt; both sides retaliate and a manual move wins over incoming hits (1.121359ms)
+✔ projectiles release once, persist through reload, and cannot hit through cover (12.510018ms)
+✔ archers reposition around cover instead of releasing through it (6.673345ms)
+✔ enemy target is stable and chase is limited to the outpost (2.517503ms)
+✔ actual map paths and shared crowd follower keep soldiers out of solids and apart (281.030466ms)
+✔ injury holds position without automatic home recovery or warehouse food charges (17.834782ms)
+✔ outpost reward is a single ground delivery; reload and capacity cannot mint inventory (1.472299ms)
+✔ pause freezes every combat field; corrupt or old saves are rejected (0.602007ms)
+✔ a picked Babylon destination actually moves the soldier and remains valid across reload (4.232858ms)
+✔ both sides sustain at least triple the former attack cadence, including mounted melee (15.07956ms)
+✔ foot soldiers reach a mounted opponent without overlapping the horse; cavalry saves active attacks (2.392745ms)
+✔ manual movement owns the farmer until arrival and resumes partial work without spending reserved materials twice (13.135801ms)
+✔ direct work preempts automatic work, reuses queued tasks and preserves the interrupted progress (1.225706ms)
+✔ dogs and soldiers accept movement while unsupported or invalid work cannot interrupt an existing command (0.532702ms)
+✔ a blocked delivery approach retries another point without dropping or duplicating cargo (0.360443ms)
+✔ free placement snaps footprint edges, queues unfunded work, rejects overlap and releases cancelled land (48.334836ms)
+✔ placement reserves farm, water, resources, residents, loose goods and entrances (1.361531ms)
+✔ dynamic building coordinates and partial work survive save/load; obsolete versions are rejected (14.42871ms)
+✔ the native dog run loops and pauses at the current pose without changing the bind skeleton (3.619013ms)
+✔ till, sow, grow and harvest form a repeatable cycle with exactly one output per job (1.912712ms)
+✔ FIFO skips unfunded construction, gathers materials, reserves once and spends only on completion (17.457233ms)
+✔ concurrent requests cannot double reserve, and cancellation releases resources without spending (26.319896ms)
+✔ blocked paths defer a job and allow the next executable job; invalid targets cannot grant output (0.317849ms)
+✔ growth and working time follow active seconds independently of the frame rate (1.477366ms)
+✔ save/load retains partial work and crop growth without offline catch-up or duplicate settlement (1.056281ms)
+✔ save validation rejects corrupt resources, wrong target kinds and premature pending outputs (1.601513ms)
+✔ resource and construction footprints leave every resident spawn traversable (0.726364ms)
+✔ two farming cycles retain tilled soil, free the farmer while growing, and deliver before food is usable (0.722058ms)
+✔ the farmer leader works at the ordinary rate while the crew continues receiving orders (1.405368ms)
+✔ manual commands interrupt the leader just like another farmer and preserve partial work (1.261841ms)
+✔ the leader can resume delivering without losing or duplicating goods (0.819624ms)
+✔ leadership never queues future orders while every farmer is occupied or moving manually (0.423218ms)
+✔ disabled leadership persists, leaves ordinary work available and chains delivery to the producer (1.289804ms)
+✔ claiming an old steward order while disabled stays silent and preserves ordinary work (0.404309ms)
+✔ CPU frame work excludes the wait between frames, independently of FPS (0.412442ms)
+✔ resuming clears the old sampling interval and averages actual frame costs (0.281775ms)
+✔ frame interval tail resets with the sampling window and on resume (0.241384ms)
+✔ native ground patches keep separate GPU instance buffers and clear roads, farm plots and building footprints (182.224349ms)
+✔ all opening plots are tilled and four adjacent extensions reserve independent grid cells (3.617178ms)
+✔ farm placement rejects roads and cancellation restores the cell without reusing its identity (1.24146ms)
+✔ dynamic farmland restores partial tilling and joins automatic sowing without a six-field ceiling (0.946085ms)
+✔ only completed warehouses add shared capacity and delivery doors; reservations spend once (22.185537ms)
+✔ cancelling warehouse construction releases materials and never adds capacity (21.16547ms)
+✔ a larger farm cannot starve a requested warehouse of construction materials (18.984715ms)
+✔ a full expanded warehouse leaves overflow at the actual delivery door (18.589049ms)
+✔ concave water admits its bay but blocks crossings, narrow shores and fully submerged destinations (1.590355ms)
+✔ landscape seeds are reproducible, mixed resources have clearance and starting buildings remain accessible (1582.645805ms)
+✔ native water rings stay within the shared shoreline and preserve its bays (492.643432ms)
+✔ the rock silhouette fits its circular collider at any rotation without a high geometry cost (3.919052ms)
+✔ download completion remains separate from processing and real progress resets inactivity (0.533724ms)
+✔ batched parts retain deformed positions across a full skeletal motion cycle (5.689199ms)
+✔ batching leaves transformed parts and different skeletons independent (1.110293ms)
+✔ shared merged geometry keeps each actor pose independent and templates intact (3.589686ms)
+✔ chamfered model faces point outward so clothing and faces cannot render inside out (3.367422ms)
+✔ destination feedback shares the pause clock, replaces the old target and expires without intercepting picks (3.721896ms)
+✔ diagonal movement has the same speed as axial movement, while analog input keeps its magnitude (0.219992ms)
+✔ accepts vector-style accessor properties without mutating the engine object (0.136676ms)
+✔ a thin wall cannot be tunneled through, including after a long frame (0.221644ms)
+✔ the player slides along a wall instead of sticking when moving diagonally (0.091077ms)
+✔ circle obstacles and rounded box corners use the character radius (0.154843ms)
+✔ continuous circle sweeps catch grazing contacts between the old sampling points (0.091448ms)
+✔ map bounds include the character radius on all four edges (0.093891ms)
+✔ zero input and nonpositive elapsed time never move the character (0.07311ms)
+✔ demo spawn is walkable and the land grid records all terrain categories (362.69282ms)
+✔ finds a route around a wall, rejects blocked or unreachable destinations (2.690102ms)
+✔ copy keeps ten seconds before the last render even after a minute paused, without repeated configuration (1.092716ms)
+✔ copy handles no rendered samples and preserves genuine GPU timings when available (0.316236ms)
+✔ ground stays under both fingers as their spacing changes across view sizes, DPI and zoom levels (10.659336ms)
+✔ zoom limits stay anchored and reverse immediately without storing excess pinch motion (0.512792ms)
+✔ every clearing has a swept route for infantry and cavalry; most terrain stays inaccessible (3678.490456ms)
+✔ roads and wildland cannot be built on; clearing a camp opens its construction region only (142.99663ms)
+✔ iron requires cleared mine, physical hauling and reserved processing; upgrades settle once (1.893953ms)
+✔ tools accelerate production, equipment changes actual damage, and heavy guards differ in speed and armor (1.002ms)
+✔ forage remains finite until active-time regrowth; reload, pause and occupied sites preserve it (0.852114ms)
+✔ captured regions stay clear; patrol renewal waits for distance and yields one reward per cycle (1.364635ms)
+✔ patrols visit both ends of the actual forest passage without crossing solids (64.410488ms)
+✔ renewable resources never grow through completed buildings (15.046598ms)
+✔ screen-hidden visual clips retain phase, changing speed and zero game delta; external pauses remain paused (1.246969ms)
+✔ rig envelope contains animated translation, rotation and scale; offscreen skin shadows can be culled (2.66136ms)
+✔ different leaders have independent queues and pause preserves readable speech (0.201563ms)
+✔ clear removes active and queued speech without affecting other residents (0.100792ms)
+✔ a command detours around an idle resident and reaches its original destination without overlap (0.252199ms)
+✔ crossing traffic causes a stable wait, then movement resumes after it passes (0.275836ms)
+✔ two opposing commands pass without dropping either command or interpenetrating (0.714857ms)
+✔ an occupied destination waits without losing work; paused ticks preserve the wait and route (0.403257ms)
+✔ nearby residents can swap occupied destinations without a permanent mutual wait (0.383888ms)
+✔ physical and floating-point overlaps recover gradually without losing the command (0.333662ms)
+✔ an idle resident on an intermediate waypoint does not pin the command to that obsolete waypoint (0.277207ms)
+✔ head-on traffic shares a narrow passage by yielding sideways, including slow-frame substeps (0.496609ms)
+✔ a fully occupied passage retains the goal and throttles failed local searches (1.192987ms)
+✔ a grazing route follows its exact corner instead of getting permanently stuck before turning (0.275705ms)
+✔ adjacent farmers reach shared or nearby clicks at 15, 30 and 60 fps without overlap or lost commands (5.840239ms)
+✔ seeded four-person traffic completes around round and rectangular obstacles (172.057301ms)
+✔ offscreen casters whose shadows enter the view survive; moving bounds and skinning remain safe (1.257775ms)
+✔ spatial batches preserve all triangles and face identities while native frustum culling excludes distant cells (128.841766ms)
+✔ steward stays within home radius and one vacancy produces at most one order (0.719143ms)
+✔ two farmers claim distinct jobs and a manual interruption releases only one (0.518431ms)
+✔ autonomous work keeps delivering and replanting past the former comfort stock (39.372186ms)
+✔ old stock thresholds do not stop each resource while its storage has room (0.310377ms)
+✔ a full resource store leaves other production running; consuming stock resumes that resource (0.250908ms)
+✔ queued automatic production waits for its full store and preserves the task (0.244779ms)
+✔ incoming food fills the remaining space before more is planted, preserving excess goods (0.227032ms)
+✔ opening a newly placed farming area precedes distant material trips (1.339589ms)
+✔ production stays on ground and in transit until one warehouse delivery (0.224037ms)
+✔ interruption and unreachable warehouse preserve cargo at the actual drop point (0.173081ms)
+✔ full storage keeps remainder and a restored haul delivers it exactly once (0.548146ms)
+✔ save restores in-transit ownership, positions, manager clock and a manual destination (0.516077ms)
+✔ saving between gathering and pickup keeps the delivery with its producer (0.44521ms)
+BJS - [15:03:47]: Babylon.js v9.32.1 - Null engine
+✔ tree LOD preserves its full extent and reduces both bark and crown geometry (11.347475ms)
+BJS - [15:03:47]: Babylon.js v9.32.1 - Null engine
+✔ native instance LOD follows orthographic coverage and survives shadow selection and harvesting (16.029759ms)
+✔ all residents spawn on traversable land without overlapping each other (0.456859ms)
+✔ targets with clear endpoints are rejected if a wall crosses their route (0.115855ms)
+✔ seeded residents wander for two simulated minutes without crossing solids or teleporting (301.184937ms)
+✔ a blocked resident waits and retries without teleporting or an unbounded search (0.5705ms)
+✔ a newly arrived obstacle interrupts walking and causes the target to be reconsidered (0.337008ms)
+✔ pausing freezes destinations and position, and an invalid spawn is rejected (0.309486ms)
+✔ workers reserve different approach points and bypass standing occupants (0.165529ms)
+✔ neighbouring manual commands reserve separate reachable arrival positions (0.223146ms)
+BJS - [15:03:47]: Babylon.js v9.32.1 - Null engine
+✔ ray picks retain logical identities after transforming and batching different objects (12.076293ms)
+ℹ tests 160
+ℹ suites 0
+ℹ pass 160
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10194.500662

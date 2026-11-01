@@ -30,6 +30,10 @@ import type { CharacterLOD } from './character-lod.ts';
 import { selectCharacterLOD } from './character-lod.ts';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { createCharacterLibrary } from './character-library.ts';
+import { rigEnvelope } from './rig-envelope.ts';
+import { AnimationVisibility } from './animation-visibility.ts';
+import { Frustum } from '@babylonjs/core/Maths/math.frustum';
+import { createShadowCasterFilter } from './shadow-culling.ts';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_reference;
@@ -75,7 +79,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
       route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   });
-  const labelPoint = new Vector3();
+  const actorById = new Map(actors.map(actor => [actor.definition.id, actor]));
+  const labelPoint = new Vector3(), labelProjected = new Vector3();
   const identity = Matrix.Identity();
   const farmer = actors.find((actor) => actor.definition.role === 'farmer')!;
   const leader = actors.find(actor => actor.definition.id === roleLeader('farmer')?.id)!;
@@ -98,12 +103,19 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const characterModels = new Map<string, { bones: string[]; meshes: string[]; animations: string[] }>();
   const characterBones = new Map<string, Bone[]>();
   const characterLODs = new Map<string, CharacterLOD[]>();
+  const animationVisibility = new AnimationVisibility();
+  const visualFilter = createShadowCasterFilter(shadows.getLight().getShadowDirection());
+  const visualPlanes = Frustum.GetPlanes(Matrix.Identity());
+  const visualMeshes = new Map<string, AbstractMesh[]>();
   const library = createCharacterLibrary(scene);
   const attachGeometry = async (id: string, meshes: readonly AbstractMesh[], report?: ResourceProgress) => {
     loadingProgress.begin(id + ':geometry', `${id}：合批与 LOD 准备`);
     const sources = batchSkinnedMeshes(meshes, library.highBatches);
+    const envelope = rigEnvelope(sources, actorById.get(id)!.root);
+    if (envelope) visualMeshes.set(id, sources.filter(mesh => !!mesh.skeleton && !!mesh.getTotalVertices()).slice(0, 1));
     for (const mesh of sources) {
       mesh.isPickable = false;
+      if (envelope) mesh.metadata = { ...mesh.metadata, rigEnvelope: envelope };
       if (mesh.getTotalVertices()) { mesh.receiveShadows = true; shadows.addShadowCaster(mesh, false); }
     }
     report?.(0);
@@ -156,6 +168,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const clips = locomotion.get(id);
     if (!clips) return;
     if (motion !== clips.motion) {
+      animationVisibility.reset(clips.walk, clips.run, clips.idle, clips.work);
       clips.walk.stop(); clips.run.stop(); clips.idle?.stop(); clips.work?.stop(); combatClips.get(id)?.stop();
       // Run starts at a running phase. Walk's first frame carries the complete
       // neutral pose, so stopping Run must reset Walk rather than reset Run.
@@ -260,12 +273,16 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     syncCombat(units: Fighter[]) {
       for (const u of units) {
         combatPoses.set(u.id, u);
-        const actor = actors.find(a => a.definition.id === u.id)!;
-        actor.state.position = { ...u.position }; actor.route = []; actor.state.target = undefined;
-        actor.root.position.set(u.position.x, 0, u.position.z);
-        actor.root.setEnabled(u.life !== 'defeated'); actor.label.hidden = u.life === 'defeated';
-        actor.facing = u.facing; actor.root.rotationQuaternion ??= Quaternion.Identity();
-        Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
+        const actor = actorById.get(u.id)!;
+        actor.state.position.x = u.position.x; actor.state.position.z = u.position.z;
+        actor.route.length = 0; actor.state.target = undefined;
+        if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, 0, u.position.z);
+        if (actor.root.isEnabled() !== (u.life !== 'defeated')) actor.root.setEnabled(u.life !== 'defeated');
+        if (u.life === 'defeated') actor.label.hidden = true;
+        if (actor.facing !== u.facing || !actor.root.rotationQuaternion) {
+          actor.facing = u.facing; actor.root.rotationQuaternion ??= Quaternion.Identity();
+          Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
+        }
         actor.movementSpeed = u.speed;
         const clip = combatClips.get(u.id);
         if (u.attack && clip) {
@@ -337,7 +354,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       return selected?.definition.name;
     },
     selectionMeshes: () => actors.filter(a => a === selected).flatMap(a => [
-      ...a.root.getChildMeshes().filter(m => m.isEnabled() && m.isVisible && m.visibility > 0 && m !== a.marker && !m.metadata?.selectionKind),
+      ...a.root.getChildMeshes().filter(m => m.isVisible && m.visibility > 0 && m !== a.marker && !m.metadata?.selectionKind),
       ...(characterLODs.get(a.definition.id) ?? []).flatMap(p => [p.source, p.detail, ...(p.far ? [p.far] : [])]),
     ]),
     selectedId: () => selected?.definition.id,
@@ -463,19 +480,33 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         }
       }
     },
+    updateAnimationVisibility(camera: Camera, seconds: number, preview = false) {
+      Frustum.GetPlanesToRef(camera.getTransformationMatrix(), visualPlanes);
+      for (const actor of actors) {
+        const clips = locomotion.get(actor.definition.id), meshes = visualMeshes.get(actor.definition.id);
+        if (!clips || !meshes?.length || clips.motion === 'attack') continue;
+        const visible = preview || actor === selected || visualFilter(meshes, 1, visualPlanes).length > 0;
+        const active = clips.motion === 'idle' ? clips.idle : clips.motion === 'work' ? clips.work : clips.motion === 'run' ? clips.run : clips.walk;
+        animationVisibility.update(active, visible, seconds);
+      }
+    },
     updateLabels(camera: Camera) {
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight;
       const viewport = camera.viewport.toGlobal(width, height);
       for (const actor of actors) {
         labelPoint.set(actor.state.position.x, actor.definition.labelHeight, actor.state.position.z);
-        const projected = Vector3.Project(labelPoint, identity, scene.getTransformMatrix(), viewport);
+        Vector3.ProjectToRef(labelPoint, identity, scene.getTransformMatrix(), viewport, labelProjected);
+        const projected = labelProjected;
         const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;
         const visible = closeEnough && combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
-        actor.label.hidden = !visible;
-        const labelX = Math.max(actor.label.offsetWidth / 2 + 8, Math.min(width - actor.label.offsetWidth / 2 - 8, projected.x));
-        const labelY = Math.max(actor.label.offsetHeight + 8, projected.y);
+        if (actor.label.hidden !== !visible) actor.label.hidden = !visible;
+        if (!visible) { ui.positionSpeech(actor.definition.id, 0, 0, false); continue; }
+        const size = ui.residentLabelSize(actor.definition.id);
+        const labelX = Math.max(size.width / 2 + 8, Math.min(width - size.width / 2 - 8, projected.x));
+        const labelY = Math.max(size.height + 8, projected.y);
         ui.positionSpeech(actor.definition.id, labelX, labelY, visible);
-        if (visible) actor.label.style.transform = `translate(${labelX}px, ${labelY}px) translate(-50%, -100%)`;
+        const transform = `translate(${Math.round(labelX * 100) / 100}px, ${Math.round(labelY * 100) / 100}px) translate(-50%, -100%)`;
+        if (actor.label.style.transform !== transform) actor.label.style.transform = transform;
       }
     },
     snapshot: () => actors.map((actor) => ({

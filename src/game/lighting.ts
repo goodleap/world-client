@@ -11,6 +11,7 @@ import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
 import { DEFAULT_LIGHTING } from './graphics-settings.ts';
 import type { LightingSettings } from './graphics-settings.ts';
+import { refreshFrozenMaterials } from './material-invalidation.ts';
 
 /** Match native shadow LOD to the sun's actual orthographic footprint. A tree
  * occupying a few shadow texels should not submit its close-up geometry.
@@ -77,4 +78,5 @@ export function applyDaylight(scene: Scene, settings: LightingSettings) {
   const sky = scene.getLightByName('sky'), sun = scene.getLightByName('sun');
   if (sky) sky.intensity = settings.environment;
   if (sun) { sun.intensity = settings.sunlight; sun.diffuse.copyFrom(Color3.FromHexString(settings.sunColor)); }
+  refreshFrozenMaterials(scene);
 }

@@ -48,6 +48,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       // Keep the source enabled for Babylon's instance renderer, but hide its
       // own draw. Each live instance owns picking and caster membership.
       source.isVisible = false; source.isPickable = false; source.receiveShadows = true;
+      source.freezeWorldMatrix(); source.material?.freeze();
       return source;
     });
     templates.set(name, sources); return sources;
@@ -84,7 +85,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       // Flat soil/grass beds still receive shadows. Casting these shallow
       // surfaces into a map-wide shadow atlas causes diagonal self-shadow acne.
       if (source.getBoundingInfo().boundingBox.maximum.y * scale > .24) shadows.addShadowCaster(mesh, false);
-      mesh.computeWorldMatrix(true); return mesh;
+      mesh.freezeWorldMatrix(); return mesh;
     });
     instances.set(object.id, { state, meshes });
   }

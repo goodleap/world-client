@@ -13,6 +13,7 @@ import { fireAppearance } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
 import type { Point } from './movement.ts';
 import { CAMPFIRE_SHAPE as SHAPE } from './campfire-shape.ts';
+import { refreshFrozenMaterials } from './material-invalidation.ts';
 
 /** A stone ring, charred logs and a removable roasting spit. Two pooled native
  * lights, no shadow maps, glow post-processes, smoke or particle emitters. */
@@ -92,12 +93,14 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
         }
       }
       burning.sort((a, b) => Math.hypot(a.root.position.x - center.x, a.root.position.z - center.z) - Math.hypot(b.root.position.x - center.x, b.root.position.z - center.z));
+      let lightMembershipChanged = false;
       lights.forEach((light, i) => {
         const item = burning[i];
-        if (light.isEnabled() !== !!item) light.setEnabled(!!item);
+        if (light.isEnabled() !== !!item) { light.setEnabled(!!item); lightMembershipChanged = true; }
         light.intensity = item ? .85 : 0;
         if (item) light.position.set(item.root.position.x, 1.7, item.root.position.z);
       });
+      if (lightMembershipChanged) refreshFrozenMaterials(scene);
     },
     snapshot: () => ({ lights: lights.filter(l => l.intensity > 0).length, budget: 2, states: [...items].map(([id, item]) => ({ id, state: item.state, flameScale: item.flame.scaling.y })) }),
   };

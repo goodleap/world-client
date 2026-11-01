@@ -88,6 +88,8 @@ npm run dev
 
 ## 验证
 
+2026-11-01 的材质合批、阴影剔除、KTX2、屏外动画和 UI 更新优化，以及同视角统计和画面边界，见 [渲染性能实施记录](docs/performance/render-optimization-2026-11-01.md)。
+
 ```sh
 npm run build
 npm test

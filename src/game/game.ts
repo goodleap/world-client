@@ -9,6 +9,8 @@ import { Camera } from '@babylonjs/core/Cameras/camera';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { createPalette } from './models.ts';
+import { installMatteMaterials } from './matte-material.ts';
+import { refreshFrozenMaterials } from './material-invalidation.ts';
 import { applyDaylight, createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
@@ -41,10 +43,14 @@ export { preloadGameAssets } from './model-assets.ts';
 export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
+  installMatteMaterials(scene);
   scene.shadowsEnabled = readShadowsEnabled();
   scene.clearColor = Color4.FromHexString('#7b8e5dff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
+  let meshRevision = 0, selectionRevision = '';
+  scene.onNewMeshAddedObservable.add(() => meshRevision++);
+  scene.onMeshRemovedObservable.add(() => meshRevision++);
   const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.5, -2), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
@@ -299,6 +305,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   });
   ui.bindShadows(scene.shadowsEnabled, enabled => {
     scene.shadowsEnabled = enabled;
+    refreshFrozenMaterials(scene);
     if (!saveShadowsEnabled(enabled)) ui.settingsNotice('阴影设置已生效，浏览器未能保存此偏好');
     freshFrame = true; requestRender();
   });
@@ -384,10 +391,15 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
     Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
+    residents.updateAnimationVisibility(camera, ui.paused || resuming ? 0 : dt, !!previewRole);
     // Native instrumentation owns frame counters; track shadow-map replacement.
     performanceDiagnostics.beforeFrame();
     placement.update();
-    selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
+    const selectionKey = `${residents.selectedId() ?? ''}:${selectedWorld?.id ?? ''}:${meshRevision}`;
+    if (selectionRevision !== selectionKey) {
+      selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
+      selectionRevision = selectionKey;
+    }
     scene.render(); residents.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
