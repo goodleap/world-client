@@ -14,6 +14,7 @@ export const ECONOMY_CONFIG = {
     wheat: { name: '小麦', growthSeconds: 40, yield: 12 },
   },
   houseCost: { wood: 12, stone: 8, food: 0 },
+  warehouseCost: { wood: 24, stone: 16, food: 0 },
   queueLimit: 24,
   retrySeconds: 3,
 } as const;

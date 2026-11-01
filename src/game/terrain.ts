@@ -3,13 +3,13 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Curve3 } from '@babylonjs/core/Maths/math.path';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Palette } from './models.ts';
-import { MAP_SIZE, GRID_SIZE, ROADS } from './world-data.ts';
+import { MAP_SIZE, GRID_SIZE } from './world-data.ts';
+import { ROAD_PATHS, ROAD_HALF_WIDTH } from './road-layout.ts';
 import { roundedBox } from './environment-shapes.ts';
 
 /** World-scale color variation and small seamless detail maps shared by the terrain. */
@@ -88,17 +88,7 @@ export function createTerrain(scene: Scene, palette: Palette) {
 
   // The exact same quadratic paths as the former canvas painting, represented
   // by native ribbons so road silhouettes keep their resolution at every zoom.
-  const paths = ROADS.map(road => {
-    const point = (p: { x: number; z: number }) => new Vector3(p.x, 0, p.z);
-    const points = [point(road[0])];
-    for (let i = 1; i < road.length; i++) {
-      const control = point(road[i - 1]), end = Vector3.Center(control, point(road[i]));
-      const start = points.at(-1)!;
-      const samples = Math.max(4, Math.ceil((Vector3.Distance(start, control) + Vector3.Distance(control, end)) / GRID_SIZE));
-      points.push(...Curve3.CreateQuadraticBezier(start, control, end, samples).getPoints().slice(1));
-    }
-    points.push(point(road.at(-1)!)); return points;
-  });
+  const paths = ROAD_PATHS;
   const layers = [
     { name: 'road-edge', color: '#759d32', width: 20, y: .019, detail: 0 },
     { name: 'road-bank', color: '#d8ad62', width: 18, y: .026, detail: .18 },
@@ -125,5 +115,5 @@ export function createTerrain(scene: Scene, palette: Palette) {
       ribbon.material = roadMaterial; ribbon.receiveShadows = true;
     }
   }
-  return { paths, roadHalfWidth: layers[0].width / 1024 * MAP_SIZE / 2 };
+  return { paths, roadHalfWidth: ROAD_HALF_WIDTH };
 }

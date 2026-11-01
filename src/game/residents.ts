@@ -32,10 +32,8 @@ const runReferenceSpeed = animationMetadata.animations.Run.navigation_speed_refe
 type ResourceProgress = (fraction: number) => void;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
-  worldObstacles: () => readonly Obstacle[] = () => RESIDENT_OBSTACLES) {
-  const obstaclesFor = (role: string): readonly Obstacle[] => role === 'farmer' ? worldObstacles() : [
-    ...worldObstacles(), { kind: 'box', x: 5.07, z: -5.91, halfWidth: 3.38, halfDepth: 2.54 },
-  ];
+  worldObstacles: (avoidFields?: boolean) => readonly Obstacle[] = () => RESIDENT_OBSTACLES) {
+  const obstaclesFor = (role: string) => worldObstacles(role !== 'farmer');
   const placeholderRoles = new Set<string>();
   const soldierAssets = [
     { role: 'infantry', mounted: false },

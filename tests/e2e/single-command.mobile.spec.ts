@@ -28,7 +28,7 @@ test('single commands toggle, switch, retain failures/options and release select
   await page.getByRole('button', { name: '种小麦', exact: true }).tap();
   expect((await snapshot(page)).selection.resident).toBeUndefined();
   expect((await snapshot(page)).economy.tasks[0].crop).toBe('wheat');
-  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
   await selectUnit(page, 'farmer-leader', true);
   await clickGround(page, { x: .8, z: -7 }, true);

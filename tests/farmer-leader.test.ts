@@ -1,3 +1,4 @@
+import { gridPoint } from '../src/game/world-data.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, decodeEconomy, encodeEconomy } from '../src/game/economy.ts';
@@ -55,15 +56,16 @@ test('manual commands interrupt the leader just like another farmer and preserve
   h.controller.update(.25);
   assert.equal(h.economy.active(leader.id), undefined);
   assert.equal(original.status, 'waiting'); assert.equal(original.progress, .5);
-  assert(h.controller.command(leader.id, { kind: 'work', work: 'till', target: 'plot-11' }).ok);
-  assert.equal(h.economy.active(leader.id)?.target, 'plot-11');
+  const field = h.economy.placeBuilding('farm', gridPoint(51.5, 55.5)).task!.target;
+  assert(h.controller.command(leader.id, { kind: 'work', work: 'till', target: field }).ok);
+  assert.equal(h.economy.active(leader.id)?.target, field);
   assert.equal(h.moves.has(leader.id), false);
   h.work.get(leader.id)!.status = 'arrived'; h.controller.update(.01); h.controller.update(.2);
   assert.equal(h.economy.active(leader.id)?.status, 'working');
   assert.equal(h.economy.active(leader.id)?.progress, .2);
   const resumed = decodeEconomy(encodeEconomy(h.economy));
   assert.equal(resumed.taskFor(original.target)?.progress, .5);
-  assert.equal(resumed.taskFor('plot-11')?.progress, .2);
+  assert.equal(resumed.taskFor(field)?.progress, .2);
 });
 
 test('the leader can resume delivering without losing or duplicating goods', () => {

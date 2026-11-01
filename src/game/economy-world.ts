@@ -11,9 +11,10 @@ import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
-import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE, WAREHOUSE_DOOR } from './world-data.ts';
+import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
+import { TREES, GRID_SIZE } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
+import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
 import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
 
@@ -95,6 +96,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
   }
   let lastRevision = -1;
   let obstacles: Obstacle[] = [];
+  let obstaclesWithFields: Obstacle[] = [];
   function sync() {
     if (lastRevision === economy.revision) return false;
     lastRevision = economy.revision;
@@ -113,8 +115,9 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         }
       }));
     }
-    for (const definition of FARM_PLOTS) {
-      const plot = economy.plot(definition.id)!;
+    for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);
+    for (const plot of economy.state.plots) {
+      const definition = plot;
       const mature = !!plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds;
       const stage = mature ? 2 : plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds / 3 ? 1 : 0;
       const name = plot.crop ? C.crops[plot.crop].name : plot.tilled ? '耕地' : '待开垦土地';
@@ -139,10 +142,10 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const site of economy.state.sites) {
       const built = economy.state.buildings.includes(site.id), task = economy.taskFor(site.id);
       const state = built ? 'built' : task ? 'construction' : 'site';
-      show({ ...site, kind: built ? 'building' : 'site', name: built ? '民房' : '建设用地', radius: site.width / 2,
+      show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
         markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? 1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
       () => template(`${site.kind}-${state}`, () => {
-        if (built) { referenceHouse(scene, p, { ...site, id: 'new-house', x: 0, z: 0 }); return; }
+        if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }); return; }
         roundedBox(scene, 'building-footprint', [site.width, .07, site.depth], [0, .035, 0], p.pathLight, .08);
         for (const x of [-site.width / 2, site.width / 2]) for (const z of [-site.depth / 2, site.depth / 2]) {
           roundedBox(scene, 'layout-stake', [.12, task ? .9 : .3, .12], [x, task ? .45 : .15, z], p.timberLight, .03);
@@ -151,13 +154,19 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       }));
     }
     obstacles = economyObstacles(economy.state.depleted, economy.state.sites);
+    obstaclesWithFields = [...obstacles, ...economy.state.plots.map(plot => ({
+      kind: 'box' as const, x: plot.x, z: plot.z, halfWidth: GRID_SIZE / 2, halfDepth: GRID_SIZE / 2,
+    }))];
     return true;
   }
-  function workPoints(target: string): { points: Point[]; target: Point } | undefined {
-    if (target === 'warehouse') return { target: WAREHOUSE_DOOR, points: [WAREHOUSE_DOOR, { x: WAREHOUSE_DOOR.x - .8, z: WAREHOUSE_DOOR.z }, { x: WAREHOUSE_DOOR.x + .8, z: WAREHOUSE_DOOR.z }] };
+  function workPoints(target: string, from?: Point): { points: Point[]; target: Point } | undefined {
+    if (target === 'warehouse') {
+      const doors = economy.warehouseDoors().sort((a, b) => from ? Math.hypot(a.x - from.x, a.z - from.z) - Math.hypot(b.x - from.x, b.z - from.z) : 0);
+      return { target: doors[0], points: doors.flatMap(door => [door, { x: door.x - .8, z: door.z }, { x: door.x + .8, z: door.z }]) };
+    }
     const goods = economy.state.goods.find(g => g.id === target);
     if (goods) return { target: goods, points: [{ x: goods.x, z: goods.z }] };
-    const plot = FARM_PLOTS.find(p => p.id === target), node = RESOURCE_NODES.find(n => n.id === target), site = economy.state.sites.find(s => s.id === target);
+    const plot = economy.plot(target), node = RESOURCE_NODES.find(n => n.id === target), site = economy.state.sites.find(s => s.id === target);
     const source = plot ?? node ?? site; if (!source) return;
     if (site) return { target: site, points: [
       { x: site.x, z: site.z - site.depth / 2 - .65 }, { x: site.x - site.width / 2 - .65, z: site.z },
@@ -167,5 +176,5 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     return { target: source, points: Array.from({ length: 8 }, (_, i) => ({ x: source.x + Math.sin(i * Math.PI / 4) * distance, z: source.z + Math.cos(i * Math.PI / 4) * distance })) };
   }
   sync();
-  return { sync, obstacles: () => obstacles, workPoints };
+  return { sync, obstacles: (avoidFields = false): readonly Obstacle[] => avoidFields ? obstaclesWithFields : obstacles, workPoints };
 }

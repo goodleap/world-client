@@ -33,7 +33,7 @@ test('zoom, overview, reset and modal work', async ({ page }) => {
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(initial - 0.5);
   await page.getByRole('button', { name: '查看全景' }).click();
   expect((await snapshot(page)).camera.overview).toBe(true);
-  await page.getByRole('button', { name: '回到起点' }).click();
+  await page.getByRole('button', { name: '恢复视角' }).click();
   expect((await snapshot(page)).camera.overview).toBe(false);
   await page.getByRole('button', { name: '操作说明', exact: true }).click();
   await expect(page.locator('#help-dialog')).toBeVisible();

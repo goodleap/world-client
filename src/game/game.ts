@@ -21,7 +21,7 @@ import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
 import { RESIDENTS, roleLeader } from './resident-data.ts';
-import { ECONOMY_CONFIG, FARM_PLOTS } from './economy-config.ts';
+import { ECONOMY_CONFIG } from './economy-config.ts';
 import { Economy, encodeEconomy, WORK_NAMES } from './economy.ts';
 import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
 import { economySelection, updateEconomyUI } from './economy-ui.ts';
@@ -81,8 +81,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   const controller = createEconomyController(economy, world, residents, !!farmerLeader, (worker, task) => {
     if (!farmerLeader) return;
     const name = RESIDENTS.find(r => r.id === worker)?.name ?? '农民';
-    const index = FARM_PLOTS.findIndex(p => p.id === task.target);
-    const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '民房' : task.kind === 'chop' ? '这棵树' : '这处石材';
+    const index = economy.state.plots.findIndex(p => p.id === task.target);
+    const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
   });

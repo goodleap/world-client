@@ -57,7 +57,7 @@ test('manual movement owns the farmer until arrival and resumes partial work wit
 
 test('direct work preempts automatic work, reuses queued tasks and preserves the interrupted progress', () => {
   const h = setup(), { economy: e, controller: c } = h;
-  const till = e.request('till', 'plot-3').task!;
+  const till = e.placeBuilding('farm', gridPoint(51.5, 55.5)).task!;
   const harvest = e.request('harvest', 'plot-0').task!;
   c.update(.01); h.arrive(); c.update(.7);
   const progress = till.progress;

@@ -16,7 +16,7 @@ test('world and loaded residents cast and receive consistent daylight shadows', 
   await page.getByRole('button', { name: '查看农民模型', exact: true }).click();
   await expect.poll(async () => (await snapshot(page)).camera.zoom, { timeout: 30_000 }).toBeLessThan(2.3);
   await page.screenshot({ path: info.outputPath('character.png') });
-  await page.getByRole('button', { name: '回到起点' }).click();
+  await page.getByRole('button', { name: '恢复视角' }).click();
   await page.setViewportSize({ width: 393, height: 851 });
   await expect.poll(async () => (await snapshot(page)).camera.zoom, { timeout: 30_000 }).toBeGreaterThan(10.5);
   await page.screenshot({ path: info.outputPath('phone.png') });

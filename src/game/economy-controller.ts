@@ -53,13 +53,13 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (assigned?.status === 'travelling' && active && (assigned.waitingFor ?? 0) > 1 && assigned.approachOccupied
         && economy.state.seconds >= (approachRetry.get(id) ?? 0)) {
         approachRetry.set(id, economy.state.seconds + 2);
-        const destination = world.workPoints(active.status === 'delivering' ? 'warehouse' : active.target);
+        const destination = world.workPoints(active.status === 'delivering' ? 'warehouse' : active.target, residents.farmerPosition(id));
         const path = destination && residents.planFarmerWork(destination.points, id);
         if (path && destination) { residents.startFarmerWork(active.id, path, destination.target, id); active.reason = ''; }
         else active.reason = '作业点被占用，等待空位';
       }
       if (!assigned && active?.status === 'delivering') {
-        const destination = world.workPoints('warehouse')!;
+        const destination = world.workPoints('warehouse', residents.farmerPosition(id))!;
         const path = residents.planFarmerWork(destination.points, id);
         if (path) residents.startFarmerWork(active.id, path, destination.target, id);
         else economy.defer(active.id, '仓库暂时无法到达', residents.farmerPosition(id));
@@ -70,7 +70,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       } else if (assigned?.status === 'arrived') {
         economy.arrive(assigned.id);
         if (economy.active(id)?.status === 'delivering') {
-          const destination = world.workPoints('warehouse')!;
+          const destination = world.workPoints('warehouse', residents.farmerPosition(id))!;
           const path = residents.planFarmerWork(destination.points, id);
           if (path) residents.startFarmerWork(assigned.id, path, destination.target, id);
           else { economy.defer(assigned.id, '仓库暂时无法到达', residents.farmerPosition(id)); residents.releaseFarmerWork(id); }

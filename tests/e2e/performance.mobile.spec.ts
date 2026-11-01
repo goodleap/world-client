@@ -38,13 +38,13 @@ test('high-DPI touch viewport keeps bounded geometry, batching and visible shado
     expect(resident.lod!.mapParts).toBe(0);
   }
   await page.screenshot({ path: info.outputPath('character.png'), scale: 'css' });
-  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
   expect((await snapshot(page)).shadows.mapSize).toBe(1024);
   expect((await snapshot(page)).shadows.casters.length).toBe(state.shadows.casters.length);
   const mapId = (await snapshot(page)).shadows.mapId;
   await expect.poll(async () => (await snapshot(page)).residents.find(resident => resident.id === 'farmer')!.lod!.mapParts,
     { timeout: 40_000 }).toBe(residents.find(resident => resident.id === 'farmer')!.lod!.parts);
-  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
   expect((await snapshot(page)).shadows.mapId).toBe(mapId);
   expect(errors).toEqual([]);
 });

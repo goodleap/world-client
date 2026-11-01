@@ -27,7 +27,7 @@ test('touch commands the farmer, then creates and cancels automatic jobs using c
   expect((await snapshot(page)).economy.tasks[0].status).toBe('cancelled');
   expect((await snapshot(page)).economy.inventory.food).toBe(0);
   await page.getByRole('button', { name: '收起作业队列' }).tap();
-  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
   await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);

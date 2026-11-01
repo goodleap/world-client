@@ -19,7 +19,7 @@ test('rapid panel taps and page pinches never zoom the viewport; scrolling and d
   const errors = await openGame(page);
   const viewport = () => page.evaluate(() => ({ scale: visualViewport!.scale, width: innerWidth, x: scrollX, y: scrollY }));
   const before = await viewport(), camera = (await snapshot(page)).camera;
-  for (const id of ['home-resources', 'settings', 'building-toggle', 'queue-toggle', 'help']) {
+  for (const id of ['home-resources', 'settings', 'building-toggle', 'queue-toggle', 'reset']) {
     const box = (await page.locator(`#${id}`).boundingBox())!;
     await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
     await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
@@ -28,7 +28,8 @@ test('rapid panel taps and page pinches never zoom the viewport; scrolling and d
     await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close()));
   }
   expect((await snapshot(page)).camera.zoom).toBe(camera.zoom);
-  await page.locator('#help').tap();
+  await page.locator('#settings').tap();
+  await page.locator('#settings-help').tap();
   const touch = await page.context().newCDPSession(page);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 140, y: 300, id: 1 }, { x: 240, y: 300, id: 2 }] });
   for (let step = 1; step <= 10; step++) {
@@ -56,7 +57,6 @@ test('rapid panel taps and page pinches never zoom the viewport; scrolling and d
   expect(Object.values(defaults).every(Boolean)).toBe(true);
   expect(await page.evaluate(() => getSelection()?.toString())).toBe('');
   await help.evaluate(e => (e as HTMLDialogElement).close());
-  await page.locator('#settings').tap();
   await page.locator('#copy-diagnostics').tap();
   await expect(page.locator('#settings-notice')).toContainText('已复制');
   const copied = await page.evaluate(() => JSON.parse(document.documentElement.dataset.copied!));

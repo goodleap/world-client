@@ -7,26 +7,27 @@ import { ECONOMY_CONFIG as C } from '../src/game/economy-config.ts';
 function finish(economy: Economy) {
   const task = economy.claim(); assert.ok(task); economy.arrive(task.id); economy.advance(C.workSeconds[task.kind]);
   const goods = economy.state.goods.at(-1);
-  if (goods && economy.state.inventory[goods.resource] + goods.amount <= C.capacity[goods.resource]) {
+  if (goods && economy.state.inventory[goods.resource] + goods.amount <= economy.capacity()[goods.resource]) {
     const haul = economy.request('haul', goods.id).task!; economy.assign(haul.id); economy.arrive(haul.id); economy.arrive(haul.id);
   }
   return task;
 }
 
 test('till, sow, grow and harvest form a repeatable cycle with exactly one output per job', () => {
-  const e = new Economy();
-  assert.equal(e.request('sow', 'plot-3', 'carrot').ok, false);
-  assert.ok(e.request('till', 'plot-3').ok); finish(e); assert.ok(e.plot('plot-3')!.tilled);
-  assert.ok(e.request('sow', 'plot-3', 'wheat').ok); finish(e);
-  assert.equal(e.plot('plot-3')!.crop, 'wheat'); assert.equal(e.plot('plot-3')!.growth, 0);
-  assert.equal(e.request('harvest', 'plot-3').ok, false);
+  const e = new Economy(), placed = e.placeBuilding('farm', gridPoint(51.5, 55.5));
+  assert.ok(placed.ok, placed.message); const id = placed.task!.target;
+  assert.equal(e.request('sow', id, 'carrot').ok, false);
+  finish(e); assert.ok(e.plot(id)!.tilled);
+  assert.ok(e.request('sow', id, 'wheat').ok); finish(e);
+  assert.equal(e.plot(id)!.crop, 'wheat'); assert.equal(e.plot(id)!.growth, 0);
+  assert.equal(e.request('harvest', id).ok, false);
   e.advance(C.crops.wheat.growthSeconds);
-  const requested = e.request('harvest', 'plot-3'); assert.ok(requested.ok);
-  assert.equal(e.request('harvest', 'plot-3').ok, false);
+  const requested = e.request('harvest', id); assert.ok(requested.ok);
+  assert.equal(e.request('harvest', id).ok, false);
   finish(e); assert.equal(e.state.inventory.food, C.crops.wheat.yield);
-  assert.equal(e.plot('plot-3')!.crop, undefined); assert.ok(e.plot('plot-3')!.tilled);
+  assert.equal(e.plot(id)!.crop, undefined); assert.ok(e.plot(id)!.tilled);
   e.arrive(requested.task!.id); e.advance(100); assert.equal(e.state.inventory.food, C.crops.wheat.yield);
-  assert.ok(e.request('sow', 'plot-3', 'carrot').ok);
+  assert.ok(e.request('sow', id, 'carrot').ok);
 });
 
 test('FIFO skips unfunded construction, gathers materials, reserves once and spends only on completion', () => {
@@ -67,7 +68,7 @@ test('blocked paths defer a job and allow the next executable job; invalid targe
 
 test('growth and working time follow active seconds independently of the frame rate', () => {
   const simulate = (frames: number) => {
-    const e = new Economy(); e.request('till', 'plot-3'); const task = e.claim()!; e.arrive(task.id);
+    const e = new Economy(); e.placeBuilding('farm', gridPoint(51.5, 55.5)); const task = e.claim()!; e.arrive(task.id);
     for (let i = 0; i < frames; i++) e.advance(3.1 / frames);
     return e;
   };
@@ -108,20 +109,20 @@ test('resource and construction footprints leave every resident spawn traversabl
 });
 
 test('two farming cycles retain tilled soil, free the farmer while growing, and deliver before food is usable', () => {
-  const e = new Economy(); e.request('till', 'plot-4'); finish(e);
+  const e = new Economy(), id = e.placeBuilding('farm', gridPoint(51.5, 55.5)).task!.target; finish(e);
   for (const crop of ['carrot', 'wheat'] as const) {
-    e.request('sow', 'plot-4', crop); finish(e);
+    e.request('sow', id, crop); finish(e);
     assert.equal(e.active(), undefined);
-    assert.equal(e.request('till', 'plot-4').ok, false);
+    assert.equal(e.request('till', id).ok, false);
     const before = e.state.inventory.food;
-    e.advance(C.crops[crop].growthSeconds); e.request('harvest', 'plot-4');
+    e.advance(C.crops[crop].growthSeconds); e.request('harvest', id);
     const t = e.claim()!; e.arrive(t.id); e.advance(3);
     assert.equal(e.state.inventory.food, before);
-    assert.equal(e.plot('plot-4')!.tilled, true);
-    assert.equal(e.plot('plot-4')!.crop, undefined);
+    assert.equal(e.plot(id)!.tilled, true);
+    assert.equal(e.plot(id)!.crop, undefined);
     const goods = e.state.goods.at(-1)!; assert.equal(goods.crop, crop);
     e.request('haul', goods.id); const haul = e.claim()!; e.arrive(haul.id); e.arrive(haul.id);
     assert.equal(e.state.inventory.food, before + C.crops[crop].yield);
   }
-  assert.equal(e.plot('plot-4')!.harvests, 2);
+  assert.equal(e.plot(id)!.harvests, 2);
 });

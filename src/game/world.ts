@@ -3,7 +3,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { BUILDINGS, createLandGrid, FENCES, POND } from './world-data';
+import { BUILDINGS, createLandGrid, FENCES, POND, GRID_SIZE } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox } from './environment-shapes';
 import { referenceHouse } from './buildings';
@@ -97,8 +97,9 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   }
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects);
   const cover = createGroundCover(scene, roads);
-  cover.sync(economy.state.sites);
+  const syncCover = () => cover.sync([...economy.state.sites, ...economy.state.plots.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))]);
+  syncCover();
   return { land, objects, ...economyWorld,
-    sync: () => { const changed = economyWorld.sync(); if (changed) cover.sync(economy.state.sites); return changed; },
+    sync: () => { const changed = economyWorld.sync(); if (changed) syncCover(); return changed; },
     selectionMeshes: (id: string) => scene.meshes.filter(m => m.metadata?.worldObjectId === id && !m.name.startsWith('selected-')) };
 }

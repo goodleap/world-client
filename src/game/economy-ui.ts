@@ -1,8 +1,9 @@
 import type { GameUI, SelectionDetails } from '../ui.ts';
-import { ECONOMY_CONFIG as C, RESOURCE_NODES, FARM_PLOTS } from './economy-config.ts';
+import { ECONOMY_CONFIG as C, RESOURCE_NODES } from './economy-config.ts';
 import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES } from './economy.ts';
 import type { Resource } from './economy.ts';
 import type { WorldObject } from './world-selection.ts';
+import { BUILDING_TYPES } from './construction.ts';
 import { roleLeader } from './resident-data.ts';
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
@@ -35,9 +36,10 @@ export function economySelection(economy: Economy, object: WorldObject): Selecti
     details.hint = `${RESOURCE_NAMES[node.kind]} +${node.yield}`;
     details.actions = [{ id: object.kind === 'tree' ? 'chop' : 'mine', label: object.kind === 'tree' ? '伐木' : '采石' }];
   } else if (object.kind === 'site') {
-    details.hint = `需木材 ${C.houseCost.wood}、石材 ${C.houseCost.stone}`;
-    details.actions = [{ id: 'build', label: '建设民房' }];
-  } else if (object.id.startsWith('site-')) details.hint = '民房已建成';
+    const cost = economy.cost('build', object.id), site = economy.state.sites.find(s => s.id === object.id)!;
+    details.hint = `需木材 ${cost.wood}、石材 ${cost.stone}`;
+    details.actions = [{ id: 'build', label: `建造${BUILDING_TYPES[site.kind].name}` }];
+  } else if (object.kind === 'building') details.hint = `${object.name}已建成`;
   return details;
 }
 
@@ -45,10 +47,10 @@ export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const ground = economy.state.goods.filter(g => g.state === 'ground').length, transit = economy.state.goods.filter(g => g.state === 'transit').length;
   ui.setSteward(`${roleLeader('farmer')?.name ?? '农民'}：${economy.state.steward.reason}${ground ? ` · 待运 ${ground}` : ''}${transit ? ` · 在途 ${transit}` : ''}`);
   const reserved = economy.reserved();
-  ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: C.capacity[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
+  ui.setResources((['wood', 'stone', 'food'] as Resource[]).map(key => ({ name: RESOURCE_NAMES[key], amount: economy.state.inventory[key], capacity: economy.capacity()[key], reserved: reserved[key], ground: economy.state.goods.filter(g => g.resource === key && g.state === 'ground').reduce((n,g)=>n+g.amount,0), transit: economy.state.goods.filter(g => g.resource === key && g.state === 'transit').reduce((n,g)=>n+g.amount,0) })));
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
-    const plotIndex = FARM_PLOTS.findIndex(plot => plot.id === task.target);
+    const plotIndex = economy.state.plots.findIndex(plot => plot.id === task.target);
     const target = plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
     return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: STATUS_NAMES[task.status],
       progress: Math.floor(task.progress / C.workSeconds[task.kind] * 100), reason: task.reason,

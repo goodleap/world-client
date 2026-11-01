@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, pending } from '../src/game/economy.ts';
-import { createSteward, inStewardRange, expectedSupply, stewardStatus, STEWARD_CONFIG } from '../src/game/steward.ts';
+import { createSteward, inStewardRange, expectedSupply, stewardStatus } from '../src/game/steward.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES } from '../src/game/economy-config.ts';
-import { HOME, GRID_SIZE } from '../src/game/world-data.ts';
+import { HOME, GRID_SIZE, gridPoint } from '../src/game/world-data.ts';
 test('steward stays within home radius and repeated decisions never duplicate a target', () => {
   assert.ok(inStewardRange({x:HOME.x + 30 * GRID_SIZE, z:HOME.z}));
   assert.equal(inStewardRange({x:HOME.x + 31 * GRID_SIZE, z:HOME.z}), false);
@@ -34,7 +34,8 @@ test('autonomous production keeps delivering and replanting past the former comf
   }
   assert.ok(e.state.inventory.food > 160);
   assert.ok(e.state.plots.some(p => (p.harvests ?? 0) >= 2));
-  assert.ok(e.state.plots.filter(p => p.tilled).length <= STEWARD_CONFIG.maxFields);
+  assert.equal(e.state.plots.length, 12);
+  assert.ok(e.state.plots.every(p => p.tilled));
   assert.ok(expectedSupply(e, 'food') > 160);
   assert.ok(e.state.plots.some(p => p.crop) || e.state.tasks.some(t => pending(t) && t.kind === 'sow'));
   assert(!stewardStatus(e).includes('供应充足'));
@@ -94,9 +95,9 @@ test('incoming food fills the remaining space before more is planted, with exces
   assert.equal(e.state.tasks.filter(t => pending(t) && t.kind === 'sow').length, 0);
 });
 
-test('opening the first farming area takes precedence over distant material trips', () => {
+test('opening a newly placed farming area takes precedence over distant material trips', () => {
   const e = new Economy();
   e.request('chop', 'tree-0', undefined, 'steward');
-  const till = e.request('till', 'plot-4', undefined, 'steward').task!;
+  const till = e.placeBuilding('farm', gridPoint(51.5, 55.5)).task!; till.origin = 'steward';
   assert.equal(e.claim()?.id, till.id);
 });

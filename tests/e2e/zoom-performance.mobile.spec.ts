@@ -47,7 +47,7 @@ test('near, far and near again release scene load and keep one render loop', asy
   expect(preview.shadows.mapSize).toBe(2048);
   expect(preview.residents.filter(r => r.lod).every(r => r.lod!.mapParts === 0)).toBe(true);
   await page.screenshot({ path: info.outputPath('model-preview.png'), scale: 'css' });
-  await page.getByRole('button', { name: '回到起点', exact: true }).tap();
+  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
   expect((await snapshot(page)).shadows.lodCamera).toBe('map-shadow-lod');
   expect((await snapshot(page)).shadows.mapSize).toBe(1024);
   expect(errors).toEqual([]);
