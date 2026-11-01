@@ -66,12 +66,12 @@ export function checkFarmerLeader(touch = false) {
     // software renderer takes a full second between two rendered frames.
     const destination = { x: .2, z: -8 };
     await clickGround(page, destination, touch);
-    expect((await snapshot(page)).selection.resident).toBeUndefined();
+    expect((await snapshot(page)).selection.resident).toBe(leaderId);
     await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === leaderId)!.running).toBe(true);
     await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === leaderId)!.moveCommand, { timeout: 30_000 }).toBe(false);
     const arrived = (await snapshot(page)).residents.find(r => r.id === leaderId)!.position;
     expect(Math.hypot(arrived.x - destination.x, arrived.z - destination.z)).toBeLessThan(.15);
-    await selectUnit(page, leaderId, touch);
+    expect((await snapshot(page)).selection.resident).toBe(leaderId);
     await expect(page.locator('#resident-name')).toHaveText('农民·领头');
     const plot = (await snapshot(page)).objects.find(object => object.id === 'plot-0')!;
     if (touch) await page.touchscreen.tap(plot.screen.x, plot.screen.y); else await page.mouse.click(plot.screen.x, plot.screen.y);

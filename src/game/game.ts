@@ -214,6 +214,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
           if (action) performAction(action);
           else if (actions.length && !residents.canWork(residents.selectedId()!)) ui.targetHint('此作业需要农民', object.anchor);
+          // Inspecting scenery or a growing crop switches the selection. Work
+          // choices keep the unit until an instruction is accepted.
+          else if (!actions.length) clearResident();
         }
         return;
       }
@@ -224,7 +227,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
       const result = controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
-      if (result.ok) { clearSelection(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
+      if (result.ok) { clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
       // The destination marker already confirms success. Only failures need
       // text, anchored to the attempted destination rather than the HUD.
       if (!result.ok) ui.targetHint(result.message, { x: point.x, y: .2, z: point.z });

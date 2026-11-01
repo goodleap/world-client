@@ -139,5 +139,4 @@ export function createLandscapeWater(scene: Scene) {
   }
   ripple.wrapU = ripple.wrapV = Texture.WRAP_ADDRESSMODE; ripple.update();
   mat.diffuseTexture = ripple; mesh.material = mat; mesh.receiveShadows = true;
-  return { x: lake.x, z: lake.z, radius: (lake.bounds.maxX - lake.bounds.minX) / 2 };
 }

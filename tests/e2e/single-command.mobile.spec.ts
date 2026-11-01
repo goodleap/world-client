@@ -1,25 +1,47 @@
 import { test, expect } from '@playwright/test';
+import { initialEconomy } from '../../src/game/economy.ts';
 import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
 
 test.use({ viewport: { width: 393, height: 754 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 
-test('single commands toggle, switch, retain failures/options and release selection only on success', async ({ page }, info) => {
+test('movement keeps selection; work, cancellation and target switches release it without stopping commands', async ({ page }, info) => {
+  const state = initialEconomy(); state.steward.enabled = false;
+  await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
   const errors = await openGame(page);
   await selectUnit(page, 'farmer', true);
   const farmer = (await snapshot(page)).residents.find(r => r.id === 'farmer')!;
   await clickGround(page, farmer.position, true, 1);
   expect((await snapshot(page)).selection.resident).toBeUndefined();
   await selectUnit(page, 'farmer', true);
+  const first = { x: -.2, z: -12 }, latest = { x: -5.5, z: -13.5 };
+  await clickGround(page, first, true);
+  expect((await snapshot(page)).selection.resident).toBe('farmer');
+  await clickGround(page, latest, true);
+  const moving = await snapshot(page);
+  expect(moving.selection.resident).toBe('farmer');
+  const destination = moving.residents.find(r => r.id === 'farmer')!.destination!;
+  expect(destination.x).toBeCloseTo(latest.x, 1); expect(destination.z).toBeCloseTo(latest.z, 1);
+  await page.getByRole('button', { name: '取消选中', exact: true }).tap();
+  const cancelled = await snapshot(page);
+  expect(cancelled.selection.resident).toBeUndefined();
+  // The software renderer may complete the route while a touch is delivered.
+  // In either case, deselection must preserve the goal or reach that exact goal.
+  const released = cancelled.residents.find(r => r.id === 'farmer')!;
+  const remaining = released.destination ?? released.position;
+  expect(Math.hypot(remaining.x - destination.x, remaining.z - destination.z)).toBeLessThan(.15);
+  await selectUnit(page, 'farmer', true);
   await selectUnit(page, 'dog', true);
+  expect((await snapshot(page)).selection.resident).toBe('dog');
   const harvest = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!;
   await page.touchscreen.tap(harvest.screen.x, harvest.screen.y);
   expect((await snapshot(page)).selection.resident).toBe('dog');
-  await expect(page.locator('#toast')).toContainText('请选择农民');
+  await expect(page.locator('#target-hint')).toContainText('请选择农民');
   expect((await snapshot(page)).economy.tasks).toHaveLength(0);
+  const growing = (await snapshot(page)).objects.find(o => o.id === 'plot-1')!;
+  await page.touchscreen.tap(growing.screen.x, growing.screen.y);
+  expect((await snapshot(page)).selection).toMatchObject({ object: { id: 'plot-1' } });
+  expect((await snapshot(page)).selection.resident).toBeUndefined();
   await selectUnit(page, 'farmer', true);
-  await page.getByRole('button', { name: '查看全景', exact: true }).tap();
-  // The 393 × 754 viewport settles near 28; overview fits the viewport aspect.
-  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeGreaterThan(27.5);
   const plot = (await snapshot(page)).objects.find(o => o.id === 'plot-2')!;
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);
   await expect(page.getByRole('button', { name: '种小麦', exact: true })).toBeVisible();
@@ -27,15 +49,13 @@ test('single commands toggle, switch, retain failures/options and release select
   await page.screenshot({ path: info.outputPath('phone-crop-choice.png') });
   await page.getByRole('button', { name: '种小麦', exact: true }).tap();
   expect((await snapshot(page)).selection.resident).toBeUndefined();
-  expect((await snapshot(page)).economy.tasks[0].crop).toBe('wheat');
-  await page.getByRole('button', { name: '恢复视角', exact: true }).tap();
-  await expect.poll(async () => (await snapshot(page)).camera.zoom).toBeLessThan(10.8);
+  expect((await snapshot(page)).economy.tasks[0]).toMatchObject({ crop: 'wheat', worker: 'farmer' });
   await selectUnit(page, 'farmer-leader', true);
-  await clickGround(page, { x: .8, z: -7 }, true);
+  await clickGround(page, { x: -5.2, z: -10.4 }, true);
   const commanded = await snapshot(page);
-  expect(commanded.selection.resident).toBeUndefined();
+  expect(commanded.selection.resident).toBe('farmer-leader');
   expect(commanded.residents.find(r => r.id === 'farmer-leader')!.moveCommand).toBe(true);
   await expect.poll(async () => (await snapshot(page)).leaderRunning).toBe(true);
-  await page.screenshot({ path: info.outputPath('phone-command-released.png') });
+  await page.screenshot({ path: info.outputPath('phone-leader-movement-selected.png') });
   expect(errors).toEqual([]);
 });

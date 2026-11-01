@@ -13,7 +13,7 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
   await selectResident('farmer');
   await expect(page.locator('#resident-name')).toHaveText('农民');
   const routeBefore = (await snapshot(page)).residents.find(actor => actor.id === 'farmer')!.routeRemaining;
-  const ids = touch ? ['plot-0', 'plot-6', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8', 'pond'];
+  const ids = touch ? ['plot-0', 'plot-6', 'tree-11'] : ['cottage', 'well', 'tree-6', 'plot-0', 'plot-8'];
   await page.getByRole('button', { name: '取消选中', exact: true }).click();
   for (const id of ids) {
     await page.keyboard.press('Escape');

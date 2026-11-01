@@ -31,9 +31,9 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
   }, () => referenceHouse(scene, p, b));
   // Individual farming cells are managed below as native mutable instances.
-  const firstPondMesh = scene.meshes.length;
-  const water = createLandscapeWater(scene);
-  register({ id: 'pond', kind: 'scenery', name: '湖泊', ...water, anchor: { x: water.x, y: .05, z: water.z } }, firstPondMesh);
+  // Water is terrain, like the ground and roads: no selectable object metadata.
+  // Its shoreline remains in the movement and construction obstacle data.
+  createLandscapeWater(scene);
   for (const [index, { x, z }] of FENCES.entries()) {
     const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);
