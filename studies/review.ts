@@ -37,8 +37,8 @@ if (library && params.has('warmup')) {
 }
 const loaded = library ? await library.instantiate(role!, new TransformNode('review-actor', scene)) : await ImportMeshAsync(asset, scene);
 for (const mesh of loaded.meshes) {
-  const level = mesh.metadata?.gltf?.extras?.wolfLOD;
-  if (level !== undefined) mesh.setEnabled(level === Number(params.get('wolfLOD') || 0));
+  const level = mesh.metadata?.gltf?.extras?.wolfLOD ?? mesh.metadata?.gltf?.extras?.dogLOD;
+  if (level !== undefined) mesh.setEnabled(level === Number(params.get('wolfLOD') || params.get('dogLOD') || 0));
 }
 createCharacterMaterialSetup(scene)(loaded.meshes.map(mesh => mesh.material));
 const sources = params.has('proxy') ? loaded.meshes : batchSkinnedMeshes(loaded.meshes, library?.highBatches);

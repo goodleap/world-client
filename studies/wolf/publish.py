@@ -1,7 +1,7 @@
-"""One wolf GLB, one rig/action library, three native skinned LOD geometries."""
+"""Publish one animal GLB/rig/action library with three native skinned LODs."""
 import bpy
 
-def export_game(rig, parts, coat, directory):
+def export_game(rig, parts, coat, directory, name='wolf', ratios=(.30,.12,.05)):
     for ob in parts:
         colors=ob.data.color_attributes.get('Coat')
         if colors is None:
@@ -16,9 +16,9 @@ def export_game(rig, parts, coat, directory):
     for ob in parts:ob.select_set(True)
     bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join();source=parts[0]
     levels=[];report=[]
-    for level,ratio in enumerate([.30,.12,.05]):
+    for level,ratio in enumerate(ratios):
         ob=source.copy();ob.data=source.data.copy();bpy.context.collection.objects.link(ob)
-        ob.name='Wolf LOD '+str(level);ob['wolfLOD']=level
+        ob.name=name.title()+' LOD '+str(level);ob[name+'LOD']=level
         bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob
         mod=ob.modifiers.new('Offline smooth LOD','DECIMATE');mod.ratio=ratio
         # The rig is in bind pose. Apply simplification once, preserving native
@@ -31,7 +31,7 @@ def export_game(rig, parts, coat, directory):
     bpy.data.objects.remove(source,do_unlink=True)
     bpy.ops.object.select_all(action='DESELECT');rig.select_set(True)
     for ob in levels:ob.select_set(True)
-    bpy.ops.export_scene.gltf(filepath=str(directory/'wolf.glb'),export_format='GLB',use_selection=True,
+    bpy.ops.export_scene.gltf(filepath=str(directory/(name+'.glb')),export_format='GLB',use_selection=True,
         export_animations=True,export_animation_mode='NLA_TRACKS',export_force_sampling=True,
         export_materials='EXPORT',export_yup=True,export_extras=True)
     return report

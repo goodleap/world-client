@@ -1,0 +1,45 @@
+import { test, expect } from '@playwright/test';
+import { Economy, encodeEconomy } from '../../src/game/economy.ts';
+import { openGame, snapshot, panTo, selectUnit, clickGround } from './helpers.ts';
+
+test('new dog eats, freezes with settings, reloads health and rest, and accepts a touch move', async ({ page }, info) => {
+  test.setTimeout(180000);
+  const e = new Economy(); e.setLeadership(false); e.state.inventory.stone = 8;
+  expect(e.placeBuilding('campfire', { x: -10, z: -10 }).ok).toBe(true);
+  const task = e.claim()!; e.arrive(task.id); e.advance(8);
+  const fire = e.state.campfires[0], site = e.state.sites[0];
+  Object.assign(fire, { enabled: true, cooking: false, wood: 12, food: 12, meals: 3 });
+  const point = { x: site.x + Math.SQRT2 * 2, z: site.z + Math.SQRT2 * 2 };
+  e.state.residents.dog = { position: point };
+  Object.assign(e.state.vitals.dog, { hp: 20, stamina: 10, rest: { camp: fire.id, goal: point } });
+  await page.addInitScript(value => {
+    localStorage.setItem('world-shadows-enabled', 'false');
+    if (!localStorage.getItem('world-basic-economy-v1')) localStorage.setItem('world-basic-economy-v1', value);
+  }, encodeEconomy(e));
+  const errors = await openGame(page);
+  const dog = async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!;
+  await expect.poll(async () => (await dog()).motion).toBe('feed');
+  expect((await dog()).animalBones).toHaveLength(16);
+  await panTo(page, point, true);
+  await page.screenshot({ path: info.outputPath('dog-phone-feeding.png') });
+  await page.locator('#settings').tap();
+  const paused = await snapshot(page), held = paused.residents.find(r => r.id === 'dog')!;
+  await page.waitForTimeout(600);
+  expect((await dog()).pose).toEqual(held.pose);
+  expect((await snapshot(page)).economy.vitals.dog).toEqual(paused.economy.vitals.dog);
+  expect(paused.economy.vitals.dog.hp).toBeGreaterThan(20);
+  expect(paused.economy.vitals.dog.stamina).toBeGreaterThan(10);
+  await page.locator('#return-menu').tap(); await page.reload(); await page.locator('#continue-save').tap();
+  await expect(page.locator('#loading')).toHaveClass(/loaded/, { timeout: 60000 });
+  const restored = await snapshot(page);
+  expect(restored.economy.vitals.dog.hp).toBeGreaterThanOrEqual(paused.economy.vitals.dog.hp!);
+  expect(restored.economy.vitals.dog.stamina).toBeGreaterThanOrEqual(paused.economy.vitals.dog.stamina);
+  expect(restored.economy.vitals.dog.rest?.camp).toBe(fire.id);
+  await expect.poll(async () => (await dog()).motion).toBe('feed');
+  await panTo(page, point, true); await selectUnit(page, 'dog', true);
+  await clickGround(page, { x: point.x + 3, z: point.z - 1 }, true);
+  await expect.poll(async () => (await dog()).motion).toBe('run');
+  expect((await snapshot(page)).economy.vitals.dog.rest).toBeUndefined();
+  await page.screenshot({ path: info.outputPath('dog-phone-running.png') });
+  expect(errors).toEqual([]);
+});

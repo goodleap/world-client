@@ -8,7 +8,7 @@ test('world and loaded residents cast and receive consistent daylight shadows', 
   expect(shadow.groundReceives).toBe(true);
   expect(shadow.casters.map(mesh => mesh.name)).toEqual(expect.arrayContaining([
     'world-cream', 'world-terracotta', 'Head • shaped cranium cheeks and jaw',
-    'Horse • continuous body neck head and legs', 'dog-animal-dog',
+    'Horse • continuous body neck head and legs', 'Dog LOD 0',
   ]));
   expect(shadow.casters.some(mesh => mesh.name === 'world-tree-foliage')).toBe(true);
   expect(shadow.casters.every(mesh => mesh.receive)).toBe(true);

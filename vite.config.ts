@@ -3,7 +3,7 @@ import { statSync } from 'node:fs';
 
 export default defineConfig({
   base: './',
-  define: { __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf']
+  define: { __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf', 'dog/dog']
     .map(path => [path.split('/').pop(), statSync(new URL(`./studies/${path}.glb`, import.meta.url)).size]))) },
   server: { port: 5173, strictPort: true },
   build: {

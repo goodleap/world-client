@@ -65,6 +65,9 @@ test('the selected dog runs to the latest destination and finishes its command',
   await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.moveCommand).toBe(true);
   await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.motion).toBe('run');
   const running = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
+  expect(running.animalBones).toHaveLength(16);
+  expect(running.dogLOD?.sharedSkeletonAndMaterials).toBe(true);
+  expect(running.dogLOD?.triangles).toBeLessThanOrEqual(6546);
   expect(running.walking).toBe(false);
   expect(running.runPlaybackRate! * running.runReferenceSpeed!).toBeCloseTo(running.movementSpeed, 6);
   expect((await snapshot(page)).selection.resident).toBe('dog');

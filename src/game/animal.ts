@@ -8,36 +8,31 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import { cylinder, softBox, sphere } from './models.ts';
 import type { Palette } from './models.ts';
 import { createSkinAssembly } from './skinning.ts';
-import { createDogRun } from './dog-run.ts';
+import { createVillageDog } from './dog-view.ts';
 
 export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator, kind: 'horse' | 'dog', id: string) {
-  const horse = kind === 'horse';
+  if (kind === 'dog') return createVillageDog(scene, shadows, id);
   const root = new TransformNode(id, scene);
   const skeleton = new Skeleton(`${id}-rig`, `${id}-rig`, scene);
   const body = new Bone('body', skeleton, null, Matrix.Identity());
-  const head = new Bone('head', skeleton, body, Matrix.Translation(0, horse ? 1.82 : 0.83, horse ? 0.86 : 0.45));
+  const head = new Bone('head', skeleton, body, Matrix.Translation(0, 1.82, 0.86));
   const legs: Bone[] = [];
-  const tail = new Bone('tail', skeleton, body, Matrix.Translation(0, horse ? 1.2 : 0.65, horse ? -0.83 : -0.43));
-  const tailTip = new Bone('tail-tip', skeleton, tail, Matrix.Translation(0, horse ? -0.35 : 0.25, -0.16));
+  const tail = new Bone('tail', skeleton, body, Matrix.Translation(0, 1.2, -0.83));
+  const tailTip = new Bone('tail-tip', skeleton, tail, Matrix.Translation(0, -0.35, -0.16));
   const assembly = createSkinAssembly(), skin = assembly.add;
-  const fur = horse ? p.horse : p.dogFur;
-  const width = horse ? 0.29 : 0.17, legZ = horse ? 0.55 : 0.3;
+  const fur = p.horse;
+  const width = 0.29, legZ = 0.55;
   for (const front of [true, false]) {
     for (const side of [-1, 1]) {
       const x = side * width, z = front ? legZ : -legZ;
-      const leg = new Bone(`${front ? 'front' : 'rear'}-${side < 0 ? 'left' : 'right'}`, skeleton, body, Matrix.Translation(x, horse ? 0.88 : 0.52, z));
+      const leg = new Bone(`${front ? 'front' : 'rear'}-${side < 0 ? 'left' : 'right'}`, skeleton, body, Matrix.Translation(x, 0.88, z));
       legs.push(leg);
-      if (horse) {
         skin(softBox(scene, 'horse-upper-leg', [0.23, 0.49, 0.27], [x, 0.68, z], fur, 0.07), leg);
         skin(cylinder(scene, 'horse-lower-leg', 0.35, 0.14, 0.18, [x, 0.28, z], fur, 8), leg);
         skin(softBox(scene, 'hoof', [0.21, 0.16, 0.27], [x, 0.085, z + 0.02], p.boot, 0.045), leg);
-      } else {
-        skin(softBox(scene, 'dog-leg', [0.14, 0.4, 0.16], [x, 0.31, z], fur, 0.05), leg);
-        skin(softBox(scene, 'dog-paw', [0.17, 0.12, 0.23], [x, 0.09, z + 0.035], p.dogCream, 0.045), leg);
-      }
     }
   }
-  if (horse) {
+  {
     skin(sphere(scene, 'horse-body', [0.92, 0.84, 1.75], [0, 1.17, 0], fur), body);
     const neck = sphere(scene, 'horse-neck', [0.48, 1.12, 0.63], [0, 1.55, 0.63], fur);
     neck.rotation.x = 0.25; skin(neck, body);
@@ -61,61 +56,36 @@ export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator,
     skin(softBox(scene, 'saddle', [0.66, 0.13, 0.61], [0, 1.61, -0.1], p.leatherDark, 0.04), body);
     skin(sphere(scene, 'horse-tail-root', [0.19, 0.53, 0.25], [0, 1, -0.97], p.hair), tail);
     skin(sphere(scene, 'horse-tail-lock', [0.21, 0.61, 0.24], [0, 0.6, -1.09], p.hair), tailTip);
-  } else {
-    skin(sphere(scene, 'dog-body', [0.52, 0.48, 0.98], [0, 0.6, 0], fur), body);
-    skin(sphere(scene, 'dog-chest', [0.44, 0.48, 0.4], [0, 0.61, 0.3], p.dogCream), body);
-    skin(sphere(scene, 'dog-head', [0.43, 0.42, 0.46], [0, 0.86, 0.45], fur), head);
-    skin(sphere(scene, 'dog-muzzle', [0.29, 0.2, 0.31], [0, 0.77, 0.69], p.dogCream), head);
-    skin(sphere(scene, 'dog-nose', [0.13, 0.085, 0.085], [0, 0.8, 0.83], p.nose), head);
-    for (const side of [-1, 1]) {
-      const ear = cylinder(scene, 'upright-ear', 0.29, 0.25, 0, [side * 0.145, 1.105, 0.4], fur, 3);
-      ear.scaling.z = 0.65; ear.rotation.z = -side * 0.15; skin(ear, head);
-      const inner = cylinder(scene, 'inner-ear', 0.17, 0.13, 0, [side * 0.145, 1.105, 0.45], p.sandCloth, 3);
-      inner.scaling.z = 0.4; skin(inner, head);
-      skin(sphere(scene, 'dog-eye', [0.045, 0.06, 0.04], [side * 0.13, 0.91, 0.64], p.nose), head);
-    }
-    const curl = MeshBuilder.CreateTube('curled-tail', {
-      path: [new Vector3(0, 0.65, -0.43), new Vector3(0, 0.77, -0.64), new Vector3(0, 0.98, -0.66), new Vector3(0, 1.04, -0.5), new Vector3(0, 0.99, -0.39)],
-      radius: 0.065, tessellation: 7, cap: 3,
-    }, scene);
-    curl.material = fur; skin(curl, tail);
-    skin(sphere(scene, 'tail-tip', [0.14, 0.14, 0.14], [0, 0.99, -0.39], p.dogCream), tailTip);
   }
   const { mesh, partNames } = assembly.finish(`${id}-${kind}`, root, skeleton, shadows);
-  const run = horse ? undefined : createDogRun(scene, body, legs);
   const rotation = new Vector3();
   const rootRotation = Quaternion.Identity(); root.rotationQuaternion = rootRotation;
-  let phase = horse ? 1 : 2.3, blend = 0, facing = Math.PI;
+  let phase = 1, blend = 0, facing = Math.PI;
   let motion: 'idle' | 'walk' | 'run' = 'idle';
   return {
     root, skeleton, mesh, partNames,
     get motion() { return motion; },
-    get runPlaybackRate() { return run?.group.speedRatio; },
-    get runReferenceSpeed() { return run?.referenceSpeed; },
-    update(seconds: number, vx: number, vz: number, purposeful = false) {
+    get runPlaybackRate() { return undefined; },
+    get runReferenceSpeed() { return undefined; },
+    async loadModel() {},
+    lodInfo() { return undefined; },
+    update(seconds: number, vx: number, vz: number, _purposeful = false, _feeding = false) {
       const speed = Math.hypot(vx, vz);
-      const nextMotion = speed <= .06 ? 'idle' : purposeful && run ? 'run' : 'walk';
-      if (nextMotion === 'run' && run) {
-        if (motion !== 'run') run.group.start(true);
-        run.group.speedRatio = speed / run.referenceSpeed;
-      } else if (motion === 'run') {
-        run?.group.stop(); body.position = Vector3.Zero();
-      }
-      motion = nextMotion;
+      motion = speed <= .06 ? 'idle' : 'walk';
       blend += (Number(speed > 0.06) - blend) * (1 - Math.exp(-seconds * 9));
-      phase += seconds * (speed > 0.06 ? speed * (horse ? 4 : 6) : 1.8);
+      phase += seconds * (speed > 0.06 ? speed * 4 : 1.8);
       if (speed > 0.06) {
         const target = Math.atan2(vx, vz);
         facing += Math.atan2(Math.sin(target - facing), Math.cos(target - facing)) * (1 - Math.exp(-seconds * 7));
       }
       Quaternion.RotationYawPitchRollToRef(facing, 0, 0, rootRotation);
-      for (let i = 0; motion !== 'run' && i < legs.length; i++) {
+      for (let i = 0; i < legs.length; i++) {
         const offset = [0, Math.PI, Math.PI * 0.7, Math.PI * 1.7][i];
-        rotation.set(Math.sin(phase + offset) * (horse ? 0.3 : 0.48) * blend, 0, 0);
+        rotation.set(Math.sin(phase + offset) * 0.3 * blend, 0, 0);
         legs[i].setRotation(rotation);
       }
       rotation.set(0, Math.sin(phase * 0.4) * 0.04, 0); head.setRotation(rotation);
-      rotation.set(0, Math.sin(phase * 0.7) * (horse ? 0.13 : 0.28), 0); tail.setRotation(rotation);
+      rotation.set(0, Math.sin(phase * 0.7) * 0.13, 0); tail.setRotation(rotation);
       rotation.set(0, Math.sin(phase * 0.7 + 0.5) * 0.12, 0); tailTip.setRotation(rotation);
     },
   };

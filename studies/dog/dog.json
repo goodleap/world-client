@@ -1,0 +1,146 @@
+{
+  "reference": "\u89d2\u8272\u539f\u578b\u56fe/\u89d2\u8272\u539f\u578b\u56fe-\u5f85\u8bc4\u5ba1-v1.png",
+  "height": 1.455,
+  "bones": 16,
+  "joints": {
+    "front.L": [
+      [
+        -0.205,
+        0.24,
+        0.59
+      ],
+      [
+        -0.205,
+        0.2,
+        0.34
+      ],
+      [
+        -0.205,
+        0.29,
+        0.11
+      ]
+    ],
+    "hind.L": [
+      [
+        -0.205,
+        -0.32,
+        0.59
+      ],
+      [
+        -0.205,
+        -0.18,
+        0.34
+      ],
+      [
+        -0.205,
+        -0.32,
+        0.11
+      ]
+    ],
+    "front.R": [
+      [
+        0.205,
+        0.24,
+        0.59
+      ],
+      [
+        0.205,
+        0.2,
+        0.34
+      ],
+      [
+        0.205,
+        0.29,
+        0.11
+      ]
+    ],
+    "hind.R": [
+      [
+        0.205,
+        -0.32,
+        0.59
+      ],
+      [
+        0.205,
+        -0.18,
+        0.34
+      ],
+      [
+        0.205,
+        -0.32,
+        0.11
+      ]
+    ]
+  },
+  "motion": {
+    "Walk": {
+      "duration": 0.8,
+      "stride": 0.72,
+      "referenceSpeed": 0.9,
+      "stance": 0.58,
+      "lift": 0.09,
+      "phases": {
+        "front.L": 0,
+        "front.R": 0.5,
+        "hind.L": 0.65,
+        "hind.R": 0.15
+      }
+    },
+    "Run": {
+      "duration": 0.5,
+      "stride": 1.05,
+      "referenceSpeed": 2.1,
+      "stance": 0.25,
+      "lift": 0.18,
+      "phases": {
+        "front.L": 0.48,
+        "front.R": 0.55,
+        "hind.L": 0,
+        "hind.R": 0.08
+      }
+    }
+  },
+  "maxReachClamp": 0,
+  "parts": [
+    "Paw front.L",
+    "Paw hind.L",
+    "Paw front.R",
+    "Paw hind.R",
+    "Continuous body and legs",
+    "Broad forehead and rounded cheeks",
+    "Cream cheeks and short muzzle",
+    "Lower smiling jaw",
+    "Open smile",
+    "Rounded tongue",
+    "Soft triangular nose",
+    "Nose sheen",
+    "Rounded upright ear -1",
+    "Inset pink ear -1",
+    "Oval black eye -1",
+    "Eye glint -1",
+    "Friendly eyebrow -1",
+    "Rounded upright ear 1",
+    "Inset pink ear 1",
+    "Oval black eye 1",
+    "Eye glint 1",
+    "Friendly eyebrow 1",
+    "Full curled tail"
+  ],
+  "levels": [
+    {
+      "level": 0,
+      "vertices": 7995,
+      "triangles": 15898
+    },
+    {
+      "level": 1,
+      "vertices": 3319,
+      "triangles": 6546
+    },
+    {
+      "level": 2,
+      "vertices": 1168,
+      "triangles": 2244
+    }
+  ]
+}

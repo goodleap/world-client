@@ -21,7 +21,7 @@ export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'infantry', role: 'infantry', name: '步兵', spawn: { x: 0, z: 1.2 }, home: { x: 0, z: 1.2 }, areaRadius: 4.2, bodyRadius: 0.4, speed: 1.1, labelHeight: 2.4 },
   { id: 'archer', role: 'archer', name: '弓兵', spawn: { x: -2.6, z: -7.4 }, home: { x: -2.2, z: -7.2 }, areaRadius: 3.5, bodyRadius: 0.35, speed: 1.35, labelHeight: 2.15 },
   { id: 'cavalry', role: 'cavalry', name: '骑兵', spawn: { x: -4, z: -4 }, home: { x: -4, z: -4 }, areaRadius: 4.0, bodyRadius: 1.12, speed: 1.6, labelHeight: 2.95 },
-  { id: 'dog', role: 'dog', name: '田园犬', spawn: { x: -1.6, z: -5.8 }, home: { x: -0.5, z: -5.5 }, areaRadius: 4.7, bodyRadius: 0.54, speed: 1.55, labelHeight: 1.35 },
+  { id: 'dog', role: 'dog', name: '田园犬', spawn: { x: -1.6, z: -5.8 }, home: { x: -0.5, z: -5.5 }, areaRadius: 4.7, bodyRadius: 0.54, speed: 1.55, labelHeight: 1.65 },
   { id: 'farmer-leader', role: 'farmer', name: '农民·领头', effects: ['leader'], spawn: { x: 0, z: -3.8 }, home: { x: 0, z: -3.8 }, areaRadius: 3.6, bodyRadius: .29, speed: 1.15, labelHeight: 2.35 },
 ];
 

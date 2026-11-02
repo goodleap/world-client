@@ -14,7 +14,7 @@ test('residents including the base character render and wander safely', async ({
   expect(new Set(humans.map((r) => r.humanRigId)).size).toBe(6);
   for (const human of humans) expect(human.humanBones).toEqual(initial[0].humanBones);
   expect(initial.find((r) => r.role === 'cavalry')!.animalBones).toHaveLength(8);
-  expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(8);
+  expect(initial.find((r) => r.role === 'dog')!.animalBones).toHaveLength(16);
   const parts = Object.fromEntries(initial.map((r) => [r.role, r.parts]));
   expect(parts.farmer).toContain('straw-sandal');
   for (const role of ['worker']) {
@@ -45,7 +45,7 @@ test('residents including the base character render and wander safely', async ({
     'Quiver • rounded hollow leather shell_primitive1',
   ]));
   await expect(page.locator('[data-resident="archer"]')).toHaveText('弓兵');
-  expect(parts.dog).toEqual(expect.arrayContaining(['curled-tail', 'upright-ear']));
+  expect(parts.dog).toEqual(expect.arrayContaining(['Full curled tail', 'Rounded upright ear -1']));
   await expect(page.locator('[data-resident]')).toHaveCount(7);
   await expect.poll(async () => (await snapshot(page)).residents.filter(r => r.id !== 'farmer').map((r) => ({ id: r.id, travelled: r.travelled > 0.35 })), { timeout: 90_000 })
     .toEqual(initial.filter(r => r.id !== 'farmer').map((r) => ({ id: r.id, travelled: true })));

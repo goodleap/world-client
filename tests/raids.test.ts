@@ -84,6 +84,16 @@ test('idle defenders aid neighbours; moving soldiers and manual civilian orders 
   assert(!s.r.state.evading.farmer);
 });
 
+test('village dog keeps evasion, health and stamina across save and manual override', () => {
+  const s = setup(); s.wave([{ x: 0, z: 0 }]); s.positions.dog = { x: 0, z: 3 };
+  s.e.state.vitals.dog.hp = 55; s.e.state.vitals.dog.stamina = 42;
+  s.r.update(.05); assert(s.r.state.evading.dog); assert(s.commands.some(c => c.id === 'dog'));
+  const restored = decodeEconomy(encodeEconomy(s.e));
+  assert(restored.state.raids.evading.dog);
+  assert.equal(restored.state.vitals.dog.hp, 55); assert.equal(restored.state.vitals.dog.stamina, 42);
+  s.r.manual('dog'); assert(!s.r.state.evading.dog);
+});
+
 test('burning fire causes retreat; an empty enabled fire does not; theft takes one completed meal', () => {
   const s = setup(), site = buildingAt('campfire', { x: 0, z: 0 }, 'site-0');
   s.e.state.sites.push(site); s.e.state.buildings.push(site.id); s.e.state.campfires.push(newCampfire(site.id));

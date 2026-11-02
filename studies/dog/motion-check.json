@@ -1,0 +1,26 @@
+{
+  "Idle": {
+    "samples": 121,
+    "minPawHeight": 0.0004683642473537475,
+    "maxBoneLengthError": 1.0242739589827465e-07,
+    "loopSeam": 0.0
+  },
+  "Walk": {
+    "samples": 121,
+    "minPawHeight": 0.005105652380734682,
+    "maxBoneLengthError": 1.1751065120968462e-07,
+    "loopSeam": 0.0
+  },
+  "Run": {
+    "samples": 121,
+    "minPawHeight": 0.00528952619060874,
+    "maxBoneLengthError": 1.2316687172941876e-07,
+    "loopSeam": 0.0
+  },
+  "Feed": {
+    "samples": 121,
+    "minPawHeight": 0.0004683642473537475,
+    "maxBoneLengthError": 1.0242739589827465e-07,
+    "loopSeam": 0.0
+  }
+}

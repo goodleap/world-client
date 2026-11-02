@@ -84,6 +84,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     await residents.loadSoldierModels();
 
     await residents.loadRolePlaceholders();
+    await residents.loadDogModel();
     wolves = await createWolfView(scene, shadows, ui);
     releaseModelDownloads();
 

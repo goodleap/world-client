@@ -1,33 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
-import { Skeleton } from '@babylonjs/core/Bones/skeleton.js';
-import { Bone } from '@babylonjs/core/Bones/bone.js';
-import { Matrix } from '@babylonjs/core/Maths/math.vector.js';
-import { createDogRun } from '../src/game/dog-run.ts';
+import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader.js';
+import '@babylonjs/loaders/glTF/index.js';
 
-test('the native dog run loops and pauses at the current pose without changing the bind skeleton', () => {
+// Exercise the published asset, including actual native skeleton/action binding.
+test('authored dog shares three skinned LODs and loops/pauses all four native actions', async () => {
   const engine = new NullEngine(), scene = new Scene(engine);
   try {
-    const skeleton = new Skeleton('dog', 'dog', scene);
-    const body = new Bone('body', skeleton, null, Matrix.Identity());
-    const legs = [-1, 1, -1, 1].map((side, index) => new Bone(`leg-${index}`, skeleton, body, Matrix.Translation(side * .17, .52, index < 2 ? .3 : -.3)));
-    const bind = skeleton.bones.map(bone => bone.getBindMatrix().asArray().slice());
-    const { group, referenceSpeed } = createDogRun(scene, body, legs);
-    let loops = 0; group.onAnimationGroupLoopObservable.add(() => loops++);
+    const source = await LoadAssetContainerAsync(new Uint8Array(readFileSync(new URL('../studies/dog/dog.glb', import.meta.url))), scene, { pluginExtension: '.glb' });
+    source.addAllToScene();
+    const meshes = source.meshes.filter(m => m.getTotalVertices());
+    assert.equal(meshes.length, 3); assert.equal(source.materials.length, 1);
+    assert.equal(source.skeletons.length, 1); assert.equal(source.skeletons[0].bones.length, 16);
+    assert.ok(meshes.every(m => m.skeleton === meshes[0].skeleton && m.material === meshes[0].material));
+    assert.deepEqual(source.animationGroups.map(g => g.name).sort(), ['Feed','Idle','Run','Walk']);
+    assert.ok(meshes[0].getTotalIndices() < 50000); assert.ok(meshes[2].getTotalIndices() < 7500);
+    const skeleton = source.skeletons[0], bind = skeleton.bones.map(b => b.getBindMatrix().asArray().slice());
+    const pose = () => skeleton.bones.map(b => b.getTransformNode()!.getWorldMatrix().asArray().slice());
+    const sample = () => { scene.animate(); for (const n of source.transformNodes) n.computeWorldMatrix(true); };
     scene.useConstantAnimationDeltaTime = true;
-    group.start(true, 4 / referenceSpeed);
-    for (let i = 0; i < 6; i++) scene.animate();
-    assert.ok(body.position.y > 0);
-    const pose = skeleton.bones.map(bone => bone.getLocalMatrix().asArray().slice());
-    scene.animationsEnabled = false;
-    for (let i = 0; i < 10; i++) scene.animate();
-    assert.deepEqual(skeleton.bones.map(bone => bone.getLocalMatrix().asArray().slice()), pose);
-    scene.animationsEnabled = true;
-    for (let i = 0; i < 30; i++) scene.animate();
-    assert.ok(loops >= 2);
-    group.stop(); assert.equal(group.isPlaying, false);
-    assert.deepEqual(skeleton.bones.map(bone => bone.getBindMatrix().asArray().slice()), bind);
-  } finally { scene.dispose(); engine.dispose(); }
+    for (const group of source.animationGroups) group.stop();
+    for (const group of source.animationGroups) {
+      let loops = 0; group.onAnimationGroupLoopObservable.add(() => loops++);group.start(true);
+      for (let i=0;i<40;i++) sample();
+      const moving = pose();scene.animationsEnabled=false;
+      for(let i=0;i<10;i++) sample();assert.deepEqual(pose(),moving);
+      scene.animationsEnabled=true;
+      for(let i=0;i<350;i++) sample();assert.ok(loops>=2,group.name+' must loop');
+      group.stop(); assert.equal(group.isPlaying,false);
+    }
+    assert.deepEqual(skeleton.bones.map(b=>b.getBindMatrix().asArray().slice()),bind);
+  } finally {scene.dispose();engine.dispose();}
 });

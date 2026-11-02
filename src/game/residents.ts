@@ -188,6 +188,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   return {
     setExtraNeighbours(read: () => Neighbour[]) { extraNeighbours = read; },
     occupancy: () => actors.filter(a => combatPoses.get(a.definition.id)?.life !== 'defeated').map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
+    async loadDogModel() { await actorById.get('dog')!.animal!.loadModel(); },
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer');
       for (const [index, actor] of farmers.entries()) {
@@ -421,7 +422,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (combatPoses.has(actor.definition.id)) continue;
         actor.movementSpeed = 0;
         if (seconds <= 0) continue;
-        if (resting.has(actor.definition.id) && !actor.route.length) { setMotion(actor.definition.id, 'idle'); continue; }
+        if (resting.has(actor.definition.id) && !actor.route.length) { setMotion(actor.definition.id, 'idle'); actor.movementSpeed = 0; actor.animal?.update(seconds, 0, 0, false, !!vitals[actor.definition.id]?.meal); continue; }
         const work = works.get(actor.definition.id);
         if (work) {
           const before = { ...actor.state.position };
@@ -528,7 +529,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       id: actor.definition.id, role: actor.definition.role, name: actor.definition.name, effects: actor.definition.effects ?? [],
       death: actor.death.snapshot(),
       model: characterModels.get(actor.definition.id),
-      lod: lodInfo(actor.definition.id),
+      lod: lodInfo(actor.definition.id), dogLOD: actor.definition.role === 'dog' ? actor.animal?.lodInfo() : undefined,
       modelPose: characterBones.get(actor.definition.id)?.map(bone =>
         (bone.getTransformNode()?.rotationQuaternion ?? bone.getRotationQuaternion()).asArray()),
       motion: locomotion.get(actor.definition.id)?.motion ?? actor.animal?.motion,

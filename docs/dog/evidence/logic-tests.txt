@@ -1,0 +1,49 @@
+BJS - [09:07:27]: Babylon.js v9.32.1 - Null engine
+BJS - [09:07:27]: Babylon.js v9.32.1 - Null engine
+BJS - [09:07:27]: Babylon.js v9.32.1 - Null engine
+✔ fire is built with stone; off never consumes fuel or food, toggling preserves partial fuel/cooking (47.642565ms)
+✔ cooking is independent of frame subdivisions and waits for actual diner demand (0.395864ms)
+✔ supply reserves then physically picks up and deposits one batch; interrupted/reloaded cargo is never charged twice (54.37017ms)
+✔ cancelled outbound cargo returns via normal hauling and obeys warehouse capacity (16.897554ms)
+✔ one paid food portion restores stamina faster than health, saving and pause preserve the remaining portion (21.612079ms)
+✔ all controlled bodies drain stamina; exhausted workers and rider/horse can still move and deliver supplies (62.252338ms)
+✔ dog, rider and horse consume distinct meals; manual orders interrupt rest without cancelling another unit (35.743041ms)
+✔ injured soldier walks to food and heals gradually, no fire means no automatic health or inventory changes (53.557091ms)
+✔ strict saves reject invalid local stock, duplicated vitality health and orphaned deliveries (24.560282ms)
+✔ fire render states follow stock and cooking; local light count remains capped (168.075992ms)
+✔ built fire collision follows the actual stone circle, while construction reserves its grid footprint (45.13901ms)
+✔ an injured diner waits when every fire seat is occupied instead of eating at a distant fallback point (22.268923ms)
+✔ automatic healing waits for recent damage and explicit commands, then resumes without an eating button (45.03926ms)
+✔ fire seats fit the mounted horse and retain reachable approaches on the real map (19.585898ms)
+✔ automatic meals require low stamina or injury and an enabled reachable fire within 30 map cells (19.792087ms)
+✔ every human can supply an empty fire and eat; animals never carry and reservations are shared (347.635025ms)
+✔ a soldier supply survives reload in transit and manual movement drops goods without a second charge (60.075902ms)
+✔ shortages retry without free food, switching off interrupts supply, and normal tasks remain available (54.125934ms)
+✔ blocked supply routes wait without charging inventory or retrying navigation every frame (15.060578ms)
+✔ incoming fire interrupts automatic supply to retaliate, preserving paid cargo (17.17441ms)
+✔ manual movement owns the farmer until arrival and resumes partial work without spending reserved materials twice (21.431667ms)
+✔ direct work preempts automatic work, reuses queued tasks and preserves the interrupted progress (3.110147ms)
+✔ dogs and soldiers accept movement while unsupported or invalid work cannot interrupt an existing command (0.616505ms)
+✔ a blocked delivery approach retries another point without dropping or duplicating cargo (0.47352ms)
+✔ authored dog shares three skinned LODs and loops/pauses all four native actions (124.362611ms)
+✔ raid protection, hidden connected spawns, bounded pack and saved random schedule (61.952928ms)
+✔ bite has windup, exactly one contact per attack, stable target and persisted cooldown (2.887613ms)
+✔ wolf path respects cover and crowd, and cannot bite through a wall (12.405153ms)
+✔ idle defenders aid neighbours; moving soldiers and manual civilian orders retain priority (1.596956ms)
+✔ village dog keeps evasion, health and stamina across save and manual override (0.936025ms)
+✔ burning fire causes retreat; an empty enabled fire does not; theft takes one completed meal (5.969347ms)
+✔ defeated wolves settle ground loot once, including stolen meal, across reload (15.069031ms)
+✔ wounded wolves withdraw through actual terrain and timeouts do not teleport them (228.143596ms)
+✔ v9 migration preserves health, food and progress; corrupted raid or projectile is rejected (1.844858ms)
+✔ automatic assistance keeps one pursuit origin for the whole wave (0.844938ms)
+✔ different seeds produce legal packs capped at five; unavailable borders defer (328.803098ms)
+✔ an archer shot reloads against the same wolf and applies damage once (1.562083ms)
+✔ bite, theft, evasion and random timers freeze on nonpositive delta (0.270916ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4037.01844
