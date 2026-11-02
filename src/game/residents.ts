@@ -1,3 +1,4 @@
+import type { Neighbour } from './route-following.ts';
 import type { Fighter } from './combat.ts';
 import { fighterStats } from './combat.ts';
 import { effort } from './vitals.ts';
@@ -139,16 +140,17 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         .every(mesh => source.skeleton === mesh.skeleton && source.material === mesh.material)),
     };
   };
+  let extraNeighbours: () => Neighbour[] = () => [];
   const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, locomotion.has(actor.definition.id));
   const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
     stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed * effort(vitals, actor.definition.id), actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
-      actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({ id: other.definition.id, position: other.state.position,
+      [...extraNeighbours(), ...actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({ id: other.definition.id, position: other.state.position,
         radius: other.settings.bodyRadius, moving: other.movementSpeed > .08, purposeful: !!other.route.length || !!other.state.target,
-        waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting })));
-  const workNeighbours = (actor: typeof actors[number]) => actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({
+        waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting }))]);
+  const workNeighbours = (actor: typeof actors[number]) => [...extraNeighbours(), ...actors.filter(other => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map(other => ({
     position: other.state.position, radius: other.settings.bodyRadius, destination: other.route.at(-1),
-  }));
+  }))];
   const advanceRoute = (actor: typeof actors[number], seconds: number) => {
     const result = navigate(actor, actor.route, actor.navigation, seconds, destinationSpeed(actor));
     actor.state.distanceTravelled += Math.hypot(result.position.x - actor.state.position.x, result.position.z - actor.state.position.z);
@@ -183,6 +185,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }
   };
   return {
+    setExtraNeighbours(read: () => Neighbour[]) { extraNeighbours = read; },
     occupancy: () => actors.filter(a => combatPoses.get(a.definition.id)?.life !== 'defeated').map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer');
@@ -433,9 +436,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
-        const crowd: Obstacle[] = actors.filter((other) => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map((other) => ({
-          kind: 'circle', x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
-        }));
+        const crowd: Obstacle[] = [...extraNeighbours().map(n => ({ kind: 'circle' as const, ...n.position, radius: n.radius })), ...actors.filter((other) => other !== actor && combatPoses.get(other.definition.id)?.life !== 'defeated').map((other) => ({
+          kind: 'circle' as const, x: other.state.position.x, z: other.state.position.z, radius: other.definition.bodyRadius,
+        }))];
         const blockers = crowd.filter((other) => other.kind === 'circle'
           && Math.hypot(other.x - actor.state.position.x, other.z - actor.state.position.z) >= other.radius + actor.settings.bodyRadius - 0.001);
         let velocity: Point;

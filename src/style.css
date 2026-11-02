@@ -1090,3 +1090,8 @@ kbd {
 .resident-health > span { display:block; height:100%; background:#719548; transform-origin:left center; }
 .enemy-label { color:#9e2c22; }
 .enemy-label .resident-health > span { background:#c95c49; }
+
+/* Temporary event message; no permanent combat controls. */
+.raid-notice { position: absolute; z-index: 8; top: calc(env(safe-area-inset-top) + 160px); left: max(16px, env(safe-area-inset-left)); max-width: min(290px, calc(100% - 88px)); padding: 8px 12px; border: 1px solid #b6a27a; border-radius: 12px; background: #f8efdceF; color: #584332; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; box-shadow: 0 2px 8px #34231522; text-align: left; }
+.raid-notice[hidden] { display: none; }
+@media (max-height: 480px) { .raid-notice { top: 140px; max-width: 230px; } }

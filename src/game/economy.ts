@@ -1,3 +1,5 @@
+import { initialRaids, decodeRaids } from './raid-state.ts';
+import type { RaidState } from './raid-state.ts';
 import { initialCombat, decodeCombat } from './combat.ts';
 import type { CombatState } from './combat.ts';
 import type { Point, Obstacle } from './movement.ts';
@@ -31,9 +33,9 @@ export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
-  combat: CombatState;
+  combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
-  version: 9; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 10; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -50,9 +52,9 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
   return RESOURCE_NODES.some(n => n.id === target && (kind === 'chop' ? n.kind === 'wood' : kind === 'gather' ? n.kind === 'food' : n.kind === 'stone' || n.kind === 'iron'));
 }
 
-export function initialEconomy(): EconomyState {
+export function initialEconomy(seed?: number): EconomyState {
   return {
-    combat: initialCombat(), vitals: initialVitals(), campfires: [], version: 9, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 10, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -65,7 +67,7 @@ export class Economy {
   revision = 0;
   private liveOccupants?: () => readonly Point[];
   setOccupancy(read: () => readonly Point[]) { this.liveOccupants = read; }
-  constructor(state = initialEconomy()) { this.state = state; }
+  constructor(state = initialEconomy(Math.floor(Math.random() * 0xffffffff) + 1)) { this.state = state; }
   setLeadership(enabled: boolean) {
     if (this.state.steward.enabled === enabled) return;
     this.state.steward.enabled = enabled;
@@ -101,13 +103,13 @@ export class Economy {
     return region && 'camp' in region && !this.state.combat.camps.find(c => c.id === region.camp)?.cleared ? `先清理${region.name}的守卫` : '';
   }
   /** One transaction with combat.rewardGranted; output uses normal hauling and capacity. */
-  dropReward(point: Point, reward: Partial<Inventory>) {
+  dropReward(point: Point, reward: Partial<Inventory>, spread = true) {
     const ids: string[] = [];
     for (const [i, resource] of resources.entries()) {
       if (!reward[resource]) continue;
       const id = `goods-${this.state.nextId++}`; ids.push(id);
       this.state.goods.push({ id, resource, amount: reward[resource]!,
-        x: point.x + (i - 1), z: point.z, state: 'ground' });
+        x: point.x + (spread ? i - 1 : 0), z: point.z, state: 'ground' });
     }
     this.changed(); return ids;
   }
@@ -417,12 +419,15 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 9) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 9 && saved.version !== 10) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
-  state.combat = decodeCombat(raw.combat);
+  // v9 explicitly gains a fresh grace period; existing health, jobs and rewards survive.
+  if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
+  state.raids = saved.version === 9 ? initialRaids(raw.seconds) : decodeRaids(raw.raids, raw.combat?.nextAttack);
+  state.combat = decodeCombat(raw.combat, state.raids.wolves);
   if (!raw.upgrades || !['tools', 'arms'].every(k => Number.isInteger(raw.upgrades[k as 'tools']) && number(raw.upgrades[k as 'tools'], C.upgradeLimit))) throw new Error('加工存档无效');
   state.upgrades = { ...raw.upgrades };
   if (!raw.regrowth || Object.entries(raw.regrowth).some(([id, at]) => !RESOURCE_NODES.some(n => n.id === id) || !raw.depleted.includes(id) || !number(at, 1e12))) throw new Error('资源恢复存档无效');

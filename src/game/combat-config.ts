@@ -11,6 +11,7 @@ export const ENCOUNTERS = [
 // full-stamina cadence remains at least 3x the previous release on both sides.
 const TEMPO = 3.5;
 export const COMBAT_CONFIG = {
+  wolf: { hp: 75, attack: 8, armor: 1, interval: 1.1, windup: .24, recovery: .31, range: 1.7, speed: 3.3 },
   infantry: { hp: 140, attack: 22, armor: 4, interval: 1.3 / TEMPO, windup: .38 / TEMPO, recovery: .42 / TEMPO, range: 1.6, speed: 4.6 },
   archer: { hp: 90, attack: 18, armor: 1, interval: 1.65 / TEMPO, windup: .55 / TEMPO, recovery: .4 / TEMPO, range: 7, speed: 4.8 },
   cavalry: { hp: 100, attack: 26, armor: 3, interval: 1.3 / TEMPO, windup: .38 / TEMPO, recovery: .42 / TEMPO, range: 2.4, speed: 6.96 },
@@ -20,4 +21,4 @@ export const COMBAT_CONFIG = {
   acquire: 8, projectileSpeed: 14,
   reward: { wood: 24, stone: 16, food: 12 },
 };
-export type CombatRole = 'infantry' | 'archer' | 'cavalry';
+export type CombatRole = 'infantry' | 'archer' | 'cavalry' | 'wolf';

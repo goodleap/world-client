@@ -1,6 +1,8 @@
+import { Raids } from './raids.ts';
+import { createWolfView } from './wolf-view.ts';
 import { createNeedsController } from './needs-controller.ts';
 import { health, maxHealth } from './vitals.ts';
-import { Combat } from './combat.ts';
+import { Combat, fighterStats } from './combat.ts';
 import { createCombatView } from './combat-view.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { Engine } from '@babylonjs/core/Engines/engine';
@@ -70,6 +72,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   };
   let world: ReturnType<typeof buildWorld>;
   let residents: ReturnType<typeof createResidents>;
+  let wolves: Awaited<ReturnType<typeof createWolfView>>;
   try {
     report(10, '正在铺好小路、布置房屋与树木…');
     await nextPaint();
@@ -81,6 +84,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     await residents.loadSoldierModels(fraction => report(47 + 33 * fraction, '正在迎接步兵、骑兵与弓兵…'));
     report(80, '正在准备其他居民…');
     await residents.loadRolePlaceholders(fraction => report(80 + 8 * fraction, '正在准备其他居民…'));
+    wolves = await createWolfView(scene, shadows, ui);
     releaseModelDownloads();
     report(90, '正在准备光影与地图画面…');
     await nextPaint();
@@ -90,7 +94,18 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   residents.restoreResidents(economy.state.residents);
   const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
   residents.syncCombat(combat.state.units);
-  economy.setOccupancy(() => residents.occupancy());
+  const visibilityPoint = new Vector3(), visibilityScreen = new Vector3(), visibilityIdentity = Matrix.Identity();
+  const raids = new Raids(economy, combat, {
+    status: residents.needsStatus, command: (p, id) => residents.command(p, id), release: residents.releaseFarmerWork,
+    resting: residents.setResting, neighbours: residents.combatNeighbours,
+  }, () => world.obstacles(true), point => {
+    visibilityPoint.set(point.x, 1, point.z);
+    Vector3.ProjectToRef(visibilityPoint, visibilityIdentity, scene.getTransformMatrix(), camera.viewport.toGlobal(1, 1), visibilityScreen);
+    return visibilityScreen.z >= 0 && visibilityScreen.z <= 1 && visibilityScreen.x >= -.08 && visibilityScreen.x <= 1.08 && visibilityScreen.y >= -.08 && visibilityScreen.y <= 1.08;
+  });
+  residents.setExtraNeighbours(() => raids.neighbours());
+  const occupancy = () => [...residents.occupancy(), ...raids.occupancy()];
+  economy.setOccupancy(occupancy);
   const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point));
   const combatView = createCombatView(scene);
   combatView.update(combat.state);
@@ -102,7 +117,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
-  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id));
+  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
+  const manual = (id: string) => { needs.manual(id); raids.manual(id); };
   const moveFeedback = createMoveFeedback(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
@@ -129,6 +145,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     for (const id of Object.keys(economy.state.vitals)) {
       ui.setUnitHealth(id, health(economy.state, id), maxHealth(id), economy.state.seconds, id === 'horse' ? 'cavalry' : id);
     }
+    for (const wolf of raids.state.wolves) ui.setUnitHealth(wolf.id, wolf.hp, fighterStats(wolf).hp, economy.state.seconds);
+    ui.setRaidNotice(raids.state.noticeUntil > economy.state.seconds ? raids.state.notice + (raids.state.phase === 'raid' ? ' · 查看' : '') : '');
     if (selectedWorld) {
       const object = world.objects.get(selectedWorld.id);
       if (object) { selectedWorld = object; showObjectActions(object); }
@@ -154,7 +172,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       if (instruction) {
         const id = residents.selectedId();
         const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);
-        if (result.ok && id) { needs.manual(id); setPreview(); clearResident(); }
+        if (result.ok && id) { manual(id); setPreview(); clearResident(); }
         ui.targetHint(result.message, selectedWorld.anchor);
       }
     }
@@ -204,7 +222,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     currentZoom = zoom; applyProjection();
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
-  const placement = createBuildingPlacement(scene, camera, ui, economy, residents.occupancy, () => ui.paused || suspended,
+  const placement = createBuildingPlacement(scene, camera, ui, economy, occupancy, () => ui.paused || suspended,
     clearSelection, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
     if (ui.paused || suspended || placement.active) return;
@@ -225,8 +243,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       const fighter = combat.unit(id);
       if (fighter?.team === 'enemy') {
         const count = combat.attack(combatIds(), id);
-        ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: 2.6 });
-        if (count) { needs.manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
+        ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: fighter.role === 'wolf' ? 1.9 : 2.6 });
+        if (count) { manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
         return;
       }
       clearWorld();
@@ -261,7 +279,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       const isCombat = combatIds().some(id => !!combat.unit(id));
       const result = isCombat ? { ok: combat.move(combatIds(), point) > 0, message: '无法到达该位置' }
         : controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
-      if (result.ok) { needs.manual(residents.selectedId()!); clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
+      if (result.ok) { manual(residents.selectedId()!); clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
       // The destination marker already confirms success. Only failures need
       // text, anchored to the attempted destination rather than the HUD.
       if (!result.ok) ui.targetHint(result.message, { x: point.x, y: .2, z: point.z });
@@ -323,6 +341,11 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
     if (!saveLighting(lighting)) ui.settingsNotice('光照已生效，浏览器未能保存此偏好');
     freshFrame = true; requestRender();
   });
+  ui.bind('raid-notice', () => {
+    if (ui.paused || suspended || raids.state.phase !== 'raid') return;
+    const wolf = raids.state.wolves.find(w => w.life === 'active' && w.mode !== 'gone');
+    if (wolf) { setPreview(); overview = false; mapCenter.set(wolf.position.x, .5, wolf.position.z); clampCenter(); }
+  });
   ui.bind('reset', () => {
     mapCenter.copyFrom(homeCenter); setPreview();
     overview = false; zoom = defaultZoom();
@@ -371,6 +394,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
         ui.advanceSpeech(dt);
         controller.update(dt);
         world.doors.update(dt);
+        raids.update(dt);
         combat.update(dt); residents.syncCombat(combat.state.units); combatView.update(combat.state);
         residents.update(dt, previewRole, dt);
         needs.update(dt);
@@ -403,7 +427,8 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
       selectionRevision = selectionKey;
     }
-    scene.render(); residents.updateLabels(camera);
+    wolves.update(raids.state.wolves, economy.state.seconds, camera);
+    scene.render(); residents.updateLabels(camera); wolves.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
@@ -494,6 +519,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
       placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
       combat: structuredClone(combat.state),
+      wolves: wolves.snapshot(),
       doors: world.doors.snapshot(), fires: world.fires.snapshot(),
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,

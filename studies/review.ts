@@ -1,7 +1,8 @@
 // Review the exported asset in the same engine as the game, without a scene
 // hiding its silhouette. Kept separate from the game's entry point.
-import { Engine, Scene, ArcRotateCamera, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, ImportMeshAsync, TransformNode, Mesh } from '@babylonjs/core';
+import { Engine, Scene, ArcRotateCamera, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, ImportMeshAsync, TransformNode, Mesh, MeshBuilder, StandardMaterial, ShadowGenerator } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
+import { SkeletonViewer } from '@babylonjs/core/Debug/skeletonViewer';
 import { createCharacterMaterialSetup } from '../src/game/character-materials';
 import { createDaylight } from '../src/game/lighting';
 import { createCharacterLibrary } from '../src/game/character-library';
@@ -35,8 +36,30 @@ if (library && params.has('warmup')) {
   warmup.rootNodes.forEach(root => root.setEnabled(false));
 }
 const loaded = library ? await library.instantiate(role!, new TransformNode('review-actor', scene)) : await ImportMeshAsync(asset, scene);
+for (const mesh of loaded.meshes) {
+  const level = mesh.metadata?.gltf?.extras?.wolfLOD;
+  if (level !== undefined) mesh.setEnabled(level === Number(params.get('wolfLOD') || 0));
+}
 createCharacterMaterialSetup(scene)(loaded.meshes.map(mesh => mesh.material));
-const sources = batchSkinnedMeshes(loaded.meshes, library?.highBatches);
+const sources = params.has('proxy') ? loaded.meshes : batchSkinnedMeshes(loaded.meshes, library?.highBatches);
+if (params.has('proxy')) {
+  // Before publication retain isolated authored paws. The merged runtime
+  // model uses a translucent skin so its actual foot envelope remains visible.
+  const separatePaws = sources.some(mesh => mesh.name.startsWith('Paw '));
+  for (const mesh of sources) { mesh.isVisible = separatePaws ? mesh.name.startsWith('Paw ') : mesh.getTotalVertices() > 0; if (!separatePaws) mesh.visibility = .18; }
+  const mesh = sources.find(m => m.skeleton)!;
+  const viewer = new SkeletonViewer(loaded.skeletons[0], mesh, scene, true, 2, { useAllBones: true, displayMode: SkeletonViewer.DISPLAY_SPHERE_AND_SPURS });
+  viewer.isEnabled = true;
+}
+if (params.has('floor')) {
+  const floor = MeshBuilder.CreateGround('review-floor', { width: 20, height: 20 }, scene);
+  floor.position.y = -.012; floor.receiveShadows = true;
+  const mat = new StandardMaterial('review-floor', scene); mat.diffuseColor = new Color3(.86, .83, .76); mat.specularColor = Color3.Black(); floor.material = mat;
+  const sun = scene.lights.find(l => l instanceof DirectionalLight) as DirectionalLight;
+  sun.position.set(3, 6, 4);
+  const shadows = new ShadowGenerator(1024, sun); shadows.usePercentageCloserFiltering = true; shadows.bias = .001;
+  for (const mesh of sources) if (mesh.getTotalVertices()) shadows.addShadowCaster(mesh);
+}
 const lod = library ? await library.attachLOD(sources) : params.has('lodAsset')
   ? await loadCharacterLOD(scene, sources, params.get('lodAsset')!) : [];
 function mapLOD(enabled: boolean | 'far') {

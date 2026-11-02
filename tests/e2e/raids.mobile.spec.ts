@@ -1,0 +1,28 @@
+import { test, expect } from '@playwright/test';
+import { encodeEconomy } from '../../src/game/economy.ts';
+import { raidFixture } from './raid-fixture.ts';
+import { openGame, snapshot, clickGround, selectUnit, panTo } from './helpers.ts';
+test('phone wolf action and compact notice, touch movement and background pause', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  await page.addInitScript(value => localStorage.setItem('world-basic-economy-v1', value), encodeEconomy(raidFixture()));
+  const errors = await openGame(page);
+  await expect(page.locator('#raid-notice')).toBeVisible();
+  const notice = await page.locator('#raid-notice').boundingBox(); const jobs = await page.locator('#queue-toggle').boundingBox();
+  expect(notice!.y).toBeGreaterThan(jobs!.y + jobs!.height);
+  expect(notice!.x + notice!.width).toBeLessThan(page.viewportSize()!.width);
+  await expect(page.locator('#loading')).toHaveCSS('opacity', '0');
+  await panTo(page, { x: -4, z: -4 }, true);
+  await page.screenshot({ path: info.outputPath('raid-mobile.png'), animations: 'disabled' });
+  await selectUnit(page, 'infantry', true);
+  await clickGround(page, { x: 0, z: -10 }, true);
+  const s = await snapshot(page); expect(s.selection.resident).toBe('infantry');
+  expect(s.combat.units.find(u => u.id === 'infantry')!.order).toBe('move');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  const frozen = await snapshot(page); await page.waitForTimeout(500);
+  expect((await snapshot(page)).economy.raids).toEqual(frozen.economy.raids);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  expect((await snapshot(page)).manualPaused).toBe(true);
+  await page.getByRole('button', { name: '继续游戏', exact: true }).tap();
+  expect((await snapshot(page)).manualPaused).toBe(false);
+  expect(errors).toEqual([]);
+});

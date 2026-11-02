@@ -47,6 +47,7 @@ export function createUI(app: HTMLElement) {
     <aside class="economy-bar" aria-label="家园资源">
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
+    <button id="raid-notice" class="raid-notice" aria-live="polite" hidden></button>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
       <p class="queue-note">农民·领头参与作业，并指挥农民经营小屋周围 30 格。手动指令优先，资源送到仓库才入库。</p>
@@ -248,11 +249,19 @@ export function createUI(app: HTMLElement) {
     addResidentLabel(id: string, name: string, leader = false) {
       const label = document.createElement('span');
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
-      label.classList.toggle('enemy-label', id.startsWith('enemy-'));
+      label.classList.toggle('enemy-label', id.startsWith('enemy-') || id.startsWith('wolf-'));
       if (leader) { label.classList.add('resident-leader'); label.title = '领头 · 参与作业并指挥同职业居民'; }
       get('resident-labels').append(label);
       residentLabels.set(id, label); residentSizeObserver.observe(label);
       return label;
+    },
+    removeResidentLabel(id: string) {
+      const label = residentLabels.get(id); if (label) { residentSizeObserver.unobserve(label); label.remove(); }
+      residentLabels.delete(id); healthIndicators.delete(id);
+    },
+    setRaidNotice(text: string) {
+      const notice = get('raid-notice'); notice.hidden = !text;
+      if (notice.textContent !== text) notice.textContent = text;
     },
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
     setUnitHealth(id: string, hp: number, maximum: number, seconds: number, labelId = id) {

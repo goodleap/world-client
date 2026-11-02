@@ -15,7 +15,7 @@ export type CombatLife = 'active' | 'injured' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
   hp: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
-  facing: number; speed: number; cooldown: number;
+  facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
   route: Point[]; navigation: RouteState; planIn: number;
 }
@@ -25,9 +25,9 @@ export interface CombatState { camps: CampState[]; units: Fighter[]; projectiles
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const enemyDefinitions = new Map(ENEMIES.map(enemy => [enemy.id, enemy]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
-  return u.team === 'home' ? C[u.role] : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
+  return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
-export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : .4;
+export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : u.role === 'wolf' ? .72 : .4;
 // Melee reach accounts for the target body, so foot soldiers can strike a
 // mounted opponent without routing into the horse's collision circle.
 const reach = (u: Fighter, target: Fighter) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, fighterRadius(target) - .4));
@@ -50,6 +50,7 @@ export class Combat {
   private solids: () => readonly Obstacle[];
   private civilians: () => Neighbour[];
   private units: Map<string, Fighter>;
+  private threats: readonly Fighter[] = [];
   private statCache = new Map<string, { level: number; value: ReturnType<typeof fighterStats> }>();
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
@@ -63,9 +64,28 @@ export class Combat {
     this.statCache.set(u.id, { level, value }); return value;
   }
   unit(id: string) { return this.units.get(id); }
+  setThreats(threats: readonly Fighter[]) {
+    this.threats = threats;
+    this.units = new Map([...this.state.units, ...threats].map(u => [u.id, u]));
+    for (const u of this.state.units) {
+      if (u.target && !this.units.has(u.target)) u.target = undefined;
+      if (u.attack && !this.units.has(u.attack.target)) u.attack = undefined;
+    }
+    this.state.projectiles = this.state.projectiles.filter(p => this.units.has(p.target) && this.units.has(p.source));
+    for (const id of this.statCache.keys()) if (!this.units.has(id)) this.statCache.delete(id);
+  }
+  hurt(id: string, damage: number, source: string) { const unit = this.unit(id); if (unit) this.damage(unit, damage, source); }
+  assist(id: string, target: string) {
+    const u = this.unit(id), foe = this.unit(target);
+    if (!u || !foe || u.team !== 'home' || u.life !== 'active' || foe.life !== 'active' || u.target || u.attack
+      || u.defendFrom && (distance(foe.position, u.defendFrom) > 12 || distance(u.position, u.defendFrom) > 10)
+      || !['guard', 'hold'].includes(u.order) || this.economy.state.vitals[id].rest
+      || this.economy.state.vitals[id].manualUntil > this.economy.state.seconds || this.economy.active(id)) return false;
+    u.target = target; u.order = 'guard'; u.defendFrom ??= { ...u.position }; this.stop(u); return true;
+  }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
-    return [...this.civilians(), ...this.state.units.filter(n => n !== u && n.life !== 'defeated').map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n),
+    return [...this.civilians(), ...[...this.state.units, ...this.threats].filter(n => n !== u && n.life !== 'defeated').map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n),
       moving: n.speed > .08, purposeful: !!n.route.length, waiting: n.navigation.waiting }))];
   }
   private reservations(u: Fighter) {
@@ -93,6 +113,7 @@ export class Combat {
     return accepted;
   }
   private manual(id: string) {
+    this.unit(id)!.defendFrom = undefined;
     if (this.economy.active(id)?.kind === 'supply') this.economy.interrupt(this.unit(id)!.position, id);
     const v = this.economy.state.vitals[id]; v.rest = undefined; v.manualUntil = this.economy.state.seconds + VITAL_CONFIG.manualGrace;
   }
@@ -111,6 +132,13 @@ export class Combat {
   private damage(target: Fighter, amount: number, sourceId: string) {
     if (target.life !== 'active') return;
     target.hp = Math.max(0, target.hp - Math.max(1, amount - this.stats(target).armor));
+    target.hurtAt = this.economy.state.seconds;
+    if (target.role === 'wolf') {
+      const source = this.unit(sourceId);
+      if (source?.team === 'home' && !target.target && distance(target.position, source.position) <= C.acquire + 3) target.target = source.id;
+      if (!target.hp) { target.life = 'defeated'; target.attack = undefined; target.target = undefined; this.stop(target); }
+      return;
+    }
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) {
       const source = this.unit(sourceId), current = target.target && this.unit(target.target);
@@ -122,6 +150,7 @@ export class Combat {
         && (target.team === 'home' || distance(source.position, this.camp(target)) <= this.camp(target).leash)) {
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
+        if (source.role === 'wolf') target.defendFrom ??= { ...target.position };
         target.order = 'guard'; target.target = source.id; target.goal = undefined; this.stop(target);
       }
       return;
@@ -173,6 +202,10 @@ export class Combat {
       if (u.life === 'injured' || u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
       if (u.team === 'enemy' && (distance(u.position, this.camp(u)) > this.camp(u).leash || u.target && distance(this.unit(u.target)!.position, this.camp(u)) > this.camp(u).leash)) {
         u.order = 'hold'; u.goal = { ...u.home }; u.target = undefined; u.attack = undefined; this.stop(u); continue;
+      }
+      if (u.defendFrom && (!u.target || distance(u.position, u.defendFrom) > 10
+        || !this.unit(u.target) || this.unit(u.target)!.life !== 'active' || distance(this.unit(u.target)!.position, u.defendFrom) > 12)) {
+        u.target = undefined; u.attack = undefined; this.stop(u);
       }
       if (u.attack) {
         const action = u.attack; action.elapsed += dt;
@@ -258,10 +291,11 @@ export class Combat {
   }
 }
 
-/** Strict v9 save validation. Reject malformed state instead of silently healing,
+/** Strict fixed-unit and external-target save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
-export function decodeCombat(raw: CombatState): CombatState {
+export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = []): CombatState {
   const initial = initialCombat();
+  const opponents = [...initial.units, ...threats];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
   if (!raw || !Array.isArray(raw.units) || raw.units.length !== initial.units.length || !Array.isArray(raw.projectiles) || raw.projectiles.length > 20
@@ -276,17 +310,18 @@ export function decodeCombat(raw: CombatState): CombatState {
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
       || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'injured', 'defeated'].includes(u.life)
       || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
-      || u.target && !initial.units.some(t => t.id === u.target && t.team !== u.team)
+      || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
+      || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
       || u.team === 'home' && u.life === 'defeated' || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');
     if (u.attack && (!Number.isSafeInteger(u.attack.id) || u.attack.id < 1 || u.attack.id >= raw.nextAttack
-      || !num(u.attack.elapsed, 3) || typeof u.attack.released !== 'boolean' || !raw.units.some(t => t.id === u.attack!.target && t.team !== u.team))) throw new Error('攻击存档无效');
+      || !num(u.attack.elapsed, 3) || typeof u.attack.released !== 'boolean' || !opponents.some(t => t.id === u.attack!.target && t.team !== u.team))) throw new Error('攻击存档无效');
     u.navigation = createRouteState(); u.planIn = 0; u.speed = 0;
   }
   if (raw.cleared !== raw.camps.every(c => c.cleared) || raw.camps.some(c => c.cleared !== raw.units.filter(u => ENEMIES.find(r => r.id === u.id)?.camp === c.id).every(u => u.life === 'defeated'))) throw new Error('据点存档不一致');
   const ids = new Set<number>();
   for (const p of raw.projectiles) {
-    const source = raw.units.find(u => u.id === p.source), target = raw.units.find(u => u.id === p.target);
+    const source = raw.units.find(u => u.id === p.source), target = [...raw.units, ...threats].find(u => u.id === p.target);
     if (!source || !target || source.team === target.team || !point(p.from) || !point(p.to) || !num(p.elapsed, 3) || !num(p.duration, 3)
       || p.duration <= 0 || p.elapsed >= p.duration || !num(p.damage, 100) || !Number.isSafeInteger(p.id) || p.id < 1 || p.id >= raw.nextAttack || ids.has(p.id)) throw new Error('投射物存档无效');
     ids.add(p.id);
