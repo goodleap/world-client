@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { Economy, encodeEconomy } from '../../src/game/economy.ts';
 import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
-import { openGame, snapshot, clickGround, selectUnit } from './helpers.ts';
+import { openGame, snapshot, clickGround, selectUnit, panTo } from './helpers.ts';
 
 test('touch fire controls, dog and horse meals, and manual move override', async ({ page }, info) => {
   test.setTimeout(150_000);
@@ -27,8 +27,17 @@ test('touch fire controls, dog and horse meals, and manual move override', async
 
   await expect.poll(async () => (await snapshot(page)).economy.vitals.horse.stamina, { timeout: 40_000 }).toBeGreaterThan(12);
   let s = await snapshot(page); expect(s.combat.units.find(u => u.id === 'cavalry')!.hp).toBeGreaterThan(40); expect(s.economy.vitals.horse.hp).toBeGreaterThan(40);
+  // The dog can eat on the far side of the fire, outside the previous view.
+  // Center the diners before asserting visible feedback; offscreen labels hide.
+  await panTo(page, site, true);
+  for (const id of ['dog', 'horse', 'cavalry']) await expect(page.locator(`[data-health="${id}"]`)).toBeVisible();
   expect(s.economy.campfires[0].meals).toBeLessThan(3);
   await selectUnit(page, 'cavalry', true); await page.screenshot({ path: info.outputPath('meals-mobile.png') });
+  await expect(page.locator('[data-resident="cavalry"]')).toHaveText('骑兵');
+  const healthBars = await page.locator('[data-resident="cavalry"] .resident-health').evaluateAll(bars => bars.map(bar => {
+    const b = bar.getBoundingClientRect(); return { width: b.width, height: b.height };
+  }));
+  expect(healthBars).toEqual([{ width: 32, height: 3 }, { width: 32, height: 3 }]);
   const label = await page.locator('[data-resident="cavalry"]').boundingBox();
   expect(label!.x).toBeGreaterThanOrEqual(0); expect(label!.x + label!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   await clickGround(page, { x: -2.7, z: -12.8 }, true);

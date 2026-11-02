@@ -496,14 +496,11 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         Vector3.ProjectToRef(labelPoint, identity, scene.getTransformMatrix(), viewport, labelProjected);
         const projected = labelProjected;
         const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;
-        const visible = closeEnough && combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x > 15 && projected.x < width - 15 && projected.y > 15 && projected.y < height - 55;
+        const visible = closeEnough && combatPoses.get(actor.definition.id)?.life !== 'defeated' && projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= width && projected.y >= 0 && projected.y <= height;
         if (actor.label.hidden !== !visible) actor.label.hidden = !visible;
         if (!visible) { ui.positionSpeech(actor.definition.id, 0, 0, false); continue; }
-        const size = ui.residentLabelSize(actor.definition.id);
-        const labelX = Math.max(size.width / 2 + 8, Math.min(width - size.width / 2 - 8, projected.x));
-        const labelY = Math.max(size.height + 8, projected.y);
-        ui.positionSpeech(actor.definition.id, labelX, labelY, visible);
-        const transform = `translate(${Math.round(labelX * 100) / 100}px, ${Math.round(labelY * 100) / 100}px) translate(-50%, -100%)`;
+        ui.positionSpeech(actor.definition.id, projected.x, projected.y, visible);
+        const transform = `translate(${projected.x.toFixed(2)}px, ${projected.y.toFixed(2)}px) translate(-50%, -100%)`;
         if (actor.label.style.transform !== transform) actor.label.style.transform = transform;
       }
     },

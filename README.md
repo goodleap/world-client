@@ -88,6 +88,8 @@ npm run dev
 
 ## 验证
 
+场景提示／操作面板保持目标锚点、名称去除属性文字，以及生命变化细血条的表现与验证，见 [单位浮层记录](docs/unit-overlays/implementation.md)。
+
 保持移速的人物奔跑与马匹疾驰改造、共享动作参数、渲染视频和测试记录，见 [奔跑改造记录](docs/locomotion/implementation.md)。
 
 2026-11-01 的材质合批、阴影剔除、KTX2、屏外动画和 UI 更新优化，以及同视角统计和画面边界，见 [渲染性能实施记录](docs/performance/render-optimization-2026-11-01.md)。

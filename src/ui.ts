@@ -3,6 +3,7 @@ import type { LightingSettings } from './game/graphics-settings.ts';
 import { ECONOMY_CONFIG } from './game/economy-config.ts';
 import { CAMPFIRE_CONFIG } from './game/campfire.ts';
 import { ResidentSpeech } from './game/resident-speech.ts';
+import { HealthIndicator } from './game/health-indicator.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
@@ -111,7 +112,7 @@ export function createUI(app: HTMLElement) {
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
   const residentLabels = new Map<string, HTMLElement>();
-  const residentStatuses = new Map<string, HTMLElement>();
+  const healthIndicators = new Map<string, { state: HealthIndicator; bar: HTMLElement; fill: HTMLElement }>();
   const residentSizes = new Map<HTMLElement, { width: number; height: number }>();
   const residentSizeObserver = new ResizeObserver(entries => {
     for (const entry of entries) residentSizes.delete(entry.target as HTMLElement);
@@ -206,58 +207,23 @@ export function createUI(app: HTMLElement) {
     if (event.code === 'KeyE' && !event.repeat && !event.ctrlKey && !event.metaKey && event.target === canvas) inspect();
   }, options);
 
-  // Cache DOM measurements; only the Babylon-projected anchor moves each frame.
+  // World overlays keep their offset from the projected target, even at edges.
   const card = get('selection-card');
   const hint = get('target-hint');
-  const fixedControls = [...app.querySelectorAll<HTMLElement>('.topbar, .settings-button, .performance-hud, .economy-bar, .view-controls, .bottom-bar, .resident-selection, .construction-controls')];
-  let layoutDirty = true;
-  let layout = { width: 0, height: 0, left: 12, right: 12, top: 12, bottom: 12,
-    blockers: [] as { x: number; y: number; width: number; height: number }[] };
-  const layoutObserver = new ResizeObserver(() => { layoutDirty = true; });
-  for (const element of [app, card, hint, ...fixedControls]) layoutObserver.observe(element);
-  const overlaySizes = new Map<HTMLElement, { width: number; height: number }>();
-  let cardBounds: { x: number; y: number; width: number; height: number } | undefined;
+  residentSizeObserver.observe(card);
+  let cardX = 0, cardY = 0;
   const positionOverlay = (element: HTMLElement, x: number, y: number, visible: boolean) => {
-    if (element === card) cardBounds = undefined;
     if (element.hidden) return;
-    element.style.visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
-    if (element.style.visibility === 'hidden') return;
-    if (layoutDirty) {
-      overlaySizes.clear();
-      const bounds = app.getBoundingClientRect(), style = getComputedStyle(app);
-      const inset = (edge: string) => Math.max(12, parseFloat(style.getPropertyValue(`--safe-${edge}`)) || 0);
-      layout = { width: bounds.width, height: bounds.height,
-        left: inset('left'), right: inset('right'), top: inset('top'), bottom: inset('bottom'),
-        blockers: fixedControls.filter(element => !element.hidden).map(element => {
-          const r = element.getBoundingClientRect(); return { x: r.left - bounds.left, y: r.top - bounds.top, width: r.width, height: r.height };
-        }) };
-      layoutDirty = false;
-    }
-    if (!overlaySizes.has(element)) overlaySizes.set(element, { width: element.offsetWidth, height: element.offsetHeight });
-    const { width: w, height: h } = overlaySizes.get(element)!;
-    const { width, height } = layout;
-    const blockers = element === hint && !card.hidden && cardBounds ? [...layout.blockers, cardBounds] : layout.blockers;
-    const candidates = [{ x: x - w / 2, y: y - h - 18 }, { x: x - w / 2, y: y + 18 },
-      { x: x + 18, y: y - h / 2 }, { x: x - w - 18, y: y - h / 2 }];
-    for (const b of blockers) candidates.push({ x: x - w / 2, y: b.y - h - 8 }, { x: x - w / 2, y: b.y + b.height + 8 },
-      { x: b.x - w - 8, y: y - h / 2 }, { x: b.x + b.width + 8, y: y - h / 2 });
-    let best = { x: layout.left, y: layout.top }, score = Infinity;
-    for (const candidate of candidates) {
-      const p = { x: Math.max(layout.left, Math.min(width - w - layout.right, candidate.x)),
-        y: Math.max(layout.top, Math.min(height - h - layout.bottom, candidate.y)) };
-      const overlap = blockers.reduce((sum, b) => sum + Math.max(0, Math.min(p.x + w + 4, b.x + b.width) - Math.max(p.x - 4, b.x))
-        * Math.max(0, Math.min(p.y + h + 4, b.y + b.height) - Math.max(p.y - 4, b.y)), 0);
-      // Prefer directly above the target whenever it fits. Candidates beside
-      // unrelated controls can be closer to the anchor but cover the target.
-      if (candidate === candidates[0] && overlap === 0 && p.y + h <= y - 12) { best = p; break; }
-      const coversTarget = Math.max(0, Math.min(p.x + w, x + 12) - Math.max(p.x, x - 12))
-        * Math.max(0, Math.min(p.y + h, y + 12) - Math.max(p.y, y - 12));
-      const distance = (p.x + w / 2 - x) ** 2 + (p.y + h / 2 - y) ** 2;
-      const value = (overlap + coversTarget) * 1e6 + distance;
-      if (value < score) { score = value; best = p; }
-    }
-    element.style.transform = `translate(${Math.round(best.x)}px, ${Math.round(best.y)}px)`;
-    if (element === card) cardBounds = { ...best, width: w, height: h };
+    const visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
+    if (element.style.visibility !== visibility) element.style.visibility = visibility;
+    if (visibility === 'hidden') return;
+    if (element === card) { cardX = x; cardY = y; }
+    // Stack feedback above actions for the same target without moving either
+    // overlay toward the viewport or unrelated HUD controls.
+    const stack = element === hint && !card.hidden && card.style.visibility === 'visible'
+      && Math.abs(cardX - x) < 1 && Math.abs(cardY - y) < 1 ? residentSize(card).height + 8 : 0;
+    const transform = `translate(${x.toFixed(2)}px, ${(y - 18 - stack).toFixed(2)}px) translate(-50%, -100%)`;
+    if (element.style.transform !== transform) element.style.transform = transform;
   };
 
   return {
@@ -265,29 +231,41 @@ export function createUI(app: HTMLElement) {
     constructionControls: { toggle: get('building-toggle'), palette: get('building-palette'), choices: [...app.querySelectorAll<HTMLButtonElement>('[data-building]')], cancel: get('cancel-building') },
     setPlacement(active: boolean, hint = '选择放置位置') {
       get('placement-status').hidden = !active; get('placement-hint').textContent = hint;
-      get('building-toggle').classList.toggle('active', active); layoutDirty = true;
+      get('building-toggle').classList.toggle('active', active);
     },
     addResidentLabel(id: string, name: string, leader = false) {
       const label = document.createElement('span');
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
+      label.classList.toggle('enemy-label', id.startsWith('enemy-'));
       if (leader) { label.classList.add('resident-leader'); label.title = '领头 · 参与作业并指挥同职业居民'; }
       get('resident-labels').append(label);
       residentLabels.set(id, label); residentSizeObserver.observe(label);
       return label;
     },
-    residentLabelSize: (id: string) => residentSize(residentLabels.get(id)),
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
-    setVitalLabel(id: string, text: string, enemy: boolean, selected: boolean) {
-      const label = residentLabels.get(id); if (!label) return;
-      label.classList.add('combat-label'); label.classList.toggle('enemy-label', enemy);
-      let status = residentStatuses.get(id);
-      if (!status) { status = document.createElement('small'); label.append(status); residentStatuses.set(id, status); }
-      if (status.hidden !== (!enemy && !selected) || status.textContent !== text) {
-        status.hidden = !enemy && !selected; status.textContent = text; residentSizes.delete(label);
+    setUnitHealth(id: string, hp: number, maximum: number, seconds: number, labelId = id) {
+      const label = residentLabels.get(labelId); if (!label) return;
+      let indicator = healthIndicators.get(id);
+      if (!indicator) {
+        let bars = label.querySelector('.resident-health-bars');
+        if (!bars) { bars = document.createElement('span'); bars.className = 'resident-health-bars'; label.append(bars); }
+        const bar = document.createElement('span'), fill = document.createElement('span');
+        bar.className = 'resident-health'; bar.dataset.health = id; bar.hidden = true;
+        bar.setAttribute('role', 'meter'); bar.setAttribute('aria-label', id === labelId ? `${label.textContent}生命` : '坐骑生命');
+        bar.setAttribute('aria-valuemin', '0'); bar.append(fill); bars.append(bar);
+        indicator = { state: new HealthIndicator(), bar, fill }; healthIndicators.set(id, indicator);
       }
+      const { state, bar, fill } = indicator;
+      state.update(hp, maximum, seconds);
+      if (bar.hidden === state.visible) bar.hidden = !state.visible;
+      const scale = `scaleX(${state.fraction.toFixed(4)})`;
+      if (fill.style.transform !== scale) fill.style.transform = scale;
+      const current = String(Math.ceil(hp)), max = String(maximum);
+      if (bar.getAttribute('aria-valuenow') !== current) bar.setAttribute('aria-valuenow', current);
+      if (bar.getAttribute('aria-valuemax') !== max) bar.setAttribute('aria-valuemax', max);
     },
     sayResident(id: string, text: string, duration = 3.5) {
-      if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); residentSizeObserver.observe(bubble); }
+      if (!bubbles.has(id)) { const bubble = document.createElement('span'); bubble.className = 'resident-speech'; bubble.dataset.speaker = id; bubble.hidden = true; get('resident-labels').append(bubble); bubbles.set(id, bubble); }
       speech.say(id, text, duration);
     },
     clearResidentSpeech(id: string) { speech.clear(id); const bubble = bubbles.get(id); if (bubble) { bubble.hidden = true; bubble.textContent = ''; } },
@@ -295,21 +273,12 @@ export function createUI(app: HTMLElement) {
     positionSpeech(id: string, x: number, y: number, visible: boolean) {
       const bubble = bubbles.get(id); if (!bubble) return;
       const text = speech.current(id), hidden = !text || !visible;
-      if (bubble.hidden !== hidden) { bubble.hidden = hidden; residentSizes.delete(bubble); }
+      if (bubble.hidden !== hidden) bubble.hidden = hidden;
       if (bubble.hidden) return;
-      if (bubble.textContent !== text) { bubble.textContent = text!; residentSizes.delete(bubble); }
+      if (bubble.textContent !== text) bubble.textContent = text!;
       const nameHeight = residentSize(residentLabels.get(id)).height;
-      const { width: w, height: h } = residentSize(bubble), gap = 12; // includes the 6px tail
-      const left = Math.max(8, Math.min(canvas.clientWidth - w - 8, x - w / 2));
-      let top = y - nameHeight - gap - h;
-      const below = top < 8;
-      if (below) top = y + gap;
-      bubble.classList.toggle('speech-below', below);
-      // If neither side fits, hide instead of laying speech on top of a name.
-      bubble.hidden = top < 8 || top + h > canvas.clientHeight - 8;
-      const tail = `${Math.max(10, Math.min(w - 16, x - left)).toFixed(2)}px`;
-      if (bubble.style.getPropertyValue('--tail-x') !== tail) bubble.style.setProperty('--tail-x', tail);
-      const transform = `translate(${Math.round(left * 100) / 100}px, ${Math.round(top * 100) / 100}px)`;
+      const gap = 12; // includes the 6px tail; no edge clamp or side flip
+      const transform = `translate(${x.toFixed(2)}px, ${(y - nameHeight - gap).toFixed(2)}px) translate(-50%, -100%)`;
       if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
     get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
@@ -396,7 +365,7 @@ export function createUI(app: HTMLElement) {
       card.setAttribute('aria-label', `${details.name}的操作`);
       const message = get('selection-hint');
       message.hidden = !!details.actions?.length && !details.showHint;
-      if (!message.hidden && message.textContent !== details.hint) { message.textContent = details.hint; layoutDirty = true; }
+      if (!message.hidden && message.textContent !== details.hint) message.textContent = details.hint;
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {
         actionsKey = key;
@@ -404,6 +373,7 @@ export function createUI(app: HTMLElement) {
           const button = document.createElement('button'); button.dataset.action = action.id; button.textContent = action.label; button.disabled = !!action.disabled; return button;
         }));
       }
+      residentSizes.delete(card);
     },
     positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(card, x, y, visible),
     setResident(name?: string, canWork = false, leadership?: boolean) {
@@ -412,7 +382,6 @@ export function createUI(app: HTMLElement) {
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       get('leader-command-control').hidden = leadership === undefined;
       get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
-      layoutDirty = true;
     },
     setPerformance(sample?: FrameSample, triangles?: number) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
@@ -427,7 +396,7 @@ export function createUI(app: HTMLElement) {
     },
     targetHint(message: string, anchor: { x: number; y: number; z: number }, persistent = false) {
       clearTimeout(hintTimer); hintAnchor = { ...anchor }; hintPersistent = persistent;
-      if (hint.textContent !== message || hint.hidden) { hint.textContent = message; layoutDirty = true; }
+      if (hint.textContent !== message || hint.hidden) hint.textContent = message;
       if (hint.hidden) hint.style.visibility = 'hidden';
       hint.hidden = false;
       if (!persistent) hintTimer = setTimeout(() => { hint.hidden = true; hintAnchor = undefined; }, 2200);
@@ -438,7 +407,7 @@ export function createUI(app: HTMLElement) {
     },
     get hintAnchor() { return hintAnchor; },
     positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y, visible),
-    dispose() { abort.abort(); layoutObserver.disconnect(); residentSizeObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
+    dispose() { abort.abort(); residentSizeObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }
 

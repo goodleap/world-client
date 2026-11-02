@@ -4,7 +4,7 @@ import { initialEconomy } from '../../src/game/economy.ts';
 
 test.use({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
 
-test('phone actions stay touchable at screen edges and settings isolate input through nested dialogs', async ({ page }, info) => {
+test('phone actions follow targets through screen edges and settings isolate input through nested dialogs', async ({ page }, info) => {
   test.setTimeout(180_000);
   const state = initialEconomy(); state.steward.enabled = false;
   await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
@@ -50,29 +50,47 @@ test('phone actions stay touchable at screen edges and settings isolate input th
   await page.evaluate(() => {
     for (const edge of ['left', 'right', 'top', 'bottom']) document.documentElement.style.setProperty(`--safe-${edge}`, '20px');
   });
-  await expect.poll(async () => {
+  const followsPlot = async () => {
+    const s = await snapshot(page), anchor = s.objects.find(o => o.id === 'plot-0')!.screen;
     const box = await page.locator('#selection-card').boundingBox();
-    return !!box && box.x >= 20 && box.y >= 20 && box.x + box.width <= 300 && box.y + box.height <= 548;
-  }).toBe(true);
-  // Pan the selected plot close to the right edge; the popup stays within the safe area.
-  const start = await page.evaluate(() => [250, 350, 450].map(y => ({ x: 4, y }))
+    return !!box && Math.abs(box.x + box.width / 2 - anchor.x) < 1 && Math.abs(box.y + box.height + 18 - anchor.y) < 1;
+  };
+  await expect.poll(followsPlot).toBe(true);
+  const centered = (await snapshot(page)).camera.target;
+  const beforeEdge = await snapshot(page), anchor = beforeEdge.objects.find(o => o.id === 'plot-0')!.screen;
+  // The popup stays attached to the plot, including inside the safe-area inset.
+  // Start on bare canvas: the central action button correctly blocks map input.
+  const start = await page.evaluate(() => [360, 400, 450].map(y => ({ x: 280, y }))
     .find(p => document.elementFromPoint(p.x, p.y)?.id === 'game'));
   expect(start).toBeDefined();
   const touch = await page.context().newCDPSession(page);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start!, id: 1 }] });
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start!.x + 30, y: start!.y, id: 1 }] });
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start!.x + 10 - anchor.x, y: start!.y, id: 1 }] });
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect(action).toBeVisible();
-  await expect.poll(async () => {
-    const box = await page.locator('#selection-card').boundingBox();
-    return !!box && box.x >= 20 && box.x + box.width <= 300 && box.y >= 20 && box.y + box.height <= 548;
-  }).toBe(true);
+  await expect.poll(followsPlot).toBe(true);
   const foreground = await action.boundingBox();
+  expect(foreground!.x).toBeLessThan(0);
   expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button')?.dataset.action,
-    { x: foreground!.x + foreground!.width / 2, y: foreground!.y + foreground!.height / 2 })).toBe('harvest');
+    { x: Math.max(2, foreground!.x + foreground!.width / 2), y: foreground!.y + foreground!.height / 2 })).toBe('harvest');
   await page.screenshot({ path: info.outputPath('small-phone-edge-actions.png'), scale: 'css' });
-  await action.tap();
+  // Tap the visible part directly, as a phone user does; do not ask the test
+  // runner to scroll a deliberately clipped action into view.
+  await page.touchscreen.tap(Math.max(2, foreground!.x + foreground!.width / 2), foreground!.y + foreground!.height / 2);
   expect((await snapshot(page)).economy.tasks).toHaveLength(1);
+  await expect(page.locator('#target-hint')).toBeVisible();
+  const hint = await page.locator('#target-hint').boundingBox();
+  const target = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!.screen;
+  expect(Math.abs(hint!.x + hint!.width / 2 - target.x)).toBeLessThan(1);
+  expect(hint!.x).toBeLessThan(0);
+  await page.screenshot({ path: info.outputPath('small-phone-edge-hint.png'), scale: 'css' });
+  const currentAnchor = (await snapshot(page)).objects.find(o => o.id === 'plot-0')!.screen;
+  const back = { x: 40, y: start!.y };
+  expect(await page.evaluate(p => document.elementFromPoint(p.x, p.y)?.id, back)).toBe('game');
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...back, id: 1 }] });
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: back.x + anchor.x - currentAnchor.x, y: back.y, id: 1 }] });
+  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect.poll(async () => Math.abs((await snapshot(page)).camera.target.x - centered.x)).toBeLessThan(.02);
   await expect.poll(async () => (await snapshot(page)).economy.inventory.food, { timeout: 45000 }).toBe(8);
   await expect(page.locator('#selection-actions button')).toHaveCount(2);
   const buttons = await page.locator('#selection-actions button').all();

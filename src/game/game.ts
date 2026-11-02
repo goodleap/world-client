@@ -1,4 +1,5 @@
 import { createNeedsController } from './needs-controller.ts';
+import { health, maxHealth } from './vitals.ts';
 import { Combat } from './combat.ts';
 import { createCombatView } from './combat-view.ts';
 import { loadingProgress } from '../loading-progress.ts';
@@ -125,7 +126,9 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   };
   const refreshEconomy = () => {
     updateEconomyUI(ui, economy);
-    for (const id of Object.keys(economy.state.vitals)) if (id !== 'horse') ui.setVitalLabel(id, needs.label(id), id.startsWith('enemy-'), residents.selectedId() === id);
+    for (const id of Object.keys(economy.state.vitals)) {
+      ui.setUnitHealth(id, health(economy.state, id), maxHealth(id), economy.state.seconds, id === 'horse' ? 'cavalry' : id);
+    }
     if (selectedWorld) {
       const object = world.objects.get(selectedWorld.id);
       if (object) { selectedWorld = object; showObjectActions(object); }

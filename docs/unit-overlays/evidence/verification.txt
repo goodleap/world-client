@@ -1,0 +1,23 @@
+本次验证的实际输出摘录；浏览器场景分批复测，以下为各场景最终成功记录。
+逻辑测试：npm test
+ℹ tests 164
+ℹ suites 0
+ℹ pass 164
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8394.753166
+
+来源：unit-overlays-browser-first.log
+✓  1 [desktop-chromium] › tests/e2e/unit-overlays.desktop.spec.ts:6:1 › names stay compact, healing feedback uses the game clock, and labels follow all four screen edges (2.2m)
+✓  3 [mobile-chromium] › tests/e2e/combat.mobile.spec.ts:4:1 › leadership speech clears, labels avoid bubbles and pause stays centered on mobile and short screens (30.3s)
+
+来源：unit-overlays-browser-rerun.log
+✓  1 [mobile-chromium] › tests/e2e/campfire.mobile.spec.ts:6:1 › touch fire controls, dog and horse meals, and manual move override (52.0s)
+✓  2 [mobile-chromium] › tests/e2e/combat.mobile.spec.ts:35:1 › touch commands affect one soldier and dragging keeps the selected soldier (36.3s)
+
+来源：unit-overlays-browser-settings-final.log
+✓  1 [mobile-chromium] › tests/e2e/settings.mobile.spec.ts:7:1 › phone actions follow targets through screen edges and settings isolate input through nested dialogs (52.1s)
+
+各浏览器命令的 webServer 均先执行 npm run build（含 tsc --noEmit），构建成功后启动预览。
