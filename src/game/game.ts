@@ -297,7 +297,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const isCombat = combatIds().some(id => !!combat.unit(id));
       const result = isCombat ? { ok: combat.move(combatIds(), point) > 0, message: '无法到达该位置' }
         : controller.command(residents.selectedId()!, { kind: 'move', point: { x: point.x, z: point.z } });
-      if (result.ok) { manual(residents.selectedId()!); clearWorld(); setPreview(); moveFeedback.show(point); refreshEconomy(); save(); }
+      if (result.ok) {
+        const id = residents.selectedId()!, destination = isCombat ? combat.unit(id)?.goal : residents.routeFor(id).at(-1);
+        manual(id); clearWorld(); setPreview();
+        if (destination) moveFeedback.show(destination);
+        refreshEconomy(); save();
+      }
       // The destination marker already confirms success. Only failures need
       // text, anchored to the attempted destination rather than the HUD.
       if (!result.ok) ui.targetHint(result.message, { x: point.x, y: .2, z: point.z });

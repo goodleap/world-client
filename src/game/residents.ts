@@ -1,4 +1,5 @@
 import { DeathView, MountedDeathView } from './death-view.ts';
+import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 import { deathAge } from './death.ts';
 import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
@@ -55,7 +56,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   ] as const;
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const selectionMaterial = new StandardMaterial('unit-selection', scene);
-  selectionMaterial.emissiveColor = Color3.FromHexString('#62e4ff'); selectionMaterial.disableLighting = true;
+  selectionMaterial.emissiveColor = Color3.FromHexString(UNIT_SELECTION_COLOR); selectionMaterial.disableLighting = true;
   const actors = [...RESIDENTS, ...ENEMIES].map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);

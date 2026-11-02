@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planMoveDestination, planWorkApproach } from '../src/game/work-navigation.ts';
+import { MOVE_DESTINATION_RADIUS, planMoveDestination, planWorkApproach } from '../src/game/work-navigation.ts';
+import { isBlocked } from '../src/game/movement.ts';
+import { segmentIsClear } from '../src/game/wander.ts';
+import { createRouteState, stepRoute } from '../src/game/route-following.ts';
 const bounds = { minX: -5, maxX: 5, minZ: -5, maxZ: 5 };
 const points = [{ x: 0, z: 0 }, { x: .8, z: 0 }, { x: -.8, z: 0 }];
 test('workers reserve different approach points and bypass standing occupants', () => {
@@ -25,7 +28,38 @@ test('neighbouring manual commands reserve separate reachable arrival positions'
     assert(Math.hypot(goal.x - point.x, goal.z - point.z) >= .66);
     assert(Math.hypot(goal.x - offset, goal.z - 3) < .7, 'keep the command near the clicked ground');
   }
-  assert.equal(planMoveDestination({ x: 0, z: 0 }, { x: 6, z: 0 }, .29, bounds, [], []), undefined);
-  assert.equal(planMoveDestination({ x: 0, z: 0 }, point, .29, bounds,
-    [{ kind: 'circle', ...point, radius: 1 }], []), undefined, 'invalid terrain must not silently redirect the click');
+});
+
+test('blocked terrain and nearby map edges resolve to the nearest reachable body-safe point', () => {
+  const point={x:0,z:0}, start={x:-3.5,z:0}, solids=[{kind:'circle' as const,...point,radius:.8}];
+  for(const radius of [.29,.54,1.12]) {
+    const path=planMoveDestination(start,point,radius,bounds,solids,[])!;
+    assert(path);const end=path.at(-1)!;
+    assert(Math.abs(Math.hypot(end.x,end.z)-(.8+radius))<.005);
+    assert(!isBlocked(end,radius,solids));assert(Math.hypot(end.x,end.z)<=MOVE_DESTINATION_RADIUS);
+    let position=start;const state=createRouteState();
+    for(let i=0;i<180&&path.length;i++)position=stepRoute('unit',position,path,state,1/30,3,radius,bounds,solids,[]).position;
+    assert.equal(path.length,0);assert(Math.hypot(position.x-end.x,position.z-end.z)<1e-7);
+  }
+  const edge=planMoveDestination({x:0,z:0},{x:6,z:0},.29,bounds,[],[])!.at(-1)!;
+  assert(Math.abs(edge.x-4.71)<.005);assert.equal(edge.z,0);
+});
+
+test('a free but disconnected target falls back on the reachable side, without crossing the wall', () => {
+  const start={x:-3,z:0}, point={x:1,z:0};
+  const solids=[{kind:'box' as const,x:0,z:0,halfWidth:.3,halfDepth:5}];
+  const path=planMoveDestination(start,point,.29,bounds,solids,[])!;
+  assert(path);assert(Math.abs(path.at(-1)!.x+.59)<.005);
+  let previous=start;
+  for(const p of path){assert(segmentIsClear(previous,p,.29,bounds,solids));previous=p;}
+});
+
+test('no reachable location inside the radius fails, and exact work approaches stay exact', () => {
+  const start={x:-4,z:0}, point={x:2,z:0};
+  const solids=[{kind:'box' as const,x:-1.2,z:0,halfWidth:.3,halfDepth:5}];
+  assert.equal(planMoveDestination(start,point,.29,bounds,solids,[]),undefined);
+  assert.equal(planMoveDestination(start,{x:9,z:0},.29,bounds,[],[]),undefined);
+  assert.equal(planMoveDestination(start,{x:NaN,z:0},.29,bounds,[],[]),undefined);
+  assert.equal(planMoveDestination(start,{x:0,z:0},.29,bounds,[{kind:'circle',x:0,z:0,radius:3.1}],[]),undefined);
+  assert.equal(planWorkApproach(start,[{x:0,z:0}],.29,bounds,[{kind:'circle',x:0,z:0,radius:.8}],[]),undefined);
 });

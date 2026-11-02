@@ -134,6 +134,19 @@ test('a picked Babylon destination actually moves the soldier and remains valid 
   assert.equal(encodeEconomy(restored), state, 'invalid coordinates must not cancel the previous order');
 });
 
+test('a nearby fallback goal survives reload and an unreachable click preserves the current order', () => {
+  const solids: Obstacle[] = [{kind:'circle',x:0,z:0,radius:.8}, {kind:'circle',x:10,z:0,radius:4}];
+  const { e, c, a }=setup(solids); a.position={x:-4,z:0};
+  assert.equal(c.move([a.id],new Vector3(0,0,0)),1);
+  const goal={...a.goal!}; assert(Math.hypot(goal.x,goal.z)<1.21);
+  assert(!isBlocked(goal,fighterRadius(a),solids)); assert.deepEqual(a.route.at(-1),goal);
+  const state=encodeEconomy(e);
+  assert.equal(c.move([a.id],{x:10,z:0}),0); assert.equal(encodeEconomy(e),state);
+  const restored=decodeEconomy(state), next=new Combat(restored.state.combat,restored,()=>solids);
+  assert.deepEqual(next.unit(a.id)!.goal,goal);
+  advance(next,3); assert(Math.hypot(next.unit(a.id)!.position.x-goal.x,next.unit(a.id)!.position.z-goal.z)<.15);
+});
+
 
 test('both sides sustain at least triple the former attack cadence, including mounted melee', () => {
   for (const [id, previous] of [['infantry', 1.3], ['archer', 1.65], ['cavalry', 1.3], ['enemy-guard', 1.6], ['enemy-archer', 2]] as const) {
