@@ -1,7 +1,6 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import '@babylonjs/core/Meshes/instancedMesh';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
@@ -11,6 +10,9 @@ import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
+import { RESOURCE_NAMES } from './economy.ts';
+import { createCropModel } from './crop-model.ts';
+import { createGroundGoodsModel, groundGoodsKind } from './ground-goods-model.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
 import { TREES, GRID_SIZE, LANDSCAPE } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
@@ -73,13 +75,13 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
     instances.delete(id); objects.delete(id);
   }
-  function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1, rotation = 0) {
+  function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1, rotation = 0, elevation = 0) {
     objects.set(object.id, object);
     if (instances.get(object.id)?.state === state) return;
     remove(object.id); objects.set(object.id, object);
     const meshes = sources().map(source => {
       const mesh = source.createInstance(object.id + '-' + source.name);
-      mesh.position.set(object.x, 0, object.z); mesh.scaling.setAll(scale);
+      mesh.position.set(object.x, elevation, object.z); mesh.scaling.setAll(scale);
       mesh.rotation.y = rotation;
       mesh.metadata = { worldObjectId: object.id }; mesh.isPickable = true; mesh.receiveShadows = true;
       // Flat soil/grass beds still receive shadows. Casting these shallow
@@ -90,23 +92,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     instances.set(object.id, { state, meshes });
   }
   function cropTemplate(kind: 'carrot' | 'wheat', stage: number) {
-    return template(`${kind}-${stage}`, () => {
-      const size = [.35, .65, 1][stage];
-      if (kind === 'carrot') {
-        ellipsoid(scene, 'carrot', [.37 * size, .4 * size, .37 * size], [0, .10 + .16 * size, 0], carrot, 12);
-        for (let i = -1; i <= 1; i++) {
-          const leaf = ellipsoid(scene, 'carrot-leaf', [.19 * size, .5 * size, .14 * size], [i * .13 * size, .10 + .51 * size, 0], i % 2 ? p.leaf : p.leafLight, 12);
-          leaf.rotation.z = i * -.5; tintHeight(leaf, '#539d54', '#ffffff');
-        }
-      } else for (let i = -1; i <= 1; i++) {
-        const stem = MeshBuilder.CreateCylinder('wheat-stem', { height: .65 * size, diameter: .035, tessellation: 8 }, scene);
-        stem.position.set(i * .15 * size, .10 + .325 * size, 0); stem.material = p.leafLight;
-        for (let k = 0; k < 3; k++) {
-          const ear = ellipsoid(scene, 'wheat-ear', [.13 * size, .21 * size, .13 * size], [(i * .15 + (k % 2 - .5) * .07) * size, .10 + (.60 + k * .1) * size, 0], stage < 2 ? p.leafLight : k % 2 ? p.golden : p.linen, 12);
-          ear.rotation.z = (k % 2 - .5) * .7;
-        }
-      }
-    });
+    return template(`${kind}-${stage}`, () => createCropModel(scene, p, carrot, kind, stage));
   }
   let lastRevision = -1;
   let obstacles: Obstacle[] = [];
@@ -159,10 +145,10 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     }
     for (const id of instances.keys()) if (id.startsWith('goods-') && !economy.state.goods.some(g => g.id === id && g.state === 'ground')) remove(id);
     for (const goods of economy.state.goods) if (goods.state === 'ground') {
-      show({ ...goods, kind: 'goods', name: '待入库资源', radius: .4, anchor: { x: goods.x, y: .5, z: goods.z } }, `${goods.resource}-${goods.x}-${goods.z}`,
-        () => template('goods-' + goods.resource, () => {
-          for (let i = 0; i < 3; i++) roundedBox(scene, 'resource-pile', [.35, .25, .35], [(i % 2 - .5) * .25, .15 + (i === 2 ? .2 : 0), 0], goods.resource === 'food' ? p.golden : goods.resource === 'wood' ? p.timber : p.stone, .08);
-        }));
+      const kind = groundGoodsKind(goods), name = goods.crop ? C.crops[goods.crop].name : RESOURCE_NAMES[goods.resource];
+      const elevation = economy.state.plots.some(plot => Math.abs(plot.x-goods.x) < GRID_SIZE/2 && Math.abs(plot.z-goods.z) < GRID_SIZE/2) ? .17 : 0;
+      show({ ...goods, kind: 'goods', name: `待入库${name}`, radius: .55, anchor: { x: goods.x, y: elevation+.5, z: goods.z } }, `${kind}-${goods.x}-${goods.z}-${elevation}`,
+        () => template('goods-' + kind, () => createGroundGoodsModel(scene, p, carrot, rockMaterial, goods)), 1, 0, elevation);
     }
     for (const id of instances.keys()) if (id.startsWith('site-') && !economy.state.sites.some(s => s.id === id)) remove(id);
     for (const site of economy.state.sites) {

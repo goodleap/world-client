@@ -28,6 +28,7 @@
     "playwright.config.ts",
     "studies/review.ts",
     "studies/calibration.ts",
-    "studies/campfire.ts"
+    "studies/campfire.ts",
+    "studies/goods.ts"
   ]
 }

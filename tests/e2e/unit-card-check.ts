@@ -29,7 +29,8 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
     expect(card.x).toBeGreaterThanOrEqual(build.x+build.width+4);
     expect(card.x+card.width).toBeLessThanOrEqual(reset.x-4);
     expect(card.y+card.height).toBeLessThanOrEqual(height-7);
-    expect(card.height).toBeLessThanOrEqual(96);
+    expect(card.height).toBe(settings.height);
+    expect(card.y).toBe(build.y);
     expect(palette.y+palette.height).toBeLessThanOrEqual(card.y-7);
     expect(palette.x+palette.width).toBeLessThanOrEqual(width-7);
     const rows=await page.locator('[data-building]').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().y));
@@ -84,8 +85,10 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
   }
   expect((await snapshot(page)).placement.active).toBe(false);
   await selectUnit(page,'cavalry',touch);
-  await expect(page.locator('#resident-vitals .unit-vital:visible')).toHaveCount(4);
-  await expect(page.locator('[data-vital="horse-health"] .unit-vital-value')).toHaveText('92/160');
+  await expect(page.locator('#resident-vitals .unit-vital:visible')).toHaveCount(2);
+  await expect(page.locator('[data-vital="horse-health"]')).toHaveCount(0);
+  await expect(page.locator('[data-vital="cavalry-health"] [role=meter]')).toHaveAttribute('aria-label','骑手生命');
+  expect(await page.locator('#resident-vitals').textContent()).not.toMatch(/生命|体力|HP/);
   await page.locator('#building-toggle').click();
   const mounted=(await page.locator('#resident-selection').boundingBox())!, choices=(await page.locator('#building-palette').boundingBox())!;
   expect(choices.y+choices.height).toBeLessThanOrEqual(mounted.y-7);
@@ -93,6 +96,21 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
   await page.locator('#building-toggle').click();
   await selectUnit(page,'farmer-leader',touch);
   await expect(page.locator('#leader-command-control')).toBeVisible();
+  for (const [width,height] of touch ? [[393,852],[320,568],[844,390]] : [[1280,900]]) {
+    await page.setViewportSize({width,height});
+    const leader=(await page.locator('#resident-selection').boundingBox())!, command=(await page.locator('#leader-command-control').boundingBox())!;
+    const cancel=(await page.locator('#clear-selection').boundingBox())!, vitals=(await page.locator('#resident-vitals').boundingBox())!;
+    const build=(await page.locator('#building-toggle').boundingBox())!, reset=(await page.locator('#reset').boundingBox())!;
+    expect(leader.height).toBe(build.height); expect(leader.y).toBe(build.y);
+    expect(leader.x).toBeGreaterThanOrEqual(build.x+build.width+4);
+    expect(leader.x+leader.width).toBeLessThanOrEqual(reset.x-4);
+    expect(command.x).toBeGreaterThan(vitals.x+vitals.width);
+    expect(command.x+command.width).toBeLessThan(cancel.x);
+    expect(await page.locator('#resident-selection').evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(false);
+    if (!touch) expect(leader.width).toBeGreaterThan(mounted.width);
+    await page.screenshot({path:info.outputPath(`leader-card-${width}.png`),scale:'css'});
+  }
+  if (touch) await page.setViewportSize({width:393,height:852});
   await page.locator('#leader-command-enabled').check();
   expect((await snapshot(page)).economy.steward.enabled).toBe(true);
   await page.locator('#leader-command-enabled').uncheck();

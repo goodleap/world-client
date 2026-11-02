@@ -18,7 +18,7 @@ test('unit inspection reads current health/stamina without changing orders or sa
   assert.equal(selectedUnitInfo(e, 'missing'), undefined);
 });
 
-test('mounted unit shows independent rider and horse vitals, including gradual meal recovery', () => {
+test('mounted card shows only the rider while horse recovery remains independent', () => {
   const e = new Economy(), rider = e.state.combat.units.find(u => u.id === 'cavalry')!;
   rider.hp = 42; e.state.vitals.cavalry.stamina = 11;
   e.state.vitals.horse.hp = 92; e.state.vitals.horse.stamina = 22;
@@ -27,10 +27,11 @@ test('mounted unit shows independent rider and horse vitals, including gradual m
   const read = () => selectedUnitInfo(e, 'cavalry')!;
   assert.equal(read().activity, '正在进食');
   assert.deepEqual(read().meters.map(m => [m.label,m.value,m.maximum]), [
-    ['骑手生命',42,maxHealth('cavalry')],['骑手体力',11,100],['坐骑生命',92,160],['坐骑体力',22,100],
+    ['骑手生命',42,maxHealth('cavalry')],['骑手体力',11,100],
   ]);
   eat(e.state, 'horse', 1);
-  assert.deepEqual(read().meters.map(m => m.value), [42,11,94,29.5]);
+  assert.deepEqual(read().meters.map(m => m.value), [42,11]);
+  assert.equal(e.state.vitals.horse.hp,94); assert.equal(e.state.vitals.horse.stamina,29.5);
   const paused = read(); eat(e.state, 'horse', 0); assert.deepEqual(read(), paused);
 });
 

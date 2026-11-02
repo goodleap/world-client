@@ -26,12 +26,12 @@ export function selectedUnitInfo(economy: Economy, id: string | undefined, movem
   else if (task?.status === 'travelling') activity = '前往作业';
   else if (task?.status === 'waiting') activity = '等待作业';
   else if (moving) activity = fighter?.order === 'move' || movement?.moving ? '正在移动' : '闲逛';
-  const meters = bodies.flatMap(body => {
-    const prefix = id === 'cavalry' ? body === 'horse' ? '坐骑' : '骑手' : '';
-    return [
-      { id: body + '-health', label: prefix + '生命', value: health(state, body), maximum: maxHealth(body), kind: 'health' as const },
-      { id: body + '-stamina', label: prefix + '体力', value: state.vitals[body].stamina, maximum: VITAL_CONFIG.maxStamina, kind: 'stamina' as const },
-    ];
-  });
+  // The compact card shows the selected person only; mount needs still inform
+  // activity and remain independent in gameplay and saves.
+  const prefix = id === 'cavalry' ? '骑手' : '';
+  const meters: UnitMeter[] = [
+    { id: id + '-health', label: prefix + '生命', value: health(state, id), maximum: maxHealth(id), kind: 'health' },
+    { id: id + '-stamina', label: prefix + '体力', value: vital.stamina, maximum: VITAL_CONFIG.maxStamina, kind: 'stamina' },
+  ];
   return { id, activity, meters };
 }

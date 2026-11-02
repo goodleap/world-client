@@ -40,9 +40,17 @@ export async function checkGuidance(page: Page, info: TestInfo, touch: boolean) 
   const foe = s.economy.raids.wolves[0];
   await clickGround(page, foe.position, touch, .85);
   await expect(page.locator('[data-resident="wolf-1-0"] .resident-attack-target')).toBeVisible();
-  expect((await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.target).toBe('wolf-1-0');
+  const attacking = await snapshot(page);
+  expect(attacking.combat.units.find(u => u.id === 'infantry')!.target).toBe('wolf-1-0');
+  expect(attacking.attackFeedback).toMatchObject({ visible:true, target:'wolf-1-0' });
+  const target = attacking.economy.raids.wolves[0].position;
+  expect(Math.hypot(attacking.attackFeedback.x-target.x,attacking.attackFeedback.z-target.z)).toBeLessThan(.01);
+  await page.locator('#settings').click(); const frozenAttack=(await snapshot(page)).attackFeedback;
+  await page.waitForTimeout(400); expect((await snapshot(page)).attackFeedback).toEqual(frozenAttack);
+  await page.locator('#continue-game').click();
   await page.screenshot({ path: info.outputPath('selected-attack.png'), scale: 'css' });
   await page.locator('#clear-selection').click();
   await expect(page.locator('.resident-attack-target')).toHaveCount(0);
+  expect((await snapshot(page)).attackFeedback.visible).toBe(false);
   expect(errors).toEqual([]);
 }

@@ -11,8 +11,8 @@ export const ECONOMY_CONFIG = {
   capacity: { wood: 2000, stone: 2000, food: 4000, iron: 800 },
   workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8, haul: .25, supply: .25, gather: 3, tools: 12, arms: 16 },
   crops: {
-    carrot: { name: '胡萝卜', growthSeconds: 25, yield: 8 },
-    wheat: { name: '小麦', growthSeconds: 40, yield: 12 },
+    carrot: { name: '胡萝卜', growthSeconds: 75, yield: 8 },
+    wheat: { name: '小麦', growthSeconds: 120, yield: 12 },
   },
   houseCost: { wood: 12, stone: 8, food: 0, iron: 0 },
   warehouseCost: { wood: 24, stone: 16, food: 0, iron: 0 },

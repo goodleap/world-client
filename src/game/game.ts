@@ -123,12 +123,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
   const manual = (id: string) => { needs.manual(id); raids.manual(id); };
   const moveFeedback = createMoveFeedback(scene);
+  const attackFeedback = createMoveFeedback(scene, { name: 'attack-target', color: '#f18b70', ring: false });
+  let attackPulse: { attacker: string; target: string } | undefined;
   const pathGuidance = createPathGuidance(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const combatIds = () => residents.selectedId() ? [residents.selectedId()!] : [];
-  const clearResident = () => { residents.select(); ui.setResident(); ui.setCombatHint(false); };
+  const clearResident = () => { residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
     const details = economySelection(economy, object), unit = residents.selectedId();
@@ -254,7 +256,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       if (fighter?.team === 'enemy') {
         const count = combat.attack(combatIds(), id);
         ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: fighter.role === 'wolf' ? 1.9 : 2.6 });
-        if (count) { ui.flashAttackTarget(id, economy.state.seconds); manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
+        if (count) {
+          ui.flashAttackTarget(id, economy.state.seconds);
+          attackPulse = { attacker: residents.selectedId()!, target: id };
+          moveFeedback.hide(); attackFeedback.show(fighter.position);
+          manual(residents.selectedId()!); clearWorld(); setPreview(); save();
+        }
         return;
       }
       clearWorld();
@@ -444,6 +451,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       selectedId ? selectedFighter?.route ?? residents.routeFor(selectedId) : []);
     const attackTarget = selectedFighter?.target;
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds);
+    if (attackPulse) {
+      const target = combat.target(attackPulse.target);
+      if (selectedId === attackPulse.attacker && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(target.position);
+      else { attackFeedback.hide(); attackPulse = undefined; }
+    }
     scene.render(); residents.updateLabels(camera); wolves.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
@@ -540,6 +552,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       camera: cameraState(),
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
+      attackFeedback: { ...attackFeedback.snapshot(), target: attackPulse?.target },
       pathGuidance: pathGuidance.snapshot(),
       selectionFeedback: selectionFeedback.snapshot(),
       placement: placement.snapshot(),

@@ -37,7 +37,7 @@ test('touch fire controls, dog and horse meals, and manual move override', async
   const healthBars = await page.locator('[data-resident="cavalry"] .resident-health').evaluateAll(bars => bars.map(bar => {
     const b = bar.getBoundingClientRect(); return { width: b.width, height: b.height };
   }));
-  expect(healthBars).toEqual([{ width: 32, height: 3 }, { width: 32, height: 3 }]);
+  expect(healthBars).toEqual([{ width: 52, height: 7 }, { width: 52, height: 7 }]);
   const label = await page.locator('[data-resident="cavalry"]').boundingBox();
   expect(label!.x).toBeGreaterThanOrEqual(0); expect(label!.x + label!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   await clickGround(page, { x: -2.7, z: -12.8 }, true);

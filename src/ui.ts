@@ -28,8 +28,8 @@ const icons = {
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
   settings: '<path d="m10 3-.5 2-2 .9-1.9-.5-2 3.4L5 10v2l-1.4 1.2 2 3.5 1.9-.5 2 .9.5 2h4l.5-2 2-.9 1.9.5 2-3.5L19 12v-2l1.4-1.2-2-3.4-1.9.5-2-.9L14 3Z"/><circle cx="12" cy="11" r="3"/>',
 };
-function icon(name: keyof typeof icons) {
-  return `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
+function icon(name: keyof typeof icons, viewBox = '0 0 24 24') {
+  return `<svg width="22" height="22" viewBox="${viewBox}" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
 }
 
 export function createUI(app: HTMLElement) {
@@ -77,9 +77,10 @@ export function createUI(app: HTMLElement) {
       <div class="bottom-controls">
         <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('hammer')}建造</button>
         <section id="resident-selection" class="resident-selection" aria-label="当前单位信息" aria-describedby="resident-hint" hidden>
-          <div class="resident-card-heading"><div><strong id="resident-name"></strong><span id="resident-activity"></span></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></div>
+          <div class="resident-card-heading"><strong id="resident-name"></strong><span id="resident-activity"></span></div>
           <div id="resident-vitals" class="resident-vitals"></div>
           <label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label>
+          <button id="clear-selection" aria-label="取消选中">${icon('close', '5 5 14 14')}</button>
           <span id="resident-hint" class="sr-only"></span>
         </section>
         <nav class="view-controls" aria-label="视角控制">
@@ -251,13 +252,13 @@ export function createUI(app: HTMLElement) {
     if (element.style.transform !== transform) element.style.transform = transform;
   };
 
-  const vitalRows = Array.from({ length: 4 }, () => {
-    const row = document.createElement('div'), label = document.createElement('span'), value = document.createElement('span');
+  const vitalRows = Array.from({ length: 2 }, () => {
+    const row = document.createElement('div'), value = document.createElement('span');
     const meter = document.createElement('span'), fill = document.createElement('span');
     row.className = 'unit-vital'; value.className = 'unit-vital-value'; meter.className = 'unit-meter';
     meter.setAttribute('role', 'meter'); meter.setAttribute('aria-valuemin', '0'); meter.append(fill);
-    row.append(label, value, meter); row.hidden = true; get('resident-vitals').append(row);
-    return { row, label, value, meter, fill };
+    row.append(meter, value); row.hidden = true; get('resident-vitals').append(row);
+    return { row, value, meter, fill };
   });
   const setText = (element: HTMLElement, text: string) => { if (element.textContent !== text) element.textContent = text; };
   const attackMarker = document.createElement('span');
@@ -332,8 +333,9 @@ export function createUI(app: HTMLElement) {
       if (bubble.hidden !== hidden) bubble.hidden = hidden;
       if (bubble.hidden) return;
       if (bubble.textContent !== text) bubble.textContent = text!;
-      const nameHeight = residentSize(residentLabels.get(id)).height;
-      const gap = 12; // includes the 6px tail; no edge clamp or side flip
+      const label = residentLabels.get(id), nameHeight = residentSize(label).height;
+      const healthRows = label?.querySelectorAll('.resident-health:not([hidden])').length ?? 0;
+      const gap = healthRows ? healthRows * 10 + 11 : 12; // clear the larger bars and 6px speech tail
       const transform = `translate(${x.toFixed(2)}px, ${(y - nameHeight - gap).toFixed(2)}px) translate(-50%, -100%)`;
       if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
@@ -449,6 +451,8 @@ export function createUI(app: HTMLElement) {
     setResident(name?: string, canWork = false, leadership?: boolean) {
       get('resident-selection').hidden = !name;
       get('resident-name').textContent = name ?? '';
+      get('resident-name').title = name ?? '';
+      get('resident-selection').classList.toggle('has-command', leadership !== undefined);
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       get('leader-command-control').hidden = leadership === undefined;
       get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
@@ -461,7 +465,7 @@ export function createUI(app: HTMLElement) {
         const data = info.meters[index]; elements.row.hidden = !data; if (!data) continue;
         const value = Math.max(0, Math.min(data.maximum, data.value)), fraction = value / data.maximum;
         const shown = data.kind === 'health' ? Math.ceil(value) : Math.floor(value);
-        setText(elements.label, data.label); setText(elements.value, `${shown}/${data.maximum}`);
+        setText(elements.value, `${shown}/${data.maximum}`);
         elements.row.dataset.vital = data.id; elements.row.dataset.kind = data.kind;
         elements.row.classList.toggle('low', fraction < .3);
         const transform = `scaleX(${fraction.toFixed(4)})`;

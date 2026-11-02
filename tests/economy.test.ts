@@ -79,6 +79,22 @@ test('growth and working time follow active seconds independently of the frame r
   assert.equal(encodeEconomy(slow), before);
 });
 
+test('carrot and wheat mature at 75 and 120 active seconds, with pause and current-save continuity', () => {
+  for (const [crop, seconds] of [['carrot',75],['wheat',120]] as const) {
+    const e = new Economy(); e.setLeadership(false);
+    const plot = e.plot('plot-1')!; plot.crop = crop; plot.growth = 0;
+    e.advance(seconds-1);
+    assert.equal(e.request('harvest', plot.id).ok, false);
+    const saved = encodeEconomy(e); e.advance(0); assert.equal(encodeEconomy(e), saved);
+    const restored = decodeEconomy(saved); restored.advance(.99);
+    assert.equal(restored.request('harvest', plot.id).ok, false);
+    restored.advance(.01); assert.equal(restored.request('harvest', plot.id).ok, true);
+    assert.equal(C.workSeconds.harvest, 3);
+    const old = JSON.parse(saved); old.version = 11;
+    assert.throws(() => decodeEconomy(JSON.stringify(old)), /不支持的存档版本/);
+  }
+});
+
 test('save/load retains partial work and crop growth without offline catch-up or duplicate settlement', () => {
   const e = new Economy(); e.request('harvest', 'plot-0'); const task = e.claim()!; e.arrive(task.id); e.advance(1.25);
   const restored = decodeEconomy(encodeEconomy(e));

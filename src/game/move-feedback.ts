@@ -10,22 +10,25 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
 import type { Point } from './movement.ts';
 
 /** One reusable ground marker; native animations share the scene's pause clock. */
-export function createMoveFeedback(scene: Scene) {
-  const root = new TransformNode('move-destination', scene);
-  const material = new StandardMaterial('move-destination-ink', scene);
+export function createMoveFeedback(scene: Scene, options: { name?: string; color?: string; ring?: boolean } = {}) {
+  const name = options.name ?? 'move-destination';
+  const root = new TransformNode(name, scene);
+  const material = new StandardMaterial(name + '-ink', scene);
   material.disableLighting = true;
-  material.emissiveColor = Color3.FromHexString('#fff5bd');
+  material.emissiveColor = Color3.FromHexString(options.color ?? '#fff5bd');
   material.backFaceCulling = false;
-  const ring = MeshBuilder.CreateTorus('move-destination-ring', { diameter: .5, thickness: .05, tessellation: 32 }, scene);
-  ring.parent = root; ring.material = material; ring.isPickable = false;
+  if (options.ring !== false) {
+    const ring = MeshBuilder.CreateTorus(name + '-ring', { diameter: .5, thickness: .05, tessellation: 32 }, scene);
+    ring.parent = root; ring.material = material; ring.isPickable = false;
+  }
   for (let i = 0; i < 4; i++) {
     const angle = i * Math.PI / 2;
-    const arrow = MeshBuilder.CreateDisc(`move-destination-arrow-${i}`, { radius: .19, tessellation: 3, sideOrientation: Mesh.DOUBLESIDE }, scene);
+    const arrow = MeshBuilder.CreateDisc(`${name}-arrow-${i}`, { radius: .19, tessellation: 3, sideOrientation: Mesh.DOUBLESIDE }, scene);
     arrow.parent = root; arrow.material = material; arrow.isPickable = false;
     arrow.position.set(Math.cos(angle) * .68, .01, Math.sin(angle) * .68);
     arrow.rotation.set(Math.PI / 2, Math.PI - angle, 0);
   }
-  const group = new AnimationGroup('move-destination-feedback', scene);
+  const group = new AnimationGroup(name + '-feedback', scene);
   const scale = new Animation('converge', 'scaling', 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
   scale.setKeys([{ frame: 0, value: Vector3.One().scale(1.45) }, { frame: 16, value: Vector3.One().scale(.82) }, { frame: 48, value: Vector3.One().scale(.9) }]);
   const fade = new Animation('fade', 'alpha', 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -38,6 +41,8 @@ export function createMoveFeedback(scene: Scene) {
       group.stop(); root.position.set(point.x, .06, point.z); root.scaling.setAll(1.45); material.alpha = .6;
       root.setEnabled(true); group.start(false, 1, 0, 48);
     },
+    follow(point: Point) { if (root.isEnabled()) root.position.set(point.x, .06, point.z); },
+    hide() { group.stop(); root.setEnabled(false); },
     snapshot: () => ({ visible: root.isEnabled(), x: root.position.x, z: root.position.z }),
   };
 }

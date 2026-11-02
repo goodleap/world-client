@@ -1084,11 +1084,11 @@ kbd {
 }
 @media(max-height:600px) { .settings-dialog { margin:auto; max-height:calc(100dvh - 32px); } }
 
-.resident-health-bars { position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); display:grid; gap:2px; width:32px; pointer-events:none; }
-.resident-health { display:block; width:32px; height:3px; overflow:hidden; border-radius:2px; background:#26351e66; }
-.resident-health > span { display:block; height:100%; background:#719548; transform-origin:left center; }
+.resident-health-bars { position:absolute; bottom:calc(100% + 5px); left:50%; transform:translateX(-50%); display:grid; gap:3px; width:52px; pointer-events:none; }
+.resident-health { display:block; width:52px; height:7px; overflow:hidden; border:1px solid #fff9; border-radius:4px; background:#293b2999; box-shadow:0 1px 2px #26351e66; }
+.resident-health > span { display:block; height:100%; background:#91bc59; transform-origin:left center; }
 .enemy-label { color:#9e2c22; }
-.enemy-label .resident-health > span { background:#c95c49; }
+.enemy-label .resident-health > span { background:#e47659; }
 
 /* Temporary event message; no permanent combat controls. */
 .raid-notice { position: absolute; z-index: 8; top: calc(env(safe-area-inset-top) + 160px); left: max(16px, env(safe-area-inset-left)); max-width: min(290px, calc(100% - 88px)); padding: 8px 12px; border: 1px solid #b6a27a; border-radius: 12px; background: #f8efdceF; color: #584332; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; box-shadow: 0 2px 8px #34231522; text-align: left; }
@@ -1126,10 +1126,10 @@ kbd {
 #reset { border:1px solid #fff; }
 #reset { background:var(--paper); }
 
-/* One measured layout flow: the horizontal palette always clears the actual
-   card height, including mounted vitals and the leader switch. */
+/* Two compact lines share the corner controls' height. Opening the unit card
+   never lifts the horizontal construction rail. */
 .bottom-dock { position:absolute; left:var(--left); right:var(--right); bottom:var(--bottom); z-index:var(--layer-controls); display:grid; grid-template-columns:minmax(0,1fr); gap:8px; pointer-events:none; }
-.bottom-controls { display:grid; grid-template-columns:1fr 240px 1fr; align-items:end; gap:8px; pointer-events:none; }
+.bottom-controls { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:end; gap:8px; pointer-events:none; }
 .bottom-controls > #building-toggle { grid-column:1; justify-self:start; border:1px solid #fff; background:var(--paper); color:var(--ink); pointer-events:auto; }
 .bottom-controls > #building-toggle.active { background:#d5f6f4; border-color:#62e4ff; }
 .bottom-controls .view-controls { position:static; grid-column:3; justify-self:end; pointer-events:auto; }
@@ -1139,31 +1139,39 @@ kbd {
 .building-palette button + button { margin:0; }
 .building-palette button small { white-space:nowrap; }
 .bottom-dock .placement-status { width:max-content; max-width:100%; pointer-events:auto; }
-.bottom-controls .resident-selection { position:relative; left:auto; bottom:auto; grid-column:2; width:100%; max-width:240px; justify-self:center; display:grid; gap:4px; padding:7px 9px 9px; pointer-events:auto; }
-.resident-card-heading { display:flex; align-items:center; min-height:34px; padding-right:30px; }
-.resident-card-heading > div { min-width:0; }
+.bottom-controls .resident-selection { position:relative; left:auto; bottom:auto; grid-column:2; width:232px; max-width:100%; height:var(--corner-size); justify-self:center; display:flex; align-items:center; gap:7px; padding:4px 3px 4px 9px; pointer-events:auto; }
+.bottom-controls .resident-selection.has-command { width:278px; }
+.resident-card-heading { flex:1 1 76px; min-width:0; }
 .resident-card-heading strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; line-height:17px; }
-#resident-activity { display:block; font-size:10px; line-height:14px; color:#617359; white-space:nowrap; }
-.resident-card-heading #clear-selection { position:absolute; top:0; right:0; width:44px; height:44px; border-radius:12px; background:transparent; }
-#clear-selection svg { width:18px; height:18px; }
-.resident-vitals { display:grid; gap:5px; }
-.unit-vital { display:grid; grid-template-columns:max-content 48px minmax(16px,1fr); align-items:center; gap:5px; font-size:11px; line-height:14px; white-space:nowrap; }
-.unit-vital-value { font-variant-numeric:tabular-nums; text-align:right; }
-.unit-meter { display:block; width:100%; height:5px; border-radius:3px; overflow:hidden; background:#dbe0cf; }
-.unit-meter > span { display:block; width:100%; height:100%; transform-origin:left center; background:#718f50; }
-.unit-vital[data-kind=stamina] .unit-meter > span { background:#bc954b; }
-.unit-vital.low .unit-meter > span { background:#b66149; }
-.unit-vital.low .unit-vital-value { color:#a44532; }
-.resident-selection .leader-command { min-height:44px; padding:0; justify-content:space-between; border-top:1px solid var(--line); font-size:11px; }
+#resident-activity { display:block; overflow:hidden; text-overflow:ellipsis; font-size:10px; line-height:14px; color:#617359; white-space:nowrap; }
+.resident-selection #clear-selection { flex:0 0 38px; width:38px; height:calc(var(--corner-size) - 2px); padding:0; border-radius:11px; background:transparent; }
+#clear-selection svg { width:30px; height:30px; }
+.resident-vitals { display:grid; gap:5px; flex:1.1 1 88px; min-width:42px; }
+.unit-vital { position:relative; height:12px; font-size:9px; line-height:12px; white-space:nowrap; }
+.unit-vital-value { position:absolute; inset:0; font-variant-numeric:tabular-nums; text-align:center; color:#2c4031; pointer-events:none; }
+.unit-meter { display:block; width:100%; height:100%; border-radius:4px; overflow:hidden; background:#dfe4d4; }
+.unit-meter > span { display:block; width:100%; height:100%; transform-origin:left center; background:#9bb778; }
+.unit-vital[data-kind=stamina] .unit-meter > span { background:#d3b56f; }
+.unit-vital.low .unit-meter > span { background:#d99882; }
+.resident-selection .leader-command { flex:0 0 34px; align-self:stretch; min-height:0; padding:0; display:flex; flex-direction:column; justify-content:center; gap:1px; border:0; font-size:10px; line-height:12px; }
+.resident-selection .leader-command input { width:18px; height:18px; margin:0; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 @media(max-width:600px) {
   .bottom-controls { grid-template-columns:auto minmax(0,1fr) auto; gap:7px; }
-  .bottom-controls .resident-selection { max-width:220px; padding:6px 7px 8px; }
+  .bottom-controls .resident-selection { padding:3px 2px 3px 6px; gap:5px; }
   .bottom-dock .building-palette button { flex-basis:112px; width:112px; padding:7px; }
   .bottom-controls > #building-toggle { padding:0 10px; gap:5px; }
-  .unit-vital { gap:4px; grid-template-columns:max-content 44px minmax(14px,1fr); }
+  .resident-card-heading strong { font-size:11px; line-height:15px; }
+  .resident-vitals { gap:4px; }
+  .unit-vital { height:11px; line-height:11px; }
+  .resident-selection #clear-selection { flex-basis:36px; width:36px; }
+  #clear-selection svg { width:28px; height:28px; }
+  .resident-selection .leader-command { flex-basis:30px; }
 }
 @media(max-width:360px) {
   .bottom-controls { gap:5px; }
-  .unit-vital { font-size:10px; grid-template-columns:max-content 41px minmax(12px,1fr); gap:3px; }
+  .bottom-controls > #building-toggle { padding:0 7px; gap:3px; }
+  .bottom-controls .resident-selection { gap:3px; padding-left:5px; }
+  .resident-card-heading strong { font-size:10px; }
+  #resident-activity { font-size:9px; }
 }
