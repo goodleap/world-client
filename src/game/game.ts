@@ -38,6 +38,7 @@ import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
+import { createPathGuidance } from './path-guidance.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
@@ -122,6 +123,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
   const manual = (id: string) => { needs.manual(id); raids.manual(id); };
   const moveFeedback = createMoveFeedback(scene);
+  const pathGuidance = createPathGuidance(scene);
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
@@ -153,7 +155,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     for (const id of Object.keys(economy.state.vitals)) {
       ui.setUnitHealth(id, health(economy.state, id), maxHealth(id), economy.state.seconds, id === 'horse' ? 'cavalry' : id);
     }
-    for (const wolf of raids.state.wolves) ui.setUnitHealth(wolf.id, wolf.hp, fighterStats(wolf).hp, economy.state.seconds);
+    for (const wolf of raids.wolves) ui.setUnitHealth(wolf.id, wolf.hp, fighterStats(wolf).hp, economy.state.seconds);
     ui.setRaidNotice(raids.state.noticeUntil > economy.state.seconds ? raids.state.notice + (raids.state.phase === 'raid' ? ' · 查看' : '') : '');
     if (selectedWorld) {
       const object = world.objects.get(selectedWorld.id);
@@ -252,7 +254,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       if (fighter?.team === 'enemy') {
         const count = combat.attack(combatIds(), id);
         ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: fighter.role === 'wolf' ? 1.9 : 2.6 });
-        if (count) { manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
+        if (count) { ui.flashAttackTarget(id, economy.state.seconds); manual(residents.selectedId()!); clearWorld(); setPreview(); save(); }
         return;
       }
       clearWorld();
@@ -352,7 +354,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   });
   ui.bind('raid-notice', () => {
     if (ui.paused || suspended || raids.state.phase !== 'raid') return;
-    const wolf = raids.state.wolves.find(w => w.life === 'active' && w.mode !== 'gone');
+    const wolf = raids.wolves.find(w => w.life === 'active' && w.mode !== 'gone');
     if (wolf) { setPreview(); overview = false; mapCenter.set(wolf.position.x, .5, wolf.position.z); clampCenter(); }
   });
   ui.bind('reset', () => {
@@ -436,7 +438,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
       selectionRevision = selectionKey;
     }
-    wolves.update(raids.state.wolves, economy.state.seconds, camera);
+    wolves.update(raids.wolves, economy.state.seconds, camera);
+    const selectedId = residents.selectedId(), selectedFighter = selectedId ? combat.unit(selectedId) : undefined;
+    pathGuidance.update(selectedId, selectedId ? selectedFighter?.position ?? residents.needsStatus(selectedId).position : undefined,
+      selectedId ? selectedFighter?.route ?? residents.routeFor(selectedId) : []);
+    const attackTarget = selectedFighter?.target;
+    ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds);
     scene.render(); residents.updateLabels(camera); wolves.updateLabels(camera);
     if (selectedWorld) {
       const { anchor } = selectedWorld;
@@ -533,6 +540,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       camera: cameraState(),
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
+      pathGuidance: pathGuidance.snapshot(),
       selectionFeedback: selectionFeedback.snapshot(),
       placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,

@@ -8,7 +8,9 @@ import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { COMBAT_CONFIG as C, ENCOUNTERS } from './combat-config.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
-import { effort, VITAL_CONFIG } from './vitals.ts';
+import { effort, VITAL_CONFIG, changeHealth } from './vitals.ts';
+import { chooseTarget, hostile } from './targeting.ts';
+import type { CombatTarget } from './targeting.ts';
 
 export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold' | 'rest';
 export type CombatLife = 'active' | 'defeated';
@@ -31,7 +33,7 @@ export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : u.role === 'wolf' ? .72 : .4;
 // Melee reach accounts for the target body, so foot soldiers can strike a
 // mounted opponent without routing into the horse's collision circle.
-const reach = (u: Fighter, target: Fighter) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, fighterRadius(target) - .4));
+const reach = (u: Fighter, target: CombatTarget) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, target.radius - .4));
 export function initialCombat(): CombatState {
   return { camps: ENCOUNTERS.map(c => ({ id: c.id, cleared: false, discovered: false, rewardGranted: false, respawnAt: 0, cycle: 0 })), nextAttack: 1, discovered: false, cleared: false, rewardGranted: false, rewardGoods: [], projectiles: [],
     units: [...RESIDENTS.filter(r => r.id === 'infantry' || r.id === 'archer' || r.id === 'cavalry'), ...ENEMIES].map(r => {
@@ -50,6 +52,7 @@ export class Combat {
   private economy: Economy;
   private solids: () => readonly Obstacle[];
   private civilians: () => Neighbour[];
+  private residentPosition?: (id: string) => Point;
   private units: Map<string, Fighter>;
   private threats: readonly Fighter[] = [];
   private statCache = new Map<string, { level: number; value: ReturnType<typeof fighterStats> }>();
@@ -65,21 +68,31 @@ export class Combat {
     this.statCache.set(u.id, { level, value }); return value;
   }
   unit(id: string) { return this.units.get(id); }
+  setResidentPositions(read: (id: string) => Point) { this.residentPosition = read; }
+  targets(): CombatTarget[] {
+    const neighbours = this.civilians();
+    return [...this.units.values()].map(u => ({ id: u.id, team: u.team, position: u.position, hp: u.hp, life: u.life, radius: fighterRadius(u), canAttack: true }))
+      .concat(RESIDENTS.filter(r => !this.units.has(r.id)).map(r => ({ id: r.id, team: 'home' as const,
+        position: this.residentPosition?.(r.id) ?? neighbours.find(n => n.id === r.id)?.position ?? this.economy.state.residents[r.id]?.position ?? r.spawn,
+        hp: this.economy.state.vitals[r.id].hp!, life: this.economy.state.vitals[r.id].hp! > 0 ? 'active' as const : 'defeated' as const,
+        radius: r.bodyRadius, canAttack: false })));
+  }
+  target(id: string) { return this.targets().find(t => t.id === id); }
   setThreats(threats: readonly Fighter[]) {
     this.threats = threats;
     this.units = new Map([...this.state.units, ...threats].map(u => [u.id, u]));
     for (const u of this.state.units) {
-      if (u.target && !this.units.has(u.target)) u.target = undefined;
-      if (u.attack && !this.units.has(u.attack.target)) u.attack = undefined;
+      if (u.target && !this.target(u.target)) u.target = undefined;
+      if (u.attack && !this.target(u.attack.target)) u.attack = undefined;
     }
-    this.state.projectiles = this.state.projectiles.filter(p => this.units.has(p.target) && this.units.has(p.source));
+    this.state.projectiles = this.state.projectiles.filter(p => this.target(p.target) && this.units.has(p.source));
     for (const id of this.statCache.keys()) if (!this.units.has(id)) this.statCache.delete(id);
   }
-  hurt(id: string, damage: number, source: string) { const unit = this.unit(id); if (unit) this.damage(unit, damage, source); }
+  hurt(id: string, damage: number, source: string) { const target = this.target(id); if (target) this.damage(target, damage, source); }
   assist(id: string, target: string) {
     const u = this.unit(id), foe = this.unit(target);
-    if (!u || !foe || u.team !== 'home' || u.life !== 'active' || foe.life !== 'active' || u.target || u.attack
-      || u.defendFrom && (distance(foe.position, u.defendFrom) > 12 || distance(u.position, u.defendFrom) > 10)
+    if (!u || !foe || u.team !== 'home' || u.life !== 'active' || foe.life !== 'active' || u.target || u.attack || u.goal
+      || u.defendFrom && (distance(foe.position, u.defendFrom) > C.chase || distance(u.position, u.defendFrom) > C.chase)
       || !['guard', 'hold'].includes(u.order) || this.economy.state.vitals[id].rest
       || this.economy.state.vitals[id].manualUntil > this.economy.state.seconds || this.economy.active(id)) return false;
     u.target = target; u.order = 'guard'; u.defendFrom ??= { ...u.position }; this.stop(u); return true;
@@ -119,19 +132,34 @@ export class Combat {
     const v = this.economy.state.vitals[id]; v.rest = undefined; v.manualUntil = this.economy.state.seconds + VITAL_CONFIG.manualGrace;
   }
   attack(ids: readonly string[], target: string) {
-    const foe = this.unit(target); if (!foe || foe.team !== 'enemy' || foe.life !== 'active') return 0;
+    const foe = this.target(target); if (!foe || foe.life !== 'active') return 0;
     let accepted = 0;
     for (const u of this.controllable(ids)) {
+      if (!hostile(u, foe)) continue;
       // Repeated attack clicks do not restart or accelerate an attack.
-      this.manual(u.id); u.order = 'attack'; u.target = foe.id; u.goal = undefined; accepted++;
+      this.manual(u.id); if (u.target !== foe.id) { u.attack = undefined; this.stop(u); }
+      u.order = 'attack'; u.target = foe.id; u.goal = undefined; accepted++;
     }
     return accepted;
   }
   guard(ids: readonly string[]) {
     for (const u of this.controllable(ids)) { this.manual(u.id); u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
   }
-  private damage(target: Fighter, amount: number, sourceId: string) {
-    if (target.life !== 'active') return;
+  private damage(victim: CombatTarget, amount: number, sourceId: string) {
+    const source = this.target(sourceId);
+    if (victim.life !== 'active' || source && !hostile(victim, source)) return;
+    const target = this.unit(victim.id);
+    if (!target) {
+      changeHealth(this.economy.state, victim.id, -Math.max(1, amount));
+      this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
+      if (!this.economy.state.vitals[victim.id].hp) {
+        this.economy.interrupt(victim.position, victim.id);
+        if (RESIDENTS.find(r => r.id === victim.id)?.effects?.includes('leader')) this.economy.setLeadership(false);
+        delete this.economy.state.raids.evading[victim.id];
+        if (this.economy.state.residents[victim.id]) this.economy.state.residents[victim.id].manualGoal = undefined;
+      }
+      this.economy.revision++; return;
+    }
     target.hp = Math.max(0, target.hp - Math.max(1, amount - this.stats(target).armor));
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
@@ -142,16 +170,16 @@ export class Combat {
     }
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) {
-      const source = this.unit(sourceId), current = target.target && this.unit(target.target);
+      const source = this.target(sourceId), current = target.target && this.target(target.target);
       // Both sides retaliate, keeping an existing valid opponent stable.
       // Player movement wins; automatic meals/supply yield to combat.
       if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order)
-        && !(target.team === 'enemy' && target.goal) && (!current || current.life !== 'active')
-        && distance(target.position, source.position) <= C.acquire + 3
+        && !(target.order === 'hold' && target.goal) && (!current || current.life !== 'active')
+        && distance(target.position, source.position) <= C.chase
         && (target.team === 'home' || distance(source.position, this.camp(target)) <= this.camp(target).leash)) {
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
-        if (source.role === 'wolf') target.defendFrom ??= { ...target.position };
+        target.defendFrom ??= target.team === 'home' ? { ...target.position } : { ...this.camp(target) };
         target.order = 'guard'; target.target = source.id; target.goal = undefined; this.stop(target);
       }
       return;
@@ -187,7 +215,7 @@ export class Combat {
       shot.elapsed += dt;
       if (shot.elapsed < shot.duration) continue;
       this.state.projectiles.splice(this.state.projectiles.indexOf(shot), 1);
-      const target = this.unit(shot.target);
+      const target = this.target(shot.target);
       // A shot lands at its committed point. A moving target can dodge it.
       if (target && distance(target.position, shot.to) < .8 && segmentIsClear(shot.from, shot.to, .05, WORLD_BOUNDS, this.solids())) this.damage(target, shot.damage, shot.source);
     }
@@ -196,24 +224,46 @@ export class Combat {
       u.speed = 0; u.cooldown = Math.max(0, u.cooldown - dt); u.planIn = Math.max(0, u.planIn - dt);
       if (u.life === 'defeated') continue;
       if (u.team === 'home') for (const camp of this.state.camps) { const definition = ENCOUNTERS.find(c => c.id === camp.id)!; if (distance(u.position, definition) < definition.discover) camp.discovered = true; }
-      if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || u.team === 'enemy' && u.order === 'hold') {
+      // Commands to move and a return to the engagement anchor take priority.
+      const returning = u.order === 'hold' && !!u.goal;
+      let target = u.target ? this.target(u.target) : undefined;
+      const explicit = u.order === 'attack' && target?.life === 'active';
+      const anchor = u.team === 'enemy' ? this.camp(u) : u.defendFrom ?? u.position;
+      const leash = u.team === 'enemy' ? Math.max(C.chase, this.camp(u).leash) : C.chase;
+      if (!explicit && target && (distance(u.position, target.position) > C.chase
+        || distance(target.position, anchor) > leash || distance(u.position, anchor) > leash)) {
+        u.goal = u.team === 'enemy' ? { ...u.home } : { x: anchor.x, z: anchor.z }; u.order = 'hold'; u.target = undefined; u.attack = undefined;
+        this.stop(u); continue;
+      }
+      if (!['move', 'retreat'].includes(u.order) && !returning && !explicit) {
+        if (!target || target.life !== 'active' || !hostile(u, target)) target = undefined;
+        // Keep combat opponents stable; promote a civilian target when a fighter
+        // enters alert range. Both factions use exactly the same selection rule.
+        if (!target || !target.canAttack) {
+          const candidate = chooseTarget(u, this.targets(), C.acquire, t => distance(t.position, anchor) <= leash
+            && segmentIsClear(u.position, t.position, .05, WORLD_BOUNDS, this.solids()));
+          if (candidate && (!target || candidate.canAttack)) target = candidate;
+        }
+        if (target) {
+          if (u.target !== target.id || this.economy.state.vitals[u.id].rest) {
+            this.economy.interrupt(u.position, u.id); this.economy.state.vitals[u.id].rest = undefined;
+            u.attack = undefined; this.stop(u);
+          }
+          u.defendFrom ??= { x: anchor.x, z: anchor.z };
+          u.target = target.id; u.order = 'guard'; u.goal = undefined;
+        } else { u.target = undefined; u.attack = undefined; u.defendFrom = undefined; }
+      }
+      if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning) {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
           this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
-        } else { this.stop(u); u.goal = undefined; u.order = u.team === 'enemy' ? 'guard' : u.order === 'retreat' || u.order === 'rest' ? 'hold' : 'guard'; }
+        } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) u.defendFrom = undefined; }
         continue;
       }
-      if (u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
-      if (u.team === 'enemy' && (distance(u.position, this.camp(u)) > this.camp(u).leash || u.target && distance(this.unit(u.target)!.position, this.camp(u)) > this.camp(u).leash)) {
-        u.order = 'hold'; u.goal = { ...u.home }; u.target = undefined; u.attack = undefined; this.stop(u); continue;
-      }
-      if (u.defendFrom && (!u.target || distance(u.position, u.defendFrom) > 10
-        || !this.unit(u.target) || this.unit(u.target)!.life !== 'active' || distance(this.unit(u.target)!.position, u.defendFrom) > 12)) {
-        u.target = undefined; u.attack = undefined; this.stop(u);
-      }
+      if (!target && this.economy.state.vitals[u.id]?.rest) continue;
       if (u.attack) {
         const action = u.attack; action.elapsed += dt;
-        const target = this.unit(action.target);
+        const target = this.target(action.target);
         if (target) u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
         if (!action.released && action.elapsed >= stats.windup) {
           action.released = true;
@@ -227,31 +277,17 @@ export class Combat {
         if (action.elapsed >= stats.windup + stats.recovery) u.attack = undefined;
         continue;
       }
-      let target = u.target ? this.unit(u.target) : undefined;
-      if (!target || target.life !== 'active' || target.team === u.team || u.order !== 'attack' && distance(u.position, target.position) > C.acquire + 3) {
-        target = undefined;
-        if (u.team === 'enemy') {
-          const camp = this.camp(u); let nearest = C.acquire;
-          for (const candidate of this.state.units) {
-            if (candidate.team === u.team || candidate.life !== 'active') continue;
-            const d = distance(u.position, candidate.position);
-            if (d >= C.acquire || d > nearest || d === nearest && target && candidate.id.localeCompare(target.id) >= 0
-              || distance(candidate.position, camp) > camp.leash || !segmentIsClear(u.position, candidate.position, .05, WORLD_BOUNDS, this.solids())) continue;
-            target = candidate; nearest = d;
-          }
-        }
-        u.target = target?.id;
-        if (!target) {
-          const patrol = u.team === 'enemy' ? this.camp(u).patrol : [];
-          if (patrol.length) {
-            const offset = Number(u.id.slice(-1)) * 1.1;
-            const index = Math.floor(this.economy.state.seconds / 12) % patrol.length;
-            const goal = { x: patrol[index].x + offset, z: patrol[index].z };
-            if (distance(u.position, goal) > .5 && u.planIn <= 0 && !u.route.length) { this.plan(u, [goal]); u.planIn = 3; }
-            this.travel(u, dt, stats.speed * .65);
-          } else this.stop(u);
-          if (u.order === 'attack') u.order = 'guard'; continue;
-        }
+      if (!target || target.life !== 'active') {
+        u.target = undefined;
+        const patrol = u.team === 'enemy' ? this.camp(u).patrol : [];
+        if (patrol.length) {
+          const offset = Number(u.id.slice(-1)) * 1.1;
+          const index = Math.floor(this.economy.state.seconds / 12) % patrol.length;
+          const goal = { x: patrol[index].x + offset, z: patrol[index].z };
+          if (distance(u.position, goal) > .5 && u.planIn <= 0 && !u.route.length) { this.plan(u, [goal]); u.planIn = 3; }
+          this.travel(u, dt, stats.speed * .65);
+        } else this.stop(u);
+        if (u.order === 'attack') u.order = 'guard'; continue;
       }
       const clear = segmentIsClear(u.position, target.position, .05, WORLD_BOUNDS, this.solids());
       if (distance(u.position, target.position) <= reach(u, target) && clear) {
@@ -259,7 +295,7 @@ export class Combat {
         if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else {
         if (u.planIn <= 0) {
-          const radius = Math.max(reach(u, target) * .8, fighterRadius(u) + fighterRadius(target) + .1);
+          const radius = Math.max(reach(u, target) * .8, fighterRadius(u) + target.radius + .1);
           const points = Array.from({ length: 12 }, (_, i) => ({ x: target!.position.x + Math.cos(i * Math.PI / 6) * radius,
             z: target!.position.z + Math.sin(i * Math.PI / 6) * radius }))
             .filter(p => segmentIsClear(p, target!.position, .05, WORLD_BOUNDS, this.solids()));
@@ -299,7 +335,7 @@ export class Combat {
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = []): CombatState {
   const initial = initialCombat();
-  const opponents = [...initial.units, ...threats];
+  const opponents = [...initial.units, ...threats, ...RESIDENTS.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
   if (!raw || !Array.isArray(raw.units) || raw.units.length !== initial.units.length || !Array.isArray(raw.projectiles) || raw.projectiles.length > 20
@@ -311,8 +347,6 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [])
       || c.rewardGranted !== c.cleared || !num(c.respawnAt, 1e12) || !Number.isSafeInteger(c.cycle) || c.cycle < 0)) throw new Error('区域存档无效');
   for (const template of initial.units) {
     const units = raw.units.filter(u => u.id === template.id), u = units[0];
-    // Legacy zero-health wounded soldiers adopt permanent death; never heal on migration.
-    if ((u?.life as string) === 'injured' && u.hp === 0 && u.team === 'home') u.life = 'defeated';
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
       || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'defeated'].includes(u.life)
       || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
@@ -329,7 +363,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [])
   if (raw.cleared !== raw.camps.every(c => c.cleared) || raw.camps.some(c => c.cleared !== raw.units.filter(u => ENEMIES.find(r => r.id === u.id)?.camp === c.id).every(u => u.life === 'defeated'))) throw new Error('据点存档不一致');
   const ids = new Set<number>();
   for (const p of raw.projectiles) {
-    const source = raw.units.find(u => u.id === p.source), target = [...raw.units, ...threats].find(u => u.id === p.target);
+    const source = raw.units.find(u => u.id === p.source), target = opponents.find(u => u.id === p.target);
     if (!source || !target || source.team === target.team || !point(p.from) || !point(p.to) || !num(p.elapsed, 3) || !num(p.duration, 3)
       || p.duration <= 0 || p.elapsed >= p.duration || !num(p.damage, 100) || !Number.isSafeInteger(p.id) || p.id < 1 || p.id >= raw.nextAttack || ids.has(p.id)) throw new Error('投射物存档无效');
     ids.add(p.id);

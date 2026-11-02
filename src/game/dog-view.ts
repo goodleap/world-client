@@ -60,6 +60,10 @@ export function createVillageDog(scene: Scene, shadows: ShadowGenerator, id: str
       clips.get('Idle')!.start(true); mesh.material?.freeze();
       loadingProgress.done('dog:attach');
     },
+    freezePose() {
+      for (const group of clips.values()) { group.stop(); group.enableBlending = false; }
+      const rest = clips.get('Idle')!; rest.start(false).pause(); rest.goToFrame(rest.from); motion = 'idle';
+    },
     update(seconds: number, vx: number, vz: number, purposeful = false, feeding = false) {
       if (!clips.size) return;
       const speed = Math.hypot(vx, vz);

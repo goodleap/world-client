@@ -33,7 +33,7 @@ export const ENEMIES: readonly ResidentDefinition[] = [
   ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.id === 'pass' ? 3 : 2 }, (_, i): ResidentDefinition => ({
     id: `enemy-${c.id}-${i}`, role: c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
     variant: c.id === 'pass' && i === 0 ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
-    name: c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : '巡逻兵',
+    name: c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : c.id === 'patrol' ? '巡逻兵' : c.name,
     spawn: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) }, home: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
     areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.4,
   }))),

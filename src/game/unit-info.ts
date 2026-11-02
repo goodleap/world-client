@@ -12,7 +12,7 @@ export interface UnitMovement { moving: boolean; speed: number; working: boolean
 export function selectedUnitInfo(economy: Economy, id: string | undefined, movement?: UnitMovement): UnitInfo | undefined {
   if (!id || !RESIDENTS.some(r => r.id === id)) return;
   const state = economy.state, fighter = state.combat.units.find(u => u.id === id);
-  if (fighter?.life === 'defeated') return;
+  if (health(state, id) <= 0) return;
   const vital = state.vitals[id], task = economy.active(id), bodies = bodiesFor(id);
   const moving = fighter ? fighter.speed > .08 || fighter.route.length > 0 : !!movement?.moving || (movement?.speed ?? 0) > .08;
   let activity = '空闲';

@@ -14,12 +14,12 @@ import { modelAssets } from './model-assets.ts';
 import { modelData, modelOptions } from './asset-cache.ts';
 import { attachMeshLOD, selectCharacterLOD } from './character-lod.ts';
 import type { Wolf } from './raid-state.ts';
-import { RAID_CONFIG } from './raid-state.ts';
+import { RAID_CONFIG, WILD_WOLF_SPAWNS } from './raid-state.ts';
 import type { GameUI } from '../ui.ts';
 import { loadingProgress } from '../loading-progress.ts';
 
 /** Shared geometry/material/immutable action tracks; independent native skeletons.
- * Pool is bounded by the wave cap. No particles, additional lights or render pass. */
+ * Pool is bounded by the wave cap plus fixed packs. No extra render pass. */
 export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui: GameUI) {
   const url = modelAssets.wolf;
   const data = await modelData(url);
@@ -31,7 +31,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   const medium = geometry(1), far = geometry(2);
   if (!medium || !far) throw new Error('灰狼缺少远景模型');
   loadingProgress.begin('wolves:attach', '灰狼：实例与动作挂接');
-  const pool = Array.from({ length: RAID_CONFIG.maxWolves }, (_, index) => {
+  const pool = Array.from({ length: RAID_CONFIG.maxWolves + WILD_WOLF_SPAWNS.length }, (_, index) => {
     const instance = source.instantiateModelsToScene(name => name, false, { doNotInstantiate: true, predicate: entity => level(entity) === undefined || level(entity) === 0 });
     const root = new TransformNode(`wolf-pool-${index}`, scene);
     for (const node of instance.rootNodes) node.parent = root;
@@ -54,10 +54,12 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   return {
     update(wolves: readonly Wolf[], seconds: number, camera: Camera) {
       Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes);
+      // A wave-size change shifts the fixed wolves between slots. Remove old
+      // labels first so a later old slot cannot delete a newly rebound label.
+      for (let i = 0; i < pool.length; i++) if (pool[i].id && pool[i].id !== (wolves[i]?.id ?? '')) ui.removeResidentLabel(pool[i].id);
       for (let i = 0; i < pool.length; i++) {
         const actor = pool[i], wolf = wolves[i];
         if (actor.id !== (wolf?.id ?? '')) {
-          if (actor.id) ui.removeResidentLabel(actor.id);
           actor.id = wolf?.id ?? ''; actor.label = wolf ? ui.addResidentLabel(wolf.id, '灰狼') : undefined;
           actor.clip = ''; actor.phase = -1; actor.death.reset();
           actor.mesh.metadata = { ...actor.mesh.metadata, selectionKind: 'resident', id: wolf?.id };

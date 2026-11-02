@@ -1,4 +1,4 @@
-import { initialRaids, decodeRaids } from './raid-state.ts';
+import { initialRaids, decodeRaids, allWolves } from './raid-state.ts';
 import type { RaidState } from './raid-state.ts';
 import { initialCombat, decodeCombat } from './combat.ts';
 import type { CombatState } from './combat.ts';
@@ -12,7 +12,7 @@ import { findPath } from './pathfinding.ts';
 import { canResidentWork, canResidentSupply, RESIDENTS } from './resident-data.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
-import { initialVitals, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
+import { initialVitals, alive, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
 import type { Vitals } from './vitals.ts';
 
 export type Resource = 'wood' | 'stone' | 'food' | 'iron';
@@ -35,7 +35,7 @@ export interface EconomyState {
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
-  version: 10; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 11; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -54,7 +54,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(seed?: number): EconomyState {
   return {
-    combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 10, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 11, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -186,6 +186,7 @@ export class Economy {
     return { ok: true, message: task.reason ? `已排队，${task.reason}` : '已加入作业队列', task };
   }
   claim(worker = 'farmer', position?: Point): WorkTask | undefined {
+    if (!this.state.vitals[worker] || !alive(this.state, worker)) return;
     if (this.active(worker)) return;
     const rank: Record<WorkKind, number> = { haul: 0, supply: 0, harvest: 1, sow: 2, chop: 4, mine: 4, till: 3, build: 5, gather: 2, tools: 5, arms: 5 };
     // Expanding the fields must not leave requested construction permanently
@@ -230,6 +231,7 @@ export class Economy {
     task.worker = undefined; task.status = 'waiting'; task.reason = '等待恢复'; task.retryAt = 0; this.changed();
   }
   assign(id: number, worker = 'farmer'): { ok: boolean; message: string } {
+    if (!this.state.vitals[worker] || !alive(this.state, worker)) return { ok: false, message: '该单位已经死亡' };
     const task = this.state.tasks.find(t => t.id === id);
     if (!task || !['waiting', 'travelling', 'working', 'delivering'].includes(task.status)) return { ok: false, message: '该作业暂不可执行' };
     if (!(task.kind === 'supply' ? canResidentSupply(worker) : canResidentWork(worker))) return { ok: false, message: '该单位不能执行这项作业' };
@@ -419,16 +421,15 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 9 && saved.version !== 10) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 11) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
-  // v9 explicitly gains a fresh grace period; existing health, jobs and rewards survive.
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
-  state.raids = saved.version === 9 ? initialRaids(raw.seconds) : decodeRaids(raw.raids, raw.combat?.nextAttack);
-  state.combat = decodeCombat(raw.combat, state.raids.wolves);
-  if ([...state.combat.units, ...state.raids.wolves].some(u => u.diedAt !== undefined && u.diedAt > raw.seconds)) throw new Error('死亡时间超出游戏时间');
+  state.raids = decodeRaids(raw.raids, raw.combat?.nextAttack);
+  state.combat = decodeCombat(raw.combat, allWolves(state.raids));
+  if ([...state.combat.units, ...allWolves(state.raids)].some(u => u.diedAt !== undefined && u.diedAt > raw.seconds)) throw new Error('死亡时间超出游戏时间');
   if (!raw.upgrades || !['tools', 'arms'].every(k => Number.isInteger(raw.upgrades[k as 'tools']) && number(raw.upgrades[k as 'tools'], C.upgradeLimit))) throw new Error('加工存档无效');
   state.upgrades = { ...raw.upgrades };
   if (!raw.regrowth || Object.entries(raw.regrowth).some(([id, at]) => !RESOURCE_NODES.some(n => n.id === id) || !raw.depleted.includes(id) || !number(at, 1e12))) throw new Error('资源恢复存档无效');
@@ -488,6 +489,8 @@ export function decodeEconomy(text: string): Economy {
   for (const id of vitalIds) {
     const v = raw.vitals[id], template = state.vitals[id];
     if (!v || !number(v.stamina, 100) || !number(v.manualUntil, 1e12) || !number(v.retryAt, 1e12) || !number(v.hurtUntil, 1e12)
+      || v.diedAt !== undefined && (!number(v.diedAt, raw.seconds) || v.hp !== 0)
+      || v.hp === 0 && v.diedAt === undefined
       || (template.hp === undefined ? v.hp !== undefined : !number(v.hp, maxHealth(id)))
       || v.meal && (!number(v.meal.remaining, VITAL_CONFIG.mealSeconds) || v.meal.remaining <= 0)
       || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !RESIDENTS.some(r => r.id === id)
@@ -545,6 +548,13 @@ export function decodeEconomy(text: string): Economy {
       state.vitals[id].rest = undefined; state.vitals[id].meal = undefined;
     }
     if (state.residents[u.id]) state.residents[u.id].manualGoal = undefined;
+  }
+  for (const r of RESIDENTS) if (state.vitals[r.id].hp === 0) {
+    if (r.effects?.includes('leader')) state.steward.enabled = false;
+    economy.interrupt(state.residents[r.id]?.position ?? r.spawn, r.id);
+    state.vitals[r.id].rest = undefined; state.vitals[r.id].meal = undefined;
+    if (state.residents[r.id]) state.residents[r.id].manualGoal = undefined;
+    delete state.raids.evading[r.id];
   }
   return economy;
 }

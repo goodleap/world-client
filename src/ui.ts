@@ -260,6 +260,10 @@ export function createUI(app: HTMLElement) {
     return { row, label, value, meter, fill };
   });
   const setText = (element: HTMLElement, text: string) => { if (element.textContent !== text) element.textContent = text; };
+  const attackMarker = document.createElement('span');
+  attackMarker.className = 'resident-attack-target'; attackMarker.setAttribute('aria-label', '当前攻击目标');
+  attackMarker.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3l4 1 11 14-2 2L4 9zM3 16l5 5M3 21l3-3M14 8l6-5 1 5-5 6M16 17l5 4M17 16l4-4"/></g></svg>';
+  let attackPulseId: string | undefined, attackPulseAt = -Infinity;
 
   return {
     canvas, joystick: get('joystick'), knob: get('joystick-knob'),
@@ -284,6 +288,15 @@ export function createUI(app: HTMLElement) {
     setRaidNotice(text: string) {
       const notice = get('raid-notice'); notice.hidden = !text;
       if (notice.textContent !== text) notice.textContent = text;
+    },
+    flashAttackTarget(id: string, seconds: number) { attackPulseId = id; attackPulseAt = seconds; },
+    setAttackTarget(id: string | undefined, seconds: number) {
+      const label = id ? residentLabels.get(id) : undefined;
+      if (!label) { attackMarker.remove(); return; }
+      if (attackMarker.parentElement !== label) label.prepend(attackMarker);
+      const pulse = id === attackPulseId ? Math.max(0, 1 - (seconds - attackPulseAt) / .7) : 0;
+      attackMarker.style.transform = `scale(${(1 + pulse * .65).toFixed(3)})`;
+      attackMarker.style.opacity = String(pulse > 0 ? .7 + .3 * Math.cos(pulse * Math.PI * 4) : 1);
     },
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
     setUnitHealth(id: string, hp: number, maximum: number, seconds: number, labelId = id) {

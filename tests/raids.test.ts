@@ -131,11 +131,11 @@ test('wounded wolves withdraw through actual terrain and timeouts do not telepor
   assert.equal(s.r.state.phase, 'peace');
 });
 
-test('v9 migration preserves health, food and progress; corrupted raid or projectile is rejected', () => {
+test('old saves and corrupted raid/projectile state are rejected; current saves round-trip', () => {
   const e = new Economy(initialEconomy()); e.state.seconds = 312; e.state.combat.units[0].hp = 47;
   const old: any = structuredClone(e.state); old.version = 9; delete old.raids;
-  const migrated = decodeEconomy(JSON.stringify(old)); assert.equal(migrated.state.version, 10);
-  assert.equal(migrated.state.combat.units[0].hp, 47); assert.equal(migrated.state.raids.nextAt, 552); assert.deepEqual(migrated.state.inventory, old.inventory);
+  assert.throws(() => decodeEconomy(JSON.stringify(old)), /不支持的存档版本/);
+  const current = decodeEconomy(encodeEconomy(e)); assert.equal(current.state.combat.units[0].hp, 47); assert.deepEqual(current.state.inventory, old.inventory);
   const s = setup(); const [w] = s.wave([{ x: 0, z: 0 }]); const bad = JSON.parse(encodeEconomy(s.e)); bad.raids.wolves[0].hp = 999;
   assert.throws(() => decodeEconomy(JSON.stringify(bad)));
   const shot = { id: s.c.state.nextAttack++, source: 'archer', target: w.id, from: { x: 0, z: 2 }, to: w.position, elapsed: 0, duration: .2, damage: 18 };
@@ -149,7 +149,7 @@ test('automatic assistance keeps one pursuit origin for the whole wave', () => {
   const s = setup(), [w] = s.wave([{ x: 0, z: 0 }]);
   const a = s.c.unit('infantry')!; a.position = { x: 0, z: 5 }; a.order = 'guard';
   assert(s.c.assist(a.id, w.id));
-  a.position = { x: 11, z: 5 }; w.position = { x: 14, z: 5 }; s.positions.farmer = { x: 14, z: 8 };
+  a.position = { x: 11, z: 5 }; w.position = { x: 18, z: 5 }; s.positions.farmer = { x: 14, z: 8 };
   s.advance(.5); assert(!a.target); assert.deepEqual(a.defendFrom, { x: 0, z: 5 });
   assert.equal(s.c.assist(a.id, w.id), false, 'repeat aid cannot move the pursuit origin');
   assert(s.c.move([a.id], { x: 15, z: 8 })); assert.equal(a.defendFrom, undefined);

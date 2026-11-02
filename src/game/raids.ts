@@ -1,10 +1,10 @@
 import { Combat, fighterRadius } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
-import { RAID_CONFIG as C, newWolf, raidRandom } from './raid-state.ts';
+import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
 import type { Economy } from './economy.ts';
 import { RESIDENTS } from './resident-data.ts';
-import { changeHealth, health } from './vitals.ts';
+import { health } from './vitals.ts';
 import { fireIsLit } from './campfire.ts';
 import { BUILDINGS, LANDSCAPE, WORLD_BOUNDS } from './world-data.ts';
 import { isBlocked } from './movement.ts';
@@ -13,6 +13,7 @@ import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { resetRouteState, stepRoute } from './route-following.ts';
 import type { Neighbour } from './route-following.ts';
 import { segmentIsClear } from './wander.ts';
+import { chooseTarget } from './targeting.ts';
 
 export interface RaidResidents {
   status(id: string): { position: Point; moving: boolean };
@@ -36,15 +37,17 @@ export class Raids {
   private decisions = 0;
   constructor(economy: Economy, combat: Combat, people: RaidResidents, solids: () => readonly Obstacle[], visible: (point: Point) => boolean) {
     this.economy = economy; this.combat = combat; this.people = people; this.solids = solids; this.visible = visible;
+    combat.setResidentPositions(id => people.status(id).position);
     this.syncThreats();
   }
   get state() { return this.economy.state.raids; }
-  private syncThreats() { this.combat.setThreats(this.state.wolves.filter(w => w.mode !== 'gone')); }
+  get wolves() { return allWolves(this.state); }
+  private syncThreats() { this.combat.setThreats(this.wolves.filter(w => w.mode !== 'gone')); }
   private position(id: string) { return this.combat.unit(id)?.position ?? this.people.status(id).position; }
   private fireClear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids().filter(o => !(o.kind === 'circle' && distance(o, b) < .01))); }
   private clear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids()); }
   neighbours(): Neighbour[] {
-    return this.state.wolves.filter(w => w.life === 'active' && w.mode !== 'gone').map(w => ({ id: w.id, position: w.position,
+    return this.wolves.filter(w => w.life === 'active' && w.mode !== 'gone').map(w => ({ id: w.id, position: w.position,
       radius: fighterRadius(w), moving: w.speed > .08, purposeful: !!w.route.length, waiting: w.navigation.waiting }));
   }
   occupancy() { return this.neighbours().map(n => ({ kind: 'circle' as const, ...n.position, radius: n.radius })); }
@@ -102,13 +105,15 @@ export class Raids {
   }
   private protect() {
     const now = this.economy.state.seconds;
-    const threats = this.state.wolves.filter(w => w.life === 'active' && !['gone', 'flee'].includes(w.mode));
+    const threats = this.combat.targets().filter(t => t.team === 'enemy' && t.life === 'active'
+      && !this.wolves.some(w => w.id === t.id && ['gone', 'flee'].includes(w.mode)));
     for (const r of RESIDENTS) {
+      if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id]; continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
       const nearby = threats.filter(w => distance(position, w.position) < 8 && this.clear(position, w.position));
       if (this.combat.unit(r.id)) {
         for (const w of threats) if (distance(position, w.position) <= C.aidRadius
-          && RESIDENTS.some(n => distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
+          && RESIDENTS.some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
           if (this.combat.assist(r.id, w.id)) break;
         }
         continue;
@@ -142,11 +147,9 @@ export class Raids {
     if (this.state.phase === 'peace' && now >= this.state.nextAt) this.spawn();
     this.decisions -= dt;
     if (this.decisions <= 0) { this.decisions = .35; this.protect(); }
-    if (this.state.phase !== 'raid') return;
     let remaining = dt;
-    while (remaining > 1e-8) { const step = Math.min(.05, remaining); for (const w of this.state.wolves) this.tick(w, step); remaining -= step; }
-    if (this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')) {
-      for (const unit of this.combat.state.units) unit.defendFrom = undefined;
+    while (remaining > 1e-8) { const step = Math.min(.05, remaining); for (const w of this.wolves) this.tick(w, step); remaining -= step; }
+    if (this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')) {
       this.state.phase = 'peace'; this.state.nextAt = now + C.intervalMin + raidRandom(this.state) * (C.intervalMax - C.intervalMin);
       const stolen = this.state.wolves.filter(w => w.mode === 'gone').reduce((n, w) => n + w.carried, 0);
       this.state.notice = stolen ? `狼群离开了 · 带走${stolen}份熟食` : '狼群已被赶走'; this.state.noticeUntil = now + 10;
@@ -159,14 +162,15 @@ export class Raids {
       return;
     }
     if (w.mode === 'gone') return;
-    const now = this.economy.state.seconds, stats = COMBAT_CONFIG.wolf;
+    const now = this.economy.state.seconds, stats = COMBAT_CONFIG.wolf, wild = this.state.wildWolves.includes(w);
     w.cooldown = Math.max(0, w.cooldown - dt); w.planIn = Math.max(0, w.planIn - dt);
     const fireNear = this.economy.state.campfires.some(f => fireIsLit(f) && this.economy.state.sites.some(s => s.id === f.id && distance(s, w.position) < C.fearRadius && this.fireClear(w.position, s)));
     w.fear = Math.max(0, Math.min(10, w.fear + (fireNear ? dt : -dt * .5)));
     const lost = this.state.wolves.filter(n => n.life === 'defeated').length;
-    if (w.hp <= stats.hp * .25 || w.fear >= C.fearSeconds || w.carried || lost >= Math.ceil(this.state.wolves.length / 2) || now - this.state.startedAt >= C.duration) this.flee(w);
+    if (w.hp <= stats.hp * .25 || w.fear >= C.fearSeconds || w.carried || !wild && (lost >= Math.ceil(this.state.wolves.length / 2) || now - this.state.startedAt >= C.duration)) this.flee(w);
     if (w.mode === 'flee') {
-      if (distance(w.position, w.home) < 2 && !this.visible(w.position) && !RESIDENTS.some(r => distance(this.position(r.id), w.position) < 16)) {
+      if (wild && distance(w.position, w.home) < .5 && w.fear < 1 && w.hp > stats.hp * .25) { w.mode = 'approach'; w.defendFrom = undefined; }
+      if (!wild && distance(w.position, w.home) < 2 && !this.visible(w.position) && !RESIDENTS.some(r => distance(this.position(r.id), w.position) < 16)) {
         w.mode = 'gone'; w.route = []; this.syncThreats(); return;
       }
       if (!w.route.length && w.planIn <= 0 && distance(w.position, w.home) >= .3) this.plan(w, [w.home]);
@@ -179,23 +183,25 @@ export class Raids {
       if (!attack.released && attack.elapsed >= stats.windup) {
         attack.released = true;
         if (health(this.economy.state, attack.target) > 0 && distance(w.position, target) <= stats.range + .15 + (attack.target === 'cavalry' ? .72 : 0) && this.clear(w.position, target)) {
-          if (this.combat.unit(attack.target)) this.combat.hurt(attack.target, stats.attack, w.id);
-          else { changeHealth(this.economy.state, attack.target, -stats.attack); this.economy.state.vitals[attack.target].hurtUntil = now + 3; }
+          this.combat.hurt(attack.target, stats.attack, w.id);
         }
       }
       if (attack.elapsed >= stats.windup + stats.recovery) w.attack = undefined;
       return;
     }
-    if (w.target && (health(this.economy.state, w.target) <= 0 || distance(w.position, this.position(w.target)) > 16)) { w.target = undefined; w.route = []; }
-    if (!w.target && w.planIn <= 0) {
-      let best = Infinity;
-      for (const r of RESIDENTS) {
-        const p = this.position(r.id), d = distance(w.position, p);
-        if (health(this.economy.state, r.id) <= 0 || d > C.acquire || !this.clear(w.position, p)) continue;
-        const score = d + this.state.wolves.filter(n => n !== w && n.target === r.id).length * 4;
-        if (score < best) { best = score; w.target = r.id; }
+    const anchor = wild ? w.home : w.defendFrom ?? w.position;
+    if (w.target && (health(this.economy.state, w.target) <= 0 || distance(w.position, this.position(w.target)) > C.chase
+      || distance(anchor, this.position(w.target)) > C.chase)) {
+      w.target = undefined; w.route = []; w.defendFrom = undefined;
+      if (wild) { w.mode = 'flee'; w.planIn = 0; return; }
+    }
+    if ((!w.target || !this.combat.target(w.target)?.canAttack) && w.planIn <= 0) {
+      const candidate = chooseTarget(w, this.combat.targets(), C.acquire,
+        t => this.clear(w.position, t.position) && distance(anchor, t.position) <= C.chase);
+      if (candidate && (!w.target || candidate.canAttack)) {
+        w.target = candidate.id; w.defendFrom ??= { ...anchor };
+        w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = [];
       }
-      if (w.target) { w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = []; }
     }
     if (w.target) {
       const target = this.position(w.target), reach = stats.range + (w.target === 'cavalry' ? .72 : 0);
@@ -206,6 +212,11 @@ export class Raids {
         if (w.planIn <= 0) this.plan(w, circle(target, reach * .85).filter(p => this.clear(p, target)));
         this.travel(w, dt);
       }
+      return;
+    }
+    if (wild) {
+      if (distance(w.position, w.home) > .5) { if (!w.route.length && w.planIn <= 0) this.plan(w, [w.home]); this.travel(w, dt); }
+      else { w.route = []; w.mode = 'approach'; w.defendFrom = undefined; }
       return;
     }
     if (!w.foodTarget && w.planIn <= 0) {

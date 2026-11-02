@@ -17,9 +17,9 @@ test('lethal damage stops a soldier, clears meals and prevents commands or heali
  const restored = decodeEconomy(encodeEconomy(e)); changeHealth(restored.state, u.id, 100);
  assert.equal(restored.state.combat.units.find(v=>v.id===u.id)!.hp, 0); assert.equal(livingPopulation(restored.state), 5);
 });
-test('legacy wounded save migrates to death without reviving and game clock formats boundaries', () => {
+test('obsolete wounded state is rejected and game clock formats boundaries', () => {
  const e = new Economy(), raw = JSON.parse(encodeEconomy(e));
  Object.assign(raw.combat.units[0], { life:'injured', hp:0 });
- const restored = decodeEconomy(JSON.stringify(raw)); assert.equal(restored.state.combat.units[0].life, 'defeated');
+ assert.throws(() => decodeEconomy(JSON.stringify(raw)), /战斗人物存档/);
  assert.deepEqual([0,754,3599,3600,4354].map(formatGameTime), ['00:00','12:34','59:59','01:00:00','01:12:34']);
 });

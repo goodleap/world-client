@@ -3,15 +3,17 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import assert from 'node:assert/strict';
 import { Combat, fighterRadius } from '../src/game/combat.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
-import { COMBAT_CONFIG as C, OUTPOST } from '../src/game/combat-config.ts';
+import { COMBAT_CONFIG as C, OUTPOST, ENCOUNTERS } from '../src/game/combat-config.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
 import type { Obstacle } from '../src/game/movement.ts';
 function setup(solids: Obstacle[] = []) {
   const e = new Economy(), c = new Combat(e.state.combat, e, () => solids);
-  for (const u of c.state.units) u.order = 'hold';
+  // Isolate the duel; other guards still retain their real autonomous AI.
+  for (const u of c.state.units) { u.order = 'guard'; u.position = { x: 60, z: -70 }; u.cooldown = 8; }
   const a = c.unit('infantry')!, b = c.unit('enemy-guard')!, archer = c.unit('archer')!;
-  a.position = { x: OUTPOST.x + 2, z: OUTPOST.z }; b.position = { x: OUTPOST.x + .7, z: OUTPOST.z }; archer.position = { x: OUTPOST.x + 5, z: OUTPOST.z };
+  a.cooldown = archer.cooldown = b.cooldown = 0;
+  a.position = { x: OUTPOST.x + 2, z: OUTPOST.z }; b.position = { x: OUTPOST.x + .7, z: OUTPOST.z }; archer.position = { x: 55, z: -70 };
   return { e, c, a, b, archer };
 }
 function advance(c: Combat, seconds: number, check = () => {}) { for (let i = 0; i < Math.ceil(seconds / .05); i++) { c.update(.05); check(); } }
@@ -26,15 +28,15 @@ test('melee windup hits once and repeated clicks cannot bypass cooldown', () => 
   assert(a.cooldown > 0);
 });
 test('manual move cancels a windup, retains cooldown and suppresses auto acquisition throughout travel', () => {
-  const { c, a, b } = setup(); c.attack([a.id], b.id); c.update(.05);
+  const { c, a, b, archer } = setup(); archer.position = { x: 60, z: -70 }; c.attack([a.id], b.id); c.update(.05);
   const hp = b.hp; assert.equal(c.move([a.id], { x: OUTPOST.x + 12, z: OUTPOST.z }), 1);
   c.update(.05); assert(a.cooldown > 0); assert(!a.attack); assert(!a.target);
   advance(c, 1); assert.equal(a.order, 'move'); assert.equal(b.hp, hp);
 });
-test('idle soldiers do not hunt; both sides retaliate and a manual move wins over incoming hits', () => {
+test('idle soldiers proactively engage; both sides retaliate and manual movement wins', () => {
   const { e, c, a, b } = setup();
   a.order = 'guard'; b.order = 'hold'; b.goal = { ...b.position }; b.cooldown = 8;
-  c.update(.05); assert.equal(a.target, undefined);
+  c.update(.05); assert.equal(a.target, b.id);
   c.attack([a.id], b.id); advance(c, .5);
   assert.equal(b.target, a.id, 'enemy retaliates against its attacker');
   c.move([a.id], { x: OUTPOST.x + 10, z: OUTPOST.z });
@@ -48,7 +50,7 @@ test('idle soldiers do not hunt; both sides retaliate and a manual move wins ove
 });
 test('projectiles release once, persist through reload, and cannot hit through cover', () => {
   const { e, c, a, archer, b } = setup(); a.position = { x: 0, z: 0 }; archer.position = { x: OUTPOST.x + 2, z: OUTPOST.z }; c.attack([archer.id], b.id); advance(c, .05 + C.archer.windup);
-  c.guard([archer.id]); b.cooldown = 8;
+  c.move([archer.id], { x: OUTPOST.x + 20, z: OUTPOST.z }); b.cooldown = 8;
   assert.equal(c.state.projectiles.length, 1); const hp = b.hp;
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
   advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
@@ -60,14 +62,14 @@ test('projectiles release once, persist through reload, and cannot hit through c
 });
 test('archers reposition around cover instead of releasing through it', () => {
   const wall: Obstacle = { kind: 'box', x: OUTPOST.x + 3, z: OUTPOST.z, halfWidth: .3, halfDepth: 2 };
-  const { c, archer, b } = setup([wall]); c.attack([archer.id], b.id);
+  const { c, archer, b } = setup([wall]); archer.position = { x: OUTPOST.x + 5, z: OUTPOST.z }; c.attack([archer.id], b.id);
   c.update(.05); assert(!archer.attack); assert(archer.route.length);
   advance(c, 12, () => assert(!isBlocked(archer.position, .4, [wall])));
   assert(b.hp < C.enemyMelee.hp);
 });
 test('enemy target is stable and chase is limited to the outpost', () => {
   const { c, a, b } = setup(); b.order = 'guard'; c.update(.05); assert.equal(b.target, a.id);
-  a.position = { x: OUTPOST.x + 20, z: OUTPOST.z }; c.unit('archer')!.position = { x: 0, z: 0 }; c.update(.05);
+  a.position = { x: OUTPOST.x + 20, z: OUTPOST.z }; c.move([a.id], { x: OUTPOST.x + 35, z: OUTPOST.z }); c.unit('archer')!.position = { x: 0, z: 0 }; c.update(.05);
   assert.equal(b.order, 'hold'); assert.equal(b.target, undefined);
   advance(c, 4); assert(Math.hypot(b.position.x - b.home.x, b.position.z - b.home.z) < .5);
 });
@@ -97,15 +99,15 @@ test('outpost reward is a single ground delivery; reload and capacity cannot min
   const { e, c } = setup();
   for (const u of c.state.units.filter(u => u.team === 'enemy')) { u.hp = 0; u.life = 'defeated'; }
   const inventory = { ...e.state.inventory }; c.update(.05);
-  assert(c.state.rewardGranted); assert.equal(e.state.goods.length, 7); assert.deepEqual(e.state.inventory, inventory);
+  assert(c.state.rewardGranted); assert.equal(e.state.goods.length, ENCOUNTERS.reduce((n, camp) => n + Object.keys(camp.reward).length, 0)); assert.deepEqual(e.state.inventory, inventory);
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
-  advance(next, 2); restored.advance(.05); assert.equal(restored.state.goods.length, 7);
+  advance(next, 2); restored.advance(.05); assert.equal(restored.state.goods.length, e.state.goods.length);
   assert.deepEqual(restored.state.inventory, inventory);
   const wood = restored.state.goods.find(g => g.resource === 'wood')!;
   const task = restored.taskFor(wood.id)!; restored.assign(task.id); restored.arrive(task.id);
   restored.state.inventory.wood = restored.capacity().wood - 1; restored.arrive(task.id);
   assert.equal(wood.amount, C.reward.wood - 1); assert.equal(restored.state.inventory.wood, restored.capacity().wood);
-  next.update(.05); assert.equal(restored.state.goods.length, 7);
+  next.update(.05); assert.equal(restored.state.goods.length, e.state.goods.length);
 });
 test('pause freezes every combat field; corrupt or old saves are rejected', () => {
   const { e, c, a, b } = setup(); c.attack([a.id], b.id); c.update(.05);
@@ -139,7 +141,7 @@ test('both sides sustain at least triple the former attack cadence, including mo
     const attacker = c.unit(id)!, target = c.unit(attacker.team === 'home' ? 'enemy-guard' : 'infantry')!;
     attacker.position = { x: OUTPOST.x, z: OUTPOST.z }; target.position = { x: OUTPOST.x + 1.58, z: OUTPOST.z };
     for (const other of c.state.units) if (other !== attacker && other !== target) other.position = { x: 20, z: 20 };
-    attacker.order = 'attack'; attacker.target = target.id; target.cooldown = 8;
+    attacker.cooldown = 0; attacker.order = 'attack'; attacker.target = target.id; target.cooldown = 8;
     const starts: number[] = []; let last = 0;
     for (let i = 0; i < 80; i++) {
       target.hp = 140; target.life = 'active'; c.update(.05);

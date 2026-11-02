@@ -9,7 +9,7 @@ test('dead soldiers, enemy and wolf hold, pause, resume saved sinking and disapp
  const e=new Economy();e.setLeadership(false);e.state.seconds=100;
  const c=new Combat(e.state.combat,e,()=>[]);
  for(const [i,id] of ['infantry','archer','cavalry','enemy-guard'].entries()) {
-  const u=c.unit(id)!;u.position={x:-3+i*2.5,z:-3};c.hurt(id,10000,'enemy-sentry');
+  const u=c.unit(id)!;u.position={x:-3+i*2.5,z:-3};c.hurt(id,10000,id.startsWith('enemy-')?'infantry':'enemy-sentry');
  }
  const wolf=newWolf('wolf-1-0',{x:0,z:-6});wolf.hp=0;wolf.life='defeated';wolf.diedAt=100;
  Object.assign(e.state.raids,{wave:1,phase:'raid',origin:{x:0,z:-6},startedAt:100,wolves:[wolf]});

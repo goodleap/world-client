@@ -68,6 +68,7 @@ export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator,
     get runPlaybackRate() { return undefined; },
     get runReferenceSpeed() { return undefined; },
     async loadModel() {},
+    freezePose() {},
     lodInfo() { return undefined; },
     update(seconds: number, vx: number, vz: number, _purposeful = false, _feeding = false) {
       const speed = Math.hypot(vx, vz);

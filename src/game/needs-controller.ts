@@ -3,7 +3,7 @@ import type { Combat } from './combat.ts';
 import type { createResidents } from './residents.ts';
 import { RESIDENTS, ENEMIES, canResidentSupply } from './resident-data.ts';
 import { CAMPFIRE_CONFIG as F, fireIsLit } from './campfire.ts';
-import { VITAL_CONFIG as V, bodiesFor, health, maxHealth, needsFood, eat } from './vitals.ts';
+import { VITAL_CONFIG as V, bodiesFor, alive, health, maxHealth, needsFood, eat } from './vitals.ts';
 import type { Vital } from './vitals.ts';
 import type { Point } from './movement.ts';
 import { GRID_SIZE } from './world-data.ts';
@@ -125,11 +125,11 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       // Called after an accepted click, so preserve the newly installed route.
       finish(id, false); e.state.vitals[id].manualUntil = e.state.seconds + V.manualGrace;
     },
-    canTakeWork(id: string) { return combat.unit(id)?.life !== 'defeated' && !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
+    canTakeWork(id: string) { return alive(e.state, id) && !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
     update(seconds: number) {
       if (!Number.isFinite(seconds) || seconds <= 0) return;
       for (const r of allResidents) {
-        const u = combat.unit(r.id); if (u?.life === 'defeated') continue;
+        const u = combat.unit(r.id); if (!alive(e.state, r.id)) continue;
         const state = status(r.id), vital = e.state.vitals[r.id];
         const rate = vital.rest && !(u ? u.speed > .08 : state.moving) ? 0 : u?.attack || u?.target ? V.combatDrain : state.working ? V.workDrain : state.speed > .08 ? V.movingDrain : V.idleDrain;
         for (const id of bodiesFor(r.id)) e.state.vitals[id].stamina = Math.max(0, e.state.vitals[id].stamina - rate * seconds);
