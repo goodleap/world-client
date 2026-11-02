@@ -11,7 +11,7 @@ import type { Economy } from './economy.ts';
 import { effort, VITAL_CONFIG } from './vitals.ts';
 
 export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold' | 'rest';
-export type CombatLife = 'active' | 'injured' | 'defeated';
+export type CombatLife = 'active' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
   hp: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
@@ -158,7 +158,10 @@ export class Combat {
     this.economy.interrupt(target.position, target.id);
     this.economy.state.vitals[target.id].rest = undefined;
     this.stop(target); target.attack = undefined; target.target = undefined; target.goal = undefined;
-    target.life = target.team === 'home' ? 'injured' : 'defeated';
+    target.life = 'defeated';
+    for (const id of target.id === 'cavalry' ? ['cavalry', 'horse'] : [target.id]) {
+      this.economy.state.vitals[id].rest = undefined; this.economy.state.vitals[id].meal = undefined;
+    }
     target.order = 'hold'; target.planIn = 0;
   }
   private travel(u: Fighter, dt: number, speed: number) {
@@ -195,11 +198,11 @@ export class Combat {
       if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || u.team === 'enemy' && u.order === 'hold') {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
-          this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id) * (u.life === 'injured' ? .5 : 1));
-        } else { this.stop(u); u.goal = undefined; u.order = u.team === 'enemy' ? 'guard' : u.order === 'retreat' || u.order === 'rest' || u.life === 'injured' ? 'hold' : 'guard'; }
+          this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
+        } else { this.stop(u); u.goal = undefined; u.order = u.team === 'enemy' ? 'guard' : u.order === 'retreat' || u.order === 'rest' ? 'hold' : 'guard'; }
         continue;
       }
-      if (u.life === 'injured' || u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
+      if (u.order === 'hold' || this.economy.state.vitals[u.id]?.rest) continue;
       if (u.team === 'enemy' && (distance(u.position, this.camp(u)) > this.camp(u).leash || u.target && distance(this.unit(u.target)!.position, this.camp(u)) > this.camp(u).leash)) {
         u.order = 'hold'; u.goal = { ...u.home }; u.target = undefined; u.attack = undefined; this.stop(u); continue;
       }
@@ -307,15 +310,18 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [])
       || c.rewardGranted !== c.cleared || !num(c.respawnAt, 1e12) || !Number.isSafeInteger(c.cycle) || c.cycle < 0)) throw new Error('区域存档无效');
   for (const template of initial.units) {
     const units = raw.units.filter(u => u.id === template.id), u = units[0];
+    // Legacy zero-health wounded soldiers adopt permanent death; never heal on migration.
+    if ((u?.life as string) === 'injured' && u.hp === 0 && u.team === 'home') u.life = 'defeated';
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
-      || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'injured', 'defeated'].includes(u.life)
+      || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'defeated'].includes(u.life)
       || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
-      || u.team === 'home' && u.life === 'defeated' || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');
+      || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');
     if (u.attack && (!Number.isSafeInteger(u.attack.id) || u.attack.id < 1 || u.attack.id >= raw.nextAttack
       || !num(u.attack.elapsed, 3) || typeof u.attack.released !== 'boolean' || !opponents.some(t => t.id === u.attack!.target && t.team !== u.team))) throw new Error('攻击存档无效');
+    if (u.life === 'defeated') { u.order = 'hold'; u.goal = undefined; u.target = undefined; u.attack = undefined; u.route = []; }
     u.navigation = createRouteState(); u.planIn = 0; u.speed = 0;
   }
   if (raw.cleared !== raw.camps.every(c => c.cleared) || raw.camps.some(c => c.cleared !== raw.units.filter(u => ENEMIES.find(r => r.id === u.id)?.camp === c.id).every(u => u.life === 'defeated'))) throw new Error('据点存档不一致');

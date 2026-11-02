@@ -82,16 +82,16 @@ test('actual map paths and shared crowd follower keep soldiers out of solids and
   });
   assert(c.unit('enemy-guard')!.hp < C.enemyMelee.hp);
 });
-test('injury holds position without automatic home recovery or warehouse food charges', () => {
+test('death holds position without automatic home recovery or warehouse food charges', () => {
   const { e, c, a, b } = setup(); a.hp = 1; b.order = 'guard'; e.state.inventory.food = 30;
-  advance(c, 1); assert.equal(a.life, 'injured'); assert.equal(a.hp, 0);
+  advance(c, 1); assert.equal(a.life, 'defeated'); assert.equal(a.hp, 0);
   const where = { ...a.position }; advance(c, 35);
   assert.deepEqual(a.position, where); assert.equal(a.hp, 0); assert.equal(e.state.inventory.food, 30);
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
-  advance(next, 30); assert.equal(next.unit(a.id)!.life, 'injured'); assert.equal(next.unit(a.id)!.hp, 0);
+  advance(next, 30); assert.equal(next.unit(a.id)!.life, 'defeated'); assert.equal(next.unit(a.id)!.hp, 0);
   assert.equal(restored.state.inventory.food, 30);
-  assert.equal(next.move([a.id], { x: OUTPOST.x + 10, z: OUTPOST.z }, true), 1);
-  advance(next, 1); assert(next.unit(a.id)!.position.x > where.x);
+  assert.equal(next.move([a.id], { x: OUTPOST.x + 10, z: OUTPOST.z }, true), 0);
+  advance(next, 1); assert.deepEqual(next.unit(a.id)!.position, where);
 });
 test('outpost reward is a single ground delivery; reload and capacity cannot mint inventory', () => {
   const { e, c } = setup();

@@ -8,7 +8,7 @@ import type { Point } from './movement.ts';
 import { ellipsoid, roundedBox } from './environment-shapes.ts';
 
 type Building = Point & { id: string; depth: number };
-const OPEN = .3, HOLD_END = 1.2, END = 1.55, ANGLE = Math.PI * .38;
+const OPEN = .3, HOLD_END = 1.2, END = 1.55, ANGLE = -Math.PI * .38;
 
 /** One native hinge track per building. Only active doors consume game time;
  * the paused AnimationGroup is sampled by the same clock as the simulation. */

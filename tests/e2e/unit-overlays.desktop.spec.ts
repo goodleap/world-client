@@ -30,7 +30,7 @@ test('names stay compact, healing feedback uses the game clock, and labels follo
   expect(nameBox.width).toBe(originalWidth);
   expect(barBox.width).toBe(32); expect(barBox.height).toBe(3);
   expect(Math.abs(barBox.x + 16 - nameBox.x - nameBox.width / 2)).toBeLessThan(1);
-  expect(barBox.y - nameBox.y - nameBox.height).toBeGreaterThanOrEqual(2);
+  expect(nameBox.y - barBox.y - barBox.height).toBeGreaterThanOrEqual(2);
   await page.screenshot({ path: info.outputPath('farmer-healing-desktop.png') });
   await page.locator('#settings').click();
   const frozen = await bar.evaluate(b => ({ hidden: (b as HTMLElement).hidden, hp: b.getAttribute('aria-valuenow'), fill: b.firstElementChild!.getAttribute('style') }));

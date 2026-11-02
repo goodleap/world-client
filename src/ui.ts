@@ -13,6 +13,7 @@ export interface SelectionDetails { showHint?: boolean; name: string; kind: stri
 export interface QueueRow { id: number; title: string; status: string; progress: number; reason: string; cancellable: boolean }
 
 const icons = {
+  hammer: '<path d="m14 3 7 7-3 3-3-3-9 11-3-3 11-9-3-3Z"/>',
   home: '<path d="m3 11 9-8 9 8M5 10v10h14V10M10 20v-6h4v6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
   leaf: '<path d="M20 4C9 2 3 8 5 15s15 6 15-11ZM5 20 16 9"/>',
@@ -36,8 +37,8 @@ export function createUI(app: HTMLElement) {
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
-      <div class="brand"><button id="home-resources" class="brand-icon" aria-label="家园资源" title="查看资源">${icon('home')}</button><div><h1>家园漫游</h1><p>A LITTLE PLACE TO GROW</p></div></div>
-      <div class="weather">${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
+      <button id="home-resources" class="home-summary" aria-label="家园资源" title="查看库存详情"><span id="population">人口 6</span><span id="resource-summary"></span></button>
+      <div class="weather"><time id="game-time">00:00</time>${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="约每半秒更新。FPS 与 CPU 为这段时间的平均值；CPU 包含游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。三角形为采样帧实际提交总量，包含主画面、阴影等渲染通道。">
@@ -73,7 +74,7 @@ export function createUI(app: HTMLElement) {
         <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
       </div>
       <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
-      <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('home')}建筑</button>
+      <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('hammer')}建造</button>
     </nav>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -88,7 +89,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">太阳光颜色<input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><p id="graphics-notice" class="dialog-note" role="status" hidden></p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。生命归零后停止作战，仍可缓慢移动；到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -349,8 +350,18 @@ export function createUI(app: HTMLElement) {
     },
     ready() { loading = false; if (backgroundPaused) showBackgroundPause(); onPauseChange(); focusGame(); },
     bindEconomy(action: (id: string) => void, cancel: (id: number) => void) { onAction = action; onCancel = cancel; },
+    setHomeStatus(population: number, time: string) {
+      get('population').textContent = `人口 ${population}`;
+      if (get('game-time').textContent !== time) get('game-time').textContent = time;
+    },
+    positionResidentLabel(id: string, x: number, y: number) {
+      const label = residentLabels.get(id); if (!label) return;
+      const transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) translate(-50%, -100%)`;
+      if (label.style.transform !== transform) label.style.transform = transform;
+    },
     setResources(values: { name: string; amount: number; capacity: number; reserved: number; ground?: number; transit?: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
+      get('resource-summary').textContent = values.map(v => `${v.name.slice(0, 1)} ${v.amount}`).join(' · ');
       get('inventory').replaceChildren(...values.map(value => {
         const cell = document.createElement('span');
         cell.textContent = `${value.name} ${value.amount}/${value.capacity}`;

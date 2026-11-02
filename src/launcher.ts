@@ -54,12 +54,21 @@ export function createLauncher() {
   let confirmNew = false;
   let percent = 0;
   const report: ReportProgress = (value, description) => {
-    percent = Math.max(percent, Math.min(100, Math.floor(value)));
+    percent = Math.max(percent, Math.min(100, Math.round(value * 10) / 10));
     progress.value = percent;
     progress.textContent = `${percent}%`;
     get('loading-percent').textContent = `${percent}%`;
     get('loading-description').textContent = description;
   };
+  const unsubscribe = loadingProgress.subscribe(() => {
+    if (screen.dataset.phase !== 'game-loading') return;
+    const active = [...loadingProgress.items.values()].filter(i => i.state === 'working');
+    const stage = active.filter(i => i.kind === 'stage').at(-1);
+    const downloads = active.filter(i => i.kind === 'download');
+    report(Math.min(99.9, loadingProgress.gamePercent()), stage?.name ?? (downloads.length ? '正在下载模型资源…' : '正在完成当前阶段…'));
+  });
+  for (const [id, name, weight] of [['engine', '游戏引擎与代码准备', 8], ['map', '地图与基础材质构建', 12],
+    ['shaders', '材质、纹理与着色器就绪', 5], ['first-frame', '首帧显示', 1]] as const) loadingProgress.plan(id, name, weight);
   get('retry-loading').addEventListener('click', () => location.reload(), { signal: abort.signal });
   const enter = (mode: StartMode) => {
     if (start.disabled || mode === 'continue' && resume.disabled) return;
@@ -86,7 +95,7 @@ export function createLauncher() {
         ready: '已有进度，继续照料你的家园。', empty: '暂无存档，开始建立你的家园。',
         invalid: '现有存档无法读取，原数据已保留。', unavailable: '浏览器暂时无法读取进度。',
       }[saveStatus];
-      (saveStatus === 'ready' ? resume : start).focus({ preventScroll: true });
+
     },
     exit(onMenu: () => void) {
       screen.className = 'loading menu-screen'; screen.dataset.phase = 'exited';
@@ -97,7 +106,7 @@ export function createLauncher() {
     },
     beginGame() {
       details.open = false;
-      percent = 0;
+      percent = 0; loadingProgress.resetGame();
       screen.className = 'loading game-loading'; screen.dataset.phase = 'game-loading';
       menu.hidden = true; exit.hidden = true; panel.hidden = false;
       get('loading-meter').hidden = false; get('retry-loading').hidden = true;
@@ -121,8 +130,8 @@ export function createLauncher() {
       get('retry-loading').hidden = false;
       get('retry-loading').focus({ preventScroll: true });
     },
-    dispose() { clearInterval(ticker); abort.abort(); confirmation.close(); },
+    dispose() { unsubscribe(); clearInterval(ticker); abort.abort(); confirmation.close(); },
   };
 }
 
-export const nextPaint = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+export const nextPaint = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

@@ -125,7 +125,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       // Called after an accepted click, so preserve the newly installed route.
       finish(id, false); e.state.vitals[id].manualUntil = e.state.seconds + V.manualGrace;
     },
-    canTakeWork(id: string) { return !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
+    canTakeWork(id: string) { return combat.unit(id)?.life !== 'defeated' && !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
     update(seconds: number) {
       if (!Number.isFinite(seconds) || seconds <= 0) return;
       for (const r of allResidents) {
@@ -168,7 +168,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     },
     label(id: string) {
       const v = e.state.vitals[id], u = combat.unit(id);
-      const suffix = v.rest ? notes.get(id) ?? (bodiesFor(id).some(b => e.state.vitals[b].meal) ? '进食' : '去休整') : u?.life === 'injured' ? '重伤' : '';
+      const suffix = v.rest ? notes.get(id) ?? (bodiesFor(id).some(b => e.state.vitals[b].meal) ? '进食' : '去休整') : u?.life === 'defeated' ? '死亡' : '';
       return `${Math.ceil(health(e.state, id))}/${maxHealth(id)} · 体${Math.floor(v.stamina)}${id === 'cavalry' ? ` · 马${Math.ceil(health(e.state, 'horse'))}/160 体${Math.floor(e.state.vitals.horse.stamina)}` : ''}${suffix ? ` · ${suffix}` : ''}`;
     },
   };

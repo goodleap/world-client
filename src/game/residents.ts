@@ -1,3 +1,4 @@
+import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
 import type { Fighter } from './combat.ts';
 import { fighterStats } from './combat.ts';
@@ -53,8 +54,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const seed = import.meta.env.VITE_E2E === 'true' ? 624 : Math.floor(Math.random() * 0xffffffff);
   const selectionMaterial = new StandardMaterial('unit-selection', scene);
   selectionMaterial.emissiveColor = Color3.FromHexString('#62e4ff'); selectionMaterial.disableLighting = true;
-  const enemyMaterial = new StandardMaterial('enemy-marker', scene);
-  enemyMaterial.emissiveColor = Color3.FromHexString('#b54835'); enemyMaterial.disableLighting = true;
   const actors = [...RESIDENTS, ...ENEMIES].map((definition, index) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);
@@ -74,7 +73,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if (definition.role === 'dog') { hit.position.y = .65; hit.scaling.set(.9, .8, 1.2); }
     hit.metadata = { selectionKind: 'resident', id: definition.id };
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
-    marker.parent = root; marker.position.y = 0.08; marker.material = definition.id.startsWith('enemy-') ? enemyMaterial : selectionMaterial; marker.isPickable = false; marker.setEnabled(definition.id.startsWith('enemy-'));
+    marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
     return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
@@ -190,6 +189,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer');
       for (const [index, actor] of farmers.entries()) {
+        await nextPaint();
         const result = await library.instantiate('farmer', actor.root);
         loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         if (actor === farmer) farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
@@ -225,6 +225,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     async loadSoldierModels(report?: ResourceProgress) {
       const soldiers = actors.filter(actor => soldierAssets.some(asset => asset.role === actor.definition.role));
       for (const [index, actor] of soldiers.entries()) {
+        await nextPaint();
         const asset = soldierAssets.find(a => a.role === actor.definition.role)!;
         const roleProgress = (fraction: number) => report?.((index + fraction) / soldiers.length);
         const result = await library.instantiate(asset.role, actor.root);
@@ -279,7 +280,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.route.length = 0; actor.state.target = undefined;
         if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, 0, u.position.z);
         if (actor.root.isEnabled() !== (u.life !== 'defeated')) actor.root.setEnabled(u.life !== 'defeated');
-        if (u.life === 'defeated') actor.label.hidden = true;
+        if (u.life === 'defeated') {
+          actor.label.hidden = true; actor.marker.setEnabled(false); resting.delete(u.id); works.delete(u.id);
+          if (selected === actor) { selected = undefined; ui.setResident(); ui.setCombatHint(false); }
+        }
         if (actor.facing !== u.facing || !actor.root.rotationQuaternion) {
           actor.facing = u.facing; actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
@@ -349,8 +353,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     }),
     farmerLegPose: () => farmerBones.find(bone => bone.name === 'thigh.L')?.getTransformNode()?.rotationQuaternion?.asArray() ?? [],
     select(id?: string) {
-      actors.forEach(a => a.marker.setEnabled(a.definition.id.startsWith('enemy-')));
-      selected = actors.find((actor) => actor.definition.id === id);
+      actors.forEach(a => a.marker.setEnabled(false));
+      selected = actors.find((actor) => actor.definition.id === id && !id?.startsWith('enemy-') && combatPoses.get(id)?.life !== 'defeated');
       selected?.marker.setEnabled(true);
       return selected?.definition.name;
     },
@@ -364,7 +368,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && !works.has(actor.definition.id)),
     command(point: Point, id = selected?.definition.id, exact = false) {
       const actor = actors.find(entry => entry.definition.id === id);
-      if (!actor) return false;
+      if (!actor || combatPoses.get(actor.definition.id)?.life === 'defeated') return false;
       const path = exact ? planWorkApproach(actor.state.position, [point], actor.settings.bodyRadius, actor.settings.bounds,
         obstaclesFor(actor.definition.role), workNeighbours(actor)) : planMoveDestination(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds,
         obstaclesFor(actor.definition.role), workNeighbours(actor));
@@ -503,8 +507,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (actor.label.hidden !== !visible) actor.label.hidden = !visible;
         if (!visible) { ui.positionSpeech(actor.definition.id, 0, 0, false); continue; }
         ui.positionSpeech(actor.definition.id, projected.x, projected.y, visible);
-        const transform = `translate(${projected.x.toFixed(2)}px, ${projected.y.toFixed(2)}px) translate(-50%, -100%)`;
-        if (actor.label.style.transform !== transform) actor.label.style.transform = transform;
+        ui.positionResidentLabel(actor.definition.id, projected.x, projected.y);
       }
     },
     snapshot: () => actors.map((actor) => ({

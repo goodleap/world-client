@@ -10,6 +10,7 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import type { AssetContainer } from '@babylonjs/core/assetContainer';
+import { nextPaint } from '../launcher.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { modelAssets } from './model-assets.ts';
 import { modelData, modelOptions } from './asset-cache.ts';
@@ -56,11 +57,17 @@ export function createCharacterLibrary(scene: Scene) {
       }
       return container;
     };
-    const [high, low, far] = await Promise.all([loadOne(modelAssets.characters), loadOne(modelAssets.characterLOD), loadOne(modelAssets.characterFarLOD)]);
-    for (const container of [high, low, far]) {
+    const urls = [modelAssets.characters, modelAssets.characterLOD, modelAssets.characterFarLOD];
+    await Promise.all(urls.map(url => modelData(url)));
+    const prepared: AssetContainer[] = [];
+    for (const url of urls) { await nextPaint(); prepared.push(await loadOne(url)); }
+    const [high, low, far] = prepared;
+    for (const [i, container] of [high, low, far].entries()) {
+      loadingProgress.begin(urls[i] + ':materials', '共享材质合批'); await nextPaint();
       prepareMaterials(container.materials);
       batchCharacterMaterials(container.meshes);
       for (const material of new Set(container.meshes.map(mesh => mesh.material))) material?.freeze();
+      loadingProgress.done(urls[i] + ':materials');
     }
     humanActions = high.animationGroups.filter(group => !group.name.startsWith('Horse')).map(group => group.name);
     return { high, low, far };

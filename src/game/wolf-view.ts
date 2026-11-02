@@ -28,6 +28,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   const geometry = (n: number) => (source.meshes.find(m => level(m) === n) as Mesh | undefined)?.geometry;
   const medium = geometry(1), far = geometry(2);
   if (!medium || !far) throw new Error('灰狼缺少远景模型');
+  loadingProgress.begin('wolves:attach', '灰狼：实例与动作挂接');
   const pool = Array.from({ length: RAID_CONFIG.maxWolves }, (_, index) => {
     const instance = source.instantiateModelsToScene(name => name, false, { doNotInstantiate: true, predicate: entity => level(entity) === undefined || level(entity) === 0 });
     const root = new TransformNode(`wolf-pool-${index}`, scene);
@@ -45,6 +46,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
     mesh.material?.freeze(); root.setEnabled(false);
     return { root, mesh, lod, clips: new Map(instance.animationGroups.map(g => [g.name, g])), id: '', label: undefined as HTMLElement | undefined, clip: '', phase: -1, visible: false };
   });
+  loadingProgress.done('wolves:attach');
   const point = new Vector3(), projected = new Vector3(), identity = Matrix.Identity();
   const planes = Frustum.GetPlanes(Matrix.Identity());
   return {
@@ -91,7 +93,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         const visible = actor.visible && (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50 && projected.z >= 0 && projected.z <= 1
           && projected.x >= 0 && projected.x <= width && projected.y >= 0 && projected.y <= height;
         actor.label.hidden = !visible;
-        if (visible) actor.label.style.transform = `translate(${projected.x.toFixed(2)}px, ${projected.y.toFixed(2)}px) translate(-50%, -100%)`;
+        if (visible) ui.positionResidentLabel(actor.id, projected.x, projected.y);
       }
     },
     snapshot: () => pool.map(a => ({ id: a.id, active: a.root.isEnabled(), visible: a.visible, clip: a.clip, phase: a.phase,

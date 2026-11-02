@@ -1,0 +1,21 @@
+[WebServer] (node:3601) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] (node:3641) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:3665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [desktop-chromium] › tests/e2e/hud-death.desktop.spec.ts:6:1 › corner controls, compact stock/time, permanent death and focus styling survive viewport changes and reload (53.3s)
+  ✓  2 [desktop-chromium] › tests/e2e/unit-overlays.desktop.spec.ts:6:1 › names stay compact, healing feedback uses the game clock, and labels follow all four screen edges (2.2m)
+(node:4357) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 [mobile-chromium] › tests/e2e/loading-details.mobile.spec.ts:4:1 › loading details explain a stalled shared download and complete processing separately (21.7s)
+
+  3 passed (3.6m)

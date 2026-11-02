@@ -1,3 +1,4 @@
+import { livingPopulation, formatGameTime } from './home-status.ts';
 import { Raids } from './raids.ts';
 import { createWolfView } from './wolf-view.ts';
 import { createNeedsController } from './needs-controller.ts';
@@ -24,7 +25,6 @@ import { createSelectionFeedback } from './selection-feedback.ts';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 import { nextPaint } from '../launcher.ts';
-import type { ReportProgress } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
 import { objectAtFace } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
@@ -43,7 +43,7 @@ import { createBuildingPlacement } from './building-placement.ts';
 import { readLighting, saveLighting, readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
-export async function createGame(ui: GameUI, report: ReportProgress = () => {}, economy = new Economy()) {
+export async function createGame(ui: GameUI, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   installMatteMaterials(scene);
@@ -74,19 +74,19 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   let residents: ReturnType<typeof createResidents>;
   let wolves: Awaited<ReturnType<typeof createWolfView>>;
   try {
-    report(10, '正在铺好小路、布置房屋与树木…');
+
     await nextPaint();
     world = await loadingProgress.run('map', '地图与基础材质构建', () => buildWorld(scene, palette, shadows, economy));
     residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals);
-    report(20, '正在迎接农民…');
-    await residents.loadFarmerModel(fraction => report(20 + 27 * fraction, '正在迎接农民…'));
-    report(47, '正在迎接步兵、骑兵与弓兵…');
-    await residents.loadSoldierModels(fraction => report(47 + 33 * fraction, '正在迎接步兵、骑兵与弓兵…'));
-    report(80, '正在准备其他居民…');
-    await residents.loadRolePlaceholders(fraction => report(80 + 8 * fraction, '正在准备其他居民…'));
+
+    await residents.loadFarmerModel();
+
+    await residents.loadSoldierModels();
+
+    await residents.loadRolePlaceholders();
     wolves = await createWolfView(scene, shadows, ui);
     releaseModelDownloads();
-    report(90, '正在准备光影与地图画面…');
+
     await nextPaint();
   } catch (error) {
     scene.dispose(); engine.dispose(); throw error;
@@ -142,6 +142,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   };
   const refreshEconomy = () => {
     updateEconomyUI(ui, economy);
+    ui.setHomeStatus(livingPopulation(economy.state), formatGameTime(economy.state.seconds));
     for (const id of Object.keys(economy.state.vitals)) {
       ui.setUnitHealth(id, health(economy.state, id), maxHealth(id), economy.state.seconds, id === 'horse' ? 'cavalry' : id);
     }
@@ -480,11 +481,19 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   if (suspended) ui.pauseForBackground();
   else engine.runRenderLoop(render);
   try {
-    await loadingProgress.run('shaders', '材质、纹理与着色器就绪', () => scene.whenReadyAsync());
+    await loadingProgress.run('shaders', '材质、纹理与着色器就绪', async () => {
+      const meshes = scene.meshes.filter(m => m.isEnabled() && m.getTotalVertices()), textures = scene.textures;
+      while (!scene.isReady()) {
+        const ready = meshes.filter(m => m.isReady(true)).length + textures.filter(t => t.isReady()).length;
+        loadingProgress.work('shaders', ready, meshes.length + textures.length);
+        await nextPaint();
+      }
+      await scene.whenReadyAsync();
+    });
     const failed = loadingProgress.snapshot().find(item => item.state === 'failed' && item.kind === 'download');
     if (failed) throw new Error(`${failed.name}：${failed.error}`);
     loadingProgress.begin('first-frame', '首帧显示');
-    report(98, '正在打开家园…');
+
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
     performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
@@ -497,6 +506,7 @@ export async function createGame(ui: GameUI, report: ReportProgress = () => {}, 
   return {
     save,
     diagnosticReport: () => ({
+      loading: loadingProgress.snapshot(),
       lighting: { ...lighting },
       performance: { ...compactPerformanceLog(performanceDiagnostics.snapshot()), paused: ui.paused, suspended, renderedFrames },
       camera: cameraState(),

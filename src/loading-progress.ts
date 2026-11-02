@@ -2,7 +2,7 @@ export type LoadState = 'waiting' | 'working' | 'done' | 'failed';
 export interface LoadItem {
   id: string; name: string; kind: 'download' | 'stage'; state: LoadState;
   loaded?: number; total?: number; started?: number; ended?: number; updated: number; error?: string;
-  note?: string;
+  note?: string; weight?: number; expectedBytes?: number; fraction?: number;
   request?: { url: string; startMs?: number; responseStartMs?: number; responseEndMs?: number; durationMs?: number;
     status?: number; transferBytes?: number; encodedBytes?: number; decodedBytes?: number; protocol?: string };
 }
@@ -10,6 +10,28 @@ export interface LoadItem {
 /** Shared by the small launcher and the lazy engine chunk. No scene is created. */
 export class LoadingProgress {
   readonly items = new Map<string, LoadItem>();
+  private listeners = new Set<() => void>();
+  subscribe(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  private changed() { for (const listener of this.listeners) listener(); }
+  plan(id: string, name: string, weight: number, kind: LoadItem['kind'] = 'stage', expectedBytes?: number) {
+    this.register(id, name, kind); Object.assign(this.items.get(id)!, { weight, expectedBytes }); this.changed();
+  }
+  work(id: string, completed: number, total: number) {
+    const item = this.items.get(id)!;
+    item.fraction = total > 0 ? Math.min(.99, completed / total) : 0;
+    item.updated = this.clock(); this.changed();
+  }
+  gamePercent() {
+    return [...this.items.values()].reduce((sum, item) => sum + (item.weight ?? 0) * (item.state === 'done' ? 1
+      : item.kind === 'download' && (item.total ?? item.expectedBytes) ? Math.min(.99, (item.loaded ?? 0) / (item.total ?? item.expectedBytes)!)
+      : item.fraction ?? 0), 0);
+  }
+  resetGame() {
+    for (const item of this.items.values()) if (item.kind === 'stage' && item.weight && item.id !== 'engine') {
+      item.state = 'waiting'; item.fraction = 0; item.started = item.ended = undefined;
+    }
+    this.changed();
+  }
   private clock: () => number;
   constructor(clock = () => performance.now()) { this.clock = clock; }
   register(id: string, name: string, kind: LoadItem['kind'] = 'stage') {
@@ -18,20 +40,21 @@ export class LoadingProgress {
   begin(id: string, name: string, kind: LoadItem['kind'] = 'stage') {
     this.register(id, name, kind);
     Object.assign(this.items.get(id)!, { name, state: 'working', started: this.clock(), ended: undefined,
-      updated: this.clock(), error: undefined, loaded: kind === 'download' ? 0 : undefined, total: undefined });
+      updated: this.clock(), fraction: 0, error: undefined, loaded: kind === 'download' ? 0 : undefined, total: undefined });
+    this.changed();
   }
   bytes(id: string, loaded: number, total?: number) {
     const item = this.items.get(id)!;
     if (loaded !== item.loaded || total !== item.total) item.updated = this.clock();
-    item.loaded = loaded; item.total = total && total > 0 ? total : undefined;
+    item.loaded = loaded; item.total = total && total > 0 ? total : undefined; this.changed();
   }
   done(id: string) {
-    Object.assign(this.items.get(id)!, { state: 'done', ended: this.clock(), updated: this.clock() });
+    Object.assign(this.items.get(id)!, { state: 'done', ended: this.clock(), updated: this.clock() }); this.changed();
   }
   fail(id: string, error: unknown) {
     const item = this.items.get(id); if (!item) return;
     Object.assign(item, { state: 'failed', ended: this.clock(), updated: this.clock(),
-      error: error instanceof Error ? error.message : String(error) });
+      error: error instanceof Error ? error.message : String(error) }); this.changed();
   }
   async run<T>(id: string, name: string, action: () => T | Promise<T>): Promise<T> {
     this.begin(id, name);

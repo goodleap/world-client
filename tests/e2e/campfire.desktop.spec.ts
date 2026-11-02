@@ -7,7 +7,7 @@ test('build, carry warehouse supplies, cook, heal, pause and reload the same par
   test.setTimeout(360_000);
   const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 24, stone: 8, food: 16, iron: 0 };
   const soldier = e.state.combat.units.find(u => u.id === 'infantry')!;
-  Object.assign(soldier, { hp: 0, life: 'injured', order: 'hold', position: { x: -2.7, z: -10 } });
+  Object.assign(soldier, { hp: 1, life: 'active', order: 'hold', position: { x: -2.7, z: -10 } });
   e.state.vitals.infantry.stamina = 100; // Injury alone must trigger automatic healing.
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: ECONOMY_SAVE_KEY, value: encodeEconomy(e) });
   const errors = await openGame(page);
@@ -30,7 +30,7 @@ test('build, carry warehouse supplies, cook, heal, pause and reload the same par
   await selectUnit(page, 'infantry'); await expect(page.locator('#resident-eat, [data-action="eat-here"]')).toHaveCount(0);
   await expect.poll(async () => (await snapshot(page)).fires.states[0].state).toBe('cooking');
   await page.screenshot({ path: info.outputPath('cooking-desktop.png') });
-  await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.hp, { timeout: 40_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.hp, { timeout: 40_000 }).toBeGreaterThan(1);
   await page.locator('#settings').click();
   const frozen = await snapshot(page); await page.waitForTimeout(500);
   const paused = await snapshot(page);

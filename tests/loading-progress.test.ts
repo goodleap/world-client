@@ -23,3 +23,15 @@ test('download completion remains separate from processing and real progress res
   assert.equal(progress.snapshot()[1].state, 'done');
   assert.equal(progress.snapshot()[1].error, undefined);
 });
+
+test('weighted download bytes, completed processing and first frame drive progress without elapsed-time guesses', () => {
+ let now = 0; const p = new LoadingProgress(() => now);
+ p.plan('large', 'large', 60, 'download', 600); p.plan('small', 'small', 20, 'download', 200);
+ p.plan('parse', 'parse', 19); p.plan('frame', 'frame', 1);
+ p.begin('large','large','download'); p.bytes('large',300,600); assert.equal(p.gamePercent(),30);
+ now = 90000; assert.equal(p.gamePercent(),30);
+ p.done('large'); p.begin('small','small','download'); p.bytes('small',200,200); p.done('small');
+ assert.equal(p.gamePercent(),80); p.begin('parse','parse'); p.work('parse',1,2); assert.equal(p.gamePercent(),89.5);
+ p.done('parse'); assert.equal(p.gamePercent(),99); p.done('frame'); assert.equal(p.gamePercent(),100);
+ p.resetGame(); assert.equal(p.gamePercent(),80);
+});

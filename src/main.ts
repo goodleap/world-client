@@ -73,12 +73,12 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     await nextPaint();
     const { createGame } = await prepareGame();
     if (disposed) return;
-    launcher.report(8, '正在布置家园…');
+
     const page = document.querySelector<HTMLElement>('#game-page')!;
     page.hidden = false; page.inert = true;
     ui = createUI(page);
     ui.bindLeave(leave);
-    game = await createGame(ui, launcher.report, economy);
+    game = await createGame(ui, economy);
     ui.bindPerformanceRecord(game.markPerformance);
     ui.bindDiagnostics(() => ({ ...diagnosticContext(), ...game?.diagnosticReport() }));
     if (disposed) { game.dispose(); return; }

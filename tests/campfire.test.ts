@@ -105,8 +105,8 @@ test('dog, rider and horse consume distinct meals; manual orders interrupt rest 
 });
 test('injured soldier walks to food and heals gradually, no fire means no automatic health or inventory changes', () => {
   const { e, f, site } = built(), { c, n, advance } = needsHarness(e); const u = c.unit('infantry')!;
-  u.hp = 0; u.life = 'injured'; u.position = { x: site.x + 4, z: site.z + 4 };
-  advance(4); assert.equal(u.hp, 0); assert(!e.state.vitals[u.id].rest); assert.equal(e.state.inventory.food, 30);
+  u.hp = 1; u.life = 'active'; u.position = { x: site.x + 4, z: site.z + 4 };
+  advance(4); assert.equal(u.hp, 1); assert(!e.state.vitals[u.id].rest); assert.equal(e.state.inventory.food, 30);
   Object.assign(f, { enabled: true, wood: 10, food: 8, meals: 1 }); e.state.vitals[u.id].retryAt = 0; n.update(.01); assert(e.state.vitals[u.id].rest);
   advance(10); assert(u.hp > 0 && u.hp < maxHealth(u.id)); assert.equal(u.life, 'active');
   assert(!u.attack); assert(!u.target); assert(e.state.vitals[u.id].rest);
@@ -161,7 +161,7 @@ test('an injured diner waits when every fire seat is occupied instead of eating 
     z: site.z + Math.sin((i + .5) * Math.PI * 2 / F.seats) * F.seatRadius,
   }, radius: .4, moving: false, purposeful: false, waiting: false }));
   const c = new Combat(e.state.combat, e, () => [], () => blockers), u = c.unit('infantry')!;
-  Object.assign(u, { hp: 0, life: 'injured', order: 'hold', position: { x: site.x + 6, z: site.z + 6 } });
+  Object.assign(u, { hp: 1, life: 'active', order: 'hold', position: { x: site.x + 6, z: site.z + 6 } });
   const n = createNeedsController(e, {
     needsStatus: () => ({ position: u.position, speed: 0, moving: false, working: false, goal: undefined }),
     setResting() {}, releaseFarmerWork() {}, command: () => false,

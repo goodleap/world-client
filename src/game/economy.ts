@@ -538,5 +538,12 @@ export function decodeEconomy(text: string): Economy {
     const cost = economy.cost(task.kind, task.target), available = economy.available();
     task.reserved = resources.every(k => cost[k] <= available[k]);
   }
+  for (const u of state.combat.units.filter(u => u.life === 'defeated')) {
+    economy.interrupt(u.position, u.id);
+    for (const id of u.id === 'cavalry' ? ['cavalry', 'horse'] : [u.id]) {
+      state.vitals[id].rest = undefined; state.vitals[id].meal = undefined;
+    }
+    if (state.residents[u.id]) state.residents[u.id].manualGoal = undefined;
+  }
   return economy;
 }

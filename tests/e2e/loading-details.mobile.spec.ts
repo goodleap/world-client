@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { RESIDENTS, ENEMIES } from '../../src/game/resident-data.ts';
 
 test('loading details explain a stalled shared download and complete processing separately', async ({ page }, info) => {
   let release!: () => void;
@@ -29,5 +30,5 @@ test('loading details explain a stalled shared download and complete processing 
   expect(libraryRequests).toBe(1);
   await page.getByRole('button', { name: '设置', exact: true }).click();
   // The game still exposes the real scene after every processing stage.
-  expect(await page.evaluate(() => window.__DEMO__!.snapshot().residents.length)).toBe(7);
+  expect(await page.evaluate(() => window.__DEMO__!.snapshot().residents.map(r => r.id).sort())).toEqual([...RESIDENTS, ...ENEMIES].map(r => r.id).sort());
 });

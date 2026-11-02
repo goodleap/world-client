@@ -44,11 +44,22 @@ function gable(scene: Scene, p: Palette, x: number, z: number, width: number, de
 export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: number; z: number; width: number; depth: number; height: number }, includeDoor = true) {
   const { x, z, width: w, depth: d, height: h } = b;
   const front = z - d / 2;
-  const walls = roundedBox(scene, `${b.id}-walls`, [w, h, d], [x, h / 2 + .12, z], p.cream, .16);
-  tintHeight(walls, '#f1e8d3', '#ffffff');
+  // Leave an actual doorway cavity for the inward leaf, rather than rotating
+  // it through the former solid wall box. The dark back sits behind its sweep.
+  const openingLeft = -.93, openingRight = .23, openingTop = 2.27;
+  const wallParts: [number[], number[]][] = [
+    [[w / 2 + openingLeft, h, d], [x + (-w / 2 + openingLeft) / 2, h / 2 + .12, z]],
+    [[w / 2 - openingRight, h, d], [x + (w / 2 + openingRight) / 2, h / 2 + .12, z]],
+    [[openingRight - openingLeft, h + .12 - openingTop, d], [x - .35, (h + .12 + openingTop) / 2, z]],
+  ];
+  for (const [i, [size, at]] of wallParts.entries()) {
+    const wall = roundedBox(scene, `${b.id}-walls-${i}`, size as [number, number, number], at as [number, number, number], p.cream, .035);
+    tintHeight(wall, '#f1e8d3', '#ffffff');
+  }
   gable(scene, p, x, z, w, d, h + .12);
   const count = Math.ceil(w / .65);
   for (const side of [-1, 1]) for (let i = 0; i < count; i++) {
+    if (side === -1 && Math.abs((i - (count - 1) / 2) * w / count + .35) < .58 + w / count / 2) continue;
     roundedBox(scene, 'foundation-stone', [w / count - .025, .38, .3], [x + (i - (count - 1) / 2) * w / count, .22, z + side * d / 2], i % 3 ? p.stoneLight : p.stone, .07);
   }
   const sideCount = Math.ceil(d / .65);
@@ -63,7 +74,7 @@ export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: num
   tiledRoof(scene, p, x, z, w, d, h + .12, 1.14);
   // Recessed teal door, warm timber casing, and stone doorstep.
   const doorX = x - .35;
-  roundedBox(scene, 'door-recess', [1.18, 2.12, .1], [doorX, 1.16, front - .025], p.woodDark, .045);
+  roundedBox(scene, 'door-recess', [1.18, 2.12, .1], [doorX, 1.16, front + 1.22], p.woodDark, .045);
   if (includeDoor) roundedBox(scene, 'door', [1.0, 1.96, .12], [doorX, 1.19, front - .13], p.sage, .035);
   for (const dx of [-.58, .58]) roundedBox(scene, 'door-casing', [.13, 2.16, .18], [doorX + dx, 1.19, front - .19], p.timberLight, .04);
   roundedBox(scene, 'door-casing-top', [1.25, .14, .18], [doorX, 2.27, front - .19], p.timberLight, .04);
