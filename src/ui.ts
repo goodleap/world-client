@@ -1,3 +1,4 @@
+import type { UnitInfo } from './game/unit-info.ts';
 import { DEFAULT_LIGHTING, normalizeLighting } from './game/graphics-settings.ts';
 import type { LightingSettings } from './game/graphics-settings.ts';
 import { ECONOMY_CONFIG } from './game/economy-config.ts';
@@ -61,26 +62,36 @@ export function createUI(app: HTMLElement) {
       <div class="stops"><span data-stop="cottage">${icon('home')}小屋</span><span data-stop="garden">${icon('leaf')}菜园</span><span data-stop="well">${icon('compass')}水井</span></div>
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
-    <nav class="view-controls" aria-label="视角控制">
-      <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
-    </nav>
     <div class="north" aria-hidden="true"><span>N</span><i></i></div>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
-    <nav class="construction-controls" aria-label="建筑选项">
-      <div id="building-palette" class="building-palette" aria-label="选择建设类型" hidden>
-        <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small>开垦 · 无需材料</small></button>
-        <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small>木材 ${ECONOMY_CONFIG.warehouseCost.wood} · 石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
-        <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small>石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
-        <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
+    <div class="bottom-dock">
+      <nav class="construction-controls" aria-label="建筑选项">
+        <div id="building-palette" class="building-palette" aria-label="选择建设类型" hidden>
+          <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small>开垦 · 无需材料</small></button>
+          <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small>木材 ${ECONOMY_CONFIG.warehouseCost.wood} · 石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
+          <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small>石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
+          <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
+        </div>
+        <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
+      </nav>
+      <div class="bottom-controls">
+        <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('hammer')}建造</button>
+        <section id="resident-selection" class="resident-selection" aria-label="当前单位信息" aria-describedby="resident-hint" hidden>
+          <div class="resident-card-heading"><div><strong id="resident-name"></strong><span id="resident-activity"></span></div><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></div>
+          <div id="resident-vitals" class="resident-vitals"></div>
+          <label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label>
+          <span id="resident-hint" class="sr-only"></span>
+        </section>
+        <nav class="view-controls" aria-label="视角控制">
+          <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
+        </nav>
       </div>
-      <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
-      <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('hammer')}建造</button>
-    </nav>
+    </div>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><p id="selection-hint" class="target-hint" role="status" hidden></p><div id="selection-actions" class="selection-actions"></div></section>
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
-    <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
+
     <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭资源面板">${icon('close')}</button><h2 id="resources-title">家园资源</h2><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
@@ -89,7 +100,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">太阳光颜色<input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><p id="graphics-notice" class="dialog-note" role="status" hidden></p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房和火堆；手机可横向滑动选项，轻点选择或向上拖出放置。<br>选中单位后，底部卡片显示生命、体力与当前状态。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -239,6 +250,16 @@ export function createUI(app: HTMLElement) {
     const transform = `translate(${x.toFixed(2)}px, ${(y - 18 - stack).toFixed(2)}px) translate(-50%, -100%)`;
     if (element.style.transform !== transform) element.style.transform = transform;
   };
+
+  const vitalRows = Array.from({ length: 4 }, () => {
+    const row = document.createElement('div'), label = document.createElement('span'), value = document.createElement('span');
+    const meter = document.createElement('span'), fill = document.createElement('span');
+    row.className = 'unit-vital'; value.className = 'unit-vital-value'; meter.className = 'unit-meter';
+    meter.setAttribute('role', 'meter'); meter.setAttribute('aria-valuemin', '0'); meter.append(fill);
+    row.append(label, value, meter); row.hidden = true; get('resident-vitals').append(row);
+    return { row, label, value, meter, fill };
+  });
+  const setText = (element: HTMLElement, text: string) => { if (element.textContent !== text) element.textContent = text; };
 
   return {
     canvas, joystick: get('joystick'), knob: get('joystick-knob'),
@@ -418,6 +439,24 @@ export function createUI(app: HTMLElement) {
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       get('leader-command-control').hidden = leadership === undefined;
       get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
+    },
+    setResidentInfo(info?: UnitInfo) {
+      if (!info) { get('resident-selection').hidden = true; return; }
+      get('resident-selection').dataset.unit = info.id;
+      setText(get('resident-activity'), info.activity);
+      for (const [index, elements] of vitalRows.entries()) {
+        const data = info.meters[index]; elements.row.hidden = !data; if (!data) continue;
+        const value = Math.max(0, Math.min(data.maximum, data.value)), fraction = value / data.maximum;
+        const shown = data.kind === 'health' ? Math.ceil(value) : Math.floor(value);
+        setText(elements.label, data.label); setText(elements.value, `${shown}/${data.maximum}`);
+        elements.row.dataset.vital = data.id; elements.row.dataset.kind = data.kind;
+        elements.row.classList.toggle('low', fraction < .3);
+        const transform = `scaleX(${fraction.toFixed(4)})`;
+        if (elements.fill.style.transform !== transform) elements.fill.style.transform = transform;
+        for (const [name, text] of Object.entries({ 'aria-label': data.label, 'aria-valuenow': String(shown), 'aria-valuemax': String(data.maximum) })) {
+          if (elements.meter.getAttribute(name) !== text) elements.meter.setAttribute(name, text);
+        }
+      }
     },
     setPerformance(sample?: FrameSample, triangles?: number) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';

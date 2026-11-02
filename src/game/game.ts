@@ -1,3 +1,4 @@
+import { selectedUnitInfo } from './unit-info.ts';
 import { livingPopulation, formatGameTime } from './home-status.ts';
 import { Raids } from './raids.ts';
 import { createWolfView } from './wolf-view.ts';
@@ -141,7 +142,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     clearWorld(); selectedWorld = object;
     showObjectActions(object);
   };
+  const refreshSelected = () => {
+    const id = residents.selectedId();
+    ui.setResidentInfo(selectedUnitInfo(economy, id, id ? residents.needsStatus(id) : undefined));
+  };
   const refreshEconomy = () => {
+    refreshSelected();
     updateEconomyUI(ui, economy);
     ui.setHomeStatus(livingPopulation(economy.state), formatGameTime(economy.state.seconds));
     for (const id of Object.keys(economy.state.vitals)) {
@@ -225,7 +231,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
   const placement = createBuildingPlacement(scene, camera, ui, economy, occupancy, () => ui.paused || suspended,
-    clearSelection, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
+    () => { clearWorld(); setPreview(); }, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
     if (ui.paused || suspended || placement.active) return;
     // Take over from the currently visible center, including an unfinished
@@ -254,6 +260,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       ui.setResident(name, !!residents.selectedId() && residents.canWork(residents.selectedId()!),
         residents.selectedId() === farmerLeader?.id ? economy.state.steward.enabled : undefined);
       ui.setCombatHint(!!combat.unit(residents.selectedId() ?? ''));
+      refreshSelected();
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {

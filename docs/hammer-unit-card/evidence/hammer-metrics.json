@@ -1,0 +1,11 @@
+{
+  "assetSha256": "fb898fb6300dc56719d81f8372023983820d41b9ce3752467eeb82e7564b70d2",
+  "samples": 241,
+  "duration": 1.0,
+  "oldHammerVerticalArc": 0.6764674730130606,
+  "newHammerVerticalArc": 0.906146872278878,
+  "amplitudeIncreasePercent": 33.95276320423803,
+  "plantedFootDrift": 1.325928990126038e-05,
+  "minimumSkinnedSoleY": 0.0030477945379352306,
+  "unchangedGeometryRigOtherClips": true
+}

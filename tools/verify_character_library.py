@@ -90,9 +90,9 @@ def main():
     comparisons += [('cavalry', name, 'Horse' + name, True) for name in ('RideIdle', 'RideWalk', 'RideRun')]
     channels = 0
     for role, old_name, new_name, horse in comparisons:
-        # Explicitly reauthored in locomotion.json; verify_locomotion checks the
-        # new exported tracks, contacts and fixed rig instead of historical Run.
-        if new_name in ('Run', 'CarryRun', 'RideRun', 'HorseRideRun'):
+        # Reauthored in locomotion.json / hammer.json; verify_locomotion and
+        # verify_hammer inspect exported interpolation, contacts and fixed rigs.
+        if new_name in ('Run', 'CarryRun', 'RideRun', 'HorseRideRun', 'Hammer'):
             continue
         source = Asset(SOURCES[role])
         old = next(a for a in source.g['animations'] if a['name'] == old_name)

@@ -28,7 +28,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   for (const mesh of meshes) { mesh.isPickable = false; mesh.setEnabled(false); }
   let active = false, candidate: BuildingSite | undefined, reason = '';
   let kind: BuildingKind = 'farm';
-  let pointer: { id: number; x: number; y: number; dragging: boolean } | undefined;
+  let pointer: { id: number; x: number; y: number; scrollLeft: number; touch: boolean; mode: 'pending' | 'scroll' | 'place' } | undefined;
   let cursor: { x: number; y: number } | undefined;
   const showPalette = (show: boolean) => { palette.hidden = !show; toggle.setAttribute('aria-expanded', String(show)); };
   const hidePreview = () => { for (const m of meshes) m.setEnabled(false); candidate = undefined; ui.clearTargetHint(); };
@@ -82,21 +82,33 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     const nextKind = choice.dataset.building as BuildingKind;
     choice.addEventListener('pointerdown', event => {
       if (event.button !== 0 || blocked()) return;
-      event.preventDefault(); choice.setPointerCapture(event.pointerId);
-      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false };
+      // Leave horizontal touch gestures to native scrolling. Vertical dragging
+      // still places a building, and a tap still enters placement mode.
+      if (event.pointerType !== 'touch') event.preventDefault();
+      choice.setPointerCapture(event.pointerId);
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollLeft: palette.scrollLeft, touch: event.pointerType === 'touch', mode: 'pending' };
     }, options);
     choice.addEventListener('pointermove', event => {
       if (!pointer || pointer.id !== event.pointerId) return;
-      if (!pointer.dragging && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) >= 8) { pointer.dragging = true; begin(nextKind); }
-      if (pointer.dragging) preview(event.clientX, event.clientY);
+      const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
+      if (pointer.mode === 'pending' && Math.hypot(dx, dy) >= 8) {
+        pointer.mode = (pointer.touch || palette.scrollWidth > palette.clientWidth) && Math.abs(dx) > Math.abs(dy) ? 'scroll' : 'place';
+        if (pointer.mode === 'place') begin(nextKind);
+      }
+      if (pointer.mode === 'scroll' && !pointer.touch) palette.scrollLeft = pointer.scrollLeft - dx;
+      if (pointer.mode === 'place') preview(event.clientX, event.clientY);
     }, options);
     choice.addEventListener('pointerup', event => {
       if (!pointer || pointer.id !== event.pointerId) return;
-      const dragging = pointer.dragging; pointer = undefined;
-      if (dragging) place(event.clientX, event.clientY); else begin(nextKind);
+      const mode = pointer.mode; pointer = undefined;
+      if (mode === 'scroll') return;
+      if (mode === 'place') place(event.clientX, event.clientY); else begin(nextKind);
       showPalette(false); ui.canvas.focus({ preventScroll: true });
     }, options);
-    choice.addEventListener('pointercancel', cancel, options);
+    choice.addEventListener('pointercancel', () => {
+      // The browser cancels the pointer when it owns a native horizontal pan.
+      if (pointer?.mode === 'place') cancel(); else pointer = undefined;
+    }, options);
     // Native keyboard activation has no pointer sequence.
     choice.addEventListener('click', event => { if (event.detail === 0) { begin(nextKind); showPalette(false); } }, options);
   }

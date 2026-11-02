@@ -73,3 +73,20 @@ REVIEW_ORIGIN=http://127.0.0.1:4174 node tools/review_locomotion.mjs
 生成器从当前共享库的中性姿态和固定骨长计算离线 IK，运行时只使用 Babylon AnimationGroup。输出重建会压紧未引用的动画 buffer，重复生成不增长文件；重建攻击也保留新奔跑轨道。数值检查直接读取导出后的四元数插值、蒙皮鞋底及马蹄，检查地面接触、循环和鞍座关系。Blender 同步工具只替换四个动作，保留其他制作内容。
 
 审查记录及视频见[奔跑改造记录](../../docs/locomotion/implementation.md)。视频以确定相位渲染并按当前移速编码，用于判断动作节奏，不代表录制设备帧率。当前造型的历史还原结论不因本次动作改造而改变。
+
+## 扩大敲击幅度（2026-11-02）
+
+`hammer.json` 维护共享 Hammer 的手部目标、腕部方向、躯干和重心曲线。`tools/build_hammer.py` 从当前共享 Walk 中性姿势以固定骨长生成 121 帧，只替换 Hammer；`tools/sync_hammer_authoring.py` 同步统一 Blender 源中的同名动作。旧逐职业 Hammer 仅供历史比较。
+
+锤头中心上下行程约增加 34%，采用慢抬、快落、短暂停顿与小幅回弹。保留 1 秒原生周期、游戏 2 倍满体力播放及所有玩法结算。运行时无新增求解器、特效或动画副本；现有各角色播放实例继续独立。
+
+```sh
+python3 tools/build_hammer.py
+python3 tools/verify_hammer.py
+blender -b -t 2 --python tools/sync_hammer_authoring.py
+python3 tools/verify_character_library.py
+node tools/review-server.mjs
+node tools/review_hammer.mjs
+```
+
+数据检查和实际引擎连续播放、游戏／手机视角证据见[敲击与单位卡记录](../../docs/hammer-unit-card/implementation.md)。

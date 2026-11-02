@@ -63,7 +63,7 @@ test('farmer reuses every Walk and Run channel, including timing, instead of spe
   }
 });
 
-test('shared Hammer is a stationary looping work clip with fixed foot support', () => {
+test('historical farmer Hammer retains its original stationary loop for migration comparisons', () => {
   const clip = farmer.json.animations.find(c => c.name === 'Hammer')!;
   const times = farmer.bytes(clip.samplers[0].input);
   assert.equal(times.readFloatLE(0), 0);
