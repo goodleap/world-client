@@ -47,6 +47,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number): RaidState {
       || !point(w.position) || !point(w.home) || !n(w.hp, COMBAT_CONFIG.wolf.hp) || !['active', 'defeated'].includes(w.life)
       || (w.life === 'active') !== (w.hp > 0) || !['approach', 'hunt', 'feed', 'flee', 'gone'].includes(w.mode)
       || !n(w.cooldown, 2) || !n(w.fear, 10) || !n(w.feeding, 2) || !n(w.gait, 1) || ![0, 1].includes(w.carried)
+      || w.diedAt !== undefined && (!n(w.diedAt) || w.life !== 'defeated')
       || w.settled && w.life !== 'defeated'
       || typeof w.settled !== 'boolean' || !Number.isFinite(w.facing) || w.hurtAt !== undefined && !n(w.hurtAt)
       || w.target && !RESIDENTS.some(r => r.id === w.target) || w.foodTarget && !/^site-\d+$/.test(w.foodTarget)

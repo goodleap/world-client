@@ -428,6 +428,7 @@ export function decodeEconomy(text: string): Economy {
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
   state.raids = saved.version === 9 ? initialRaids(raw.seconds) : decodeRaids(raw.raids, raw.combat?.nextAttack);
   state.combat = decodeCombat(raw.combat, state.raids.wolves);
+  if ([...state.combat.units, ...state.raids.wolves].some(u => u.diedAt !== undefined && u.diedAt > raw.seconds)) throw new Error('死亡时间超出游戏时间');
   if (!raw.upgrades || !['tools', 'arms'].every(k => Number.isInteger(raw.upgrades[k as 'tools']) && number(raw.upgrades[k as 'tools'], C.upgradeLimit))) throw new Error('加工存档无效');
   state.upgrades = { ...raw.upgrades };
   if (!raw.regrowth || Object.entries(raw.regrowth).some(([id, at]) => !RESOURCE_NODES.some(n => n.id === id) || !raw.depleted.includes(id) || !number(at, 1e12))) throw new Error('资源恢复存档无效');

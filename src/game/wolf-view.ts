@@ -1,3 +1,5 @@
+import { DeathView } from './death-view.ts';
+import { deathAge, DEATH_END } from './death.ts';
 import { createCharacterMaterialSetup } from './character-materials.ts';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -44,7 +46,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
     shadows.addShadowCaster(mesh, false);
     for (const group of instance.animationGroups) { group.stop(); for (const t of group.targetedAnimations) t.animation.enableBlending = false; }
     mesh.material?.freeze(); root.setEnabled(false);
-    return { root, mesh, lod, clips: new Map(instance.animationGroups.map(g => [g.name, g])), id: '', label: undefined as HTMLElement | undefined, clip: '', phase: -1, visible: false };
+    return { root, mesh, lod, death: new DeathView(root), clips: new Map(instance.animationGroups.map(g => [g.name, g])), id: '', label: undefined as HTMLElement | undefined, clip: '', phase: -1, visible: false };
   });
   loadingProgress.done('wolves:attach');
   const point = new Vector3(), projected = new Vector3(), identity = Matrix.Identity();
@@ -57,13 +59,27 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         if (actor.id !== (wolf?.id ?? '')) {
           if (actor.id) ui.removeResidentLabel(actor.id);
           actor.id = wolf?.id ?? ''; actor.label = wolf ? ui.addResidentLabel(wolf.id, '灰狼') : undefined;
-          actor.clip = ''; actor.phase = -1;
+          actor.clip = ''; actor.phase = -1; actor.death.reset();
           actor.mesh.metadata = { ...actor.mesh.metadata, selectionKind: 'resident', id: wolf?.id };
         }
-        const active = !!wolf && wolf.life === 'active' && wolf.mode !== 'gone';
+        const active = !!wolf && wolf.mode !== 'gone' && (wolf.life === 'active' || deathAge(wolf.diedAt, seconds) < DEATH_END);
         if (actor.root.isEnabled() !== active) actor.root.setEnabled(active); actor.visible = false;
-        if (!wolf || !active) { if (actor.label) actor.label.hidden = true; continue; }
-        actor.root.position.set(wolf.position.x, 0, wolf.position.z);
+        if (!wolf || !active) {
+          if (actor.label) actor.label.hidden = true;
+          if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, seconds), wolf.facing, [actor.mesh], () => {});
+          continue;
+        }
+        actor.root.position.x = wolf.position.x; actor.root.position.z = wolf.position.z;
+        if (wolf.life === 'active') actor.root.position.y = 0;
+        if (wolf.life === 'defeated') {
+          if (actor.label) actor.label.hidden = true;
+          actor.death.sample(deathAge(wolf.diedAt, seconds), wolf.facing, [actor.mesh], () => {
+            for (const g of actor.clips.values()) g.stop();
+            const rest = actor.clips.get('Idle')!; rest.start(false).pause(); rest.goToFrame(rest.from);
+          });
+          actor.root.computeWorldMatrix(true); actor.mesh.computeWorldMatrix(true); actor.visible = actor.mesh.isInFrustum(planes);
+          selectCharacterLOD(actor.mesh, camera); continue;
+        }
         actor.root.rotationQuaternion ??= Quaternion.Identity();
         Quaternion.RotationYawPitchRollToRef(wolf.facing, 0, 0, actor.root.rotationQuaternion);
         actor.root.computeWorldMatrix(true); actor.mesh.computeWorldMatrix(true);
@@ -87,7 +103,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
     updateLabels(camera: Camera) {
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight, viewport = camera.viewport.toGlobal(width, height);
       for (const actor of pool) {
-        if (!actor.label || !actor.root.isEnabled()) continue;
+        if (!actor.label || !actor.root.isEnabled() || actor.death.snapshot().phase !== 'alive') continue;
         point.set(actor.root.position.x, 1.95, actor.root.position.z);
         Vector3.ProjectToRef(point, identity, scene.getTransformMatrix(), viewport, projected);
         const visible = actor.visible && (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50 && projected.z >= 0 && projected.z <= 1
@@ -96,7 +112,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         if (visible) ui.positionResidentLabel(actor.id, projected.x, projected.y);
       }
     },
-    snapshot: () => pool.map(a => ({ id: a.id, active: a.root.isEnabled(), visible: a.visible, clip: a.clip, phase: a.phase,
+    snapshot: () => pool.map(a => ({ id: a.id, death: a.death.snapshot(), active: a.root.isEnabled(), visible: a.visible, clip: a.clip, phase: a.phase,
       skeleton: a.mesh.skeleton?.uniqueId, material: a.mesh.material?.uniqueId, geometry: a.mesh.geometry?.id,
       triangles: scene.activeCamera ? selectCharacterLOD(a.mesh, scene.activeCamera)!.getTotalIndices() / 3 : 0,
       pose: a.mesh.skeleton?.bones.map(b => b.getTransformNode()?.rotationQuaternion?.asArray()),

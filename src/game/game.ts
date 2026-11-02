@@ -93,7 +93,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   }
   residents.restoreResidents(economy.state.residents);
   const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
-  residents.syncCombat(combat.state.units);
+  residents.syncCombat(combat.state.units, economy.state.seconds);
   const visibilityPoint = new Vector3(), visibilityScreen = new Vector3(), visibilityIdentity = Matrix.Identity();
   const raids = new Raids(economy, combat, {
     status: residents.needsStatus, command: (p, id) => residents.command(p, id), release: residents.releaseFarmerWork,
@@ -396,7 +396,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         controller.update(dt);
         world.doors.update(dt);
         raids.update(dt);
-        combat.update(dt); residents.syncCombat(combat.state.units); combatView.update(combat.state);
+        combat.update(dt); residents.syncCombat(combat.state.units, economy.state.seconds); combatView.update(combat.state);
         residents.update(dt, previewRole, dt);
         needs.update(dt);
         world.fires.update(economy.state.campfires, dt, mapCenter);

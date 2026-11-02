@@ -1,0 +1,38 @@
+BJS - [08:39:25]: Babylon.js v9.32.1 - Null engine
+✔ melee windup hits once and repeated clicks cannot bypass cooldown (5.955394ms)
+✔ manual move cancels a windup, retains cooldown and suppresses auto acquisition throughout travel (3.109865ms)
+✔ idle soldiers do not hunt; both sides retaliate and a manual move wins over incoming hits (3.707548ms)
+✔ projectiles release once, persist through reload, and cannot hit through cover (24.165ms)
+✔ archers reposition around cover instead of releasing through it (11.350592ms)
+✔ enemy target is stable and chase is limited to the outpost (3.206979ms)
+✔ actual map paths and shared crowd follower keep soldiers out of solids and apart (296.179504ms)
+✔ death holds position without automatic home recovery or warehouse food charges (18.228023ms)
+✔ outpost reward is a single ground delivery; reload and capacity cannot mint inventory (2.591689ms)
+✔ pause freezes every combat field; corrupt or old saves are rejected (1.006581ms)
+✔ a picked Babylon destination actually moves the soldier and remains valid across reload (3.63825ms)
+✔ both sides sustain at least triple the former attack cadence, including mounted melee (18.298119ms)
+✔ foot soldiers reach a mounted opponent without overlapping the horse; cavalry saves active attacks (2.933392ms)
+✔ lethal damage stops a soldier, clears meals and prevents commands or healing across reload (1.553501ms)
+✔ legacy wounded save migrates to death without reviving and game clock formats boundaries (0.680952ms)
+✔ native fall grounds posed geometry, holds, freezes and sinks completely; an old corpse remains gone (12.944985ms)
+✔ death stage survives every reload, future timestamps fail, and wolf loot settles only once while its corpse remains (3.556667ms)
+✔ raid protection, hidden connected spawns, bounded pack and saved random schedule (27.923402ms)
+✔ bite has windup, exactly one contact per attack, stable target and persisted cooldown (2.033191ms)
+✔ wolf path respects cover and crowd, and cannot bite through a wall (14.606479ms)
+✔ idle defenders aid neighbours; moving soldiers and manual civilian orders retain priority (2.316186ms)
+✔ burning fire causes retreat; an empty enabled fire does not; theft takes one completed meal (8.063941ms)
+✔ defeated wolves settle ground loot once, including stolen meal, across reload (1.180331ms)
+✔ wounded wolves withdraw through actual terrain and timeouts do not teleport them (168.648196ms)
+✔ v9 migration preserves health, food and progress; corrupted raid or projectile is rejected (2.974725ms)
+✔ automatic assistance keeps one pursuit origin for the whole wave (1.223115ms)
+✔ different seeds produce legal packs capped at five; unavailable borders defer (291.39454ms)
+✔ an archer shot reloads against the same wolf and applies damage once (1.731939ms)
+✔ bite, theft, evasion and random timers freeze on nonpositive delta (0.416735ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1837.404077

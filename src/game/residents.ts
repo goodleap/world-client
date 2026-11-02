@@ -1,3 +1,5 @@
+import { DeathView } from './death-view.ts';
+import { deathAge } from './death.ts';
 import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
 import type { Fighter } from './combat.ts';
@@ -76,7 +78,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
-    return { definition, random, settings, state, human, animal, root, label, marker, facing: Math.PI, movementSpeed: 0,
+    return { definition, random, settings, state, human, animal, root, label, marker, hit, death: new DeathView(root, definition.role === 'cavalry' ? 1 : -1), facing: Math.PI, movementSpeed: 0,
       route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   });
   const actorById = new Map(actors.map(actor => [actor.definition.id, actor]));
@@ -272,18 +274,30 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     combatNeighbours: () => actors.filter(a => !combatPoses.has(a.definition.id)).map(a => ({ id: a.definition.id, position: a.state.position,
       radius: a.definition.bodyRadius, moving: a.movementSpeed > .08, purposeful: !!a.route.length, waiting: a.navigation.waiting })),
-    syncCombat(units: Fighter[]) {
+    syncCombat(units: Fighter[], seconds: number) {
       for (const u of units) {
         combatPoses.set(u.id, u);
         const actor = actorById.get(u.id)!;
         actor.state.position.x = u.position.x; actor.state.position.z = u.position.z;
         actor.route.length = 0; actor.state.target = undefined;
         if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, 0, u.position.z);
-        if (actor.root.isEnabled() !== (u.life !== 'defeated')) actor.root.setEnabled(u.life !== 'defeated');
+
+        actor.hit.isPickable = u.life !== 'defeated';
         if (u.life === 'defeated') {
           actor.label.hidden = true; actor.marker.setEnabled(false); resting.delete(u.id); works.delete(u.id);
           if (selected === actor) { selected = undefined; ui.setResident(); ui.setCombatHint(false); }
+          const meshes = (characterLODs.get(u.id) ?? []).map(pair => pair.source);
+          actor.death.sample(deathAge(u.diedAt, seconds), u.facing, meshes, () => {
+            setMotion(u.id, 'idle'); bowPoses.get(u.id)?.();
+            const clips = locomotion.get(u.id)!;
+            for (const g of [clips.walk, clips.run, clips.idle, clips.work, combatClips.get(u.id)]) g?.stop();
+            const rest = clips.idle ?? clips.walk;
+            rest.enableBlending = false; rest.start(false).pause(); rest.goToFrame(rest.from);
+          });
+          continue;
         }
+        if (actor.death.snapshot().phase !== 'alive') { actor.death.reset(); actor.facing = NaN; }
+        actor.root.setEnabled(true);
         if (actor.facing !== u.facing || !actor.root.rotationQuaternion) {
           actor.facing = u.facing; actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
@@ -489,7 +503,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       Frustum.GetPlanesToRef(camera.getTransformationMatrix(), visualPlanes);
       for (const actor of actors) {
         const clips = locomotion.get(actor.definition.id), meshes = visualMeshes.get(actor.definition.id);
-        if (!clips || !meshes?.length || clips.motion === 'attack') continue;
+        if (combatPoses.get(actor.definition.id)?.life === 'defeated' || !clips || !meshes?.length || clips.motion === 'attack') continue;
         const visible = preview || actor === selected || visualFilter(meshes, 1, visualPlanes).length > 0;
         const active = clips.motion === 'idle' ? clips.idle : clips.motion === 'work' ? clips.work : clips.motion === 'run' ? clips.run : clips.walk;
         animationVisibility.update(active, visible, seconds);
@@ -512,6 +526,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     snapshot: () => actors.map((actor) => ({
       id: actor.definition.id, role: actor.definition.role, name: actor.definition.name, effects: actor.definition.effects ?? [],
+      death: actor.death.snapshot(),
       model: characterModels.get(actor.definition.id),
       lod: lodInfo(actor.definition.id),
       modelPose: characterBones.get(actor.definition.id)?.map(bone =>

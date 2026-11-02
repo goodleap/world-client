@@ -15,6 +15,7 @@ export type CombatLife = 'active' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
   hp: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
+  diedAt?: number;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
   route: Point[]; navigation: RouteState; planIn: number;
@@ -136,7 +137,7 @@ export class Combat {
     if (target.role === 'wolf') {
       const source = this.unit(sourceId);
       if (source?.team === 'home' && !target.target && distance(target.position, source.position) <= C.acquire + 3) target.target = source.id;
-      if (!target.hp) { target.life = 'defeated'; target.attack = undefined; target.target = undefined; this.stop(target); }
+      if (!target.hp) { target.life = 'defeated'; target.diedAt = this.economy.state.seconds; target.attack = undefined; target.target = undefined; this.stop(target); }
       return;
     }
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
@@ -158,7 +159,7 @@ export class Combat {
     this.economy.interrupt(target.position, target.id);
     this.economy.state.vitals[target.id].rest = undefined;
     this.stop(target); target.attack = undefined; target.target = undefined; target.goal = undefined;
-    target.life = 'defeated';
+    target.life = 'defeated'; target.diedAt = this.economy.state.seconds;
     for (const id of target.id === 'cavalry' ? ['cavalry', 'horse'] : [target.id]) {
       this.economy.state.vitals[id].rest = undefined; this.economy.state.vitals[id].meal = undefined;
     }
@@ -284,7 +285,7 @@ export class Combat {
         && !this.economy.state.sites.some(s => distance(s, config) < config.leash + 8)) {
         // Patrol routes only. Captured construction regions never repopulate.
         camp.cleared = camp.rewardGranted = false; camp.cycle++;
-        for (const u of units) { u.hp = fighterStats(u).hp; u.life = 'active'; u.order = 'guard'; u.position = { ...u.home }; u.cooldown = 0; this.economy.state.vitals[u.id].stamina = 100; this.economy.state.vitals[u.id].hurtUntil = 0; }
+        for (const u of units) { u.hp = fighterStats(u).hp; u.life = 'active'; u.diedAt = undefined; u.order = 'guard'; u.position = { ...u.home }; u.cooldown = 0; this.economy.state.vitals[u.id].stamina = 100; this.economy.state.vitals[u.id].hurtUntil = 0; }
       }
     }
     this.state.discovered = this.state.camps.some(c => c.discovered);
@@ -315,6 +316,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [])
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
       || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'defeated'].includes(u.life)
       || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
+      || u.diedAt !== undefined && (!num(u.diedAt, 1e12) || u.life !== 'defeated')
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)

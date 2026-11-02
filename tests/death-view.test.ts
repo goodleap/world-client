@@ -1,0 +1,46 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
+import { Scene } from '@babylonjs/core/scene.js';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { DeathView } from '../src/game/death-view.ts';
+import { DEATH_END, deathAge, deathPhase } from '../src/game/death.ts';
+import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
+import { Combat } from '../src/game/combat.ts';
+import { newWolf } from '../src/game/raid-state.ts';
+import { Raids } from '../src/game/raids.ts';
+
+test('native fall grounds posed geometry, holds, freezes and sinks completely; an old corpse remains gone', () => {
+ const engine=new NullEngine(), scene=new Scene(engine), root=new TransformNode('actor',scene);
+ const mesh=MeshBuilder.CreateBox('body',{height:2,width:1,depth:.6},scene); mesh.parent=root;mesh.position.y=1;
+ const view=new DeathView(root); let poses=0;
+ for(const age of [0,.2,.6,1,2.6]) {
+  view.sample(age,.4,[mesh],()=>poses++); mesh.computeWorldMatrix(true);
+  assert(Math.abs(mesh.getBoundingInfo().boundingBox.minimumWorld.y-.015)<.01);
+ }
+ assert.equal(poses,1); assert.equal(deathPhase(1),'hold');
+ const frozen=view.snapshot(); view.sample(2.6,.4,[mesh],()=>poses++); assert.deepEqual(view.snapshot(),frozen);
+ view.sample(4,.4,[mesh],()=>poses++); assert(view.snapshot().y<frozen.y);
+ view.sample(DEATH_END,.4,[mesh],()=>poses++); assert(!root.isEnabled()); assert.equal(view.snapshot().phase,'gone');
+ assert.equal(deathAge(undefined,0),DEATH_END); view.reset(); assert.equal(view.snapshot().phase,'alive');
+ scene.dispose();engine.dispose();
+});
+test('death stage survives every reload, future timestamps fail, and wolf loot settles only once while its corpse remains', () => {
+ const e=new Economy();e.state.seconds=100;
+ const c=new Combat(e.state.combat,e,()=>[]);c.hurt('infantry',9999,'enemy-guard');
+ for(const elapsed of [.3,1.6,3.8,6]) {
+  e.state.seconds=100+elapsed;const saved=decodeEconomy(encodeEconomy(e));
+  const u=saved.state.combat.units.find(u=>u.id==='infantry')!;
+  assert.equal(deathPhase(deathAge(u.diedAt,saved.state.seconds)),deathPhase(elapsed)); assert.equal(u.hp,0);
+ }
+ const invalid=JSON.parse(encodeEconomy(e));invalid.combat.units[0].diedAt=999;assert.throws(()=>decodeEconomy(JSON.stringify(invalid)));
+ const w=newWolf('wolf-1-0',{x:-5,z:-4});
+ Object.assign(e.state.raids,{phase:'raid',wave:1,startedAt:100,origin:{x:-5,z:-4},wolves:[w]});
+ const people={status:()=>({position:{x:0,z:0},moving:false,working:false,speed:0}),command:()=>false,release:()=>{},resting:()=>{},neighbours:()=>[]};
+ const raids=new Raids(e,c,people,()=>[],()=>true); c.hurt(w.id,9999,'infantry'); raids.update(.05);
+ assert.equal(w.life,'defeated'); assert(w.settled); assert.equal(deathAge(w.diedAt,e.state.seconds),0);
+ const goods=structuredClone(e.state.goods);const restored=decodeEconomy(encodeEconomy(e));
+ const next=new Combat(restored.state.combat,restored,()=>[]), waves=new Raids(restored,next,people,()=>[],()=>true);
+ restored.advance(.2); waves.update(.2);assert.deepEqual(restored.state.goods,goods);
+});

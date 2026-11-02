@@ -1,0 +1,194 @@
+[
+  {
+    "role": "infantry",
+    "age": 0,
+    "phase": "fall",
+    "height": 1.480191946029663,
+    "y": 0.011939338278025388,
+    "visible": true
+  },
+  {
+    "role": "infantry",
+    "age": 0.3,
+    "phase": "fall",
+    "height": 1.480191946029663,
+    "y": 0.2660639119111153,
+    "visible": true
+  },
+  {
+    "role": "infantry",
+    "age": 0.6,
+    "phase": "hold",
+    "height": 1.480191946029663,
+    "y": 0.7163134360313416,
+    "visible": true
+  },
+  {
+    "role": "infantry",
+    "age": 2.6,
+    "phase": "sink",
+    "height": 1.480191946029663,
+    "y": 0.7163134360313416,
+    "visible": true
+  },
+  {
+    "role": "infantry",
+    "age": 4.1,
+    "phase": "sink",
+    "height": 1.480191946029663,
+    "y": -0.12378253698348973,
+    "visible": true
+  },
+  {
+    "role": "infantry",
+    "age": 5.6,
+    "phase": "gone",
+    "height": 1.480191946029663,
+    "y": -0.9638785099983216,
+    "visible": false
+  },
+  {
+    "role": "archer",
+    "age": 0,
+    "phase": "fall",
+    "height": 1.46992427110672,
+    "y": 0.011939338278025388,
+    "visible": true
+  },
+  {
+    "role": "archer",
+    "age": 0.3,
+    "phase": "fall",
+    "height": 1.46992427110672,
+    "y": 0.2660639119111153,
+    "visible": true
+  },
+  {
+    "role": "archer",
+    "age": 0.6,
+    "phase": "hold",
+    "height": 1.46992427110672,
+    "y": 0.6585434818267821,
+    "visible": true
+  },
+  {
+    "role": "archer",
+    "age": 2.6,
+    "phase": "sink",
+    "height": 1.46992427110672,
+    "y": 0.6585434818267821,
+    "visible": true
+  },
+  {
+    "role": "archer",
+    "age": 4.1,
+    "phase": "sink",
+    "height": 1.46992427110672,
+    "y": -0.1764186537265775,
+    "visible": true
+  },
+  {
+    "role": "archer",
+    "age": 5.6,
+    "phase": "gone",
+    "height": 1.46992427110672,
+    "y": -1.0113807892799378,
+    "visible": false
+  },
+  {
+    "role": "cavalry",
+    "age": 0,
+    "phase": "fall",
+    "height": 1.3289279341697693,
+    "y": 0.006895258426666259,
+    "visible": true
+  },
+  {
+    "role": "cavalry",
+    "age": 0.3,
+    "phase": "fall",
+    "height": 1.3289279341697693,
+    "y": 0.23122287319517348,
+    "visible": true
+  },
+  {
+    "role": "cavalry",
+    "age": 0.6,
+    "phase": "hold",
+    "height": 1.3289279341697693,
+    "y": 0.5791506910324096,
+    "visible": true
+  },
+  {
+    "role": "cavalry",
+    "age": 2.6,
+    "phase": "sink",
+    "height": 1.3289279341697693,
+    "y": 0.5791506910324096,
+    "visible": true
+  },
+  {
+    "role": "cavalry",
+    "age": 4.1,
+    "phase": "sink",
+    "height": 1.3289279341697693,
+    "y": -0.18531327605247483,
+    "visible": true
+  },
+  {
+    "role": "cavalry",
+    "age": 5.6,
+    "phase": "gone",
+    "height": 1.3289279341697693,
+    "y": -0.9497772431373597,
+    "visible": false
+  },
+  {
+    "role": "wolf",
+    "age": 0,
+    "phase": "fall",
+    "height": 0.9433564227160476,
+    "y": 0.018083973202465894,
+    "visible": true
+  },
+  {
+    "role": "wolf",
+    "age": 0.3,
+    "phase": "fall",
+    "height": 0.9433564227160476,
+    "y": 0.22326820874882397,
+    "visible": true
+  },
+  {
+    "role": "wolf",
+    "age": 0.6,
+    "phase": "hold",
+    "height": 0.9433564227160476,
+    "y": 0.48670809770521384,
+    "visible": true
+  },
+  {
+    "role": "wolf",
+    "age": 2.6,
+    "phase": "sink",
+    "height": 0.9433564227160476,
+    "y": 0.48670809770521384,
+    "visible": true
+  },
+  {
+    "role": "wolf",
+    "age": 4.1,
+    "phase": "sink",
+    "height": 0.9433564227160476,
+    "y": -0.08497011365280971,
+    "visible": true
+  },
+  {
+    "role": "wolf",
+    "age": 5.6,
+    "phase": "gone",
+    "height": 0.9433564227160476,
+    "y": -0.6566483250108337,
+    "visible": false
+  }
+]
