@@ -1,3 +1,5 @@
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
@@ -111,4 +113,29 @@ export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: num
     roundedBox(scene, 'chimney-cap', [.76, .24, .78], [x + 1.12, h + 1.58, z + .75], p.stoneLight, .06);
     roundedBox(scene, 'chimney-opening', [.4, .015, .42], [x + 1.12, h + 1.705, z + .75], p.woodDark, .004);
   }
+}
+
+/** Home-center variation of the reference's plaster/timber buildings and blue banners. */
+export function homeCenter(scene: Scene, p: Palette, b: Parameters<typeof referenceHouse>[2]) {
+  referenceHouse(scene, p, b, false);
+  const front = b.z - b.depth / 2;
+  for (const side of [-1, 1]) {
+    roundedBox(scene, 'center-timber-brace', [.18, b.height - .45, .2], [b.x + side * (b.width / 2 - .15), b.height / 2 + .25, b.z + b.depth / 2], p.timberLight, .05);
+  }
+  // Broad entrance plaque and a soft, folded blue pennant remain legible at game distance.
+  roundedBox(scene, 'center-sign', [1.5, .43, .16], [b.x - .35, 2.65, front - .15], p.timber, .08);
+  const crest = roundedBox(scene, 'center-crest', [.25, .25, .06], [b.x - .35, 2.65, front - .25], p.linen, .04);
+  crest.rotation.z = Math.PI / 4;
+  blueBanner(scene, p, b.x + 1.35, b.z, b.height + .55);
+}
+
+export function blueBanner(scene: Scene, p: Palette, x: number, z: number, y: number) {
+  roundedBox(scene, 'banner-pole', [.11, 1.9, .11], [x, y + .95, z], p.timberLight, .035);
+  ellipsoid(scene, 'banner-finial', [.19, .19, .19], [x, y + 1.94, z], p.golden);
+  const paths = [0, 1].map(edge => Array.from({ length: 13 }, (_, i) => {
+    const t = i / 12, corner = i === 0 || i === 12 ? .035 : 0;
+    return new Vector3(x + .08 + t * .92, y + 1.78 - edge * .65 - t * .08 + (edge ? corner : -corner), z + Math.sin(t * Math.PI * 2) * .075);
+  }));
+  const cloth = MeshBuilder.CreateRibbon('blue-banner-cloth', { pathArray: paths, sideOrientation: Mesh.DOUBLESIDE }, scene);
+  cloth.material = p.shirt;
 }

@@ -20,9 +20,11 @@ export const PLAYER_RADIUS = 0.28;
 export const BUILDINGS = [
   { id: 'cottage', ...gridPoint(MAP_CELLS / 2 - 2, MAP_ROWS / 2 - 3), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.65, roof: 'terracotta' },
   { id: 'warehouse', ...gridPoint(MAP_CELLS / 2 + 2.5, MAP_ROWS / 2 - 3), width: 3 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.9, roof: 'terracotta' },
+  { id: 'home-center', ...gridPoint(MAP_CELLS / 2 + 6.5, MAP_ROWS / 2 - 4.5), width: 3 * GRID_SIZE, depth: 3 * GRID_SIZE, height: 3.1, roof: 'terracotta' },
 ] as const;
 export const WAREHOUSE = BUILDINGS[1];
 export const HOME = BUILDINGS[0];
+export const HOME_CENTER = BUILDINGS[2];
 export const WAREHOUSE_DOOR = { x: WAREHOUSE.x, z: WAREHOUSE.z - WAREHOUSE.depth / 2 - .75 };
 export const LANDSCAPE = createLandscapeLayout(gridPoint, GRID_SIZE);
 export const WATER_OBSTACLE: Obstacle = { kind: 'polygon', ...LANDSCAPE.lake };

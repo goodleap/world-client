@@ -24,9 +24,9 @@ test('till, sow, grow and harvest form a repeatable cycle with exactly one outpu
   e.advance(C.crops.wheat.growthSeconds);
   const requested = e.request('harvest', id); assert.ok(requested.ok);
   assert.equal(e.request('harvest', id).ok, false);
-  finish(e); assert.equal(e.state.inventory.food, C.crops.wheat.yield);
+  finish(e); assert.equal(e.state.inventory.food, C.initialInventory.food + C.crops.wheat.yield);
   assert.equal(e.plot(id)!.crop, undefined); assert.ok(e.plot(id)!.tilled);
-  e.arrive(requested.task!.id); e.advance(100); assert.equal(e.state.inventory.food, C.crops.wheat.yield);
+  e.arrive(requested.task!.id); e.advance(100); assert.equal(e.state.inventory.food, C.initialInventory.food + C.crops.wheat.yield);
   assert.ok(e.request('sow', id, 'carrot').ok);
 });
 
@@ -39,7 +39,7 @@ test('FIFO skips unfunded construction, gathers materials, reserves once and spe
   assert.deepEqual(e.reserved(), C.houseCost); assert.equal(e.state.inventory.wood, 24);
   e.arrive(build.id); e.advance(C.workSeconds.build - .5);
   assert.equal(e.state.inventory.wood, 24); assert.equal(e.state.buildings.length, 0);
-  e.advance(.5); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
+  e.advance(.5); assert.deepEqual(e.state.inventory, { ...C.initialInventory, wood: 12, stone: 8 });
   assert.deepEqual(e.state.buildings, ['site-0']); assert.deepEqual(e.reserved(), { wood: 0, stone: 0, food: 0, iron: 0 });
   e.advance(100); assert.equal(e.state.inventory.wood, 12);
   assert.equal(e.request('build', 'site-0').ok, false);
@@ -101,10 +101,10 @@ test('save/load retains partial work and crop growth without offline catch-up or
   assert.equal(restored.state.seconds, e.state.seconds); assert.equal(restored.plot('plot-1')!.growth, 1.25);
   assert.equal(restored.state.tasks[0].status, 'waiting'); assert.equal(restored.state.tasks[0].progress, 1.25);
   const resumed = restored.claim()!; restored.arrive(resumed.id); restored.advance(1.75);
-  assert.equal(restored.state.inventory.food, 0);
+  assert.equal(restored.state.inventory.food, C.initialInventory.food);
   const haul = restored.taskFor(restored.state.goods[0].id)!; restored.claim(); restored.arrive(haul.id); restored.arrive(haul.id);
-  assert.equal(restored.state.inventory.food, 8);
-  const again = decodeEconomy(encodeEconomy(restored)); again.advance(10); assert.equal(again.state.inventory.food, 8);
+  assert.equal(restored.state.inventory.food, C.initialInventory.food + 8);
+  const again = decodeEconomy(encodeEconomy(restored)); again.advance(10); assert.equal(again.state.inventory.food, C.initialInventory.food + 8);
 });
 
 test('save validation rejects corrupt resources, wrong target kinds and premature pending outputs', () => {

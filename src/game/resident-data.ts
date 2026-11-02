@@ -42,9 +42,21 @@ export const ENEMIES: readonly ResidentDefinition[] = [
 /** Leadership is an additional effect; the ordinary role still owns work,
  * equipment, animation and movement capabilities. */
 export const roleLeader = (role: ResidentRole) => RESIDENTS.find(resident => resident.role === role && resident.effects?.includes('leader'));
-export const canResidentWork = (id: string) => RESIDENTS.some(resident => resident.id === id && resident.role === 'farmer');
+export function unitRole(id: string): ResidentRole | undefined {
+  const fixed = RESIDENTS.find(r => r.id === id) ?? ENEMIES.find(r => r.id === id);
+  if (fixed) return fixed.role;
+  return /^(?:recruit|enemy-raid)-(farmer|infantry|archer|cavalry|dog)-\d+(?:-\d+)?$/.exec(id)?.[1] as ResidentRole | undefined;
+}
+export const canResidentWork = (id: string) => !id.startsWith('enemy-') && unitRole(id) === 'farmer';
 /** Personal fire supplies may be carried by every friendly human, not animals. */
-export const canResidentSupply = (id: string) => RESIDENTS.some(resident => resident.id === id && resident.role !== 'dog');
+export const canResidentSupply = (id: string) => !id.startsWith('enemy-') && !!unitRole(id) && unitRole(id) !== 'dog';
+
+export function newResident(role: ResidentRole, id: string, spawn: Point): ResidentDefinition {
+  const template = RESIDENTS.find(r => r.role === role)!;
+  const names = { farmer: '农民', infantry: '步兵', archer: '弓兵', cavalry: '骑兵', dog: '田园犬' };
+  return { ...template, effects: undefined, id, name: `${names[role]}${id.split('-').at(-1)}`,
+    spawn: { ...spawn }, home: { ...spawn } };
+}
 
 // Residents stay out of the planted beds as well as the same solids used by the player.
 export const RESIDENT_OBSTACLES: readonly Obstacle[] = [

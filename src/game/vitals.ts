@@ -1,4 +1,4 @@
-import { RESIDENTS, ENEMIES } from './resident-data.ts';
+import { RESIDENTS, ENEMIES, unitRole } from './resident-data.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import type { EconomyState } from './economy.ts';
 import type { Point } from './movement.ts';
@@ -11,17 +11,21 @@ export interface Vital {
   meal?: { remaining: number };
 }
 export type Vitals = Record<string, Vital>;
-const fighters = new Set(['infantry', 'archer', 'cavalry', ...ENEMIES.map(r => r.id)]);
 export function maxHealth(id: string) {
-  if (id === 'infantry' || id === 'archer' || id === 'cavalry') return COMBAT_CONFIG[id].hp;
-  if (id.startsWith('enemy-')) return ENEMIES.find(r => r.id === id)?.variant === 'heavy' ? COMBAT_CONFIG.enemyHeavy.hp : ENEMIES.find(r => r.id === id)?.role === 'archer' ? COMBAT_CONFIG.enemyArcher.hp : COMBAT_CONFIG.enemyMelee.hp;
-  return id === 'horse' ? 160 : id === 'dog' ? 80 : 100;
+  const role=unitRole(id);
+  if (id.startsWith('enemy-')) return ENEMIES.find(r => r.id === id)?.variant === 'heavy' ? COMBAT_CONFIG.enemyHeavy.hp : role === 'archer' ? COMBAT_CONFIG.enemyArcher.hp : COMBAT_CONFIG.enemyMelee.hp;
+  if (role==='infantry'||role==='archer'||role==='cavalry')return COMBAT_CONFIG[role].hp;
+  return id === 'horse' || id.startsWith('horse:') ? 160 : role === 'dog' ? 80 : 100;
 }
 export const vitalIds = [...RESIDENTS, ...ENEMIES].map(r => r.id).concat('horse');
-export function initialVitals(): Vitals {
-  return Object.fromEntries(vitalIds.map(id => [id, { stamina: 100, hp: fighters.has(id) ? undefined : maxHealth(id), manualUntil: 0, retryAt: 0, hurtUntil: 0 }]));
+export function initialVital(id:string):Vital {
+  const role=unitRole(id), fighter=role==='infantry'||role==='archer'||role==='cavalry';
+  return {stamina:100,hp:fighter?undefined:maxHealth(id),manualUntil:0,retryAt:0,hurtUntil:0};
 }
-export const bodiesFor = (actor: string) => actor === 'cavalry' ? ['cavalry', 'horse'] : [actor];
+export function initialVitals(): Vitals {
+  return Object.fromEntries(vitalIds.map(id => [id, initialVital(id)]));
+}
+export const bodiesFor = (actor: string) => unitRole(actor) === 'cavalry' ? [actor, actor==='cavalry'?'horse':`horse:${actor}`] : [actor];
 export const health = (state: EconomyState, id: string) => state.combat.units.find(u => u.id === id)?.hp ?? state.vitals[id].hp!;
 export const alive = (state: EconomyState, id: string) => health(state, id) > 0;
 export function changeHealth(state: EconomyState, id: string, amount: number) {

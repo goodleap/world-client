@@ -6,6 +6,7 @@ import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import type { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import type { Scene } from '@babylonjs/core/scene';
+import type { AssetContainer } from '@babylonjs/core/assetContainer';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { modelAssets } from './model-assets.ts';
 import { modelData, modelOptions } from './asset-cache.ts';
@@ -13,6 +14,18 @@ import { attachMeshLOD, selectCharacterLOD } from './character-lod.ts';
 import { createCharacterMaterialSetup } from './character-materials.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import metadata from '../../studies/dog/dog.json';
+
+const libraries=new WeakMap<Scene,Promise<AssetContainer>>();
+function dogLibrary(scene:Scene) {
+  let library=libraries.get(scene);
+  if(!library){library=(async()=>{
+    const url=modelAssets.dog,data=await modelData(url);
+    const source=await loadingProgress.run(url+':parse','田园犬：共享模型与动作解析',()=>LoadAssetContainerAsync(data,scene,modelOptions(url)));
+    source.animationGroups.forEach(g=>g.stop());createCharacterMaterialSetup(scene)(source.materials);
+    source.materials.forEach(m=>m.freeze());scene.onDisposeObservable.add(()=>source.dispose());return source;
+  })();libraries.set(scene,library);}
+  return library;
+}
 
 /** One authored GLB, one material/rig/action library, three native skinned LODs.
  * Navigation still owns root movement. All animation uses the scene pause clock. */
@@ -33,26 +46,26 @@ export function createVillageDog(scene: Scene, shadows: ShadowGenerator, id: str
     get runReferenceSpeed() { return referenceSpeed; },
     lodInfo() {
       if (!mesh) return;
-      return { triangles: scene.activeCamera ? selectCharacterLOD(mesh, scene.activeCamera)!.getTotalIndices() / 3 : 0,
+      return { skeleton: skeleton?.uniqueId, geometry: mesh.geometry?.uniqueId, material: mesh.material?.uniqueId, triangles: scene.activeCamera ? selectCharacterLOD(mesh, scene.activeCamera)!.getTotalIndices() / 3 : 0,
         levels: metadata.levels, sharedSkeletonAndMaterials: mesh.getLODLevels().every(l => l.mesh?.skeleton === skeleton && l.mesh.material === mesh.material) };
     },
     async loadModel() {
-      const url = modelAssets.dog, data = await modelData(url);
-      const source = await loadingProgress.run(url + ':parse', '田园犬：曲面模型与动作解析', () => LoadAssetContainerAsync(data, scene, modelOptions(url)));
-      source.addAllToScene();
+      const source=await dogLibrary(scene);
+      const instance=source.instantiateModelsToScene(name=>name,false,{doNotInstantiate:true,
+        predicate:entity=>entity.metadata?.gltf?.extras?.dogLOD===undefined||entity.metadata?.gltf?.extras?.dogLOD===0});
       loadingProgress.begin('dog:attach', '田园犬：骨骼、动作与 LOD 挂接');
-      for (const node of source.rootNodes) node.parent = root;
+      for (const node of instance.rootNodes) node.parent = root;
       const levels = [0, 1, 2].map(n => source.meshes.find(m => m.metadata?.gltf?.extras?.dogLOD === n) as Mesh);
       if (levels.some(m => !m?.geometry)) throw new Error('田园犬缺少 LOD 几何');
-      mesh = levels[0]; skeleton = mesh.skeleton!;
+      mesh=root.getChildMeshes().find(m=>m.metadata?.gltf?.extras?.dogLOD===0&&m.skeleton) as Mesh;
+      if(!mesh?.skeleton)throw new Error('田园犬实例缺少独立骨骼');
+      skeleton = mesh.skeleton;
       mesh.receiveShadows = true; mesh.isPickable = false;
       const bounds = mesh.getBoundingInfo().boundingBox;
       mesh.setBoundingInfo(new BoundingInfo(bounds.minimum.subtract(new Vector3(.15, .2, .25)), bounds.maximum.add(new Vector3(.15, .15, .25))));
-      createCharacterMaterialSetup(scene)([mesh.material]);
       attachMeshLOD(mesh, levels[1].geometry!, levels[2].geometry!);
-      for (const detail of levels.slice(1)) detail.dispose(false, false);
       shadows.addShadowCaster(mesh, false);
-      for (const group of source.animationGroups) {
+      for (const group of instance.animationGroups) {
         group.stop(); group.enableBlending = true; group.blendingSpeed = .2;
         clips.set(group.name, group);
       }

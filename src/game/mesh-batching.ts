@@ -26,7 +26,7 @@ export function batchSkinnedMeshes(meshes: readonly AbstractMesh[], sharedGeomet
     const [first, ...rest] = group;
     const geometryKey = group.map(mesh => mesh.geometry!.uniqueId).join(',');
     const shared = sharedGeometry?.get(geometryKey);
-    if (shared) {
+    if (shared && !shared.isDisposed()) {
       // Geometry.applyToMesh preserves an existing submesh when its range
       // fits, so a clone would draw only the first original part (e.g. the
       // left eye). Let Babylon rebuild the range for the whole cached batch.

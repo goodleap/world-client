@@ -1,7 +1,8 @@
+import { homeResidents } from './recruitment.ts';
 import type { Economy } from './economy.ts';
 import type { Combat } from './combat.ts';
 import type { createResidents } from './residents.ts';
-import { RESIDENTS, ENEMIES, canResidentSupply } from './resident-data.ts';
+import { canResidentSupply, unitRole } from './resident-data.ts';
 import { CAMPFIRE_CONFIG as F, fireIsLit } from './campfire.ts';
 import { VITAL_CONFIG as V, bodiesFor, alive, health, maxHealth, needsFood, eat } from './vitals.ts';
 import type { Vital } from './vitals.ts';
@@ -11,7 +12,7 @@ import { GRID_SIZE } from './world-data.ts';
 type Residents = Pick<ReturnType<typeof createResidents>, 'needsStatus' | 'setResting' | 'command' | 'releaseFarmerWork'>;
 type Rest = NonNullable<Vital['rest']>;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
-const allResidents = [...RESIDENTS, ...ENEMIES];
+
 
 /** Meals and personal supplies share economy reservations, goods and game time.
  * Movement still uses the existing crowd routes; manual orders always interrupt. */
@@ -51,7 +52,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     }
   }
   function request(id: string, preferred?: string) {
-    if (!RESIDENTS.some(r => r.id === id)) return { ok: false, message: '请选择我方人物或动物' };
+    if (!homeResidents(e.state).some(r => r.id === id)) return { ok: false, message: '请选择我方人物或动物' };
     if (!hungry(id) || !free(id)) return { ok: false, message: '尚无需休整或正在执行指令' };
     const candidates = available(id).filter(f => !preferred || f.id === preferred).sort((a, b) =>
       distance(position(id), e.state.sites.find(s => s.id === a.id)!) - distance(position(id), e.state.sites.find(s => s.id === b.id)!));
@@ -76,7 +77,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     const goods = e.state.goods.find(g => g.id === task.cargo);
     if (goods) return [{ x: goods.x, z: goods.z }];
     // Mounted bodies need a little more clearance in front of the same door.
-    const extra = id === 'cavalry' ? .8 : 0;
+    const extra = unitRole(id) === 'cavalry' ? .8 : 0;
     return e.warehouseDoors().sort((a, b) => distance(position(id), a) - distance(position(id), b))
       .flatMap(door => [0, -.8, .8].map(dx => ({ x: door.x + dx, z: door.z - extra })));
   }
@@ -119,7 +120,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     else { rest.supply = undefined; rest.supplyGoal = undefined; notes.delete(id); move(id, [rest.goal]); }
   }
   const moving = (id: string) => combat.unit(id) ? !!combat.unit(id)!.route.length : status(id).moving;
-  for (const r of RESIDENTS) if (e.state.vitals[r.id].rest) residents.setResting(r.id, true);
+  for (const r of homeResidents(e.state)) if (e.state.vitals[r.id].rest) residents.setResting(r.id, true);
   return {
     manual(id: string) {
       // Called after an accepted click, so preserve the newly installed route.
@@ -128,7 +129,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     canTakeWork(id: string) { return alive(e.state, id) && !e.state.vitals[id].rest && !(free(id) && hungry(id) && available(id).length); },
     update(seconds: number) {
       if (!Number.isFinite(seconds) || seconds <= 0) return;
-      for (const r of allResidents) {
+      for (const r of [...homeResidents(e.state), ...e.state.combat.units.filter(u=>u.team==='enemy'&&!u.departed)]) {
         const u = combat.unit(r.id); if (!alive(e.state, r.id)) continue;
         const state = status(r.id), vital = e.state.vitals[r.id];
         const rate = vital.rest && !(u ? u.speed > .08 : state.moving) ? 0 : u?.attack || u?.target ? V.combatDrain : state.working ? V.workDrain : state.speed > .08 ? V.movingDrain : V.idleDrain;
@@ -169,7 +170,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     label(id: string) {
       const v = e.state.vitals[id], u = combat.unit(id);
       const suffix = v.rest ? notes.get(id) ?? (bodiesFor(id).some(b => e.state.vitals[b].meal) ? '进食' : '去休整') : u?.life === 'defeated' ? '死亡' : '';
-      return `${Math.ceil(health(e.state, id))}/${maxHealth(id)} · 体${Math.floor(v.stamina)}${id === 'cavalry' ? ` · 马${Math.ceil(health(e.state, 'horse'))}/160 体${Math.floor(e.state.vitals.horse.stamina)}` : ''}${suffix ? ` · ${suffix}` : ''}`;
+      return `${Math.ceil(health(e.state, id))}/${maxHealth(id)} · 体${Math.floor(v.stamina)}${unitRole(id) === 'cavalry' ? ` · 马${Math.ceil(health(e.state, bodiesFor(id)[1]))}/160 体${Math.floor(e.state.vitals[bodiesFor(id)[1]].stamina)}` : ''}${suffix ? ` · ${suffix}` : ''}`;
     },
   };
 }

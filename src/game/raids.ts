@@ -1,9 +1,11 @@
-import { Combat, fighterRadius } from './combat.ts';
+import { Combat, fighterRadius, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
 import type { Economy } from './economy.ts';
-import { RESIDENTS } from './resident-data.ts';
+import { newResident, unitRole } from './resident-data.ts';
+import { homeResidents } from './recruitment.ts';
+import { initialVital } from './vitals.ts';
 import { health } from './vitals.ts';
 import { fireIsLit } from './campfire.ts';
 import { BUILDINGS, LANDSCAPE, WORLD_BOUNDS } from './world-data.ts';
@@ -75,45 +77,64 @@ export class Raids {
     w.mode = 'flee'; w.target = undefined; w.foodTarget = undefined; w.attack = undefined; w.feeding = 0; w.route = []; w.planIn = 0;
     resetRouteState(w.navigation);
   }
-  private spawn() {
-    const state = this.state, now = this.economy.state.seconds;
-    if (this.combat.state.units.filter(u => u.team === 'home' && u.hp > COMBAT_CONFIG[u.role].hp * .35).length < 2) { state.nextAt = now + 60; return; }
-    const candidates = LANDSCAPE.regions.filter(r => r.id !== 'home' && !('camp' in r) && distance(r, home) > 32);
-    const start = Math.floor(raidRandom(state) * candidates.length);
-    const count = state.wave === 0 ? 2 : Math.min(C.maxWolves, 2 + this.economy.state.upgrades.arms + Math.floor(this.economy.state.buildings.length / 3) + Math.floor(raidRandom(state) * 2));
-    // At most three spawn candidates per attempt. If all routes are occupied or in
-    // view, postpone; never pop wolves into the visible village.
-    for (let i = 0; i < Math.min(3, candidates.length); i++) {
-      const region = candidates[(start + i) % candidates.length];
-      const origin = { x: region.x + (raidRandom(state) - .5) * 6, z: region.z + (raidRandom(state) - .5) * 6 };
-      const spots = circle(origin, 2.5).slice(0, count);
-      if (spots.some(p => this.visible(p) || isBlocked(p, .72, this.solids())
-        || RESIDENTS.some(r => distance(p, this.position(r.id)) < 16)
-        || [...BUILDINGS, ...this.economy.state.sites].some(s => distance(p, s) < 12))) continue;
-      const route = planMoveDestination(origin, home, .72, WORLD_BOUNDS, this.solids(), []);
-      if (!route) continue;
-      const wolves = spots.map((p, n) => newWolf(`wolf-${state.wave + 1}-${n}`, p));
-      // Every member must have a legal connection; the first leg cannot cut a bank.
-      if (wolves.some(w => !segmentIsClear(w.position, origin, .72, WORLD_BOUNDS, this.solids()))) continue;
-      for (const w of wolves) w.route = [{ ...origin }, ...route.map(p => ({ ...p }))];
-      state.wave++; state.wolves = wolves; state.phase = 'raid'; state.startedAt = now; state.origin = origin;
-      const direction = Math.abs(origin.x) > Math.abs(origin.z) ? origin.x > 0 ? '东侧' : '西侧' : origin.z > 0 ? '北侧' : '南侧';
-      state.notice = `${direction}传来狼嚎 · ${count}只灰狼正在接近`; state.noticeUntil = now + 18;
-      this.syncThreats(); return;
+  private warn() {
+    const state=this.state,now=this.economy.state.seconds;
+    const defenders=this.combat.state.units.filter(u=>u.team==='home'&&u.life==='active'&&u.hp>COMBAT_CONFIG[u.role].hp*.35).length;
+    const count=defenders<2?1:state.wave===0?2:Math.min(C.maxWolves,2+Math.floor(defenders/3)+this.economy.state.upgrades.arms);
+    const candidates=LANDSCAPE.regions.filter(r=>r.id!=='home'&&!('camp' in r)&&distance(r,home)>32);
+    const start=Math.floor(raidRandom(state)*candidates.length);
+    // Prefer off-screen entrances. An overview of the entire map must not
+    // indefinitely disable raids: distant announced entrances remain usable.
+    for(const visible of [false,true])for(let i=0;i<candidates.length;i++) {
+      const r=candidates[(start+i)%candidates.length],origin={x:r.x+(raidRandom(state)-.5)*4,z:r.z+(raidRandom(state)-.5)*4};
+      const spots=circle(origin,2.5).slice(0,count);
+      if(spots.some(p=>!visible&&this.visible(p)||isBlocked(p,.72,this.solids())
+        ||homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16)
+        ||[...BUILDINGS,...this.economy.state.sites].some(b=>distance(p,b)<12)
+        ||!segmentIsClear(p,origin,.72,WORLD_BOUNDS,this.solids())))continue;
+      if(!planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]))continue;
+      state.pendingOrigin=origin;state.pendingCount=count;state.warningAt=now;state.nextAt=Math.max(state.nextAt,now+C.warning);
+      const direction=Math.abs(origin.x)>Math.abs(origin.z)?origin.x>0?'东侧':'西侧':origin.z>0?'北侧':'南侧';
+      state.notice=`${direction}发现${state.wave%2?'敌兵':'狼群'} · 即将来袭`;state.noticeUntil=state.nextAt;
+      this.economy.revision++;return;
     }
-    state.nextAt = now + 20;
+    state.nextAt=now+5+C.warning;
+  }
+  private spawn() {
+    const state=this.state,now=this.economy.state.seconds,origin=state.pendingOrigin;
+    if(!origin)return;
+    const count=state.pendingCount,spots=circle(origin,2.5).slice(0,count);
+    const route=planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]);
+    if(!route||spots.some(p=>isBlocked(p,.72,this.solids())||homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16))) {
+      state.pendingOrigin=undefined;state.nextAt=now+5+C.warning;return;
+    }
+    const old=new Set(state.soldiers);
+    this.combat.state.units=this.combat.state.units.filter(u=>!old.has(u.id));
+    this.combat.state.projectiles=this.combat.state.projectiles.filter(p=>!old.has(p.source)&&!old.has(p.target));
+    for(const id of old){delete this.economy.state.vitals[id];delete this.economy.state.residents[id];}
+    state.soldiers=[];state.wolves=[];state.wave++;state.phase='raid';state.startedAt=now;state.origin={...origin};state.pendingOrigin=undefined;
+    if(state.wave%2)state.wolves=spots.map((p,n)=>{
+      const wolf=newWolf(`wolf-${state.wave}-${n}`,p);wolf.route=[{...origin},...route.map(p=>({...p}))];return wolf;
+    });
+    else for(const [n,p] of spots.entries()) {
+      const role=n%3===2?'archer':'infantry',id=`enemy-raid-${role}-${state.wave}-${n}`;
+      const unit=createFighter(newResident(role,id,p));unit.goal={...home};unit.route=[{...origin},...route.map(p=>({...p}))];
+      this.combat.state.units.push(unit);this.economy.state.vitals[id]=initialVital(id);state.soldiers.push(id);
+    }
+    state.notice=`${state.wave%2?'灰狼':'敌兵'}来袭 · ${count}${state.wave%2?'只':'人'}正在接近`;state.noticeUntil=now+18;
+    this.syncThreats();this.economy.revision++;
   }
   private protect() {
     const now = this.economy.state.seconds;
     const threats = this.combat.targets().filter(t => t.team === 'enemy' && t.life === 'active'
       && !this.wolves.some(w => w.id === t.id && ['gone', 'flee'].includes(w.mode)));
-    for (const r of RESIDENTS) {
+    for (const r of homeResidents(this.economy.state)) {
       if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id]; continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
       const nearby = threats.filter(w => distance(position, w.position) < 8 && this.clear(position, w.position));
       if (this.combat.unit(r.id)) {
         for (const w of threats) if (distance(position, w.position) <= C.aidRadius
-          && RESIDENTS.some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
+          && homeResidents(this.economy.state).some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
           if (this.combat.assist(r.id, w.id)) break;
         }
         continue;
@@ -144,15 +165,25 @@ export class Raids {
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const dt = Math.min(seconds, .25), now = this.economy.state.seconds;
-    if (this.state.phase === 'peace' && now >= this.state.nextAt) this.spawn();
+    if(this.state.phase==='peace'){
+      if(!this.state.pendingOrigin&&now>=this.state.nextAt-C.warning)this.warn();
+      if(this.state.pendingOrigin&&now>=this.state.nextAt)this.spawn();
+    }
+    for(const id of this.state.soldiers){const u=this.combat.unit(id);if(!u||u.life!=='active'||u.departed)continue;
+      if(now-this.state.startedAt<C.duration&&!u.target&&!u.attack&&!u.goal){u.order='guard';u.goal={...home};}
+      if(now-this.state.startedAt>=C.duration){u.order='retreat';u.goal={...u.home};u.target=undefined;u.attack=undefined;
+        if(distance(u.position,u.home)<2&&!homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(this.position(r.id),u.position)<16)){u.departed=true;u.route=[];}
+      }
+    }
     this.decisions -= dt;
     if (this.decisions <= 0) { this.decisions = .35; this.protect(); }
     let remaining = dt;
     while (remaining > 1e-8) { const step = Math.min(.05, remaining); for (const w of this.wolves) this.tick(w, step); remaining -= step; }
-    if (this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')) {
+    if (this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')
+      && this.state.soldiers.every(id=>{const u=this.combat.unit(id);return !u||u.life==='defeated'||u.departed;})) {
       this.state.phase = 'peace'; this.state.nextAt = now + C.intervalMin + raidRandom(this.state) * (C.intervalMax - C.intervalMin);
       const stolen = this.state.wolves.filter(w => w.mode === 'gone').reduce((n, w) => n + w.carried, 0);
-      this.state.notice = stolen ? `狼群离开了 · 带走${stolen}份熟食` : '狼群已被赶走'; this.state.noticeUntil = now + 10;
+      this.state.notice = stolen ? `狼群离开了 · 带走${stolen}份熟食` : this.state.soldiers.length?'敌袭已结束':'狼群已被赶走'; this.state.noticeUntil = now + 10;
     }
   }
   private tick(w: Wolf, dt: number) {
@@ -170,7 +201,7 @@ export class Raids {
     if (w.hp <= stats.hp * .25 || w.fear >= C.fearSeconds || w.carried || !wild && (lost >= Math.ceil(this.state.wolves.length / 2) || now - this.state.startedAt >= C.duration)) this.flee(w);
     if (w.mode === 'flee') {
       if (wild && distance(w.position, w.home) < .5 && w.fear < 1 && w.hp > stats.hp * .25) { w.mode = 'approach'; w.defendFrom = undefined; }
-      if (!wild && distance(w.position, w.home) < 2 && !this.visible(w.position) && !RESIDENTS.some(r => distance(this.position(r.id), w.position) < 16)) {
+      if (!wild && distance(w.position, w.home) < 2 && !this.visible(w.position) && !homeResidents(this.economy.state).some(r => distance(this.position(r.id), w.position) < 16)) {
         w.mode = 'gone'; w.route = []; this.syncThreats(); return;
       }
       if (!w.route.length && w.planIn <= 0 && distance(w.position, w.home) >= .3) this.plan(w, [w.home]);
@@ -182,7 +213,7 @@ export class Raids {
       w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
       if (!attack.released && attack.elapsed >= stats.windup) {
         attack.released = true;
-        if (health(this.economy.state, attack.target) > 0 && distance(w.position, target) <= stats.range + .15 + (attack.target === 'cavalry' ? .72 : 0) && this.clear(w.position, target)) {
+        if (health(this.economy.state, attack.target) > 0 && distance(w.position, target) <= stats.range + .15 + (unitRole(attack.target) === 'cavalry' ? .72 : 0) && this.clear(w.position, target)) {
           this.combat.hurt(attack.target, stats.attack, w.id);
         }
       }
@@ -204,7 +235,7 @@ export class Raids {
       }
     }
     if (w.target) {
-      const target = this.position(w.target), reach = stats.range + (w.target === 'cavalry' ? .72 : 0);
+      const target = this.position(w.target), reach = stats.range + (unitRole(w.target) === 'cavalry' ? .72 : 0);
       if (distance(w.position, target) <= reach && this.clear(w.position, target)) {
         w.route = []; w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
         if (!w.cooldown) { w.cooldown = stats.interval; w.attack = { id: this.combat.state.nextAttack++, target: w.target, elapsed: 0, released: false }; }

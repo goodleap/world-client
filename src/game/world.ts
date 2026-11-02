@@ -5,7 +5,7 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import { BUILDINGS, createLandGrid, FENCES, GRID_SIZE } from './world-data';
 import type { Palette } from './models';
 import { ellipsoid, roundedBox } from './environment-shapes';
-import { referenceHouse } from './buildings';
+import { referenceHouse, homeCenter } from './buildings';
 import { selectionRanges } from './world-selection.ts';
 import { spatialBatches } from './spatial-batching.ts';
 import type { WorldObject } from './world-selection.ts';
@@ -29,10 +29,10 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   };
   createLandscapeTerrain(scene, p);
   for (const b of BUILDINGS) addObject({
-    id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : '仓库',
+    id: b.id, kind: 'building', name: b.id === 'cottage' ? '暖阳小屋' : b.id === 'home-center' ? '家园中心' : '仓库',
     x: b.x, z: b.z, radius: b.width / 2, width: b.width, depth: b.depth,
     anchor: { x: b.x, y: 1.4, z: b.z - b.depth / 2 - .2 },
-  }, () => { referenceHouse(scene, p, b, false); doors.add(b, b.id === 'warehouse'); });
+  }, () => { if (b.id === 'home-center') homeCenter(scene, p, b); else referenceHouse(scene, p, b, false); doors.add(b, b.id === 'warehouse'); });
   // Individual farming cells are managed below as native mutable instances.
   // Water is terrain, like the ground and roads: no selectable object metadata.
   // Its shoreline remains in the movement and construction obstacle data.

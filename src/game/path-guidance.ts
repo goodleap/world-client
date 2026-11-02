@@ -32,7 +32,8 @@ export function createPathGuidance(scene: Scene) {
   let points: Point[] = [], anchors: Point[] = [], stations: number[] = [], symbols: RouteSymbol[] = [];
   let selected: string | undefined, activeId: string | undefined, progress = 0, revision = 0, colors = new Float32Array();
   return {
-    update(id: string | undefined, position?: Point, route: readonly Point[] = []) {
+    update(id: string | undefined, position?: Point, route: readonly Point[] = [], opacity = 1) {
+      material.alpha = opacity;
       selected = id;
       if (!id || !position || !route.length) {
         mesh.setEnabled(false); activeId = undefined; points = []; anchors = []; symbols = []; progress = 0; return;
@@ -106,7 +107,7 @@ export function createPathGuidance(scene: Scene) {
       }
       if(changed) mesh.updateVerticesData(VertexBuffer.ColorKind,colors);
     },
-    snapshot: () => ({ visible: mesh.isEnabled(), selected, points, endpoint: points.at(-1), revision,
+    snapshot: () => ({ visible: mesh.isEnabled(), opacity: material.alpha, selected, points, endpoint: points.at(-1), revision,
       arrows:symbols.filter(s=>s.arrow).map(({x,z,alpha})=>({x,z,alpha})) }),
   };
 }

@@ -1,6 +1,6 @@
-import { RESIDENTS } from './resident-data.ts';
+import { homeResidents } from './recruitment.ts';
 import type { EconomyState } from './economy.ts';
-export const livingPopulation = (state: EconomyState) => RESIDENTS.filter(r => r.role !== 'dog'
+export const livingPopulation = (state: EconomyState) => homeResidents(state).filter(r => r.role !== 'dog'
   && (state.combat.units.find(u => u.id === r.id)?.life !== 'defeated')
   && (state.vitals[r.id]?.hp ?? 1) > 0).length;
 export function formatGameTime(seconds: number) {

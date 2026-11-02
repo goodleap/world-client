@@ -7,7 +7,7 @@ import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
  * FIFO among executable jobs; reserve before work, spend on
  * successful completion; produced goods must be delivered; no seed item or offline progress. Renewable nodes use saved active-time deadlines. */
 export const ECONOMY_CONFIG = {
-  initialInventory: { wood: 8, stone: 4, food: 0, iron: 0 },
+  initialInventory: { wood: 8, stone: 4, food: 24, iron: 4 },
   capacity: { wood: 2000, stone: 2000, food: 4000, iron: 800 },
   workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8, haul: .25, supply: .25, gather: 3, tools: 12, arms: 16 },
   crops: {

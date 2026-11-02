@@ -143,6 +143,7 @@ export function createCharacterLibrary(scene: Scene) {
       // Exclude the rigid string from batching so the authored bow can draw.
       const renderedMeshes = meshes.filter(m => m !== originalString && !heldArrow.includes(m));
       instanceCount++;
+      for(let i=instances.length-1;i>=0;i--)if(instances[i].meshes.every(mesh=>mesh.isDisposed()))instances.splice(i,1);
       instances.push({ role, meshes, skeletons: instance.skeletons });
       let bowPhase: number | undefined | false = false;
       return { ...instance, fallPosture, meshes: renderedMeshes, bowPose(phase?: number) {
@@ -166,7 +167,7 @@ export function createCharacterLibrary(scene: Scene) {
         if (!ids?.length) throw new Error(`LOD 缺少部件对应关系：${source.name}`);
         const key = ids.join(',');
         let geometry = lowBatches.get(key);
-        if (!geometry) {
+        if (!geometry || geometry.detail.isDisposed() || geometry.far.isDisposed()) {
           const data = levels.map(templates => {
             const parts = ids.map(id => {
               const mesh = templates.get(id);
@@ -191,7 +192,7 @@ export function createCharacterLibrary(scene: Scene) {
     },
     summary: () => ({ containers: containers.length, instances: instanceCount,
       humanActions, highBatches: highBatches.size, lowBatches: lowBatches.size,
-      actors: instances.map(instance => ({ role: instance.role,
+      actors: instances.filter(instance=>instance.meshes.some(mesh=>!mesh.isDisposed())).map(instance => ({ role: instance.role,
         skeletons: instance.skeletons.map(skeleton => ({ id: skeleton.uniqueId, bones: skeleton.bones.length })),
         headGeometry: (instance.meshes.find(mesh => mesh.name === 'Head • shaped cranium cheeks and jaw') as Mesh | undefined)?.geometry?.uniqueId,
       })),

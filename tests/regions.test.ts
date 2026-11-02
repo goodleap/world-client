@@ -50,7 +50,7 @@ test('roads and wildland cannot be built on; clearing a camp opens its construct
 });
 
 test('iron requires cleared mine, physical hauling and reserved processing; upgrades settle once', () => {
-  const e = new Economy(); e.setLeadership(false);
+  const e = new Economy(); e.setLeadership(false); e.state.inventory.iron = 0;
   const mine = LANDSCAPE.regions.find(r => r.id === 'quarry')!;
   const node = RESOURCE_NODES.find(n => n.kind === 'iron' && insidePolygon(n, mine.area))!;
   assert.equal(e.request('mine', node.id).ok, false);
@@ -91,7 +91,7 @@ test('tools accelerate production, equipment changes actual damage, and heavy gu
 });
 
 test('forage remains finite until active-time regrowth; reload, pause and occupied sites preserve it', () => {
-  const e = new Economy(); e.setLeadership(false);
+  const e = new Economy(); e.setLeadership(false); e.state.inventory.food = 0;
   e.request('gather', 'forage-0'); finish(e);
   assert.equal(e.state.inventory.food, 0); assert.equal(e.state.goods[0].amount, 6);
   const restored = decodeEconomy(encodeEconomy(e));

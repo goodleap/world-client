@@ -47,7 +47,7 @@ test('raid protection, hidden connected spawns, bounded pack and saved random sc
   const seen = setup(new Economy(initialEconomy()), [], true); seen.e.state.seconds = 240; seen.r.update(.05);
   assert.equal(seen.r.state.phase, 'peace'); assert(seen.r.state.nextAt > 240);
   const weak = setup(); weak.c.unit('archer')!.hp = 0; weak.c.unit('cavalry')!.hp = 0; weak.e.state.seconds = 240; weak.r.update(.05);
-  assert.equal(weak.r.state.nextAt, 300);
+  assert.equal(weak.r.state.nextAt, 248); assert.equal(weak.r.state.pendingCount, 1);
 });
 
 test('bite has windup, exactly one contact per attack, stable target and persisted cooldown', () => {
@@ -142,7 +142,7 @@ test('old saves and corrupted raid/projectile state are rejected; current saves 
   s.c.state.projectiles.push(shot); const reloaded = decodeEconomy(encodeEconomy(s.e)); assert.equal(reloaded.state.combat.projectiles[0].target, w.id);
   s.r.state.wolves[0].mode = 'gone'; s.r.state.phase = 'peace'; s.r.state.wolves[0].navigation = createRouteState();
   assert.doesNotThrow(() => decodeEconomy(encodeEconomy(s.e)));
-  assert.equal(initialRaids(12, 3).nextAt, 252);
+  assert.equal(initialRaids(12, 3).nextAt, 72);
 });
 
 test('automatic assistance keeps one pursuit origin for the whole wave', () => {
@@ -155,13 +155,13 @@ test('automatic assistance keeps one pursuit origin for the whole wave', () => {
   assert(s.c.move([a.id], { x: 15, z: 8 })); assert.equal(a.defendFrom, undefined);
 });
 
-test('different seeds produce legal packs capped at five; unavailable borders defer', () => {
+test('different seeds produce legal packs capped at six; unavailable borders defer', () => {
   const solids = economyObstacles([], [], []), origins = new Set<string>();
   for (const seed of [3, 1069, 99127, 184]) {
     const e = new Economy(initialEconomy(seed)); e.state.upgrades.arms = 3; e.state.raids.wave = 2;
     const s = setup(e, solids); e.state.seconds = 240;
     for (let i = 0; i < 10 && s.r.state.phase === 'peace'; i++) { e.state.seconds = s.r.state.nextAt; s.r.update(.05); }
-    assert.equal(s.r.state.phase, 'raid'); assert.equal(s.r.state.wolves.length, 5);
+    assert.equal(s.r.state.phase, 'raid'); assert.equal(s.r.state.wolves.length, 6);
     origins.add(JSON.stringify(s.r.state.origin));
     s.advance(5, () => { for (const w of s.r.state.wolves) assert(!isBlocked(w.position, .72, solids)); });
   }
@@ -181,4 +181,22 @@ test('bite, theft, evasion and random timers freeze on nonpositive delta', () =>
   w.attack = { id: s.c.state.nextAttack++, target: 'farmer', elapsed: .2, released: false }; w.feeding = .7;
   const before = encodeEconomy(s.e); s.r.update(0); s.r.update(-1); s.c.update(0);
   assert.equal(encodeEconomy(s.e), before);
+});
+
+test('warning persists for eight active seconds, alternates soldier raids and settles loot once',()=>{
+  const s=setup(),{e,c,r}=s;
+  e.state.raids.wave=1;e.state.raids.nextAt=60;e.state.seconds=52;r.update(.05);
+  assert(r.state.pendingOrigin);assert.equal(r.state.phase,'peace');assert.equal(r.state.nextAt,60);
+  const warned=decodeEconomy(encodeEconomy(e));assert.deepEqual(warned.state.raids.pendingOrigin,r.state.pendingOrigin);
+  const frozen=encodeEconomy(e);r.update(0);assert.equal(encodeEconomy(e),frozen);
+  e.state.seconds=59.99;r.update(.05);assert.equal(r.state.soldiers.length,0);
+  e.state.seconds=60;r.update(.05);assert.equal(r.state.wave,2);assert(r.state.soldiers.length>=2);
+  assert.equal(r.state.wolves.length,0);
+  const unit=c.unit(r.state.soldiers[0])!,before={...unit.position};c.update(.1);
+  assert(Math.hypot(unit.position.x-before.x,unit.position.z-before.z)>0);
+  assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
+  for(const id of r.state.soldiers)c.hurt(id,1000,'infantry');
+  const loot=structuredClone(e.state.goods);r.update(.05);assert.equal(r.state.phase,'peace');
+  assert(r.state.nextAt>=105&&r.state.nextAt<=135);
+  const restored=setup(decodeEconomy(encodeEconomy(e)));restored.advance(.1);assert.deepEqual(restored.e.state.goods,loot);
 });

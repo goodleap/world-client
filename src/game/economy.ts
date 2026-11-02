@@ -9,10 +9,13 @@ import { buildingAt, buildingDoor, placementReason, BUILDING_TYPES } from './con
 import type { BuildingSite, BuildingKind } from './construction.ts';
 import { insidePolygon } from './polygon.ts';
 import { findPath } from './pathfinding.ts';
-import { canResidentWork, canResidentSupply, RESIDENTS } from './resident-data.ts';
+import { canResidentWork, canResidentSupply } from './resident-data.ts';
+import { initialRecruitment, decodeRecruitment, homeResidents } from './recruitment.ts';
+import type { RecruitmentState } from './recruitment.ts';
+import { initialGroups, GROUP_COUNT, GROUP_SIZE, pruneGroups } from './groups.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
-import { initialVitals, alive, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
+import { initialVitals, initialVital, alive, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
 import type { Vitals } from './vitals.ts';
 
 export type Resource = 'wood' | 'stone' | 'food' | 'iron';
@@ -31,11 +34,12 @@ export interface WorkTask {
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string; destination?: string }
 export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
+  recruitment: RecruitmentState; groups: string[][];
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
-  version: 12; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 13; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -54,7 +58,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(seed?: number): EconomyState {
   return {
-    combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 12, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    recruitment: initialRecruitment(), groups: initialGroups(), combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 13, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -421,14 +425,24 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 12) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 13) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
-  state.raids = decodeRaids(raw.raids, raw.combat?.nextAttack);
-  state.combat = decodeCombat(raw.combat, allWolves(state.raids));
+  state.recruitment=decodeRecruitment(raw.recruitment);
+  const residents=homeResidents(state),residentIds=new Set(residents.map(r=>r.id));
+  if(!Array.isArray(raw.groups)||raw.groups.length!==GROUP_COUNT||raw.groups.some(g=>!Array.isArray(g)||g.length>GROUP_SIZE||g.some(id=>!residentIds.has(id)))
+    ||new Set(raw.groups.flat()).size!==raw.groups.flat().length)throw new Error('编队存档无效');
+  state.groups=raw.groups.map(g=>[...g]);
+  state.raids = decodeRaids(raw.raids, raw.combat?.nextAttack,residents);
+  state.combat = decodeCombat(raw.combat, allWolves(state.raids),residents);
+  const raiderIds=state.combat.units.filter(u=>u.id.startsWith('enemy-raid-')).map(u=>u.id);
+  if(raiderIds.length!==state.raids.soldiers.length||raiderIds.some(id=>!state.raids.soldiers.includes(id))
+    ||state.raids.phase==='peace'&&state.combat.units.some(u=>raiderIds.includes(u.id)&&u.life==='active'&&!u.departed))throw new Error('敌袭编队存档不一致');
+  const currentVitalIds=[...new Set([...vitalIds,...state.recruitment.roster.flatMap(r=>bodiesFor(r.id)),...state.combat.units.map(u=>u.id)])];
+  for(const id of currentVitalIds)state.vitals[id]=initialVital(id);
   if ([...state.combat.units, ...allWolves(state.raids)].some(u => u.diedAt !== undefined && u.diedAt > raw.seconds)) throw new Error('死亡时间超出游戏时间');
   if (!raw.upgrades || !['tools', 'arms'].every(k => Number.isInteger(raw.upgrades[k as 'tools']) && number(raw.upgrades[k as 'tools'], C.upgradeLimit))) throw new Error('加工存档无效');
   state.upgrades = { ...raw.upgrades };
@@ -442,7 +456,7 @@ export function decodeEconomy(text: string): Economy {
   }
   const validPoint = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && p.x >= WORLD_BOUNDS.minX && p.x <= WORLD_BOUNDS.maxX && p.z >= WORLD_BOUNDS.minZ && p.z <= WORLD_BOUNDS.maxZ;
   if (raw.residents && typeof raw.residents === 'object') for (const [id, entry] of Object.entries(raw.residents)) {
-    if (!RESIDENTS.some(resident => resident.id === id)) continue;
+    if (!residentIds.has(id)) continue;
     if (!entry || !validPoint(entry.position) || entry.manualGoal && !validPoint(entry.manualGoal)) throw new Error('居民存档无效');
     state.residents[id] = { position: { ...entry.position }, manualGoal: entry.manualGoal && { ...entry.manualGoal } };
   }
@@ -485,22 +499,26 @@ export function decodeEconomy(text: string): Economy {
       || !number(f.fuel, F.fuelSeconds) || !number(f.cook, F.cookSeconds) || !number(f.meals, F.mealCapacity) || !Number.isInteger(f.meals)) throw new Error('火堆存档无效');
     return { ...f };
   });
-  if (!raw.vitals || Object.keys(raw.vitals).length !== vitalIds.length) throw new Error('生命体力存档无效');
-  for (const id of vitalIds) {
+  if (!raw.vitals || Object.keys(raw.vitals).length !== currentVitalIds.length) throw new Error('生命体力存档无效');
+  for (const id of currentVitalIds) {
     const v = raw.vitals[id], template = state.vitals[id];
     if (!v || !number(v.stamina, 100) || !number(v.manualUntil, 1e12) || !number(v.retryAt, 1e12) || !number(v.hurtUntil, 1e12)
       || v.diedAt !== undefined && (!number(v.diedAt, raw.seconds) || v.hp !== 0)
       || v.hp === 0 && v.diedAt === undefined
       || (template.hp === undefined ? v.hp !== undefined : !number(v.hp, maxHealth(id)))
       || v.meal && (!number(v.meal.remaining, VITAL_CONFIG.mealSeconds) || v.meal.remaining <= 0)
-      || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !RESIDENTS.some(r => r.id === id)
+      || v.rest && (!state.campfires.some(f => f.id === v.rest!.camp) || !validPoint(v.rest.goal) || !residentIds.has(id)
         || v.rest.supply !== undefined && (!Number.isSafeInteger(v.rest.supply) || v.rest.supply < 1 || !canResidentSupply(id))
         || v.rest.supplyGoal && (!validPoint(v.rest.supplyGoal) || v.rest.supply === undefined))) throw new Error('生命体力存档无效');
     state.vitals[id] = structuredClone(v);
   }
+  for(const dog of [true,false]){
+    const count=residents.filter(r=>(r.role==='dog')===dog&&alive(state,r.id)).length+state.recruitment.queue.filter(q=>(q.role==='dog')===dog).length;
+    if(count>(dog?4:20))throw new Error('招募名额存档无效');
+  }
   const ids = new Set<number>(), targets = new Set<string>(), carriers = new Set<string>();
   for (const task of raw.tasks) {
-    if (!task || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) || !Object.hasOwn(C.workSeconds, task.kind)
+    if (!task || task.worker !== undefined && !residentIds.has(task.worker) || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) || !Object.hasOwn(C.workSeconds, task.kind)
       || !Object.hasOwn(STATUS_NAMES, task.status) || !number(task.progress, C.workSeconds[task.kind])
       || !matchesTarget(task.kind, task.target, state.sites, state.plots, !pending(task))
       || task.kind === 'sow' && (task.crop === undefined || !Object.hasOwn(C.crops, task.crop))
@@ -544,17 +562,17 @@ export function decodeEconomy(text: string): Economy {
   }
   for (const u of state.combat.units.filter(u => u.life === 'defeated')) {
     economy.interrupt(u.position, u.id);
-    for (const id of u.id === 'cavalry' ? ['cavalry', 'horse'] : [u.id]) {
+    for (const id of bodiesFor(u.id)) {
       state.vitals[id].rest = undefined; state.vitals[id].meal = undefined;
     }
     if (state.residents[u.id]) state.residents[u.id].manualGoal = undefined;
   }
-  for (const r of RESIDENTS) if (state.vitals[r.id].hp === 0) {
+  for (const r of residents) if (state.vitals[r.id].hp === 0) {
     if (r.effects?.includes('leader')) state.steward.enabled = false;
     economy.interrupt(state.residents[r.id]?.position ?? r.spawn, r.id);
     state.vitals[r.id].rest = undefined; state.vitals[r.id].meal = undefined;
     if (state.residents[r.id]) state.residents[r.id].manualGoal = undefined;
     delete state.raids.evading[r.id];
   }
-  return economy;
+  pruneGroups(economy);return economy;
 }

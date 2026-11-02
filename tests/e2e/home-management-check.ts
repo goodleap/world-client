@@ -1,0 +1,54 @@
+import { expect } from '@playwright/test';
+import type { Page,TestInfo } from '@playwright/test';
+import { Economy, encodeEconomy } from '../../src/game/economy.ts';
+import { recruit,advanceRecruitment } from '../../src/game/recruitment.ts';
+import { HOME_CENTER } from '../../src/game/world-data.ts';
+import { openGame,snapshot,panTo,clickGround } from './helpers.ts';
+
+export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean){
+  const e=new Economy();e.setLeadership(false);e.state.inventory={wood:40,stone:24,food:60,iron:40};e.state.raids.nextAt=600;
+  recruit(e,'cavalry');advanceRecruitment(e,25);recruit(e,'farmer');e.state.recruitment.queue[0].elapsed=9.7;
+  await page.addInitScript(save=>{if(!localStorage.getItem('world-basic-economy-v1'))localStorage.setItem('world-basic-economy-v1',save);localStorage.setItem('world-shadows-enabled','false');},encodeEconomy(e));
+  const errors=await openGame(page);
+  await expect.poll(async()=>(await snapshot(page)).residents.some(r=>r.id==='recruit-farmer-2'&&r.model),{timeout:40000}).toBe(true);
+  await page.locator('#home-resources').click();await page.locator('#groups-tab').click();
+  for(const id of ['infantry','archer','farmer'])await page.locator(`input[value="${id}"]`).check();
+  await page.locator('#save-group').click();
+  await page.screenshot({path:info.outputPath('group-editor.png'),scale:'css'});
+  await page.getByRole('button',{name:'关闭家园面板'}).click();await page.locator('[data-group="0"]').click();
+  expect((await snapshot(page)).selection.members).toHaveLength(3);
+  await clickGround(page,{x:0,z:-8},touch);
+  let s=await snapshot(page);expect(s.combat.units.find(u=>u.id==='infantry')!.order).toBe('move');expect(s.combat.units.find(u=>u.id==='archer')!.order).toBe('move');
+  expect(s.residents.find(r=>r.id==='farmer')!.moveCommand).toBe(true);
+  const goals=[s.combat.units.find(u=>u.id==='infantry')!.goal!,s.combat.units.find(u=>u.id==='archer')!.goal!,s.residents.find(r=>r.id==='farmer')!.destination!];
+  expect(new Set(goals.map(p=>JSON.stringify(p))).size).toBe(3);
+  await page.screenshot({path:info.outputPath('group-move.png'),scale:'css'});
+  await page.locator('#clear-selection').click();await panTo(page,HOME_CENTER,touch);
+  await clickGround(page,{x:HOME_CENTER.x-.35,z:HOME_CENTER.z-HOME_CENTER.depth/2-.2},touch,1.4);
+  await expect(page.locator('#recruit-dialog')).toBeVisible();
+  const paused=(await snapshot(page)).economy.seconds;await page.waitForTimeout(500);expect((await snapshot(page)).economy.seconds).toBe(paused);
+  await page.getByRole('button',{name:'招募田园犬'}).click();await page.getByRole('button',{name:'招募步兵'}).click();
+  await expect(page.locator('#recruit-queue li')).toHaveCount(2);
+  await page.locator('#recruit-queue li').last().getByRole('button',{name:'取消'}).click();
+  await page.screenshot({path:info.outputPath('recruit-panel.png'),scale:'css'});
+  await page.getByRole('button',{name:'关闭家园中心'}).click();
+  await page.screenshot({path:info.outputPath('home-center-game.png'),scale:'css'});
+  await expect.poll(async()=>(await snapshot(page)).residents.some(r=>r.id==='recruit-dog-3'&&r.dogLOD),{timeout:70000}).toBe(true);
+  s=await snapshot(page);expect(s.economy.recruitment.queue).toHaveLength(0);
+  const dog=s.residents.find(r=>r.id==='recruit-dog-3')!;expect(dog.animalBones.length).toBeGreaterThan(5);
+  const original=s.residents.find(r=>r.id==='dog')!;expect(dog.dogLOD!.skeleton).not.toBe(original.dogLOD!.skeleton);expect(dog.dogLOD!.geometry).toBe(original.dogLOD!.geometry);expect(dog.dogLOD!.material).toBe(original.dogLOD!.material);
+  await expect.poll(async()=>JSON.stringify((await snapshot(page)).residents.find(r=>r.id===dog.id)!.pose),{timeout:15000}).not.toBe(JSON.stringify(dog.pose));
+  await page.screenshot({path:info.outputPath('new-dog-cavalry.png'),scale:'css'});
+  await page.locator('#settings').click();const before=await snapshot(page);
+  await page.getByRole('button',{name:'回到主菜单',exact:true}).click();await page.reload();await page.getByRole('button',{name:'继续游戏',exact:true}).click();
+  await expect(page.locator('#loading')).toHaveClass(/loaded/,{timeout:90000});
+  s=await snapshot(page);expect(s.economy.recruitment.roster.map(r=>r.id)).toEqual(before.economy.recruitment.roster.map(r=>r.id));expect(s.economy.groups).toEqual(before.economy.groups);
+  await page.locator('[data-group="0"]').click();await page.locator('#building-toggle').click();
+  if(touch)for(const [width,height]of [[320,568],[412,915],[844,390]]){
+    await page.setViewportSize({width,height});
+    const card=(await page.locator('#resident-selection').boundingBox())!,build=(await page.locator('#building-toggle').boundingBox())!,reset=(await page.locator('#reset').boundingBox())!;
+    expect(Math.abs(card.x+card.width/2-width/2)).toBeLessThan(1);expect(card.x).toBeGreaterThan(build.x+build.width+3);expect(card.x+card.width).toBeLessThan(reset.x-3);
+    await page.screenshot({path:info.outputPath(`compact-${width}.png`),scale:'css'});
+  }
+  expect(errors).toEqual([]);
+}
