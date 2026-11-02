@@ -22,16 +22,28 @@ test('mounted melee and archer keep independent commands, selection, pause and s
   expect((await snapshot(page)).selection.resident).toBe('cavalry');
   expect(['hold', 'guard']).toContain((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order);
   await selectUnit(page, 'archer');
-  expect((await snapshot(page)).combat.units.find(u => u.id === 'cavalry')!.order).toBe('attack');
+  // At the current combat tempo the guard can die while the browser selects
+  // the archer. A completed attack naturally returns the cavalry to guard.
+  s = await snapshot(page);
+  if (s.combat.units.find(u => u.id === 'enemy-guard')!.hp > 0)
+    expect(s.combat.units.find(u => u.id === 'cavalry')!.order).toBe('attack');
+  else expect(s.combat.units.find(u => u.id === 'cavalry')!.order).toBe('guard');
   await clickGround(page, (await snapshot(page)).combat.units.find(u => u.id === 'enemy-archer')!.position, false, 1);
   expect((await snapshot(page)).selection.resident).toBe('archer');
-  expect((await snapshot(page)).combat.units.find(u => u.id === 'cavalry')!.target).toBe('enemy-guard');
+  s = await snapshot(page);
+  if (s.combat.units.find(u => u.id === 'enemy-guard')!.hp > 0)
+    expect(s.combat.units.find(u => u.id === 'cavalry')!.target).toBe('enemy-guard');
   await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'enemy-guard')!.hp, { timeout: 40_000 }).toBeLessThan(65);
   await page.screenshot({ path: info.outputPath('combat-desktop.png') });
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const frozen = await snapshot(page); await page.waitForTimeout(500);
   expect((await snapshot(page)).combat).toEqual(frozen.combat);
   expect((await snapshot(page)).economy).toEqual(frozen.economy);
+  for (const id of ['cavalry', 'archer']) {
+    const resident = frozen.residents.find(r => r.id === id)!;
+    expect(resident.modelPose?.length).toBeGreaterThanOrEqual(20);
+    expect((await snapshot(page)).residents.find(r => r.id === id)!.modelPose).toEqual(resident.modelPose);
+  }
   const box = await page.locator('#settings-dialog').boundingBox();
   expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
   expect(Math.abs(box!.y + box!.height / 2 - 450)).toBeLessThan(2);
@@ -45,8 +57,16 @@ test('mounted melee and archer keep independent commands, selection, pause and s
   s = await snapshot(page);
   expect(s.combat.units.find(u => u.id === 'archer')).toMatchObject({ order: 'move', target: undefined, attack: undefined });
   expect(s.combat.units.find(u => u.id === 'cavalry')!.order).not.toBe('move');
-  await page.getByRole('button', { name: '取消选中', exact: true }).click();
-  expect((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order).toBe('move');
+  // Compare the cancel event atomically: walking can legitimately finish
+  // while Playwright waits for a software-rendered frame after the click.
+  const cancelled = await page.getByRole('button', { name: '取消选中', exact: true }).evaluate(button => {
+    const before = structuredClone(window.__DEMO__!.snapshot().combat);
+    (button as HTMLButtonElement).click();
+    const after = window.__DEMO__!.snapshot();
+    return { before, combat: after.combat, selected: after.selection.resident };
+  });
+  expect(cancelled.combat).toEqual(cancelled.before);
+  expect(cancelled.selected).toBeUndefined();
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const hp = (await snapshot(page)).combat.units.map(u => u.hp);
   await page.getByRole('button', { name: '回到主菜单', exact: true }).click();

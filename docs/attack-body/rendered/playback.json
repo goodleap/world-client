@@ -1,0 +1,48 @@
+{
+  "errors": [],
+  "playback": [
+    {
+      "role": "infantry",
+      "view": "side",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    },
+    {
+      "role": "infantry",
+      "view": "game",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    },
+    {
+      "role": "cavalry",
+      "view": "side",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    },
+    {
+      "role": "cavalry",
+      "view": "game",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    },
+    {
+      "role": "archer",
+      "view": "side",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    },
+    {
+      "role": "archer",
+      "view": "game",
+      "frames": 40,
+      "stepMs": 16,
+      "nativeLoops": 2
+    }
+  ],
+  "assetSHA256": "76ab62713eaf0d2e1fbdae727783ff23c8214d7104397ac0187e6b5eeb7b3215"
+}

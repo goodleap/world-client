@@ -1,4 +1,5 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { attackAnimationPhase } from './combat-animation';
 import { DeathView, MountedDeathView } from './death-view.ts';
 import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 import { deathAge } from './death.ts';
@@ -342,7 +343,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           setMotion(u.id, 'attack');
           if (playingAttack.get(u.id) !== u.attack.id) { clip.start(false); clip.pause(); playingAttack.set(u.id, u.attack.id); }
           // Sample native exported tracks from authoritative game time, including after load.
-          const phase = Math.min(1, u.attack.elapsed / (fighterStats(u).windup + fighterStats(u).recovery));
+          const stats = fighterStats(u);
+          const phase = attackAnimationPhase(u.role, u.attack.elapsed, stats.windup, stats.recovery);
           clip.goToFrame(clip.from + phase * (clip.to - clip.from));
           bowPoses.get(u.id)?.(phase);
         } else { bowPoses.get(u.id)?.(); playingAttack.delete(u.id); setMotion(u.id, u.speed > .08 ? 'run' : 'idle', u.speed); }

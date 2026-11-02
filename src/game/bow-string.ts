@@ -4,6 +4,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Scene } from '@babylonjs/core/scene';
 import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import anchors from '../../studies/characters/bow-string.json';
+import actions from '../../studies/characters/combat-actions.json';
 
 /** Three-point string follows the authored hand bones. The drawn arrow is a
  * visual only; Combat owns projectile release/damage. One updatable native line
@@ -17,7 +18,7 @@ export function createBowString(scene: Scene, right: TransformNode, left: Transf
   const arrow = MeshBuilder.CreateLines('nocked-arrow', { points: arrowPoints, updatable: true }, scene);
   arrow.color = Color3.FromHexString('#66472c'); arrow.isPickable = false; arrow.setEnabled(false);
   return { update(phase?: number) {
-    const active = phase !== undefined && phase >= .2 && phase < .58;
+    const active = phase !== undefined && phase >= .2 && phase < actions.BowShot.releasePhase;
     string.setEnabled(active); arrow.setEnabled(active);
     if (!active) return false;
     right.computeWorldMatrix(true); left.computeWorldMatrix(true);

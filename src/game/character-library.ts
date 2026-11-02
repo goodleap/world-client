@@ -134,7 +134,7 @@ export function createCharacterLibrary(scene: Scene) {
       const originalString = role === 'archer' ? meshes.find(m => m.name === 'Bow • taut linen string') : undefined;
       const heldArrow = role === 'archer' ? meshes.filter(m => m.name.startsWith('Held arrow •')) : [];
       const roots = instance.rootNodes.filter((node): node is TransformNode => node instanceof TransformNode).map(node => ({ node, rotation: node.rotationQuaternion?.clone() ?? Quaternion.Identity() }));
-      const drawn = combatActions.BowShot.keys[2];
+      const drawn = combatActions.BowShot.keys.find(key => key.phase === combatActions.BowShot.drawPhase)!;
       const bowYaw = Math.atan2(drawn.left[0] - drawn.right[0], drawn.right[2] - drawn.left[2]);
       const hand = (name: string) => instance.skeletons.flatMap(s => s.bones).find(b => b.name === name)?.getTransformNode();
       const right = hand('hand.R'), left = hand('hand.L');

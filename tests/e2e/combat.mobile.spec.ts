@@ -52,9 +52,15 @@ test('touch commands affect one soldier and dragging keeps the selected soldier'
   expect((await snapshot(page)).selection.resident).toBe('infantry');
   expect(['hold', 'guard']).toContain((await snapshot(page)).combat.units.find(u => u.id === 'archer')!.order);
   await expect.poll(async () => (await snapshot(page)).combat.units.find(u => u.id === 'enemy-guard')!.hp).toBeLessThan(65);
-  // The low-health guard may already have fallen; verify damage feedback on
-  // the surviving soldier rather than requiring a defeated enemy to stay visible.
-  await expect(page.locator('[data-health="infantry"]')).toBeVisible();
+  // The brief damage bar can already have faded during software-GPU frames.
+  // Its live HP and the selected-unit meter must still reflect received damage.
+  const hp = (await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.hp;
+  expect(hp).toBeLessThan(140);
+  await expect.poll(() => page.evaluate(() => {
+    const current = window.__DEMO__!.snapshot().combat.units.find(u => u.id === 'infantry')!.hp;
+    return Number(document.querySelector('[data-health="infantry"]')!.getAttribute('aria-valuenow')) - Math.ceil(current);
+  })).toBe(0);
+  await expect(page.getByRole('region', { name: '当前单位信息' }).getByRole('meter', { name: '生命', exact: true })).toBeVisible();
   await expect(page.locator('[data-resident="infantry"]')).toHaveText('步兵');
   await expect(page.locator('.resident-label small')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('combat-phone.png') });

@@ -1,188 +1,47 @@
 {
-  "version": 2,
-  "basis": "Existing 20-bone human rig, +Y up, +Z forward, metres; no root motion. CarryWalk for foot soldiers; RideIdle for mounted lance thrust. Trial attack tempo 3.5x.",
+  "version": 3,
+  "revision": "combat-body-2026-11-02",
+  "sampleCount": 61,
+  "basis": "Shared 20-bone human rig, Y up, +Z forward; fixed bone lengths. Body degrees, wrist radians. Feet planted with offline IK; mounted seat fixed. Existing attack clocks and release phases retained.",
   "SwordSlash": {
+    "base": "ShieldWalk",
     "duration": 0.2285714285714286,
+    "releasePhase": 0.475,
     "keys": [
-      {
-        "phase": 0,
-        "right": [
-          -0.401,
-          0.44,
-          0.005
-        ],
-        "wrist": 0
-      },
-      {
-        "phase": 0.28,
-        "right": [
-          -0.43,
-          0.95,
-          0.02
-        ],
-        "wrist": -0.5
-      },
-      {
-        "phase": 0.475,
-        "right": [
-          -0.27,
-          0.68,
-          0.3
-        ],
-        "wrist": 1.1
-      },
-      {
-        "phase": 0.68,
-        "right": [
-          -0.22,
-          0.53,
-          0.24
-        ],
-        "wrist": 1.2
-      },
-      {
-        "phase": 1,
-        "right": [
-          -0.401,
-          0.44,
-          0.005
-        ],
-        "wrist": 0
-      }
+      {"phase": 0, "right": [-0.401, 0.44, 0.005], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 0.16, "right": [-0.46, 0.69, -0.025], "wrist": -0.25, "torso": [-3, -9, 0], "pelvis": [0, -3, 0], "shift": [0, -0.012, -0.005]},
+      {"phase": 0.3, "right": [-0.5, 0.9, -0.035], "wrist": -0.55, "torso": [-6, -18, 0], "pelvis": [0, -6, 0], "shift": [0, -0.018, -0.008]},
+      {"phase": 0.475, "right": [-0.27, 0.68, 0.31], "wrist": 1.1, "torso": [12, 10, 0], "pelvis": [0, 4, 0], "shift": [0, -0.025, 0.01]},
+      {"phase": 0.65, "right": [-0.2, 0.5, 0.26], "wrist": 1.35, "torso": [10, 17, 0], "pelvis": [0, 6, 0], "shift": [0, -0.02, 0.01]},
+      {"phase": 0.84, "right": [-0.36, 0.46, 0.1], "wrist": 0.45, "torso": [3, 5, 0], "pelvis": [0, 2, 0], "shift": [0, -0.008, 0.004]},
+      {"phase": 1, "right": [-0.401, 0.44, 0.005], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]}
     ]
   },
   "BowShot": {
+    "base": "CarryWalk",
     "duration": 0.2714285714285714,
+    "releasePhase": 0.579,
+    "drawPhase": 0.53,
     "keys": [
-      {
-        "phase": 0,
-        "right": [
-          -0.401,
-          0.44,
-          0.005
-        ],
-        "left": [
-          0.401,
-          0.44,
-          0.005
-        ]
-      },
-      {
-        "phase": 0.22,
-        "right": [
-          -0.24,
-          0.62,
-          0.24
-        ],
-        "left": [
-          0.08,
-          0.61,
-          0.18
-        ]
-      },
-      {
-        "phase": 0.53,
-        "right": [
-          -0.24,
-          0.62,
-          0.24
-        ],
-        "left": [
-          0.04,
-          0.64,
-          0.02
-        ]
-      },
-      {
-        "phase": 0.579,
-        "right": [
-          -0.24,
-          0.62,
-          0.24
-        ],
-        "left": [
-          0.08,
-          0.64,
-          -0.01
-        ]
-      },
-      {
-        "phase": 0.73,
-        "right": [
-          -0.24,
-          0.62,
-          0.24
-        ],
-        "left": [
-          0.12,
-          0.6,
-          0.02
-        ]
-      },
-      {
-        "phase": 1,
-        "right": [
-          -0.401,
-          0.44,
-          0.005
-        ],
-        "left": [
-          0.401,
-          0.44,
-          0.005
-        ]
-      }
+      {"phase": 0, "right": [-0.401, 0.44, 0.005], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0], "left": [0.401, 0.44, 0.005]},
+      {"phase": 0.22, "right": [-0.24, 0.68, 0.25], "wrist": 0, "torso": [-4, 3, 0], "pelvis": [0, 1, 0], "shift": [0, -0.009, -0.004], "left": [0.12, 0.68, 0.1]},
+      {"phase": 0.53, "right": [-0.24, 0.7, 0.25], "wrist": 0, "torso": [-14, 10, 0], "pelvis": [0, 3, 0], "shift": [0, -0.014, -0.014], "left": [0.06, 0.7, -0.045]},
+      {"phase": 0.579, "right": [-0.24, 0.7, 0.25], "wrist": 0, "torso": [-14, 10, 0], "pelvis": [0, 3, 0], "shift": [0, -0.014, -0.014], "left": [0.08, 0.7, -0.065]},
+      {"phase": 0.73, "right": [-0.24, 0.68, 0.25], "wrist": 0, "torso": [-6, 5, 0], "pelvis": [0, 1, 0], "shift": [0, -0.01, -0.006], "left": [0.15, 0.65, 0.015]},
+      {"phase": 1, "right": [-0.401, 0.44, 0.005], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0], "left": [0.401, 0.44, 0.005]}
     ]
   },
   "LanceThrust": {
     "base": "RideIdle",
     "duration": 0.2285714285714286,
+    "releasePhase": 0.475,
     "keys": [
-      {
-        "phase": 0,
-        "right": [
-          -0.401,
-          1.12,
-          -0.095
-        ],
-        "wrist": 0
-      },
-      {
-        "phase": 0.28,
-        "right": [
-          -0.46,
-          1.29,
-          -0.16
-        ],
-        "wrist": 1.6
-      },
-      {
-        "phase": 0.475,
-        "right": [
-          -0.43,
-          1.3,
-          0.18
-        ],
-        "wrist": 1.7
-      },
-      {
-        "phase": 0.68,
-        "right": [
-          -0.45,
-          1.25,
-          0.07
-        ],
-        "wrist": 1.6
-      },
-      {
-        "phase": 1,
-        "right": [
-          -0.401,
-          1.12,
-          -0.095
-        ],
-        "wrist": 0
-      }
+      {"phase": 0, "right": [-0.401, 1.12, -0.095], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 0.28, "right": [-0.45, 1.29, -0.16], "wrist": 1.6, "torso": [-5, -9, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 0.475, "right": [-0.38, 1.3, 0.27], "wrist": 1.7, "torso": [17, 7, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 0.63, "right": [-0.38, 1.28, 0.25], "wrist": 1.7, "torso": [13, 8, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 0.83, "right": [-0.43, 1.2, -0.01], "wrist": 0.75, "torso": [3, 1, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]},
+      {"phase": 1, "right": [-0.401, 1.12, -0.095], "wrist": 0, "torso": [0, 0, 0], "pelvis": [0, 0, 0], "shift": [0, 0, 0]}
     ]
   }
 }
