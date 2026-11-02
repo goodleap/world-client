@@ -32,10 +32,10 @@ export function checkLandscape(touch = false) {
     expect((await snapshot(page)).placement.reason).toContain('水域');
     expect((await snapshot(page)).economy.plots).toHaveLength(13);
     await click('#cancel-building');
-    await click('#settings'); await page.locator('#shadows-enabled').uncheck(); await click('#continue-game');
+    await click('#settings'); await click('#settings-graphics'); await page.locator('#shadows-enabled').uncheck(); await click('#graphics-back'); await click('#continue-game');
     await expect.poll(async () => (await snapshot(page)).diagnostics.latest?.shadowTriangles).toBe(0);
     await page.screenshot({ path: info.outputPath('landscape-shore-shadows-off.png'), scale: 'css' });
-    await click('#settings'); await page.locator('#shadows-enabled').check(); await click('#continue-game');
+    await click('#settings'); await click('#settings-graphics'); await page.locator('#shadows-enabled').check(); await click('#graphics-back'); await click('#continue-game');
     await expect.poll(async () => (await snapshot(page)).diagnostics.latest?.shadowTriangles).toBeGreaterThan(0);
     expect((await snapshot(page)).diagnostics.latest!.renderLoops).toBe(1);
     expect(errors).toEqual([]);

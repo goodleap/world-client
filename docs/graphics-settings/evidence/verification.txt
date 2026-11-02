@@ -1,0 +1,23 @@
+2026-11-02 / cloud Chromium, software WebGL
+
+TypeScript check and Vite production build: passed (Playwright webServer runs npm run build).
+Existing bundle > 500 kB warning remains.
+
+npm test
+ℹ tests 164
+ℹ suites 0
+ℹ pass 164
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8623.448083
+
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- lighting.desktop.spec.ts lighting.mobile.spec.ts shadows-setting.desktop.spec.ts
+  ✓  1 [desktop-chromium] › tests/e2e/lighting-check.ts:7:3 › graphics sidebar previews without blur, preserves pause through navigation, persists and resets (39.5s)
+  ✓  2 [desktop-chromium] › tests/e2e/shadows-setting-check.ts:6:3 › shadow switch stops shadow draws, preserves paused play and survives reload (35.7s)
+  ✓  3 [mobile-chromium] › tests/e2e/lighting-check.ts:7:3 › graphics sidebar previews without blur, preserves pause through navigation, persists and resets (43.1s)
+  3 passed (2.1m)
+
+Screenshots reviewed: desktop main/graphics, mobile main, 393x852, 320x568 and 820x400 graphics.
+Touch and viewport emulation only; real iPhone performance not tested.

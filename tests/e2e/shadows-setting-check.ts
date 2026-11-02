@@ -12,6 +12,7 @@ export function checkShadowSetting() {
     const errors = await openGame(page);
     await expect.poll(async () => (await snapshot(page)).diagnostics.latest?.shadowDrawCalls ?? 0).toBeGreaterThan(0);
     await page.locator('#settings').click();
+    await page.locator('#settings-graphics').click();
     await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(0);
     const frozen = await snapshot(page), toggle = page.locator('#shadows-enabled');
     await expect(toggle).toBeChecked();
@@ -24,7 +25,7 @@ export function checkShadowSetting() {
     expect(off.economy).toEqual(frozen.economy);
     expect(off.shadows.mapId).toBe(frozen.shadows.mapId);
     await page.screenshot({ path: info.outputPath('shadows-setting-off.png'), scale: 'css' });
-    await page.locator('#continue-game').click();
+    await page.locator('#graphics-back').click(); await page.locator('#continue-game').click();
     await expect.poll(async () => (await snapshot(page)).diagnostics.latest?.shadowDrawCalls).toBe(0);
     expect((await snapshot(page)).diagnostics.latest?.shadowTriangles).toBe(0);
 
@@ -33,12 +34,13 @@ export function checkShadowSetting() {
     await openGame(page);
     expect((await snapshot(page)).shadows.enabled).toBe(false);
     await page.locator('#settings').click();
+    await page.locator('#settings-graphics').click();
     await expect(toggle).not.toBeChecked();
     await toggle.check();
-    await page.locator('#continue-game').click();
+    await page.locator('#graphics-back').click(); await page.locator('#continue-game').click();
     await expect.poll(async () => (await snapshot(page)).diagnostics.latest?.shadowDrawCalls ?? 0).toBeGreaterThan(0);
     expect((await snapshot(page)).diagnostics.latest?.shadowTriangles).toBeGreaterThan(0);
-    expect((await snapshot(page)).diagnostics.renderLoops).toBe(1);
+    await expect.poll(async () => (await snapshot(page)).diagnostics.renderLoops).toBe(1);
     expect(errors).toEqual([]);
   });
 }

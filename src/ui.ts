@@ -80,12 +80,13 @@ export function createUI(app: HTMLElement) {
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
     <section id="resident-selection" class="resident-selection" aria-label="当前指挥单位" hidden><div><strong id="resident-name"></strong><small id="resident-hint"></small></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label><button id="clear-selection" aria-label="取消选中">${icon('close')}</button></section>
     <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭资源面板">${icon('close')}</button><h2 id="resources-title">家园资源</h2><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></dialog>
-    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
+    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
+    <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
       <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>
-      <label for="sunlight">太阳光 <output id="sunlight-value"></output><input id="sunlight" type="range" min="0" max="2" step="0.01"></label>
-      <label for="sun-color" class="light-color">光的颜色 <small>太阳光</small><input id="sun-color" type="color"></label>
+      <label for="sunlight">太阳光强度 <output id="sunlight-value"></output><input id="sunlight" type="range" min="0" max="2" step="0.01"></label>
+      <label for="sun-color" class="light-color">太阳光颜色<input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
-    </div><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
+    </div><p id="graphics-notice" class="dialog-note" role="status" hidden></p></dialog>
     <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建筑菜单可开垦耕地、建造仓库、民房和火堆。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。生命归零后停止作战，仍可缓慢移动；到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
@@ -94,6 +95,7 @@ export function createUI(app: HTMLElement) {
   const help = get<HTMLDialogElement>('help-dialog');
   const detail = get<HTMLDialogElement>('landmark-dialog');
   const settings = get<HTMLDialogElement>('settings-dialog');
+  const graphics = get<HTMLDialogElement>('graphics-dialog');
   const copy = document.createElement('button');
   copy.id = 'copy-diagnostics'; copy.textContent = '复制性能日志';
   settings.querySelector('.system-actions')!.append(copy);
@@ -108,7 +110,7 @@ export function createUI(app: HTMLElement) {
     get('settings-notice').textContent = ok ? '最近 10 秒性能日志已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
   });
   const resources = get<HTMLDialogElement>('resources-dialog');
-  const dialogs = [settings, help, detail, resources];
+  const dialogs = [settings, graphics, help, detail, resources];
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
   const residentLabels = new Map<string, HTMLElement>();
@@ -137,9 +139,15 @@ export function createUI(app: HTMLElement) {
   let onPauseChange = () => {};
   let onLeave: (destination: 'menu' | 'exit') => void = () => {};
   const showDialog = (dialog: HTMLDialogElement) => { if (!dialog.open) dialog.showModal(); onPauseChange(); };
+  // Open the destination first so the game stays paused throughout the swap.
+  // Closing the source also removes its native backdrop from the top layer.
+  const switchDialog = (from: HTMLDialogElement, to: HTMLDialogElement) => { showDialog(to); from.close(); };
   // Settings is the explicit pause screen. Only its Continue action resumes.
   settings.querySelector<HTMLButtonElement>('.dialog-close')!.hidden = true;
-  const closeDialog = (dialog: HTMLDialogElement) => { if (dialog !== settings) dialog.close(); };
+  const closeDialog = (dialog: HTMLDialogElement) => {
+    if (dialog === graphics) switchDialog(graphics, settings);
+    else if (dialog !== settings) dialog.close();
+  };
   function showBackgroundPause() {
     for (const dialog of dialogs) if (dialog !== settings && dialog.open) dialog.close();
     get('settings-notice').textContent = '游戏已在后台暂停，点击继续游戏恢复。';
@@ -165,16 +173,20 @@ export function createUI(app: HTMLElement) {
   }, options);
   for (const dialog of dialogs) {
     dialog.querySelector('button')!.addEventListener('click', () => closeDialog(dialog), options);
-    dialog.addEventListener('cancel', event => { if (dialog === settings) event.preventDefault(); }, options);
+    dialog.addEventListener('cancel', event => {
+      if (dialog === settings || dialog === graphics) event.preventDefault();
+      if (dialog === graphics) closeDialog(graphics);
+    }, options);
     dialog.addEventListener('close', () => { onPauseChange(); focusGame(); }, options);
     dialog.addEventListener('click', (event) => {
-      if (event.target !== dialog) return;
+      if (event.target !== dialog || dialog === graphics) return;
       const bounds = dialog.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog(dialog);
     }, options);
   }
   get('home-resources').addEventListener('click', () => showDialog(resources), options);
   get('settings').addEventListener('click', () => showDialog(settings), options);
+  get('settings-graphics').addEventListener('click', () => switchDialog(settings, graphics), options);
   get('settings-help').addEventListener('click', () => showDialog(help), options);
   get('continue-game').addEventListener('click', () => {
     backgroundPaused = false;
@@ -286,7 +298,7 @@ export function createUI(app: HTMLElement) {
     bindPause(callback: () => void) { onPauseChange = callback; },
     bindShadows(enabled: boolean, callback: (enabled: boolean) => void) {
       const toggle = get<HTMLInputElement>('shadows-enabled'); toggle.checked = enabled;
-      toggle.addEventListener('change', () => callback(toggle.checked), options);
+      toggle.addEventListener('change', () => { get('graphics-notice').hidden = true; callback(toggle.checked); }, options);
     },
     bindLighting(initial: LightingSettings, callback: (settings: LightingSettings) => void) {
       const environment = get<HTMLInputElement>('environment-light'), sunlight = get<HTMLInputElement>('sunlight'), color = get<HTMLInputElement>('sun-color');
@@ -297,13 +309,17 @@ export function createUI(app: HTMLElement) {
       };
       show(initial);
       const update = () => {
+        get('graphics-notice').hidden = true;
         const value = normalizeLighting({ environment: environment.valueAsNumber, sunlight: sunlight.valueAsNumber, sunColor: color.value });
         show(value); callback(value);
       };
       for (const input of [environment, sunlight, color]) input.addEventListener('input', update, options);
-      get('reset-lighting').addEventListener('click', () => { show(DEFAULT_LIGHTING); callback({ ...DEFAULT_LIGHTING }); }, options);
+      get('reset-lighting').addEventListener('click', () => { get('graphics-notice').hidden = true; show(DEFAULT_LIGHTING); callback({ ...DEFAULT_LIGHTING }); }, options);
     },
-    settingsNotice(text: string) { get('settings-notice').textContent = text; },
+    settingsNotice(text: string) {
+      const notice = get(graphics.open ? 'graphics-notice' : 'settings-notice');
+      notice.textContent = text; notice.hidden = false;
+    },
     bindLeadership(callback: (enabled: boolean) => void) {
       const toggle = get<HTMLInputElement>('leader-command-enabled');
       toggle.addEventListener('change', () => { callback(toggle.checked); focusGame(); }, options);
