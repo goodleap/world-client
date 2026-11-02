@@ -12,6 +12,8 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { AssetContainer } from '@babylonjs/core/assetContainer';
 import { nextPaint } from '../launcher.ts';
 import { loadingProgress } from '../loading-progress.ts';
+import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
+import { DEATH } from './death.ts';
 import { modelAssets } from './model-assets.ts';
 import { modelData, modelOptions } from './asset-cache.ts';
 import { createCharacterMaterialSetup } from './character-materials.ts';
@@ -114,6 +116,21 @@ export function createCharacterLibrary(scene: Scene) {
         if (!found) throw new Error(`基础人物动作库缺少 ${name}`);
         return found;
       };
+      // Existing seated and standing tracks supply a native, fixed-bone blend
+      // for dismounting into a prone corpse. No second body or skeleton.
+      let fallPosture: AnimationGroup | undefined;
+      if (config.mounted) {
+        const seated = clip('RideIdle'), standing = clip('Walk');
+        fallPosture = new AnimationGroup('RiderFallPosture', scene);
+        for (const track of standing.targetedAnimations) {
+          const start = seated.targetedAnimations.find(t => t.target === track.target && t.animation.targetProperty === track.animation.targetProperty);
+          if (!start) continue;
+          const animation = track.animation.clone(), from = start.animation.getKeys()[0].value, to = track.animation.getKeys()[0].value;
+          animation.setKeys([{ frame: 0, value: from.clone() }, { frame: DEATH.fall * 60, value: to.clone() }]);
+          animation.framePerSecond = 60; animation.enableBlending = false;
+          fallPosture.addTargetedAnimation(animation, track.target);
+        }
+      }
       const originalString = role === 'archer' ? meshes.find(m => m.name === 'Bow • taut linen string') : undefined;
       const heldArrow = role === 'archer' ? meshes.filter(m => m.name.startsWith('Held arrow •')) : [];
       const roots = instance.rootNodes.filter((node): node is TransformNode => node instanceof TransformNode).map(node => ({ node, rotation: node.rotationQuaternion?.clone() ?? Quaternion.Identity() }));
@@ -128,7 +145,7 @@ export function createCharacterLibrary(scene: Scene) {
       instanceCount++;
       instances.push({ role, meshes, skeletons: instance.skeletons });
       let bowPhase: number | undefined | false = false;
-      return { ...instance, meshes: renderedMeshes, bowPose(phase?: number) {
+      return { ...instance, fallPosture, meshes: renderedMeshes, bowPose(phase?: number) {
         if (!bow || !originalString) return;
         if (bowPhase === phase) return;
         bowPhase = phase;

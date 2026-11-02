@@ -1,0 +1,8 @@
+{
+  "revision": 1,
+  "bone": "hand.L",
+  "outwardDegrees": 25,
+  "tiltDegrees": -8,
+  "variants": { "ShieldWalk": "CarryWalk", "ShieldRun": "CarryRun", "SwordSlash": "SwordSlash" },
+  "note": "Canonical shared action variants. Rotate wrist and rigid shield together; retain forearm, grip, geometry, rig, cadence and root motion."
+}

@@ -1,4 +1,4 @@
-import { DeathView } from './death-view.ts';
+import { DeathView, MountedDeathView } from './death-view.ts';
 import { deathAge } from './death.ts';
 import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
@@ -78,7 +78,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
-    return { definition, random, settings, state, human, animal, root, label, marker, hit, death: new DeathView(root, definition.role === 'cavalry' ? 1 : -1), facing: Math.PI, movementSpeed: 0,
+    return { definition, random, settings, state, human, animal, root, label, marker, hit,
+      death: definition.role === 'cavalry' ? new MountedDeathView(root) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
       route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   });
   const actorById = new Map(actors.map(actor => [actor.definition.id, actor]));
@@ -98,6 +99,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const combatPoses = new Map<string, Fighter>();
   const dead = (id: string) => combatPoses.get(id)?.life === 'defeated' || vitals[id]?.hp === 0;
   const combatClips = new Map<string, AnimationGroup>();
+  const fallPostures = new Map<string, AnimationGroup>();
   const playingAttack = new Map<string, number>();
   const bowPoses = new Map<string, (phase?: number) => void>();
   type Locomotion = { walk: AnimationGroup; run: AnimationGroup; idle?: AnimationGroup; work?: AnimationGroup;
@@ -236,6 +238,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         result.animationGroups.forEach(group => group.stop());
         const { walk, run, idle } = result;
+        if (result.fallPosture) fallPostures.set(actor.definition.id, result.fallPosture);
         if (!walk || !run || (asset.mounted && !idle)) throw new Error(`${asset.role} is missing its locomotion clips`);
         registerLocomotion(actor.definition.id, walk, run, asset.mounted ? {
           idle, walkSpeed: mountMetadata.gaits.RideWalk.speed, runSpeed: mountedRunReferenceSpeed,
@@ -295,7 +298,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             for (const g of [clips.walk, clips.run, clips.idle, clips.work, combatClips.get(u.id)]) g?.stop();
             const rest = clips.idle ?? clips.walk;
             rest.enableBlending = false; rest.start(false).pause(); rest.goToFrame(rest.from);
-          });
+          }, fallPostures.get(u.id));
           continue;
         }
         if (actor.death.snapshot().phase !== 'alive') { actor.death.reset(); actor.facing = NaN; }

@@ -9,6 +9,7 @@ import { createCharacterLibrary } from '../src/game/character-library';
 import type { CharacterRole } from '../src/game/character-library';
 import { batchSkinnedMeshes } from '../src/game/mesh-batching';
 import { loadCharacterLOD, selectCharacterLOD } from '../src/game/character-lod';
+import { DeathView, MountedDeathView } from '../src/game/death-view';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
@@ -36,6 +37,8 @@ if (library && params.has('warmup')) {
   warmup.rootNodes.forEach(root => root.setEnabled(false));
 }
 const loaded = library ? await library.instantiate(role!, new TransformNode('review-actor', scene)) : await ImportMeshAsync(asset, scene);
+const deathRoot = scene.getTransformNodeByName('review-actor') ?? new TransformNode('review-death', scene);
+if (!library) for (const mesh of loaded.meshes.filter(m => !m.parent)) mesh.parent = deathRoot;
 for (const mesh of loaded.meshes) {
   const level = mesh.metadata?.gltf?.extras?.wolfLOD ?? mesh.metadata?.gltf?.extras?.dogLOD;
   if (level !== undefined) mesh.setEnabled(level === Number(params.get('wolfLOD') || params.get('dogLOD') || 0));
@@ -100,6 +103,13 @@ function view(name: string) {
   scene.render();
 }
 pose(); view('front');
+const deathView = role === 'cavalry' ? new MountedDeathView(deathRoot) : new DeathView(deathRoot, { prone: !!role });
+function death(age: number) {
+  deathView.sample(age, 0, sources.filter(m => !!m.skeleton && m.getTotalVertices() > 0),
+    () => pose(role === 'cavalry' ? 'RideIdle' : params.get('clip') || (role === 'infantry' ? 'ShieldWalk' : 'Walk'), 0),
+    'fallPosture' in loaded ? loaded.fallPosture : undefined);
+  scene.render(); return deathView.snapshot();
+}
 scene.onBeforeRenderObservable.add(() => {
   const bow = groups.find(g => g.name === 'BowShot');
   if ('bowPose' in loaded && bow?.isPlaying) {
@@ -109,7 +119,7 @@ scene.onBeforeRenderObservable.add(() => {
 });
 engine.runRenderLoop(() => scene.render());
 addEventListener('resize', () => engine.resize());
-Object.assign(window, { review: { pose, view, mapLOD, scene, loaded, engine,
+Object.assign(window, { review: { pose, view, death, mapLOD, scene, loaded, engine,
   async pixels() {
     scene.render();
     const bytes = new Uint8Array((await engine.readPixels(0, 0, engine.getRenderWidth(), engine.getRenderHeight()))!.buffer);

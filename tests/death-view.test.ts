@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
 import { DeathView } from '../src/game/death-view.ts';
 import { DEATH_END, deathAge, deathPhase } from '../src/game/death.ts';
@@ -43,4 +44,19 @@ test('death stage survives every reload, future timestamps fail, and wolf loot s
  const goods=structuredClone(e.state.goods);const restored=decodeEconomy(encodeEconomy(e));
  const next=new Combat(restored.state.combat,restored,()=>[]), waves=new Raids(restored,next,people,()=>[],()=>true);
  restored.advance(.2); waves.update(.2);assert.deepEqual(restored.state.goods,goods);
+});
+
+test('human falls forward in its own facing and ends face down with ground contact', () => {
+ for (const facing of [0, Math.PI / 2, Math.PI, -.7]) {
+  const engine = new NullEngine(), scene = new Scene(engine), root = new TransformNode('person', scene);
+  const mesh = MeshBuilder.CreateBox('body', { height: 2, width: .8, depth: .5 }, scene); mesh.parent = root; mesh.position.y = 1;
+  const view = new DeathView(root, { prone: true });
+  view.sample(.6, facing, [mesh], () => {}); root.computeWorldMatrix(true); mesh.computeWorldMatrix(true);
+  const face = Vector3.TransformNormal(new Vector3(0, 0, 1), root.getWorldMatrix());
+  assert(face.y < -.999, 'the face points at the ground');
+  const length = Vector3.TransformNormal(new Vector3(0, 1, 0), root.getWorldMatrix());
+  assert(Math.abs(length.x - Math.sin(facing)) < 1e-5 && Math.abs(length.z - Math.cos(facing)) < 1e-5, 'fall follows the heading');
+  assert(Math.abs(mesh.getBoundingInfo().boundingBox.minimumWorld.y - .015) < .01);
+  scene.dispose(); engine.dispose();
+ }
 });

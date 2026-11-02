@@ -149,8 +149,8 @@
         "part-094",
         "part-095"
       ],
-      "walk": "CarryWalk",
-      "run": "CarryRun",
+      "walk": "ShieldWalk",
+      "run": "ShieldRun",
       "mounted": false
     },
     "archer": {
