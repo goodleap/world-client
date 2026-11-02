@@ -1218,3 +1218,6 @@ kbd {
   .resident-selection .leader-command { flex-basis:26px; }
 }
 .home-actions button:not(.primary-button), #recruit-queue button { border:1px solid #c6cdb8; background:#e8ebdc; color:var(--ink); }
+.performance-setting { display:grid; grid-template-columns:1fr auto; gap:8px; margin:18px 0; text-align:left; font-size:14px; }
+.performance-setting select { padding:8px; border:1px solid #c6cdb8; border-radius:8px; background:#eef0e4; color:var(--ink); font:inherit; }
+.performance-setting small { grid-column:1 / -1; color:#73816a; font-size:11px; }

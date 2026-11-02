@@ -1,3 +1,7 @@
+import { towerHeight, assignedTower, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
+import { createTowerRange } from './tower-range.ts';
+import { SimulationClock, RenderCadence } from './simulation-clock.ts';
+import { setCharacterLODQuality } from './character-lod.ts';
 import { createHomeManagement } from './home-management.ts';
 import { advanceRecruitment, homeResidents } from './recruitment.ts';
 import { groupMembers, groupInfo, pruneGroups } from './groups.ts';
@@ -48,14 +52,15 @@ import { createPathGuidance } from './path-guidance.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { compactPerformanceLog } from '../performance-log.ts';
 import { createBuildingPlacement } from './building-placement.ts';
-import { readLighting, saveLighting, readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
+import { PERFORMANCE_MODES, readPerformanceMode, savePerformanceMode, readLighting, saveLighting, readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
 export async function createGame(ui: GameUI, economy = new Economy()) {
   const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   installMatteMaterials(scene);
-  scene.shadowsEnabled = readShadowsEnabled();
+  let userShadows=readShadowsEnabled(),performanceMode=readPerformanceMode();
+  scene.shadowsEnabled = userShadows;
   scene.clearColor = Color4.FromHexString('#7b8e5dff');
   scene.ambientColor = Color3.Black();
   scene.skipPointerMovePicking = true;
@@ -70,6 +75,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const shadows = createDaylight(scene, mobile, lighting);
   const configureShadowLOD = createMapShadowLOD(scene, shadows, camera);
   configureShadowLOD?.();
+  const applyPerformance = () => {
+    const config=PERFORMANCE_MODES[performanceMode];
+    engine.setHardwareScalingLevel(1/(Math.min(window.devicePixelRatio||1,1.5)*config.scale));
+    scene.shadowsEnabled=userShadows&&config.shadows;
+    shadows.mapSize=performanceMode==='saving'?(mobile?512:1024):(mobile?1024:2048);
+    configureShadowLOD?.();setCharacterLODQuality(scene,config.lodArea);refreshFrozenMaterials(scene);
+  };
+  applyPerformance();
   const palette = createPalette(scene);
   const definitions = () => [...homeResidents(economy.state), ...ENEMIES, ...economy.state.combat.units
     .filter(u=>u.id.startsWith('enemy-raid-')).map(u=>({...newResident(u.role as 'infantry'|'archer',u.id,u.home),name:u.role==='archer'?'来袭弓兵':'来袭步兵'}))];
@@ -88,7 +101,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
 
     await nextPaint();
     world = await loadingProgress.run('map', '地图与基础材质构建', () => buildWorld(scene, palette, shadows, economy));
-    residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions());
+    residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions(),id=>towerHeight(economy.state,id));
 
     await residents.loadFarmerModel();
 
@@ -138,12 +151,25 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const commandGuidance = new CommandGuidance();
   let selectedGroup:number|undefined, settingRally=false;
   const selectionFeedback = createSelectionFeedback(scene, shadows);
+  const towerRange=createTowerRange(scene);
   let selectedWorld: WorldObject | undefined;
   const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const combatIds = () => residents.selectedIds().filter(id=>combat.unit(id)?.team==='home');
   const clearResident = () => { selectedGroup=undefined; residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
   const clearSelection = () => { clearWorld(); clearResident(); };
+  const garrisonCandidate=(towerId:string)=>{
+    const tower=economy.state.towers.find(t=>t.id===towerId)!;
+    const selected=combat.controllable(residents.selectedIds()).filter(u=>u.role==='archer');
+    return (selected.length?selected:combat.state.units.filter(u=>u.team==='home'&&u.role==='archer'&&u.life==='active'&&!assignedTower(economy.state,u.id)&&!u.target&&!u.goal&&!economy.active(u.id)))
+      .sort((a,b)=>Math.hypot(a.position.x-tower.x,a.position.z-tower.z)-Math.hypot(b.position.x-tower.x,b.position.z-tower.z))[0];
+  };
   const showObjectActions = (object: WorldObject) => {
+    const tower=economy.state.towers.find(t=>t.id===object.id&&t.hp>0);
+    if(tower){
+      const candidate=garrisonCandidate(tower.id),id=tower.unit??candidate?.id,name=homeResidents(economy.state).find(r=>r.id===id)?.name??'弓兵';
+      ui.setSelection({name:'塔台',kind:'建筑',showHint:true,hint:`耐久 ${Math.ceil(tower.hp)}/${TOWER_CONFIG.hp} · ${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
+        actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:'需要可用弓兵',disabled:!candidate}]});return;
+    }
     if(object.id==='home-center'){ui.setSelection({name:'家园中心',kind:'建筑',hint:'招募居民与士兵',actions:[{id:'recruit',label:'招募'}]});return;}
     const details = economySelection(economy, object), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
@@ -190,6 +216,20 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (!selectedWorld || ui.paused || suspended) return;
     const target = selectedWorld.id;
     if(target==='home-center'&&action==='recruit'){management.open();return;}
+    if(action.startsWith('tower-')){
+      const tower=economy.state.towers.find(t=>t.id===target&&t.hp>0);if(!tower)return;
+      if(action==='tower-garrison'){
+        const candidate=garrisonCandidate(target);if(!candidate)return;
+        const result=requestGarrison(economy,combat,target,candidate.id);
+        if(result.ok){manual(candidate.id);commandGuidance.request(candidate.id,`tower:${target}`);clearResident();}
+        ui.targetHint(result.message,selectedWorld.anchor);
+      }else if(action==='tower-evict'){
+        if(!evictTower(economy,combat,target))ui.targetHint('入口被占用，暂时无法撤出',selectedWorld.anchor);
+      }else if(action==='tower-select'&&tower.unit){
+        const id=tower.unit;clearWorld();selectedGroup=undefined;const name=residents.select(id);ui.setResident(name);refreshSelected();
+      }
+      refreshEconomy();save();return;
+    }
     const fire = economy.campfire(target);
     if (fire && (action === 'fire-toggle' || action === 'cook-toggle')) {
       if (action === 'fire-toggle') economy.setFire(target, !fire.enabled);
@@ -321,6 +361,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       if (object) {
         selectWorld(object);
         if(object.id==='home-center'){management.open();return;}
+        if(economy.state.towers.some(t=>t.id===object.id&&t.hp>0))return;
         if (residents.selectedId() && !economy.campfire(object.id)) {
           const task = economy.taskFor(object.id), actions = economySelection(economy, object).actions ?? [];
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
@@ -374,7 +415,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     camera.orthoLeft = -currentZoom * aspect; camera.orthoRight = currentZoom * aspect;
   };
   const resize = () => {
-    engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 1.5));
+    engine.setHardwareScalingLevel(1 / (Math.min(window.devicePixelRatio || 1, 1.5)*PERFORMANCE_MODES[performanceMode].scale));
     engine.resize(); applyProjection();
     requestRender();
   };
@@ -393,11 +434,15 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     metrics.reset(); ui.setPerformance(); engine.performanceMonitor.reset();
     refreshEconomy(); requestRender();
   });
-  ui.bindShadows(scene.shadowsEnabled, enabled => {
-    scene.shadowsEnabled = enabled;
-    refreshFrozenMaterials(scene);
+  ui.bindShadows(userShadows, enabled => {
+    userShadows=enabled;applyPerformance();
     if (!saveShadowsEnabled(enabled)) ui.settingsNotice('阴影设置已生效，浏览器未能保存此偏好');
     freshFrame = true; requestRender();
+  });
+  ui.bindPerformanceMode(performanceMode,mode=>{
+    performanceMode=mode;applyPerformance();
+    ui.settingsNotice(savePerformanceMode(mode)?`${PERFORMANCE_MODES[mode].name}已生效，游戏逻辑速度不变`:'性能模式已生效，浏览器未能保存偏好');
+    freshFrame=true;requestRender();
   });
   ui.bindLeadership(enabled => {
     if (ui.paused || suspended || residents.selectedId() !== farmerLeader?.id) return;
@@ -422,6 +467,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   });
   let uiElapsed = 0, saveElapsed = 0, savedRevision = economy.revision;
   let keyboardPanning = false;
+  const simulationClock=new SimulationClock(),renderCadence=new RenderCadence();
+  let animationSeconds=0,renderElapsed=0,cpuSinceFrame=0;
   // Babylon owns scheduling. A paused panel needs one final frame (for example
   // to clear a building preview), then no animation, culling or GPU submissions.
   // Resizes/context restoration invalidate that retained image once.
@@ -434,18 +481,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const resuming = freshFrame;
     freshFrame = false;
     const elapsed = resuming ? 0 : engine.getDeltaTime() / 1000;
+    renderElapsed+=elapsed;
     const cameraDt = ui.paused ? 0 : Math.min(elapsed, 0.25);
-    const dt = Math.min(elapsed, 0.25);
-    // Navigation clamps long frames. Keep the skeletal gait on the same clock
-    // so a slow device does not run the feet faster than the character moves.
-    // Babylon's animation clock also uses wall time between scene renders.
-    // A zero-scale first frame refreshes that clock without advancing a clip.
-    scene.animationTimeScale = resuming || ui.paused ? 0 : elapsed > 0 ? dt / elapsed : 1;
-    // A zero delta alone still advances Babylon's transition blending once per
-    // rendered frame. Disable animation evaluation as well, using the public
-    // clock reset so resuming does not include the time spent away.
-    scene.animationsEnabled = !resuming && !ui.paused;
-    if (!scene.animationsEnabled) scene.resetLastAnimationTimeFrame();
     const direction = ui.paused ? { x: 0, z: 0 } : input.read();
     if (direction.x || direction.z) {
       // Keyboard pan takes over at the visible position, just like dragging.
@@ -459,8 +496,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     keyboardPanning = !!(direction.x || direction.z);
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
-    if (!resuming) {
-      if (!ui.paused) {
+    if(!resuming&&!ui.paused) animationSeconds+=simulationClock.advance(elapsed,dt=>{
         ui.advanceSpeech(dt);
         controller.update(dt);
         world.doors.update(dt);
@@ -473,29 +509,34 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
           const point=economy.state.recruitment.rally;
           if(combat.unit(recruited.id))combat.move([recruited.id],point);else controller.command(recruited.id,{kind:'move',point});
         }
-        combat.update(dt); residents.syncCombat(combat.state.units, economy.state.seconds); combatView.update(combat.state);
+        updateTowers(economy,combat);
+        combat.update(dt); residents.syncCombat(combat.state.units, economy.state.seconds);
         residents.update(dt, previewRole, dt);
         needs.update(dt);
         world.fires.update(economy.state.campfires, dt, mapCenter);
         simulationSeconds += dt;
         uiElapsed += dt; saveElapsed += dt;
-        if (uiElapsed >= .25) { refreshEconomy(); uiElapsed = 0; }
-        if (savedRevision !== economy.revision || saveElapsed >= 5) {
-          save(); savedRevision = economy.revision; saveElapsed = 0;
-        }
-      }
-    }
+    });
+    if(uiElapsed>=.25){refreshEconomy();uiElapsed%=.25;}
+    if(savedRevision!==economy.revision||saveElapsed>=5){save();savedRevision=economy.revision;saveElapsed=0;}
+    if(!renderCadence.ready(elapsed,PERFORMANCE_MODES[performanceMode].fps,resuming||ui.paused)){cpuSinceFrame+=performance.now()-cpuStart;return;}
+    const cameraRenderDt=ui.paused?0:Math.min(renderElapsed,.25);
+    const dt=animationSeconds;
+    scene.animationTimeScale=ui.paused||resuming?0:renderElapsed>0?dt/renderElapsed:1;
+    scene.animationsEnabled=!ui.paused&&!resuming;
+    if(!scene.animationsEnabled)scene.resetLastAnimationTimeFrame();
+    combatView.update(combat.state);world.sync();
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'leader' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
     currentZoom = desiredZoom;
-    camera.beta += ((previewRole === 'leader' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraDt * 7));
+    camera.beta += ((previewRole === 'leader' ? 1.28 : previewRole === 'farmer' ? 1.14 : 0.76) - camera.beta) * (1 - Math.exp(-cameraRenderDt * 7));
     applyProjection();
     if (previewRole) {
       const position = previewRole === 'leader' ? residents.leaderPosition() : residents.farmerPosition();
       target.set(position.x, 0.9, position.z);
     } else if (overview) target.set(0, 0, 0);
     else target.copyFrom(mapCenter);
-    Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraDt * 5), camera.target);
+    Vector3.LerpToRef(camera.target, target, 1 - Math.exp(-cameraRenderDt * 5), camera.target);
     residents.updateAnimationVisibility(camera, ui.paused || resuming ? 0 : dt, !!previewRole);
     // Native instrumentation owns frame counters; track shadow-map replacement.
     performanceDiagnostics.beforeFrame();
@@ -505,9 +546,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       selectionFeedback.update([...residents.selectionMeshes(), ...(selectedWorld ? world.selectionMeshes(selectedWorld.id) : [])], selectedWorld);
       selectionRevision = selectionKey;
     }
+    towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
     wolves.update(raids.wolves, economy.state.seconds, camera);
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
-    const pulse=commandGuidance.sample(economy.state.seconds,id=>({token:economy.active(id)?.id,alive:health(economy.state,id)>0,route:residents.routeFor(id).length>0}),selectedId);
+    const pulse=commandGuidance.sample(economy.state.seconds,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     const routeId=selectedId??pulse?.id,routeFighter=routeId?combat.unit(routeId):undefined;
     pathGuidance.update(routeId,routeId?routeFighter?.position??residents.needsStatus(routeId).position:undefined,
       routeId?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
@@ -519,6 +561,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
     scene.render(); residents.updateLabels(camera); wolves.updateLabels(camera);
+    animationSeconds=0;renderElapsed=0;
     if (selectedWorld) {
       const { anchor } = selectedWorld;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
@@ -532,7 +575,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
     }
     renderedFrames++;
-    const sample = metrics.record(cpuStart, performance.now());
+    const sample = metrics.record(cpuStart-cpuSinceFrame, performance.now());cpuSinceFrame=0;
     if (sample) {
       ui.setPerformance(sample, scene.getActiveIndices() / 3);
       performanceDiagnostics.record(sample, metrics.cadence, currentZoom, ui.paused, residents.lodSummary());
@@ -611,6 +654,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
       lighting: { ...lighting },
+      graphics: {mode:performanceMode,...PERFORMANCE_MODES[performanceMode],width:engine.getRenderWidth(),height:engine.getRenderHeight()},
       camera: cameraState(),
       input: { dragging: input.isDragging },
       moveFeedback: moveFeedback.snapshot(),
@@ -643,7 +687,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),
       characterLibrary: residents.sharedLibraryInfo(),
-      cells: world.land.length, fps: engine.getFps(),
+      cells: world.land.length, fps: metrics.sample?.fps??engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
       diagnostics: performanceDiagnostics.snapshot(),
       rendering: {

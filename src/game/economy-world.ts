@@ -1,3 +1,4 @@
+import { createTowerModel } from './tower-model.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import '@babylonjs/core/Meshes/instancedMesh';
@@ -160,8 +161,9 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         continue;
       }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
-        markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? 1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
+        markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? site.kind==='tower'?3.5:1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
       () => template(`${site.kind}-${state}`, () => {
+        if(built&&site.kind==='tower'){createTowerModel(scene,p);return;}
         if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }, false); return; }
         roundedBox(scene, 'building-footprint', [site.width, .07, site.depth], [0, .035, 0], p.pathLight, .08);
         for (const x of [-site.width / 2, site.width / 2]) for (const z of [-site.depth / 2, site.depth / 2]) {
@@ -169,7 +171,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         }
         if (task) for (let i = 0; i < 3; i++) roundedBox(scene, 'construction-timber', [1.25, .16, .21], [-.2, .16 + i * .16, .25], p.timber, .035);
       }));
-      if (built) doors.add(site, site.kind === 'warehouse');
+      if (built&&site.kind!=='tower') doors.add(site, site.kind === 'warehouse');
     }
     obstacles = economyObstacles(economy.state.depleted, economy.state.sites, economy.state.buildings);
     obstaclesWithFields = [...obstacles, ...economy.state.plots.map(plot => ({

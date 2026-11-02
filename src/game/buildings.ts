@@ -7,7 +7,7 @@ import type { Palette } from './models';
 import { roundedBox, ellipsoid, tintHeight } from './environment-shapes';
 
 /** Curved terracotta courses follow the roof silhouette in the reference sheet. */
-export function tiledRoof(scene: Scene, p: Palette, x: number, z: number, width: number, depth: number, height: number, rise: number) {
+export function tiledRoof(scene: Scene, p: Palette, x: number, z: number, width: number, depth: number, height: number, rise: number, bevelSteps: 1 | 2 | 3 = 3) {
   const half = width / 2 + .35, rows = Math.ceil(half / .57), cols = Math.ceil((depth + .65) / .62);
   const step = half / rows, tileWidth = (depth + .65) / cols;
   for (const side of [-1, 1]) {
@@ -17,13 +17,13 @@ export function tiledRoof(scene: Scene, p: Palette, x: number, z: number, width:
       for (let col = 0; col < cols; col++) {
         const tile = roundedBox(scene, 'terracotta-tile', [step * Math.sqrt(1 + slope * slope) + .06, .18, tileWidth - .022],
           [x + side * half * t, height + rise * (1 - t ** 1.5) + .12 + (rows - row) * .009, z + (col - (cols - 1) / 2) * tileWidth],
-          (row + col * 3) % 5 === 0 ? p.roofLight : p.terracotta, .065);
+          (row + col * 3) % 5 === 0 ? p.roofLight : p.terracotta, .065, bevelSteps);
         tile.rotation.z = -side * Math.atan(slope);
       }
     }
   }
   for (let col = 0; col < cols; col++) {
-    roundedBox(scene, 'roof-ridge-tile', [.43, .3, tileWidth + .02], [x, height + rise + .17, z + (col - (cols - 1) / 2) * tileWidth], p.roofLight, .13);
+    roundedBox(scene, 'roof-ridge-tile', [.43, .3, tileWidth + .02], [x, height + rise + .17, z + (col - (cols - 1) / 2) * tileWidth], p.roofLight, .13, bevelSteps);
   }
 }
 

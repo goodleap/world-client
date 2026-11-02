@@ -18,8 +18,8 @@ export function createCombatView(scene: Scene) {
         mesh.material = wood; mesh.isPickable = false; arrows.set(p.id, mesh);
       }
       const t = Math.min(1, p.elapsed / p.duration);
-      mesh.position.set(p.from.x + (p.to.x - p.from.x) * t, 1.25 + Math.sin(t * Math.PI) * .35, p.from.z + (p.to.z - p.from.z) * t);
-      mesh.rotation.set(Math.PI / 2, Math.atan2(p.to.x - p.from.x, p.to.z - p.from.z), 0);
+      mesh.position.set(p.from.x + (p.to.x - p.from.x) * t, (p.from.y??1.25)*(1-t)+(p.to.y??1.25)*t + Math.sin(t * Math.PI) * .35, p.from.z + (p.to.z - p.from.z) * t);
+      mesh.rotation.set(Math.PI / 2 + Math.atan2((p.to.y??1.25)-(p.from.y??1.25),Math.hypot(p.to.x-p.from.x,p.to.z-p.from.z)), Math.atan2(p.to.x - p.from.x, p.to.z - p.from.z), 0);
       mesh.computeWorldMatrix();
     }
   } };

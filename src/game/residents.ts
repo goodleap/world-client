@@ -1,3 +1,4 @@
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { DeathView, MountedDeathView } from './death-view.ts';
 import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 import { deathAge } from './death.ts';
@@ -47,7 +48,7 @@ type ResourceProgress = (fraction: number) => void;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
   worldObstacles: (avoidFields?: boolean) => readonly Obstacle[] = () => RESIDENT_OBSTACLES, vitals: Vitals = {},
-  definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES]) {
+  definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES], elevation:(id:string)=>number=()=>0) {
   const resting = new Set<string>();
   const obstaclesFor = (role: string) => worldObstacles(role !== 'farmer');
   const placeholderRoles = new Set<string>();
@@ -69,6 +70,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const animal = definition.role === 'dog' || definition.role === 'cavalry'
       ? createAnimal(scene, p, shadows, definition.role === 'dog' ? 'dog' : 'horse', `${definition.id}-animal`) : undefined;
     const root = animal?.root ?? human!.root;
+    const elevationRoot=new TransformNode(`${definition.id}-elevation`,scene);root.parent=elevationRoot;
     if (definition.role === 'cavalry' && human) {
       human.root.parent = root; human.root.position.set(0, 0.88, -0.1);
     }
@@ -81,7 +83,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
-    return { definition, random, settings, state, human, animal, root, label, marker, hit,
+    return { definition, random, settings, state, human, animal, root, elevationRoot, label, marker, hit,
       death: definition.role === 'cavalry' ? new MountedDeathView(root) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
       ready:false, route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   };
@@ -202,7 +204,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         for(const g of scene.animationGroups.filter(g=>g.targetedAnimations.some(t=>actor.root.getDescendants().includes(t.target))))g.dispose();
         const skeletons=new Set(actor.root.getChildMeshes().flatMap(m=>m.skeleton?[m.skeleton]:[]));
         for(const mesh of actor.root.getChildMeshes())shadows.removeShadowCaster(mesh,false);
-        actor.root.dispose();for(const skeleton of skeletons)skeleton.dispose();ui.removeResidentLabel(id);actorById.delete(id);actors.splice(actors.indexOf(actor),1);
+        actor.elevationRoot.dispose();for(const skeleton of skeletons)skeleton.dispose();ui.removeResidentLabel(id);actorById.delete(id);actors.splice(actors.indexOf(actor),1);
         for(const map of [locomotion,characterModels,characterBones,characterLODs,combatClips,fallPostures,bowPoses,visualMeshes,combatPoses,playingAttack])map.delete(id);
       }
       const added=definitions.filter(d=>!actorById.has(d.id));
@@ -212,7 +214,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       return attaching;
     },
     setExtraNeighbours(read: () => Neighbour[]) { extraNeighbours = read; },
-    occupancy: () => actors.filter(a => !dead(a.definition.id) && !combatPoses.get(a.definition.id)?.departed).map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
+    occupancy: () => actors.filter(a => !dead(a.definition.id) && !combatPoses.get(a.definition.id)?.departed && a.elevationRoot.position.y<.1).map(actor => ({ kind: 'circle' as const, x: actor.state.position.x, z: actor.state.position.z, radius: actor.definition.bodyRadius })),
     async loadDogModel() { for(const actor of actors.filter(a=>a.definition.role==='dog'&&!a.ready)){await actor.animal!.loadModel();actor.ready=true;actor.root.setEnabled(true);} },
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer'&&!a.ready);
@@ -307,6 +309,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const u of units) {
         combatPoses.set(u.id, u);
         const actor = actorById.get(u.id);if(!actor)continue;
+        actor.elevationRoot.position.y=elevation(u.id);
         actor.state.position.x = u.position.x; actor.state.position.z = u.position.z;
         actor.route.length = 0; actor.state.target = undefined;
         if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, 0, u.position.z);
@@ -562,7 +565,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight;
       const viewport = camera.viewport.toGlobal(width, height);
       for (const actor of actors) {
-        labelPoint.set(actor.state.position.x, actor.definition.labelHeight, actor.state.position.z);
+        labelPoint.set(actor.state.position.x, actor.definition.labelHeight+actor.elevationRoot.position.y, actor.state.position.z);
         Vector3.ProjectToRef(labelPoint, identity, scene.getTransformMatrix(), viewport, labelProjected);
         const projected = labelProjected;
         const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;
@@ -575,7 +578,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     snapshot: () => actors.map((actor) => ({
       id: actor.definition.id, role: actor.definition.role, name: actor.definition.name, effects: actor.definition.effects ?? [],
-      death: actor.death.snapshot(),
+      death: actor.death.snapshot(), elevation:actor.elevationRoot.position.y,
       model: characterModels.get(actor.definition.id),
       lod: lodInfo(actor.definition.id), dogLOD: actor.definition.role === 'dog' ? actor.animal?.lodInfo() : undefined,
       modelPose: characterBones.get(actor.definition.id)?.map(bone =>

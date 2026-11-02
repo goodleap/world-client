@@ -38,7 +38,7 @@ export function newWolf(id: string, position: Point): Wolf {
     life: 'active', order: 'guard', facing: 0, speed: 0, cooldown: 0, route: [], navigation: createRouteState(), planIn: 0,
     mode: 'approach', fear: 0, carried: 0, settled: false, feeding: 0, gait: 0 };
 }
-export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonly ResidentDefinition[]=RESIDENTS): RaidState {
+export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonly ResidentDefinition[]=RESIDENTS,towerIds:readonly string[]=[]): RaidState {
   const n = (x: number, max = 1e12) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && p.x >= WORLD_BOUNDS.minX && p.x <= WORLD_BOUNDS.maxX && p.z >= WORLD_BOUNDS.minZ && p.z <= WORLD_BOUNDS.maxZ;
   if (!raw || !Number.isInteger(raw.seed) || !n(raw.seed, 0xffffffff) || !raw.seed || !Number.isSafeInteger(raw.wave) || !n(raw.wave)
@@ -53,6 +53,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
   for (const [id, e] of Object.entries(raw.evading)) {
     if (!residents.some(r => r.id === id) || !e || !n(e.safeAt) || !n(e.planAt)) throw new Error('避险存档无效');
   }
+  const targetIds=new Set([...residents.map(r=>r.id),...towerIds]);
   const attackIds = new Set<number>();
   for (const w of allWolves(raw)) {
     if (!w || !(raw.wildWolves.includes(w) || new RegExp(`^wolf-${raw.wave}-[0-5]$`).test(w.id)) || w.role !== 'wolf' || w.team !== 'enemy'
@@ -63,10 +64,10 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
       || w.defendFrom && !point(w.defendFrom)
       || w.settled && w.life !== 'defeated'
       || typeof w.settled !== 'boolean' || !Number.isFinite(w.facing) || w.hurtAt !== undefined && !n(w.hurtAt)
-      || w.target && !residents.some(r => r.id === w.target) || w.foodTarget && !/^site-\d+$/.test(w.foodTarget)
+      || w.target && !targetIds.has(w.target) || w.foodTarget && !/^site-\d+$/.test(w.foodTarget)
       || !Array.isArray(w.route) || w.route.length > 1000 || !w.route.every(point)) throw new Error('灰狼存档无效');
     if (w.attack && (!Number.isSafeInteger(w.attack.id) || w.attack.id < 1 || w.attack.id >= nextAttack || attackIds.has(w.attack.id)
-      || !Number.isSafeInteger(nextAttack) || !n(w.attack.elapsed, .6) || typeof w.attack.released !== 'boolean' || !residents.some(r => r.id === w.attack!.target))) throw new Error('撕咬存档无效');
+      || !Number.isSafeInteger(nextAttack) || !n(w.attack.elapsed, .6) || typeof w.attack.released !== 'boolean' || !targetIds.has(w.attack!.target))) throw new Error('撕咬存档无效');
     if (w.attack) attackIds.add(w.attack.id);
     w.navigation = createRouteState(); w.speed = 0; w.planIn = .2;
   }

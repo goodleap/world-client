@@ -1,3 +1,5 @@
+import { TOWER_CONFIG, newTower, validateTowers } from './towers.ts';
+import type { TowerState } from './towers.ts';
 import { initialRaids, decodeRaids, allWolves } from './raid-state.ts';
 import type { RaidState } from './raid-state.ts';
 import { initialCombat, decodeCombat } from './combat.ts';
@@ -34,12 +36,12 @@ export interface WorkTask {
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string; destination?: string }
 export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
-  recruitment: RecruitmentState; groups: string[][];
+  recruitment: RecruitmentState; groups: string[][]; towers:TowerState[];
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
-  version: 13; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 14; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -58,7 +60,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(seed?: number): EconomyState {
   return {
-    recruitment: initialRecruitment(), groups: initialGroups(), combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 13, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 14, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -141,7 +143,7 @@ export class Economy {
       return task?.resource && !task.cargo ? { ...emptyCost(), [task.resource]: task.amount! } : emptyCost();
     }
     const type = this.state.sites.find(s => s.id === target)?.kind;
-    return kind === 'build' ? { ...emptyCost(), ...(type === 'campfire' ? F.cost : type === 'warehouse' ? C.warehouseCost : C.houseCost) } : emptyCost();
+    return kind === 'build' ? { ...emptyCost(), ...(type === 'tower' ? TOWER_CONFIG.cost : type === 'campfire' ? F.cost : type === 'warehouse' ? C.warehouseCost : C.houseCost) } : emptyCost();
   }
   reserved(): Inventory {
     const sum = emptyCost();
@@ -364,6 +366,7 @@ export class Economy {
     if (task.kind === 'tools' || task.kind === 'arms') this.state.upgrades[task.kind]++;
     if (task.kind === 'build') {
       this.state.buildings.push(task.target);
+      const built=this.state.sites.find(s=>s.id===task.target)!;if(built.kind==='tower')this.state.towers.push(newTower(built));
       if (this.state.sites.find(s => s.id === task.target)?.kind === 'campfire') this.state.campfires.push(newCampfire(task.target));
     }
     task.status = 'done'; task.reserved = false; task.reason = ''; this.changed();
@@ -425,7 +428,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 13) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 14) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
@@ -436,8 +439,9 @@ export function decodeEconomy(text: string): Economy {
   if(!Array.isArray(raw.groups)||raw.groups.length!==GROUP_COUNT||raw.groups.some(g=>!Array.isArray(g)||g.length>GROUP_SIZE||g.some(id=>!residentIds.has(id)))
     ||new Set(raw.groups.flat()).size!==raw.groups.flat().length)throw new Error('编队存档无效');
   state.groups=raw.groups.map(g=>[...g]);
-  state.raids = decodeRaids(raw.raids, raw.combat?.nextAttack,residents);
-  state.combat = decodeCombat(raw.combat, allWolves(state.raids),residents);
+  state.raids = decodeRaids(raw.raids, raw.combat?.nextAttack,residents,Array.isArray(raw.towers)?raw.towers.map(t=>t.id):[]);
+  state.towers=structuredClone(raw.towers);
+  state.combat = decodeCombat(raw.combat, allWolves(state.raids),residents,raw.towers);
   const raiderIds=state.combat.units.filter(u=>u.id.startsWith('enemy-raid-')).map(u=>u.id);
   if(raiderIds.length!==state.raids.soldiers.length||raiderIds.some(id=>!state.raids.soldiers.includes(id))
     ||state.raids.phase==='peace'&&state.combat.units.some(u=>raiderIds.includes(u.id)&&u.life==='active'&&!u.departed))throw new Error('敌袭编队存档不一致');
@@ -516,6 +520,7 @@ export function decodeEconomy(text: string): Economy {
     const count=residents.filter(r=>(r.role==='dog')===dog&&alive(state,r.id)).length+state.recruitment.queue.filter(q=>(q.role==='dog')===dog).length;
     if(count>(dog?4:20))throw new Error('招募名额存档无效');
   }
+  validateTowers(state);
   const ids = new Set<number>(), targets = new Set<string>(), carriers = new Set<string>();
   for (const task of raw.tasks) {
     if (!task || task.worker !== undefined && !residentIds.has(task.worker) || !Number.isSafeInteger(task.id) || task.id < 1 || ids.has(task.id) || !Object.hasOwn(C.workSeconds, task.kind)

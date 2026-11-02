@@ -3,7 +3,7 @@ import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
 import type { Economy } from './economy.ts';
-import { newResident, unitRole } from './resident-data.ts';
+import { newResident } from './resident-data.ts';
 import { homeResidents } from './recruitment.ts';
 import { initialVital } from './vitals.ts';
 import { health } from './vitals.ts';
@@ -45,7 +45,7 @@ export class Raids {
   get state() { return this.economy.state.raids; }
   get wolves() { return allWolves(this.state); }
   private syncThreats() { this.combat.setThreats(this.wolves.filter(w => w.mode !== 'gone')); }
-  private position(id: string) { return this.combat.unit(id)?.position ?? this.people.status(id).position; }
+  private position(id: string) { return this.combat.unit(id)?.position ?? this.economy.state.towers.find(t=>t.id===id) ?? this.people.status(id).position; }
   private fireClear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids().filter(o => !(o.kind === 'circle' && distance(o, b) < .01))); }
   private clear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids()); }
   neighbours(): Neighbour[] {
@@ -209,11 +209,13 @@ export class Raids {
     }
     if (w.attack) {
       const attack = w.attack; attack.elapsed += dt;
-      const target = this.position(attack.target);
+      const victim=this.combat.target(attack.target);
+      if(!victim||victim.life!=='active'||!this.combat.canTarget(w,victim)){w.attack=undefined;w.target=undefined;return;}
+      const target = victim.position;
       w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
       if (!attack.released && attack.elapsed >= stats.windup) {
         attack.released = true;
-        if (health(this.economy.state, attack.target) > 0 && distance(w.position, target) <= stats.range + .15 + (unitRole(attack.target) === 'cavalry' ? .72 : 0) && this.clear(w.position, target)) {
+        if (victim.hp>0 && distance(w.position,target)<=stats.range+.15+Math.max(0,victim.radius-.4) && this.combat.visible(w.position,target,w.id,victim.id)) {
           this.combat.hurt(attack.target, stats.attack, w.id);
         }
       }
@@ -221,26 +223,27 @@ export class Raids {
       return;
     }
     const anchor = wild ? w.home : w.defendFrom ?? w.position;
-    if (w.target && (health(this.economy.state, w.target) <= 0 || distance(w.position, this.position(w.target)) > C.chase
+    if (w.target && (!this.combat.target(w.target)||!this.combat.canTarget(w,this.combat.target(w.target)!)||this.combat.target(w.target)!.hp<=0 || distance(w.position, this.position(w.target)) > C.chase
       || distance(anchor, this.position(w.target)) > C.chase)) {
       w.target = undefined; w.route = []; w.defendFrom = undefined;
       if (wild) { w.mode = 'flee'; w.planIn = 0; return; }
     }
     if ((!w.target || !this.combat.target(w.target)?.canAttack) && w.planIn <= 0) {
       const candidate = chooseTarget(w, this.combat.targets(), C.acquire,
-        t => this.clear(w.position, t.position) && distance(anchor, t.position) <= C.chase);
+        t => this.combat.canTarget(w,t)&&this.combat.visible(w.position,t.position,w.id,t.id) && distance(anchor, t.position) <= C.chase);
       if (candidate && (!w.target || candidate.canAttack)) {
         w.target = candidate.id; w.defendFrom ??= { ...anchor };
         w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = [];
       }
     }
     if (w.target) {
-      const target = this.position(w.target), reach = stats.range + (unitRole(w.target) === 'cavalry' ? .72 : 0);
-      if (distance(w.position, target) <= reach && this.clear(w.position, target)) {
+      const victim=this.combat.target(w.target)!;
+      const target=victim.position,reach=stats.range+Math.max(0,victim.radius-.4);
+      if (distance(w.position, target) <= reach && this.combat.visible(w.position,target,w.id,w.target)) {
         w.route = []; w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
         if (!w.cooldown) { w.cooldown = stats.interval; w.attack = { id: this.combat.state.nextAttack++, target: w.target, elapsed: 0, released: false }; }
       } else {
-        if (w.planIn <= 0) this.plan(w, circle(target, reach * .85).filter(p => this.clear(p, target)));
+        if (w.planIn <= 0) this.plan(w, circle(target, reach * .9).filter(p => this.combat.visible(p,target,w.id,w.target)));
         this.travel(w, dt);
       }
       return;

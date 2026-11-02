@@ -1,0 +1,23 @@
+{
+  "readings": [
+    {
+      "view": "front",
+      "frames": 8,
+      "triangles": 52898,
+      "meshes": 119
+    },
+    {
+      "view": "side",
+      "frames": 8,
+      "triangles": 52898,
+      "meshes": 119
+    },
+    {
+      "view": "iso",
+      "frames": 11,
+      "triangles": 52898,
+      "meshes": 119
+    }
+  ],
+  "errors": []
+}

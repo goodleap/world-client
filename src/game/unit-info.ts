@@ -1,3 +1,4 @@
+import { assignedTower } from './towers.ts';
 import { WORK_NAMES } from './economy.ts';
 import type { Economy } from './economy.ts';
 import { unitRole } from './resident-data.ts';
@@ -17,7 +18,10 @@ export function selectedUnitInfo(economy: Economy, id: string | undefined, movem
   const vital = state.vitals[id], task = economy.active(id), bodies = bodiesFor(id);
   const moving = fighter ? fighter.speed > .08 || fighter.route.length > 0 : !!movement?.moving || (movement?.speed ?? 0) > .08;
   let activity = '空闲';
-  if (state.raids.evading[id]) activity = '正在避险';
+  const tower=assignedTower(state,id);
+  if(tower?.phase==='occupied')activity=fighter?.target?'塔上射击':'塔上驻守';
+  else if(tower?.phase==='approach')activity='前往塔台';
+  else if (state.raids.evading[id]) activity = '正在避险';
   else if (fighter?.attack || fighter?.target) activity = '正在战斗';
   else if (vital.rest && !moving && bodies.some(body => !!state.vitals[body].meal)) activity = '正在进食';
   else if (task?.status === 'delivering') activity = task.kind === 'supply' ? '运送补给' : '搬运入库';

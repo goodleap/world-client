@@ -10,14 +10,16 @@ import type { Scene } from '@babylonjs/core/scene.js';
 export type XYZ = [number, number, number];
 
 /** Rounded surfaces with analytic normals, including the silhouette of each edge. */
-export function roundedBox(scene: Scene, name: string, size: XYZ, at: XYZ, material: StandardMaterial, radius = 0.1) {
+export function roundedBox(scene: Scene, name: string, size: XYZ, at: XYZ, material: StandardMaterial, radius = 0.1, bevelSteps: 1 | 2 | 3 = 3) {
   const half = size.map(n => n / 2), r = Math.min(radius, ...half);
   const positions: number[] = [], normals: number[] = [], indices: number[] = [], uvs: number[] = [];
   for (let axis = 0; axis < 3; axis++) {
     const u = (axis + 1) % 3, v = (axis + 2) % 3;
     // The middle of a straight span adds no shape or normal detail. Keep all
     // original bevel samples; remove that split and coincident thin-box rows.
-    const samples = (h: number) => [...new Set([-h, -h + r * 0.134, -h + r * 0.5, -h + r, h - r, h - r * 0.5, h - r * 0.134, h])];
+    const samples = (h: number) => [...new Set(bevelSteps === 1 ? [-h, -h + r, h - r, h] : bevelSteps === 2
+      ? [-h, -h + r * .293, -h + r, h - r, h - r * .293, h]
+      : [-h, -h + r * 0.134, -h + r * 0.5, -h + r, h - r, h - r * 0.5, h - r * 0.134, h])];
     const us = samples(half[u]), vs = samples(half[v]);
     for (const sign of [-1, 1]) {
       const start = positions.length / 3;

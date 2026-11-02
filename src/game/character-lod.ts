@@ -18,6 +18,15 @@ const MAP_LOD_VIEW_AREA = 120;
 const FAR_LOD_VIEW_AREA = 320;
 const coverageSpheres = new WeakMap<AbstractMesh, BoundingSphere>();
 const configuredScenes = new WeakSet<Scene>();
+const quality = new WeakMap<Scene,number>();
+const levels = new WeakMap<Scene,Set<{source:Mesh;detail:Mesh;area:number;coverage:number}>>();
+export function setCharacterLODQuality(scene:Scene,areaScale:number) {
+  quality.set(scene,areaScale);
+  for(const level of levels.get(scene)??[]){
+    if(level.source.isDisposed()){levels.get(scene)!.delete(level);continue;}
+    level.source.removeLODLevel(level.detail);level.source.addLODLevel(level.coverage/(level.area*areaScale),level.detail);
+  }
+}
 
 /** Babylon's conservative world sphere grows when a mesh rotates. For our
  * orthographic view-area thresholds use its fixed reference sphere for LOD
@@ -57,7 +66,10 @@ function addLevel(source: Mesh, data: VertexData | Geometry, area: number, suffi
   }
   const radius = coverageSpheres.get(source)!.radiusWorld;
   source.useLODScreenCoverage = true;
-  source.addLODLevel(Math.PI * radius * radius / area, detail);
+  const coverage=Math.PI*radius*radius;
+  source.addLODLevel(coverage/(area*(quality.get(scene)??1)),detail);
+  if(!levels.has(scene))levels.set(scene,new Set());
+  levels.get(scene)!.add({source,detail,area,coverage});
   return detail;
 }
 
