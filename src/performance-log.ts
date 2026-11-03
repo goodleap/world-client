@@ -31,7 +31,7 @@ export function compactPerformanceLog(report: Report) {
     latest: latest && counts(latest),
     scene: latest && { meshes: latest.meshes, geometries: latest.geometries, materials: latest.materials, textures: latest.textures,
       skeletons: latest.skeletons, animationGroups: latest.animationGroups, buffer: [latest.width, latest.height], scaling: latest.scaling,
-      shadowSize: latest.shadowSize, lod: latest.lod.reduce((sum, l) => ({ units: sum.units + 1, near: sum.near + l.parts - l.mapParts,
+      shadowSize: latest.shadowSize, buildingLOD: latest.buildingLOD, lod: latest.lod.reduce((sum, l) => ({ units: sum.units + 1, near: sum.near + l.parts - l.mapParts,
         medium: sum.medium + l.mapParts - (l.farParts ?? 0), far: sum.far + (l.farParts ?? 0) }), { units: 0, near: 0, medium: 0, far: 0 }) },
     summary: Object.fromEntries((['fps', 'cpuMs', 'frameMs', 'frameP95Ms', 'drawCalls', 'submittedTriangles', 'cullingCpuMs'] as const).map(k => [k, range(k)])),
     timeline: { columns: ['timeMs', 'fps', 'cpuMs', 'p95Ms', 'draws', 'triangles', 'mode', 'selected'],

@@ -1,10 +1,20 @@
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import type { Scene } from '@babylonjs/core/scene';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
+import type { Scene } from '@babylonjs/core/scene.js';
 import type { Palette } from './models';
-import { roundedBox, ellipsoid, tintHeight } from './environment-shapes';
+import { roundedBox, ellipsoid, tintHeight } from './environment-shapes.ts';
+
+export type BuildingDetail = 'near' | 'map' | 'far';
+function buildingShapes(detail: BuildingDetail) {
+  const bevelSteps: 1 | 2 | 3 = detail === 'near' ? 3 : detail === 'map' ? 2 : 1;
+  return {
+    bevelSteps,
+    box: (...args: Parameters<typeof roundedBox>) => { args[6] = bevelSteps; return roundedBox(...args); },
+    sphere: (...args: Parameters<typeof ellipsoid>) => { args[5] = detail === 'near' ? 16 : detail === 'map' ? 8 : 4; return ellipsoid(...args); },
+  };
+}
 
 /** Curved terracotta courses follow the roof silhouette in the reference sheet. */
 export function tiledRoof(scene: Scene, p: Palette, x: number, z: number, width: number, depth: number, height: number, rise: number, bevelSteps: 1 | 2 | 3 = 3) {
@@ -43,7 +53,8 @@ function gable(scene: Scene, p: Palette, x: number, z: number, width: number, de
   const mesh = new Mesh('cream-gable', scene); data.applyToMesh(mesh); mesh.position.set(x, height, z); mesh.material = p.plaster;
 }
 
-export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: number; z: number; width: number; depth: number; height: number }, includeDoor = true) {
+export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: number; z: number; width: number; depth: number; height: number }, includeDoor = true, detail: BuildingDetail = 'near') {
+  const { box, sphere, bevelSteps } = buildingShapes(detail);
   const { x, z, width: w, depth: d, height: h } = b;
   const front = z - d / 2;
   // Leave an actual doorway cavity for the inward leaf, rather than rotating
@@ -55,83 +66,85 @@ export function referenceHouse(scene: Scene, p: Palette, b: { id: string; x: num
     [[openingRight - openingLeft, h + .12 - openingTop, d], [x - .35, (h + .12 + openingTop) / 2, z]],
   ];
   for (const [i, [size, at]] of wallParts.entries()) {
-    const wall = roundedBox(scene, `${b.id}-walls-${i}`, size as [number, number, number], at as [number, number, number], p.cream, .035);
+    const wall = box(scene, `${b.id}-walls-${i}`, size as [number, number, number], at as [number, number, number], p.cream, .035);
     tintHeight(wall, '#f1e8d3', '#ffffff');
   }
   gable(scene, p, x, z, w, d, h + .12);
   const count = Math.ceil(w / .65);
   for (const side of [-1, 1]) for (let i = 0; i < count; i++) {
     if (side === -1 && Math.abs((i - (count - 1) / 2) * w / count + .35) < .58 + w / count / 2) continue;
-    roundedBox(scene, 'foundation-stone', [w / count - .025, .38, .3], [x + (i - (count - 1) / 2) * w / count, .22, z + side * d / 2], i % 3 ? p.stoneLight : p.stone, .07);
+    box(scene, 'foundation-stone', [w / count - .025, .38, .3], [x + (i - (count - 1) / 2) * w / count, .22, z + side * d / 2], i % 3 ? p.stoneLight : p.stone, .07);
   }
   const sideCount = Math.ceil(d / .65);
   for (const side of [-1, 1]) for (let i = 0; i < sideCount; i++) {
-    roundedBox(scene, 'side-foundation-stone', [.3, .38, d / sideCount - .025], [x + side * w / 2, .22, z + (i - (sideCount - 1) / 2) * d / sideCount], i % 3 ? p.stoneLight : p.stone, .07);
+    box(scene, 'side-foundation-stone', [.3, .38, d / sideCount - .025], [x + side * w / 2, .22, z + (i - (sideCount - 1) / 2) * d / sideCount], i % 3 ? p.stoneLight : p.stone, .07);
   }
   for (const dx of [-w / 2, w / 2]) {
-    roundedBox(scene, 'timber-corner', [.2, h - .3, .2], [x + dx, (h + .4) / 2, front - .04], p.timberLight, .055);
-    for (const side of [-1, 1]) roundedBox(scene, 'corner-stone', [.42, .4, .43], [x + dx, .58, z + side * (d / 2 - .08)], p.stoneLight, .07);
+    box(scene, 'timber-corner', [.2, h - .3, .2], [x + dx, (h + .4) / 2, front - .04], p.timberLight, .055);
+    for (const side of [-1, 1]) box(scene, 'corner-stone', [.42, .4, .43], [x + dx, .58, z + side * (d / 2 - .08)], p.stoneLight, .07);
   }
-  roundedBox(scene, 'lintel-beam', [w + .14, .2, .18], [x, h + .04, front - .06], p.timberLight, .06);
-  tiledRoof(scene, p, x, z, w, d, h + .12, 1.14);
+  box(scene, 'lintel-beam', [w + .14, .2, .18], [x, h + .04, front - .06], p.timberLight, .06);
+  tiledRoof(scene, p, x, z, w, d, h + .12, 1.14, bevelSteps);
   // Recessed teal door, warm timber casing, and stone doorstep.
   const doorX = x - .35;
-  roundedBox(scene, 'door-recess', [1.18, 2.12, .1], [doorX, 1.16, front + 1.22], p.woodDark, .045);
-  if (includeDoor) roundedBox(scene, 'door', [1.0, 1.96, .12], [doorX, 1.19, front - .13], p.sage, .035);
-  for (const dx of [-.58, .58]) roundedBox(scene, 'door-casing', [.13, 2.16, .18], [doorX + dx, 1.19, front - .19], p.timberLight, .04);
-  roundedBox(scene, 'door-casing-top', [1.25, .14, .18], [doorX, 2.27, front - .19], p.timberLight, .04);
-  if (includeDoor) ellipsoid(scene, 'brass-door-knob', [.13, .13, .12], [doorX + .32, 1.1, front - .24], p.golden);
-  roundedBox(scene, 'door-step', [1.35, .17, .65], [doorX, .13, front - .4], p.stoneLight, .06);
-  roundedBox(scene, 'door-step-lower', [1.48, .12, .45], [doorX, .06, front - .8], p.stoneLight, .05);
+  box(scene, 'door-recess', [1.18, 2.12, .1], [doorX, 1.16, front + 1.22], p.woodDark, .045);
+  if (includeDoor) box(scene, 'door', [1.0, 1.96, .12], [doorX, 1.19, front - .13], p.sage, .035);
+  for (const dx of [-.58, .58]) box(scene, 'door-casing', [.13, 2.16, .18], [doorX + dx, 1.19, front - .19], p.timberLight, .04);
+  box(scene, 'door-casing-top', [1.25, .14, .18], [doorX, 2.27, front - .19], p.timberLight, .04);
+  if (includeDoor) sphere(scene, 'brass-door-knob', [.13, .13, .12], [doorX + .32, 1.1, front - .24], p.golden);
+  box(scene, 'door-step', [1.35, .17, .65], [doorX, .13, front - .4], p.stoneLight, .06);
+  box(scene, 'door-step-lower', [1.48, .12, .45], [doorX, .06, front - .8], p.stoneLight, .05);
   const windowXs = w > 4 ? [x - 1.43, x + 1.14] : [x + .85];
   for (const wx of windowXs) {
-    roundedBox(scene, 'window-recess', [.82, .96, .1], [wx, 1.58, front - .04], p.woodDark, .07);
-    roundedBox(scene, 'window-glass', [.65, .76, .08], [wx, 1.59, front - .09], p.window, .02);
-    for (const dx of [-.4, .4]) roundedBox(scene, 'window-frame', [.1, 1.0, .16], [wx + dx, 1.58, front - .15], p.timberLight, .025);
-    for (const y of [1.09, 2.07]) roundedBox(scene, 'window-frame', [.86, .11, .16], [wx, y, front - .15], p.timberLight, .025);
-    roundedBox(scene, 'window-cross', [.055, .8, .08], [wx, 1.58, front - .16], p.linen, .018);
-    roundedBox(scene, 'window-cross', [.71, .055, .08], [wx, 1.63, front - .16], p.linen, .018);
-    roundedBox(scene, 'flower-box', [.94, .23, .38], [wx, 1.04, front - .2], p.timber, .06);
+    box(scene, 'window-recess', [.82, .96, .1], [wx, 1.58, front - .04], p.woodDark, .07);
+    box(scene, 'window-glass', [.65, .76, .08], [wx, 1.59, front - .09], p.window, .02);
+    for (const dx of [-.4, .4]) box(scene, 'window-frame', [.1, 1.0, .16], [wx + dx, 1.58, front - .15], p.timberLight, .025);
+    for (const y of [1.09, 2.07]) box(scene, 'window-frame', [.86, .11, .16], [wx, y, front - .15], p.timberLight, .025);
+    box(scene, 'window-cross', [.055, .8, .08], [wx, 1.58, front - .16], p.linen, .018);
+    box(scene, 'window-cross', [.71, .055, .08], [wx, 1.63, front - .16], p.linen, .018);
+    box(scene, 'flower-box', [.94, .23, .38], [wx, 1.04, front - .2], p.timber, .06);
     for (let i = -1; i <= 1; i++) {
-      ellipsoid(scene, 'window-leaves', [.29, .26, .26], [wx + i * .26, 1.23, front - .3], p.leaf);
-      ellipsoid(scene, 'window-flower', [.12, .12, .1], [wx + i * .26, 1.36, front - .32], i % 2 ? p.golden : p.flower);
+      sphere(scene, 'window-leaves', [.29, .26, .26], [wx + i * .26, 1.23, front - .3], p.leaf);
+      sphere(scene, 'window-flower', [.12, .12, .1], [wx + i * .26, 1.36, front - .32], i % 2 ? p.golden : p.flower);
     }
   }
   // Both side elevations have framed windows, rather than an unfinished blank wall.
   for (const side of [-1, 1]) {
     const sx = x + side * (w / 2 + .035);
-    roundedBox(scene, 'side-window-recess', [.1, 1.0, .95], [sx, 1.57, z], p.woodDark, .045);
-    roundedBox(scene, 'side-window-glass', [.08, .78, .73], [sx + side * .07, 1.57, z], p.window, .02);
-    for (const dz of [-.46, .46]) roundedBox(scene, 'side-window-frame', [.16, 1.02, .11], [sx + side * .1, 1.57, z + dz], p.timberLight, .025);
-    for (const y of [1.08, 2.06]) roundedBox(scene, 'side-window-frame', [.16, .11, 1.0], [sx + side * .1, y, z], p.timberLight, .025);
-    roundedBox(scene, 'side-window-bar', [.08, .8, .055], [sx + side * .13, 1.57, z], p.linen, .018);
-    roundedBox(scene, 'side-window-bar', [.08, .055, .76], [sx + side * .13, 1.57, z], p.linen, .018);
+    box(scene, 'side-window-recess', [.1, 1.0, .95], [sx, 1.57, z], p.woodDark, .045);
+    box(scene, 'side-window-glass', [.08, .78, .73], [sx + side * .07, 1.57, z], p.window, .02);
+    for (const dz of [-.46, .46]) box(scene, 'side-window-frame', [.16, 1.02, .11], [sx + side * .1, 1.57, z + dz], p.timberLight, .025);
+    for (const y of [1.08, 2.06]) box(scene, 'side-window-frame', [.16, .11, 1.0], [sx + side * .1, y, z], p.timberLight, .025);
+    box(scene, 'side-window-bar', [.08, .8, .055], [sx + side * .13, 1.57, z], p.linen, .018);
+    box(scene, 'side-window-bar', [.08, .055, .76], [sx + side * .13, 1.57, z], p.linen, .018);
   }
   // The chimney also uses the reference's pale stone and rounded cap.
   if (b.id === 'cottage') {
-    for (let row = 0; row < 4; row++) roundedBox(scene, 'chimney-stone', [.58, .28, .61], [x + 1.12, h + .5 + row * .28, z + .75], row % 2 ? p.stoneLight : p.stone, .045);
-    roundedBox(scene, 'chimney-cap', [.76, .24, .78], [x + 1.12, h + 1.58, z + .75], p.stoneLight, .06);
-    roundedBox(scene, 'chimney-opening', [.4, .015, .42], [x + 1.12, h + 1.705, z + .75], p.woodDark, .004);
+    for (let row = 0; row < 4; row++) box(scene, 'chimney-stone', [.58, .28, .61], [x + 1.12, h + .5 + row * .28, z + .75], row % 2 ? p.stoneLight : p.stone, .045);
+    box(scene, 'chimney-cap', [.76, .24, .78], [x + 1.12, h + 1.58, z + .75], p.stoneLight, .06);
+    box(scene, 'chimney-opening', [.4, .015, .42], [x + 1.12, h + 1.705, z + .75], p.woodDark, .004);
   }
 }
 
 /** Home-center variation of the reference's plaster/timber buildings and blue banners. */
-export function homeCenter(scene: Scene, p: Palette, b: Parameters<typeof referenceHouse>[2]) {
-  referenceHouse(scene, p, b, false);
+export function homeCenter(scene: Scene, p: Palette, b: Parameters<typeof referenceHouse>[2], detail: BuildingDetail = 'near') {
+  const { box } = buildingShapes(detail);
+  referenceHouse(scene, p, b, false, detail);
   const front = b.z - b.depth / 2;
   for (const side of [-1, 1]) {
-    roundedBox(scene, 'center-timber-brace', [.18, b.height - .45, .2], [b.x + side * (b.width / 2 - .15), b.height / 2 + .25, b.z + b.depth / 2], p.timberLight, .05);
+    box(scene, 'center-timber-brace', [.18, b.height - .45, .2], [b.x + side * (b.width / 2 - .15), b.height / 2 + .25, b.z + b.depth / 2], p.timberLight, .05);
   }
   // Broad entrance plaque and a soft, folded blue pennant remain legible at game distance.
-  roundedBox(scene, 'center-sign', [1.5, .43, .16], [b.x - .35, 2.65, front - .15], p.timber, .08);
-  const crest = roundedBox(scene, 'center-crest', [.25, .25, .06], [b.x - .35, 2.65, front - .25], p.linen, .04);
+  box(scene, 'center-sign', [1.5, .43, .16], [b.x - .35, 2.65, front - .15], p.timber, .08);
+  const crest = box(scene, 'center-crest', [.25, .25, .06], [b.x - .35, 2.65, front - .25], p.linen, .04);
   crest.rotation.z = Math.PI / 4;
-  blueBanner(scene, p, b.x + 1.35, b.z, b.height + .55);
+  blueBanner(scene, p, b.x + 1.35, b.z, b.height + .55, detail);
 }
 
-export function blueBanner(scene: Scene, p: Palette, x: number, z: number, y: number) {
-  roundedBox(scene, 'banner-pole', [.11, 1.9, .11], [x, y + .95, z], p.timberLight, .035);
-  ellipsoid(scene, 'banner-finial', [.19, .19, .19], [x, y + 1.94, z], p.golden);
+export function blueBanner(scene: Scene, p: Palette, x: number, z: number, y: number, detail: BuildingDetail = 'near') {
+  const { box, sphere } = buildingShapes(detail);
+  box(scene, 'banner-pole', [.11, 1.9, .11], [x, y + .95, z], p.timberLight, .035);
+  sphere(scene, 'banner-finial', [.19, .19, .19], [x, y + 1.94, z], p.golden);
   const paths = [0, 1].map(edge => Array.from({ length: 13 }, (_, i) => {
     const t = i / 12, corner = i === 0 || i === 12 ? .035 : 0;
     return new Vector3(x + .08 + t * .92, y + 1.78 - edge * .65 - t * .08 + (edge ? corner : -corner), z + Math.sin(t * Math.PI * 2) * .075);

@@ -91,6 +91,8 @@ export function checkLandExpansion(touch = false) {
     e.claim(); e.arrive(task.id); e.advance(C.workSeconds.build);
     const door = buildingDoor(e.state.sites[0]);
     e.state.goods.push({ id: 'goods-99', ...gridPoint(53.5, 57.5), resource: 'wood', amount: 8, state: 'ground' }); e.state.nextId = 100;
+    // Leadership is off in this fixture: ground goods need an explicit order.
+    expect(e.request('haul', 'goods-99').ok).toBe(true);
     const errors = await setup(page, e.state);
     await page.waitForFunction(door => {
       const s = window.__DEMO__!.snapshot(), haul = s.economy.tasks.find(t => t.kind === 'haul' && t.status === 'delivering');
@@ -106,6 +108,7 @@ export function checkLandExpansion(touch = false) {
     await expect.poll(async () => (await snapshot(page)).economy.inventory.wood, { timeout: 45_000 }).toBe(8);
     expect((await snapshot(page)).economy.goods).toHaveLength(0);
     expect((await snapshot(page)).economy.tasks.find(t => t.id === haul.id)?.status).toBe('done');
+    expect((await snapshot(page)).doors.find(d => d.id === e.state.sites[0].id)!.uses).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 }

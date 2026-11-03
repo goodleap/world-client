@@ -15,6 +15,7 @@ import { createLandscapeTerrain, createLandscapeWater } from './landscape-terrai
 import { createGroundCover } from './ground-cover.ts';
 import { createCampfireView } from './campfire-view.ts';
 import { createBuildingDoors } from './building-doors.ts';
+import { attachBuildingLOD } from './building-lod.ts';
 
 export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
   const before = new Set(scene.meshes), land = createLandGrid();
@@ -91,6 +92,13 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     if (mesh.metadata?.castsShadow) shadows.addShadowCaster(mesh);
   }
   const fires = createCampfireView(scene, p, shadows);
+  for (const b of BUILDINGS) {
+    const sources = scene.meshes.filter((m): m is Mesh => m instanceof Mesh && m.metadata?.worldObjectId === b.id && !m.metadata?.animatedDoor);
+    attachBuildingLOD(scene, sources, detail => {
+      if (b.id === 'home-center') homeCenter(scene, p, b, detail);
+      else referenceHouse(scene, p, b, false, detail);
+    });
+  }
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires);
   fires.update(economy.state.campfires, 0, { x: 0, z: 0 });
   const cover = createGroundCover(scene);

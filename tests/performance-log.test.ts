@@ -14,7 +14,7 @@ function fixture(): Report {
     shadowCpuMs: 4.000000000058208, cullingCpuMs: 2, activeMeshes: 254,
     meshes: 1229, geometries: 862, textures: 22, materials: 107, skeletons: 15,
     animationGroups: 52, renderLoops: 1, width: 589, height: 1131, scaling: 2 / 3,
-    shadowSize: 1024, shadowLodCamera: 'map-shadow-lod',
+    shadowSize: 1024, shadowLodCamera: 'map-shadow-lod', buildingLOD: { near: 0, medium: 15, far: 0 },
     lod: Array.from({ length: 20 }, (_, i) => ({ id: 'actor-' + i, parts: 15, mapParts: 15, farParts: 15 })),
     context: { mode: 'standard', fpsLimit: 60, selected: 1, candidates: 400, camera: { x: 1.23456, y: .5, z: -4.345678 }, shadows: true },
   }));
@@ -32,6 +32,7 @@ test('small export retains ten seconds, context, pass totals, slow-frame phases 
   assert.equal(Object.entries(report.latest!.passes).filter(([k]) => k !== 'total').reduce((n, [, v]) => n + v[1], 0), report.latest!.passes.total[1]);
   assert.equal(report.latest!.context!.fpsLimit, 60); assert.equal(report.latest!.context!.camera.z, -4.35);
   assert.deepEqual(report.scene!.lod, { units: 20, near: 0, medium: 0, far: 300 });
+  assert.deepEqual(report.scene!.buildingLOD, { near: 0, medium: 15, far: 0 });
   assert.equal(report.slowFrames[0].work.worldMs, 40); assert.equal(report.renderLoops, 0); assert.equal(report.latest!.renderLoops, 1);
   assert.deepEqual(report.marks.map(m => m.label), ['近景']);
   assert.equal(source.history.length, 120); assert.equal(source.latest!.context!.camera.z, -4.345678);

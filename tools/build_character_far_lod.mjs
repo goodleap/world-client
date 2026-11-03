@@ -72,8 +72,11 @@ for (const [mi, mesh] of source.meshes.entries()) for (const [pi, primitive] of 
     }
     const normals = values(primitive.attributes.NORMAL);
     let reduced = indices, error = 0;
-    if (indices.length / 3 >= 600) [reduced, error] = simplify.simplifyWithAttributes(indices, positions, 3,
-      normals, 3, [.01, .01, .01], locks, Math.floor(indices.length / 3 * .22) * 3, .008, ['ErrorAbsolute', 'LockBorder']);
+    // Small rigid facial/armor details previously bypassed simplification, and
+    // rigid hats stopped at 22% long before reaching the error bound. Allow
+    // 8% targets while keeping the same 0.008 bound and every blended vertex.
+    if (indices.length / 3 >= 24) [reduced, error] = simplify.simplifyWithAttributes(indices, positions, 3,
+      normals, 3, [.01, .01, .01], locks, Math.max(12, Math.floor(indices.length / 3 * .08)) * 3, .008, ['ErrorAbsolute', 'LockBorder']);
     assert(error <= .00801 && reduced.length > 0);
     const retained = new Set(reduced);
     // Blended/transition vertices keep their original attributes and positions.
@@ -109,6 +112,7 @@ await writeFile(new URL('characters-far-lod.glb', folder), packed);
 const report = { source: 'characters-lod.glb', sourceSha256: hash(raw), farSha256: hash(packed), generator: output.asset.generator,
   maximumError: Math.max(...records.map(r => r.error)), sourceTriangles: records.reduce((s, r) => s + r.sourceTriangles, 0),
   farTriangles: records.reduce((s, r) => s + r.farTriangles, 0), sourceBytes: raw.length, farBytes: packed.length,
+  targetRatio: .08, targetError: .008,
   retainedAttributes: 'byte-identical original vertices; all blended vertices and bone boundaries locked', parts: records };
 await writeFile(new URL('far-lod.json', folder), JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify({ ...report, parts: undefined }, null, 2));

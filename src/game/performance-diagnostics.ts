@@ -8,6 +8,7 @@ import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGener
 import type { FrameSample } from './frame-metrics.ts';
 import { SceneComponentConstants } from '@babylonjs/core/sceneComponent';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { buildingLODCounts } from './building-lod.ts';
 type LodSample = { id: string; parts: number; mapParts: number; farParts?: number }[];
 export type FrameWork = { logicMs: number; worldMs: number; saveMs: number; sceneMs: number };
 export type PerformanceContext = { mode: string; fpsLimit: number; selected: number; selectionKind?: string;
@@ -71,7 +72,7 @@ export function createPerformanceDiagnostics(engine: Engine, scene: Scene, shado
     animationGroups: scene.animationGroups.length, renderLoops: engine.activeRenderLoops.length,
     width: engine.getRenderWidth(), height: engine.getRenderHeight(), scaling: engine.getHardwareScalingLevel(),
     shadowSize: shadows.mapSize,
-    shadowLodCamera: shadows.getShadowMap()?.cameraForLOD?.name, lod, context,
+    shadowLodCamera: shadows.getShadowMap()?.cameraForLOD?.name, lod, buildingLOD: buildingLODCounts(scene), context,
   });
   type Sample = ReturnType<typeof read>;
   const history: Sample[] = [], marks: { label: string; sample: Sample }[] = [];

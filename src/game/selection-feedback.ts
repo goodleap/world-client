@@ -1,12 +1,12 @@
-import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
-import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
-import { Color3 } from '@babylonjs/core/Maths/math.color';
-import '@babylonjs/core/Rendering/outlineRenderer';
-import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import type { Scene } from '@babylonjs/core/scene';
-import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { Color3 } from '@babylonjs/core/Maths/math.color.js';
+import '@babylonjs/core/Rendering/outlineRenderer.js';
+import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh.js';
+import type { Scene } from '@babylonjs/core/scene.js';
+import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.js';
 import type { WorldObject } from './world-selection.ts';
 export const SELECTION_COLOR = '#62e4ff';
 
@@ -25,12 +25,16 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
     const edge = MeshBuilder.CreateBox('selection-edge-' + i, { size: 1 }, scene);
     edge.material = edgeMaterial; edge.isPickable = false; edge.setEnabled(false); return edge;
   });
-  type Entry = { shown: Mesh; original?: InstancedMesh };
+  type Entry = { shown: Mesh; original?: InstancedMesh; levels: Mesh[] };
   const selected = new Map<AbstractMesh, Entry>();
   function remove(mesh: AbstractMesh, entry: Entry) {
     if (!entry.shown.isDisposed()) {
       entry.shown.renderOutline = false; entry.shown.renderOverlay = false;
-      if (entry.original) { shadows.removeShadowCaster(entry.shown, false); entry.shown.dispose(); }
+      if (entry.original) {
+        shadows.removeShadowCaster(entry.shown, false);
+        for (const level of entry.levels) { entry.shown.removeLODLevel(level); level.dispose(); }
+        entry.shown.dispose();
+      }
     }
     if (entry.original && !entry.original.isDisposed()) entry.original.setEnabled(true);
     selected.delete(mesh);
@@ -41,18 +45,29 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
     for (const mesh of wanted) {
       if (selected.has(mesh)) continue;
       let shown: Mesh, original: InstancedMesh | undefined;
+      const levels: Mesh[] = [];
       if (mesh instanceof InstancedMesh) {
         original = mesh; shown = mesh.sourceMesh.clone('selected-' + mesh.name, null, true)!;
         shown.position.copyFrom(mesh.position); shown.scaling.copyFrom(mesh.scaling); shown.rotation.copyFrom(mesh.rotation);
         shown.rotationQuaternion = mesh.rotationQuaternion?.clone() ?? null;
-        shown.isVisible = true; shown.setEnabled(true); shown.metadata = { ...mesh.metadata };
+        shown.isVisible = true; shown.setEnabled(true); shown.metadata = { ...mesh.sourceMesh.metadata, ...mesh.metadata };
+        shown.unfreezeWorldMatrix(); shown.computeWorldMatrix(true); shown.freezeWorldMatrix();
+        shown.useLODScreenCoverage = mesh.sourceMesh.useLODScreenCoverage;
+        for (const level of mesh.sourceMesh.getLODLevels()) {
+          const copy = level.mesh?.clone(`selected-${mesh.name}-lod`, null, true) ?? null;
+          if (copy) { copy.isVisible = true; copy.setEnabled(true); copy.isPickable = false; levels.push(copy); }
+          shown.addLODLevel(level.distanceOrScreenCoverage, copy);
+        }
         shown.isPickable = true; mesh.setEnabled(false);
         if (shadows.getShadowMap()?.renderList?.includes(mesh)) shadows.addShadowCaster(shown, false);
       } else if (mesh instanceof Mesh) shown = mesh;
       else continue;
-      shown.renderOutline = true; shown.outlineWidth = .01; shown.outlineColor = color;
-      shown.renderOverlay = false;
-      selected.set(mesh, { shown, original });
+      for (const part of [shown, ...levels]) {
+        part.renderOutline = true; part.outlineWidth = .01; part.outlineColor = color;
+        part.renderOverlay = false;
+        part._instanceDataStorage.useMonoDataStorageRenderPass = false;
+      }
+      selected.set(mesh, { shown, original, levels });
     }
     const area = !!object?.width && !!object?.depth;
     fill.setEnabled(area); edges.forEach(e => e.setEnabled(area));

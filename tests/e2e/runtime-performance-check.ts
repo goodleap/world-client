@@ -23,6 +23,7 @@ export async function checkRuntimePerformance(page: Page, info: TestInfo, touch:
   expect(text.length).toBeLessThan(10000); expect(report.schema).toBe(2);
   expect(report.performance.latest.context.mode).toBe('standard'); expect(report.performance.latest.context.fpsLimit).toBe(60);
   expect(report.performance.scene.lod.units).toBeGreaterThan(0);
+  expect(Object.values(report.performance.scene.buildingLOD).reduce((n: number, v) => n + Number(v), 0)).toBeGreaterThan(0);
   const p = report.performance.latest.passes;
   expect(p.main[0] + p.shadow[0] + p.selection[0]).toBe(p.total[0]);
   expect(p.main[1] + p.shadow[1] + p.selection[1]).toBe(p.total[1]);

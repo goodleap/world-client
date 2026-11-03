@@ -1,0 +1,1525 @@
+{
+  "results": [
+    {
+      "before": true,
+      "name": "default",
+      "draws": 348,
+      "triangles": 1789740,
+      "mainDraws": 175,
+      "mainTriangles": 1009058,
+      "shadowDraws": 173,
+      "shadowTriangles": 780682,
+      "buildingLOD": {
+        "near": 42,
+        "medium": 0,
+        "far": 0
+      },
+      "active": 209,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        }
+      ]
+    },
+    {
+      "before": true,
+      "name": "phone-log",
+      "draws": 341,
+      "triangles": 1552540,
+      "mainDraws": 171,
+      "mainTriangles": 886580,
+      "shadowDraws": 170,
+      "shadowTriangles": 665960,
+      "buildingLOD": {
+        "near": 28,
+        "medium": 0,
+        "far": 0
+      },
+      "active": 200,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        }
+      ]
+    },
+    {
+      "before": true,
+      "name": "near",
+      "draws": 238,
+      "triangles": 2420050,
+      "mainDraws": 103,
+      "mainTriangles": 1858790,
+      "shadowDraws": 135,
+      "shadowTriangles": 561260,
+      "buildingLOD": {
+        "near": 24,
+        "medium": 0,
+        "far": 0
+      },
+      "active": 115,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        }
+      ]
+    },
+    {
+      "before": true,
+      "name": "wide",
+      "draws": 411,
+      "triangles": 2062606,
+      "mainDraws": 221,
+      "mainTriangles": 1192764,
+      "shadowDraws": 190,
+      "shadowTriangles": 869842,
+      "buildingLOD": {
+        "near": 43,
+        "medium": 0,
+        "far": 0
+      },
+      "active": 315,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        }
+      ]
+    },
+    {
+      "before": false,
+      "name": "default",
+      "draws": 348,
+      "triangles": 1145214,
+      "mainDraws": 175,
+      "mainTriangles": 746372,
+      "shadowDraws": 173,
+      "shadowTriangles": 398842,
+      "buildingLOD": {
+        "near": 0,
+        "medium": 42,
+        "far": 0
+      },
+      "active": 209,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        }
+      ]
+    },
+    {
+      "before": false,
+      "name": "phone-log",
+      "draws": 341,
+      "triangles": 1072916,
+      "mainDraws": 171,
+      "mainTriangles": 684446,
+      "shadowDraws": 170,
+      "shadowTriangles": 388470,
+      "buildingLOD": {
+        "near": 0,
+        "medium": 28,
+        "far": 0
+      },
+      "active": 200,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-map"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-map"
+        }
+      ]
+    },
+    {
+      "before": false,
+      "name": "near",
+      "draws": 238,
+      "triangles": 2168996,
+      "mainDraws": 103,
+      "mainTriangles": 1858790,
+      "shadowDraws": 135,
+      "shadowTriangles": 310206,
+      "buildingLOD": {
+        "near": 24,
+        "medium": 0,
+        "far": 0
+      },
+      "active": 115,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower"
+        }
+      ]
+    },
+    {
+      "before": false,
+      "name": "wide",
+      "draws": 411,
+      "triangles": 1272490,
+      "mainDraws": 221,
+      "mainTriangles": 797706,
+      "shadowDraws": 190,
+      "shadowTriangles": 474784,
+      "buildingLOD": {
+        "near": 0,
+        "medium": 0,
+        "far": 43
+      },
+      "active": 315,
+      "selected": [
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-far"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-far"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-far"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-far"
+        },
+        {
+          "source": "world-plaster",
+          "shown": "world-plaster-building-far"
+        },
+        {
+          "source": "world-shirt",
+          "shown": "world-shirt-building-far"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-far"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-far"
+        },
+        {
+          "source": "world-cream",
+          "shown": "world-cream-building-far"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-far"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-far"
+        },
+        {
+          "source": "world-stone",
+          "shown": "world-stone-building-far"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-far"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-far"
+        },
+        {
+          "source": "world-stoneLight",
+          "shown": "world-stoneLight-building-far"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-far"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-far"
+        },
+        {
+          "source": "world-timberLight",
+          "shown": "world-timberLight-building-far"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-far"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-far"
+        },
+        {
+          "source": "world-terracotta",
+          "shown": "world-terracotta-building-far"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-far"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-far"
+        },
+        {
+          "source": "world-roofLight",
+          "shown": "world-roofLight-building-far"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-far"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-far"
+        },
+        {
+          "source": "world-woodDark",
+          "shown": "world-woodDark-building-far"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-far"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-far"
+        },
+        {
+          "source": "world-window",
+          "shown": "world-window-building-far"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-far"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-far"
+        },
+        {
+          "source": "world-linen",
+          "shown": "world-linen-building-far"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-far"
+        },
+        {
+          "source": "world-timber",
+          "shown": "world-timber-building-far"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-far"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-far"
+        },
+        {
+          "source": "world-leaf",
+          "shown": "world-leaf-building-far"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-far"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-far"
+        },
+        {
+          "source": "world-golden",
+          "shown": "world-golden-building-far"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-far"
+        },
+        {
+          "source": "world-flower",
+          "shown": "world-flower-building-far"
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,1175 @@
+{
+  "results": [
+    {
+      "role": "farmer",
+      "comparisons": [
+        {
+          "view": "front",
+          "clip": "Run",
+          "phase": 0,
+          "meanChannelDifference": 0.7215525793650793,
+          "changedPixels": 1091
+        },
+        {
+          "view": "front",
+          "clip": "Run",
+          "phase": 0.3,
+          "meanChannelDifference": 0.7593129960317461,
+          "changedPixels": 1182
+        },
+        {
+          "view": "front",
+          "clip": "Run",
+          "phase": 0.6,
+          "meanChannelDifference": 0.7759027777777778,
+          "changedPixels": 1267
+        },
+        {
+          "view": "front",
+          "clip": "Run",
+          "phase": 0.85,
+          "meanChannelDifference": 0.7572916666666667,
+          "changedPixels": 1154
+        },
+        {
+          "view": "front",
+          "clip": "Hammer",
+          "phase": 0,
+          "meanChannelDifference": 0.799672619047619,
+          "changedPixels": 1269
+        },
+        {
+          "view": "front",
+          "clip": "Hammer",
+          "phase": 0.3,
+          "meanChannelDifference": 0.809437003968254,
+          "changedPixels": 1286
+        },
+        {
+          "view": "front",
+          "clip": "Hammer",
+          "phase": 0.6,
+          "meanChannelDifference": 0.7839260912698413,
+          "changedPixels": 1187
+        },
+        {
+          "view": "front",
+          "clip": "Hammer",
+          "phase": 0.85,
+          "meanChannelDifference": 0.8073759920634921,
+          "changedPixels": 1273
+        },
+        {
+          "view": "side",
+          "clip": "Run",
+          "phase": 0,
+          "meanChannelDifference": 0.45987599206349206,
+          "changedPixels": 738
+        },
+        {
+          "view": "side",
+          "clip": "Run",
+          "phase": 0.3,
+          "meanChannelDifference": 0.5140029761904762,
+          "changedPixels": 830
+        },
+        {
+          "view": "side",
+          "clip": "Run",
+          "phase": 0.6,
+          "meanChannelDifference": 0.4884920634920635,
+          "changedPixels": 830
+        },
+        {
+          "view": "side",
+          "clip": "Run",
+          "phase": 0.85,
+          "meanChannelDifference": 0.5237946428571428,
+          "changedPixels": 826
+        },
+        {
+          "view": "side",
+          "clip": "Hammer",
+          "phase": 0,
+          "meanChannelDifference": 0.43585565476190474,
+          "changedPixels": 699
+        },
+        {
+          "view": "side",
+          "clip": "Hammer",
+          "phase": 0.3,
+          "meanChannelDifference": 0.4593923611111111,
+          "changedPixels": 742
+        },
+        {
+          "view": "side",
+          "clip": "Hammer",
+          "phase": 0.6,
+          "meanChannelDifference": 0.41681299603174604,
+          "changedPixels": 595
+        },
+        {
+          "view": "side",
+          "clip": "Hammer",
+          "phase": 0.85,
+          "meanChannelDifference": 0.44784722222222223,
+          "changedPixels": 726
+        },
+        {
+          "view": "game",
+          "clip": "Run",
+          "phase": 0,
+          "meanChannelDifference": 0.481609623015873,
+          "changedPixels": 665
+        },
+        {
+          "view": "game",
+          "clip": "Run",
+          "phase": 0.3,
+          "meanChannelDifference": 0.48811011904761903,
+          "changedPixels": 728
+        },
+        {
+          "view": "game",
+          "clip": "Run",
+          "phase": 0.6,
+          "meanChannelDifference": 0.5086954365079365,
+          "changedPixels": 743
+        },
+        {
+          "view": "game",
+          "clip": "Run",
+          "phase": 0.85,
+          "meanChannelDifference": 0.5156721230158731,
+          "changedPixels": 765
+        },
+        {
+          "view": "game",
+          "clip": "Hammer",
+          "phase": 0,
+          "meanChannelDifference": 0.5592063492063492,
+          "changedPixels": 866
+        },
+        {
+          "view": "game",
+          "clip": "Hammer",
+          "phase": 0.3,
+          "meanChannelDifference": 0.5485391865079365,
+          "changedPixels": 839
+        },
+        {
+          "view": "game",
+          "clip": "Hammer",
+          "phase": 0.6,
+          "meanChannelDifference": 0.5876488095238095,
+          "changedPixels": 898
+        },
+        {
+          "view": "game",
+          "clip": "Hammer",
+          "phase": 0.85,
+          "meanChannelDifference": 0.5614905753968253,
+          "changedPixels": 880
+        },
+        {
+          "view": "phone",
+          "clip": "Run",
+          "phase": 0,
+          "meanChannelDifference": 0.014499007936507937,
+          "changedPixels": 32
+        },
+        {
+          "view": "phone",
+          "clip": "Run",
+          "phase": 0.3,
+          "meanChannelDifference": 0.012564484126984127,
+          "changedPixels": 27
+        },
+        {
+          "view": "phone",
+          "clip": "Run",
+          "phase": 0.6,
+          "meanChannelDifference": 0.011810515873015874,
+          "changedPixels": 26
+        },
+        {
+          "view": "phone",
+          "clip": "Run",
+          "phase": 0.85,
+          "meanChannelDifference": 0.012795138888888889,
+          "changedPixels": 29
+        },
+        {
+          "view": "phone",
+          "clip": "Hammer",
+          "phase": 0,
+          "meanChannelDifference": 0.014561011904761905,
+          "changedPixels": 33
+        },
+        {
+          "view": "phone",
+          "clip": "Hammer",
+          "phase": 0.3,
+          "meanChannelDifference": 0.010771329365079366,
+          "changedPixels": 22
+        },
+        {
+          "view": "phone",
+          "clip": "Hammer",
+          "phase": 0.6,
+          "meanChannelDifference": 0.013154761904761905,
+          "changedPixels": 30
+        },
+        {
+          "view": "phone",
+          "clip": "Hammer",
+          "phase": 0.85,
+          "meanChannelDifference": 0.01482390873015873,
+          "changedPixels": 35
+        }
+      ]
+    },
+    {
+      "role": "infantry",
+      "comparisons": [
+        {
+          "view": "front",
+          "clip": "ShieldRun",
+          "phase": 0,
+          "meanChannelDifference": 1.568028273809524,
+          "changedPixels": 2670
+        },
+        {
+          "view": "front",
+          "clip": "ShieldRun",
+          "phase": 0.3,
+          "meanChannelDifference": 1.574640376984127,
+          "changedPixels": 2719
+        },
+        {
+          "view": "front",
+          "clip": "ShieldRun",
+          "phase": 0.6,
+          "meanChannelDifference": 1.5645858134920634,
+          "changedPixels": 2720
+        },
+        {
+          "view": "front",
+          "clip": "ShieldRun",
+          "phase": 0.85,
+          "meanChannelDifference": 1.570297619047619,
+          "changedPixels": 2701
+        },
+        {
+          "view": "front",
+          "clip": "SwordSlash",
+          "phase": 0,
+          "meanChannelDifference": 1.609263392857143,
+          "changedPixels": 2714
+        },
+        {
+          "view": "front",
+          "clip": "SwordSlash",
+          "phase": 0.3,
+          "meanChannelDifference": 1.8485243055555556,
+          "changedPixels": 3579
+        },
+        {
+          "view": "front",
+          "clip": "SwordSlash",
+          "phase": 0.6,
+          "meanChannelDifference": 1.3241493055555555,
+          "changedPixels": 2351
+        },
+        {
+          "view": "front",
+          "clip": "SwordSlash",
+          "phase": 0.85,
+          "meanChannelDifference": 1.5400744047619048,
+          "changedPixels": 2620
+        },
+        {
+          "view": "side",
+          "clip": "ShieldRun",
+          "phase": 0,
+          "meanChannelDifference": 0.6963740079365079,
+          "changedPixels": 1113
+        },
+        {
+          "view": "side",
+          "clip": "ShieldRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.7249578373015872,
+          "changedPixels": 1170
+        },
+        {
+          "view": "side",
+          "clip": "ShieldRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.7416021825396826,
+          "changedPixels": 1240
+        },
+        {
+          "view": "side",
+          "clip": "ShieldRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.7317013888888889,
+          "changedPixels": 1169
+        },
+        {
+          "view": "side",
+          "clip": "SwordSlash",
+          "phase": 0,
+          "meanChannelDifference": 0.6613640873015874,
+          "changedPixels": 1019
+        },
+        {
+          "view": "side",
+          "clip": "SwordSlash",
+          "phase": 0.3,
+          "meanChannelDifference": 0.772547123015873,
+          "changedPixels": 1326
+        },
+        {
+          "view": "side",
+          "clip": "SwordSlash",
+          "phase": 0.6,
+          "meanChannelDifference": 0.8824206349206349,
+          "changedPixels": 1589
+        },
+        {
+          "view": "side",
+          "clip": "SwordSlash",
+          "phase": 0.85,
+          "meanChannelDifference": 0.635515873015873,
+          "changedPixels": 943
+        },
+        {
+          "view": "game",
+          "clip": "ShieldRun",
+          "phase": 0,
+          "meanChannelDifference": 1.1242385912698414,
+          "changedPixels": 2001
+        },
+        {
+          "view": "game",
+          "clip": "ShieldRun",
+          "phase": 0.3,
+          "meanChannelDifference": 1.1280059523809525,
+          "changedPixels": 1940
+        },
+        {
+          "view": "game",
+          "clip": "ShieldRun",
+          "phase": 0.6,
+          "meanChannelDifference": 1.1403373015873015,
+          "changedPixels": 1942
+        },
+        {
+          "view": "game",
+          "clip": "ShieldRun",
+          "phase": 0.85,
+          "meanChannelDifference": 1.1409449404761904,
+          "changedPixels": 2015
+        },
+        {
+          "view": "game",
+          "clip": "SwordSlash",
+          "phase": 0,
+          "meanChannelDifference": 1.2461309523809523,
+          "changedPixels": 2224
+        },
+        {
+          "view": "game",
+          "clip": "SwordSlash",
+          "phase": 0.3,
+          "meanChannelDifference": 1.5698710317460318,
+          "changedPixels": 3219
+        },
+        {
+          "view": "game",
+          "clip": "SwordSlash",
+          "phase": 0.6,
+          "meanChannelDifference": 1.0198635912698413,
+          "changedPixels": 1874
+        },
+        {
+          "view": "game",
+          "clip": "SwordSlash",
+          "phase": 0.85,
+          "meanChannelDifference": 1.1492435515873016,
+          "changedPixels": 2036
+        },
+        {
+          "view": "phone",
+          "clip": "ShieldRun",
+          "phase": 0,
+          "meanChannelDifference": 0.02035714285714286,
+          "changedPixels": 47
+        },
+        {
+          "view": "phone",
+          "clip": "ShieldRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.020679563492063492,
+          "changedPixels": 38
+        },
+        {
+          "view": "phone",
+          "clip": "ShieldRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.017824900793650792,
+          "changedPixels": 34
+        },
+        {
+          "view": "phone",
+          "clip": "ShieldRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.017172619047619048,
+          "changedPixels": 35
+        },
+        {
+          "view": "phone",
+          "clip": "SwordSlash",
+          "phase": 0,
+          "meanChannelDifference": 0.019149305555555555,
+          "changedPixels": 39
+        },
+        {
+          "view": "phone",
+          "clip": "SwordSlash",
+          "phase": 0.3,
+          "meanChannelDifference": 0.02439236111111111,
+          "changedPixels": 50
+        },
+        {
+          "view": "phone",
+          "clip": "SwordSlash",
+          "phase": 0.6,
+          "meanChannelDifference": 0.016793154761904763,
+          "changedPixels": 30
+        },
+        {
+          "view": "phone",
+          "clip": "SwordSlash",
+          "phase": 0.85,
+          "meanChannelDifference": 0.02046875,
+          "changedPixels": 42
+        }
+      ]
+    },
+    {
+      "role": "archer",
+      "comparisons": [
+        {
+          "view": "front",
+          "clip": "CarryRun",
+          "phase": 0,
+          "meanChannelDifference": 1.1342906746031747,
+          "changedPixels": 2079
+        },
+        {
+          "view": "front",
+          "clip": "CarryRun",
+          "phase": 0.3,
+          "meanChannelDifference": 1.1631795634920634,
+          "changedPixels": 2113
+        },
+        {
+          "view": "front",
+          "clip": "CarryRun",
+          "phase": 0.6,
+          "meanChannelDifference": 1.1885292658730158,
+          "changedPixels": 2235
+        },
+        {
+          "view": "front",
+          "clip": "CarryRun",
+          "phase": 0.85,
+          "meanChannelDifference": 1.1568824404761904,
+          "changedPixels": 2149
+        },
+        {
+          "view": "front",
+          "clip": "BowShot",
+          "phase": 0,
+          "meanChannelDifference": 1.139002976190476,
+          "changedPixels": 2046
+        },
+        {
+          "view": "front",
+          "clip": "BowShot",
+          "phase": 0.3,
+          "meanChannelDifference": 0.8285367063492064,
+          "changedPixels": 1626
+        },
+        {
+          "view": "front",
+          "clip": "BowShot",
+          "phase": 0.6,
+          "meanChannelDifference": 0.830672123015873,
+          "changedPixels": 1578
+        },
+        {
+          "view": "front",
+          "clip": "BowShot",
+          "phase": 0.85,
+          "meanChannelDifference": 1.0103596230158731,
+          "changedPixels": 1847
+        },
+        {
+          "view": "side",
+          "clip": "CarryRun",
+          "phase": 0,
+          "meanChannelDifference": 0.7670585317460318,
+          "changedPixels": 1322
+        },
+        {
+          "view": "side",
+          "clip": "CarryRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.7982118055555556,
+          "changedPixels": 1360
+        },
+        {
+          "view": "side",
+          "clip": "CarryRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.8100768849206349,
+          "changedPixels": 1437
+        },
+        {
+          "view": "side",
+          "clip": "CarryRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.8113020833333333,
+          "changedPixels": 1365
+        },
+        {
+          "view": "side",
+          "clip": "BowShot",
+          "phase": 0,
+          "meanChannelDifference": 0.7133110119047619,
+          "changedPixels": 1180
+        },
+        {
+          "view": "side",
+          "clip": "BowShot",
+          "phase": 0.3,
+          "meanChannelDifference": 1.0803546626984126,
+          "changedPixels": 1982
+        },
+        {
+          "view": "side",
+          "clip": "BowShot",
+          "phase": 0.6,
+          "meanChannelDifference": 1.0141269841269842,
+          "changedPixels": 1900
+        },
+        {
+          "view": "side",
+          "clip": "BowShot",
+          "phase": 0.85,
+          "meanChannelDifference": 1.181986607142857,
+          "changedPixels": 2148
+        },
+        {
+          "view": "game",
+          "clip": "CarryRun",
+          "phase": 0,
+          "meanChannelDifference": 0.8638764880952381,
+          "changedPixels": 1546
+        },
+        {
+          "view": "game",
+          "clip": "CarryRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.8726215277777778,
+          "changedPixels": 1578
+        },
+        {
+          "view": "game",
+          "clip": "CarryRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.8591617063492063,
+          "changedPixels": 1508
+        },
+        {
+          "view": "game",
+          "clip": "CarryRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.8623735119047619,
+          "changedPixels": 1567
+        },
+        {
+          "view": "game",
+          "clip": "BowShot",
+          "phase": 0,
+          "meanChannelDifference": 0.9527256944444444,
+          "changedPixels": 1754
+        },
+        {
+          "view": "game",
+          "clip": "BowShot",
+          "phase": 0.3,
+          "meanChannelDifference": 0.7592857142857142,
+          "changedPixels": 1276
+        },
+        {
+          "view": "game",
+          "clip": "BowShot",
+          "phase": 0.6,
+          "meanChannelDifference": 0.7727827380952381,
+          "changedPixels": 1278
+        },
+        {
+          "view": "game",
+          "clip": "BowShot",
+          "phase": 0.85,
+          "meanChannelDifference": 0.7885615079365079,
+          "changedPixels": 1348
+        },
+        {
+          "view": "phone",
+          "clip": "CarryRun",
+          "phase": 0,
+          "meanChannelDifference": 0.01679563492063492,
+          "changedPixels": 41
+        },
+        {
+          "view": "phone",
+          "clip": "CarryRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.017899305555555557,
+          "changedPixels": 39
+        },
+        {
+          "view": "phone",
+          "clip": "CarryRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.014618055555555556,
+          "changedPixels": 28
+        },
+        {
+          "view": "phone",
+          "clip": "CarryRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.013072916666666667,
+          "changedPixels": 27
+        },
+        {
+          "view": "phone",
+          "clip": "BowShot",
+          "phase": 0,
+          "meanChannelDifference": 0.01720982142857143,
+          "changedPixels": 37
+        },
+        {
+          "view": "phone",
+          "clip": "BowShot",
+          "phase": 0.3,
+          "meanChannelDifference": 0.01294890873015873,
+          "changedPixels": 29
+        },
+        {
+          "view": "phone",
+          "clip": "BowShot",
+          "phase": 0.6,
+          "meanChannelDifference": 0.013003472222222222,
+          "changedPixels": 30
+        },
+        {
+          "view": "phone",
+          "clip": "BowShot",
+          "phase": 0.85,
+          "meanChannelDifference": 0.013655753968253968,
+          "changedPixels": 27
+        }
+      ]
+    },
+    {
+      "role": "cavalry",
+      "comparisons": [
+        {
+          "view": "front",
+          "clip": "RideRun",
+          "phase": 0,
+          "meanChannelDifference": 0.3635912698412698,
+          "changedPixels": 655
+        },
+        {
+          "view": "front",
+          "clip": "RideRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.3431374007936508,
+          "changedPixels": 627
+        },
+        {
+          "view": "front",
+          "clip": "RideRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.3267609126984127,
+          "changedPixels": 567
+        },
+        {
+          "view": "front",
+          "clip": "RideRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.3439583333333333,
+          "changedPixels": 616
+        },
+        {
+          "view": "front",
+          "clip": "LanceThrust",
+          "phase": 0,
+          "meanChannelDifference": 0.3398536706349206,
+          "changedPixels": 625
+        },
+        {
+          "view": "front",
+          "clip": "LanceThrust",
+          "phase": 0.3,
+          "meanChannelDifference": 0.3275173611111111,
+          "changedPixels": 610
+        },
+        {
+          "view": "front",
+          "clip": "LanceThrust",
+          "phase": 0.6,
+          "meanChannelDifference": 0.32406001984126986,
+          "changedPixels": 588
+        },
+        {
+          "view": "front",
+          "clip": "LanceThrust",
+          "phase": 0.85,
+          "meanChannelDifference": 0.3353621031746032,
+          "changedPixels": 620
+        },
+        {
+          "view": "side",
+          "clip": "RideRun",
+          "phase": 0,
+          "meanChannelDifference": 0.37431299603174606,
+          "changedPixels": 673
+        },
+        {
+          "view": "side",
+          "clip": "RideRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.3619246031746032,
+          "changedPixels": 655
+        },
+        {
+          "view": "side",
+          "clip": "RideRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.36802579365079363,
+          "changedPixels": 675
+        },
+        {
+          "view": "side",
+          "clip": "RideRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.3569320436507937,
+          "changedPixels": 634
+        },
+        {
+          "view": "side",
+          "clip": "LanceThrust",
+          "phase": 0,
+          "meanChannelDifference": 0.33867559523809526,
+          "changedPixels": 608
+        },
+        {
+          "view": "side",
+          "clip": "LanceThrust",
+          "phase": 0.3,
+          "meanChannelDifference": 0.33976190476190476,
+          "changedPixels": 586
+        },
+        {
+          "view": "side",
+          "clip": "LanceThrust",
+          "phase": 0.6,
+          "meanChannelDifference": 0.32780257936507934,
+          "changedPixels": 556
+        },
+        {
+          "view": "side",
+          "clip": "LanceThrust",
+          "phase": 0.85,
+          "meanChannelDifference": 0.3579861111111111,
+          "changedPixels": 639
+        },
+        {
+          "view": "game",
+          "clip": "RideRun",
+          "phase": 0,
+          "meanChannelDifference": 0.3036706349206349,
+          "changedPixels": 546
+        },
+        {
+          "view": "game",
+          "clip": "RideRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.29502728174603177,
+          "changedPixels": 489
+        },
+        {
+          "view": "game",
+          "clip": "RideRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.3073611111111111,
+          "changedPixels": 545
+        },
+        {
+          "view": "game",
+          "clip": "RideRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.31000496031746033,
+          "changedPixels": 563
+        },
+        {
+          "view": "game",
+          "clip": "LanceThrust",
+          "phase": 0,
+          "meanChannelDifference": 0.32953373015873016,
+          "changedPixels": 583
+        },
+        {
+          "view": "game",
+          "clip": "LanceThrust",
+          "phase": 0.3,
+          "meanChannelDifference": 0.32654265873015875,
+          "changedPixels": 585
+        },
+        {
+          "view": "game",
+          "clip": "LanceThrust",
+          "phase": 0.6,
+          "meanChannelDifference": 0.3523015873015873,
+          "changedPixels": 621
+        },
+        {
+          "view": "game",
+          "clip": "LanceThrust",
+          "phase": 0.85,
+          "meanChannelDifference": 0.3226339285714286,
+          "changedPixels": 569
+        },
+        {
+          "view": "phone",
+          "clip": "RideRun",
+          "phase": 0,
+          "meanChannelDifference": 0.022338789682539682,
+          "changedPixels": 49
+        },
+        {
+          "view": "phone",
+          "clip": "RideRun",
+          "phase": 0.3,
+          "meanChannelDifference": 0.020560515873015873,
+          "changedPixels": 41
+        },
+        {
+          "view": "phone",
+          "clip": "RideRun",
+          "phase": 0.6,
+          "meanChannelDifference": 0.02255456349206349,
+          "changedPixels": 49
+        },
+        {
+          "view": "phone",
+          "clip": "RideRun",
+          "phase": 0.85,
+          "meanChannelDifference": 0.01992559523809524,
+          "changedPixels": 41
+        },
+        {
+          "view": "phone",
+          "clip": "LanceThrust",
+          "phase": 0,
+          "meanChannelDifference": 0.02659970238095238,
+          "changedPixels": 57
+        },
+        {
+          "view": "phone",
+          "clip": "LanceThrust",
+          "phase": 0.3,
+          "meanChannelDifference": 0.02486111111111111,
+          "changedPixels": 56
+        },
+        {
+          "view": "phone",
+          "clip": "LanceThrust",
+          "phase": 0.6,
+          "meanChannelDifference": 0.02571924603174603,
+          "changedPixels": 54
+        },
+        {
+          "view": "phone",
+          "clip": "LanceThrust",
+          "phase": 0.85,
+          "meanChannelDifference": 0.024737103174603176,
+          "changedPixels": 56
+        }
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "id": "cottage",
+      "view": "front",
+      "detail": "near",
+      "triangles": 84812,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "front",
+      "detail": "map",
+      "triangles": 41724,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "front",
+      "detail": "far",
+      "triangles": 15052,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "side",
+      "detail": "near",
+      "triangles": 84812,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "side",
+      "detail": "map",
+      "triangles": 41724,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "side",
+      "detail": "far",
+      "triangles": 15052,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "game",
+      "detail": "near",
+      "triangles": 84812,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "game",
+      "detail": "map",
+      "triangles": 41724,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "game",
+      "detail": "far",
+      "triangles": 15052,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "phone",
+      "detail": "near",
+      "triangles": 84812,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "phone",
+      "detail": "map",
+      "triangles": 41724,
+      "meshes": 45
+    },
+    {
+      "id": "cottage",
+      "view": "phone",
+      "detail": "far",
+      "triangles": 15052,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "front",
+      "detail": "near",
+      "triangles": 113112,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "front",
+      "detail": "map",
+      "triangles": 54584,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "front",
+      "detail": "far",
+      "triangles": 19672,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "side",
+      "detail": "near",
+      "triangles": 113112,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "side",
+      "detail": "map",
+      "triangles": 54584,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "side",
+      "detail": "far",
+      "triangles": 19672,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "game",
+      "detail": "near",
+      "triangles": 113112,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "game",
+      "detail": "map",
+      "triangles": 54584,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "game",
+      "detail": "far",
+      "triangles": 19672,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "phone",
+      "detail": "near",
+      "triangles": 113112,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "phone",
+      "detail": "map",
+      "triangles": 54584,
+      "meshes": 45
+    },
+    {
+      "id": "warehouse",
+      "view": "phone",
+      "detail": "far",
+      "triangles": 19672,
+      "meshes": 45
+    },
+    {
+      "id": "home-center",
+      "view": "front",
+      "detail": "near",
+      "triangles": 142568,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "front",
+      "detail": "map",
+      "triangles": 69352,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "front",
+      "detail": "far",
+      "triangles": 25000,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "side",
+      "detail": "near",
+      "triangles": 142568,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "side",
+      "detail": "map",
+      "triangles": 69352,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "side",
+      "detail": "far",
+      "triangles": 25000,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "game",
+      "detail": "near",
+      "triangles": 142568,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "game",
+      "detail": "map",
+      "triangles": 69352,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "game",
+      "detail": "far",
+      "triangles": 25000,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "phone",
+      "detail": "near",
+      "triangles": 142568,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "phone",
+      "detail": "map",
+      "triangles": 69352,
+      "meshes": 48
+    },
+    {
+      "id": "home-center",
+      "view": "phone",
+      "detail": "far",
+      "triangles": 25000,
+      "meshes": 48
+    }
+  ],
+  "errors": []
+}

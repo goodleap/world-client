@@ -24,6 +24,7 @@ import { createLandscapeRock, createLandscapeRockMaterial } from './landscape-ro
 import type { CampfireView } from './campfire-view.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 import type { BuildingDoors } from './building-doors.ts';
+import { attachBuildingLOD } from './building-lod.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
@@ -95,6 +96,13 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
   function cropTemplate(kind: 'carrot' | 'wheat', stage: number) {
     return template(`${kind}-${stage}`, () => createCropModel(scene, p, carrot, kind, stage));
   }
+  function houseTemplate(site: Parameters<typeof referenceHouse>[2], name: string) {
+    const cached = templates.get(name); if (cached) return cached;
+    const definition = { ...site, x: 0, z: 0 };
+    const sources = template(name, () => referenceHouse(scene, p, definition, false));
+    attachBuildingLOD(scene, sources, detail => referenceHouse(scene, p, definition, false, detail));
+    return sources;
+  }
   let lastRevision = -1;
   let obstacles: Obstacle[] = [];
   let obstaclesWithFields: Obstacle[] = [];
@@ -162,7 +170,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
         markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? site.kind==='tower'?3.5:1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
-      () => template(`${site.kind}-${state}`, () => {
+      () => built && site.kind !== 'tower' ? houseTemplate({ ...site, id: site.kind }, `${site.kind}-${state}`) : template(`${site.kind}-${state}`, () => {
         if(built&&site.kind==='tower'){createTowerModel(scene,p);return;}
         if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }, false); return; }
         roundedBox(scene, 'building-footprint', [site.width, .07, site.depth], [0, .035, 0], p.pathLight, .08);
