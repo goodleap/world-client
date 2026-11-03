@@ -45,16 +45,23 @@ export function stepWander(state: WanderState, settings: WanderSettings, seconds
   if (dt === 0) return { x: 0, z: 0 };
   if (state.pause > 0) { state.pause = Math.max(0, state.pause - dt); return { x: 0, z: 0 }; }
   if (!state.target) {
+    let detour: Point | undefined;
     for (let attempt = 0; attempt < 24; attempt++) {
       const angle = random() * Math.PI * 2;
       const distance = Math.sqrt(random()) * settings.areaRadius;
       const candidate = { x: settings.home.x + Math.sin(angle) * distance, z: settings.home.z + Math.cos(angle) * distance };
       if (Math.hypot(candidate.x - state.position.x, candidate.z - state.position.z) < 0.9) continue;
       if (segmentIsClear(state.position, candidate, settings.bodyRadius, settings.bounds, obstacles)) {
-        state.target = candidate; state.walkingFor = 0; state.blockedFor = 0; break;
+        state.target = candidate; break;
       }
+      // Keep normal local strolls cheap, but let a route-capable caller return
+      // from a refuge behind cover instead of rejecting every homeward target.
+      if (navigate && !detour && inBounds(candidate, settings.bodyRadius, settings.bounds)
+        && !isBlocked(candidate, settings.bodyRadius, obstacles)) detour = candidate;
     }
+    state.target ??= detour;
     if (!state.target) { state.pause = 0.4 + random() * 0.6; return { x: 0, z: 0 }; }
+    state.walkingFor = 0; state.blockedFor = 0;
   }
   const dx = state.target.x - state.position.x, dz = state.target.z - state.position.z;
   const distance = Math.hypot(dx, dz);
@@ -70,7 +77,7 @@ export function stepWander(state: WanderState, settings: WanderSettings, seconds
     return { x: 0, z: 0 };
   }
   const travel = navigate?.(state.target, dt, speed);
-  if (travel?.unreachable) { state.target = undefined; state.pause = .5; return { x: 0, z: 0 }; }
+  if (travel?.unreachable) { state.target = undefined; state.pause = 1 + random() * .5; return { x: 0, z: 0 }; }
   const next = travel?.position ?? moveCharacter(state.position, { x: dx / distance, z: dz / distance }, dt, speed, settings.bounds, obstacles, settings.bodyRadius);
   const moved = Math.hypot(next.x - state.position.x, next.z - state.position.z);
   const velocity = { x: (next.x - state.position.x) / dt, z: (next.z - state.position.z) / dt };

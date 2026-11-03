@@ -9,6 +9,7 @@ export interface AreaThreat extends Point { id: string; radius: number; fixed?: 
  * Fixed camps keep their territory. Moving threats leave short-lived area marks,
  * so switching jobs, walking behind a tree or fleeing briefly cannot clear it. */
 export function updateDangerZones(zones: DangerZone[], threats: readonly AreaThreat[], seconds: number) {
+  let cleared = false;
   const byId = new Map(zones.map(z => [z.id, z]));
   const active = new Set<string>();
   const fixed = threats.filter(t=>t.fixed);
@@ -26,12 +27,15 @@ export function updateDangerZones(zones: DangerZone[], threats: readonly AreaThr
   }
   for (let i = zones.length - 1; i >= 0; i--) {
     const zone = zones[i];
-    if (active.has(zone.id) || threats.some(t => !t.fixed && Math.hypot(t.x-zone.x,t.z-zone.z) <= zone.radius+t.radius+DANGER_CONFIG.buffer)) {
+    // Current threats already own their full alert areas. Only their actual
+    // presence in this old mark (plus its edge buffer) renews its memory.
+    if (active.has(zone.id) || threats.some(t => !t.fixed && Math.hypot(t.x-zone.x,t.z-zone.z) <= zone.radius+DANGER_CONFIG.buffer)) {
       zone.safeSince = undefined; continue;
     }
     zone.safeSince ??= seconds;
-    if (seconds - zone.safeSince >= DANGER_CONFIG.safeSeconds) zones.splice(i, 1);
+    if (seconds - zone.safeSince >= DANGER_CONFIG.safeSeconds) { zones.splice(i, 1); cleared = true; }
   }
+  return cleared;
 }
 
 export function pathInDanger(zones: readonly DangerZone[], points: readonly Point[]) {

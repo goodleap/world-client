@@ -68,7 +68,8 @@ export class Raids {
     for(const u of [...units,...this.wolves.filter(w=>w.life==='active'&&w.mode!=='gone')]) {
       threats.push({id:u.id,x:u.position.x,z:u.position.z,radius:(u.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire)+DANGER_CONFIG.buffer});
     }
-    updateDangerZones(this.economy.state.dangerZones,threats,now);
+    // Do not add another protection polling interval after an area clears.
+    if (updateDangerZones(this.economy.state.dangerZones,threats,now)) this.decisions = 0;
     this.areaSolids=dangerObstacles(this.economy.state.dangerZones);
   }
   unsafePath(points:readonly Point[]){
@@ -164,16 +165,20 @@ export class Raids {
         continue;
       }
       const evasion = this.state.evading[r.id];
-      const zone=this.economy.state.dangerZones.find(z=>distance(position,z)<=z.radius);
+      // Leave enough room for the same body-sized clearance used when planning
+      // safe work/wander routes, rather than stopping with feet on the border.
+      const zone=this.economy.state.dangerZones.find(z=>distance(position,z)<=z.radius+r.bodyRadius+.05);
       const hazard=nearby.length?nearby.reduce((a,b)=>distance(position,a.position)<distance(position,b.position)?a:b).position:zone;
       if (!hazard) {
-        if (evasion && now >= evasion.safeAt) { this.people.release(r.id); delete this.state.evading[r.id]; }
+        // Shared areas own the ten-second clearance wait. Once outside every
+        // hazard, safe work may resume without a second personal countdown.
+        if (evasion) { this.people.release(r.id); delete this.state.evading[r.id]; }
         continue;
       }
       // An accepted player movement stays in charge, even beyond its grace time.
       if (vital.manualUntil > now || !evasion && this.people.status(r.id).moving && !this.economy.active(r.id) && !vital.rest) continue;
-      const e = evasion ?? (this.state.evading[r.id] = { safeAt: now + 5, planAt: 0 });
-      e.safeAt = now + 5; vital.hurtUntil = Math.max(vital.hurtUntil, now + 1);
+      const e = evasion ?? (this.state.evading[r.id] = { planAt: 0 });
+      vital.hurtUntil = Math.max(vital.hurtUntil, now + 1);
       if (e.planAt > now) continue;
       e.planAt = now + 2;
       const dx = position.x - hazard.x || .01, dz = position.z - hazard.z, length = Math.hypot(dx, dz) || 1;

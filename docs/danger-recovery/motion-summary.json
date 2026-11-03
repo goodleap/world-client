@@ -1,0 +1,38 @@
+[
+  {
+    "scenario": "farmers",
+    "frames": 150,
+    "units": [
+      {
+        "id": "farmer",
+        "movingPairs": 126,
+        "displayChanges": 125,
+        "poseChanges": 126
+      },
+      {
+        "id": "farmer-2",
+        "movingPairs": 149,
+        "displayChanges": 148,
+        "poseChanges": 149
+      },
+      {
+        "id": "farmer-leader",
+        "movingPairs": 75,
+        "displayChanges": 74,
+        "poseChanges": 75
+      }
+    ]
+  },
+  {
+    "scenario": "dog",
+    "frames": 150,
+    "units": [
+      {
+        "id": "dog",
+        "movingPairs": 149,
+        "displayChanges": 148,
+        "poseChanges": 149
+      }
+    ]
+  }
+]

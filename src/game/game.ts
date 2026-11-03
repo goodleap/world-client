@@ -147,6 +147,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     return visibilityScreen.z >= 0 && visibilityScreen.z <= 1 && visibilityScreen.x >= -.08 && visibilityScreen.x <= 1.08 && visibilityScreen.y >= -.08 && visibilityScreen.y <= 1.08;
   });
   residents.setExtraNeighbours(() => raids.neighbours());
+  residents.setWanderObstacles(() => raids.workObstacles());
   const occupancy = () => [...residents.occupancy(), ...raids.occupancy()];
   economy.setOccupancy(occupancy);
   const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point), {

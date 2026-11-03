@@ -21,7 +21,7 @@ export interface Wolf extends Fighter {
 export interface RaidState {
   seed: number; wave: number; phase: 'peace' | 'raid'; nextAt: number; startedAt: number;
   notice: string; noticeUntil: number; origin?: Point; wolves: Wolf[]; wildWolves: Wolf[];
-  evading: Record<string, { safeAt: number; planAt: number }>;
+  evading: Record<string, { planAt: number }>;
   soldiers: string[]; warningAt: number; pendingCount:number; pendingOrigin?: Point;
 }
 export function initialRaids(seconds = 0, seed = 0x59a31b): RaidState {
@@ -51,7 +51,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
     ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,6)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
     || !raw.evading || typeof raw.evading !== 'object') throw new Error('狼群袭击存档无效');
   for (const [id, e] of Object.entries(raw.evading)) {
-    if (!residents.some(r => r.id === id) || !e || !n(e.safeAt) || !n(e.planAt)) throw new Error('避险存档无效');
+    if (!residents.some(r => r.id === id) || !e || !n(e.planAt)) throw new Error('避险存档无效');
   }
   const targetIds=new Set([...residents.map(r=>r.id),...towerIds]);
   const attackIds = new Set<number>();

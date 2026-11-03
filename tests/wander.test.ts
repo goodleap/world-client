@@ -5,6 +5,9 @@ import type { Obstacle } from '../src/game/movement.ts';
 import { RESIDENTS, RESIDENT_OBSTACLES, wanderSettings } from '../src/game/resident-data.ts';
 import { createWanderState, inBounds, seededRandom, segmentIsClear, stepWander } from '../src/game/wander.ts';
 import type { WanderSettings } from '../src/game/wander.ts';
+import { findPath } from '../src/game/pathfinding.ts';
+import { createRouteState, resetRouteState, stepRoute } from '../src/game/route-following.ts';
+import type { Point } from '../src/game/movement.ts';
 
 const settings: WanderSettings = {
   home: { x: 0, z: 0 }, areaRadius: 3, bodyRadius: 0.3, speed: 1.2,
@@ -86,4 +89,36 @@ test('pausing freezes destinations and position, and an invalid spawn is rejecte
   assert.deepEqual(state, initial);
   assert.throws(() => createWanderState({ x: 6, z: 0 }, settings, [], random), /walkable/);
   assert.throws(() => createWanderState({ x: 0, z: 0 }, settings, [{ kind: 'circle', x: 0, z: 0, radius: 1 }], random), /walkable/);
+});
+
+test('a routed dog can return from behind cover without crossing cover or a dangerous area', () => {
+  const config:WanderSettings={...settings,home:{x:2.5,z:0},areaRadius:.5};
+  const obstacles:Obstacle[]=[{kind:'box',x:0,z:0,halfWidth:.3,halfDepth:1.7},
+    {kind:'circle',x:0,z:-2.7,radius:.6}];
+  const random=seededRandom(12),state=createWanderState({x:-3,z:0},config,obstacles,random),navigation=createRouteState();
+  let route:Point[]=[],plans=0;
+  for(let i=0;i<700&&!state.destinationsReached;i++){
+    const before={...state.position};
+    stepWander(state,config,.05,obstacles,random,(goal,dt,speed)=>{
+      if(!route.length){route=findPath(state.position,goal,config.bodyRadius,config.bounds,obstacles)??[];plans++;resetRouteState(navigation);}
+      if(!route.length)return {position:state.position,unreachable:true};
+      return stepRoute('dog',state.position,route,navigation,dt,speed,config.bodyRadius,config.bounds,obstacles,[]);
+    });
+    assert(segmentIsClear(before,state.position,config.bodyRadius,config.bounds,obstacles));
+    assert(Math.hypot(state.position.x-before.x,state.position.z-before.z)<=config.speed*.05+1e-8);
+  }
+  assert(state.destinationsReached>0);assert(state.distanceTravelled>6);assert(plans<=2);
+});
+
+test('failed routed return attempts are throttled, and blocked goals are never dispatched', () => {
+  const config={...settings,home:{x:2,z:0},areaRadius:.2},wall:Obstacle={kind:'box',x:0,z:0,halfWidth:.2,halfDepth:5};
+  const random=seededRandom(1),state=createWanderState({x:-2,z:0},config,[wall],random);
+  let plans=0;
+  const fail=()=>{plans++;return {position:state.position,unreachable:true};};
+  for(let i=0;i<200;i++)stepWander(state,config,.05,[wall],random,fail);
+  assert(plans>0&&plans<=10);assert.equal(state.distanceTravelled,0);
+  const before=plans;state.pause=0;
+  const dangerous:Obstacle={kind:'circle',x:2,z:0,radius:1};
+  for(let i=0;i<200;i++)stepWander(state,config,.05,[wall,dangerous],random,fail);
+  assert.equal(plans,before);assert.equal(state.target,undefined);
 });

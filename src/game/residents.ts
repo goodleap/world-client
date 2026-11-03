@@ -29,7 +29,7 @@ import type { Obstacle, Point } from './movement.ts';
 import { WORK_PLAYBACK_RATE } from './action-timing.ts';
 import { HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
 import { destinationSpeed as commandedSpeed, runReferenceSpeed, mountedRunReferenceSpeed } from './locomotion.ts';
-import { createWanderState, seededRandom, stepWander } from './wander.ts';
+import { createWanderState, seededRandom, segmentIsClear, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createRouteState, resetRouteState, stepRoute, yieldPoint, routeMotion } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
@@ -159,6 +159,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     };
   };
   let extraNeighbours: () => Neighbour[] = () => [];
+  let wanderObstacles: () => readonly Obstacle[] = () => [];
   let combatYield:(id:string,from:Point,toward:Point)=>boolean=()=>false;
   const groundRadius=(a:typeof actors[number])=>a.settings.bodyRadius;
   const yieldActor=(actor:typeof actors[number],from:Point,toward:Point)=>{
@@ -169,9 +170,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if(!point)return false;actor.route=[point];actor.state.target=undefined;resetRouteState(actor.navigation);return true;
   };
   const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, locomotion.has(actor.definition.id));
-  const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) => {
+  const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number,
+    solids: readonly Obstacle[] = obstaclesFor(actor.definition.role)) => {
     const result = stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
-      speed, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
+      speed, actor.settings.bodyRadius, actor.settings.bounds, solids,
       [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
         radius: groundRadius(other),heading: (() => {
           const next = combatPoses.get(other.definition.id)?.route[0] ?? other.route[0];
@@ -237,6 +239,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     setCombatYield(read:typeof combatYield){combatYield=read;},
     setExtraNeighbours(read: () => Neighbour[]) { extraNeighbours = read; },
+    setWanderObstacles(read: () => readonly Obstacle[]) { wanderObstacles = read; },
     occupancy: () => actors.filter(a => !dead(a.definition.id) && !combatPoses.get(a.definition.id)?.departed && a.elevationRoot.position.y<.1).map(actor => bodyObstacle(actor.state.position,groundRadius(actor))),
     async loadDogModel() { for(const actor of actors.filter(a=>a.definition.role==='dog'&&!a.ready)){await actor.animal!.loadModel();actor.ready=true;actor.root.setEnabled(true);} },
     async loadFarmerModel(report?: ResourceProgress) {
@@ -551,13 +554,23 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           travelSpeed = travelled / seconds;
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
-        else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random, (goal, dt, speed) => {
-          const last = actor.wanderRoute.at(-1);
-          if (!last || Math.hypot(last.x - goal.x, last.z - goal.z) > .001) {
-            actor.wanderRoute = [{ ...goal }]; resetRouteState(actor.wanderNavigation);
-          }
-          return navigate(actor, actor.wanderRoute, actor.wanderNavigation, dt, speed);
-        });
+        else {
+          const areas = wanderObstacles(), solids = [...obstaclesFor(actor.definition.role), ...areas];
+          velocity = stepWander(actor.state, actor.settings, seconds, [...solids, ...blockers], actor.random, (goal, dt, speed) => {
+            const last = actor.wanderRoute.at(-1);
+            const safe = actor.wanderRoute.every((p,i) => segmentIsClear(i ? actor.wanderRoute[i-1] : actor.state.position,
+              p, actor.settings.bodyRadius, actor.settings.bounds, areas));
+            if (!last || Math.hypot(last.x - goal.x, last.z - goal.z) > .001 || !safe) {
+              // One bounded target attempt per stroll/retry. The same shared
+              // areas guard planning and the follower's later crowd detours.
+              actor.wanderRoute = planWorkApproach(actor.state.position, [goal], actor.settings.bodyRadius,
+                actor.settings.bounds, solids, workNeighbours(actor)) ?? [];
+              resetRouteState(actor.wanderNavigation);
+              if (!actor.wanderRoute.length) return { position: actor.state.position, unreachable: true };
+            }
+            return navigate(actor, actor.wanderRoute, actor.wanderNavigation, dt, speed, solids);
+          });
+        }
         const speed = travelSpeed ?? Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
