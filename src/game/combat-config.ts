@@ -20,9 +20,9 @@ const melee = soldierTiming(actions.SwordSlash.releasePhase), bow = soldierTimin
 export const MELEE_CONTACT_GRACE = .5;
 export const COMBAT_CONFIG = {
   wolf: { hp: 75, attack: 8, armor: 1, interval: 1.1, windup: .24, recovery: .31, range: 1.7, speed: 3.3 },
-  infantry: { hp: 140, attack: 22, armor: 4, ...melee, range: 1.6, speed: 4.6 },
-  archer: { hp: 90, attack: 18, armor: 1, ...bow, range: 7, speed: 4.8 },
-  cavalry: { hp: 100, attack: 26, armor: 3, ...melee, range: 2.4, speed: 6.96 },
+  infantry: { hp: 120, attack: 15, armor: 10, ...melee, range: 1.6, speed: 4.6 },
+  archer: { hp: 110, attack: 14, armor: 8, ...bow, range: 7, speed: 4.8 },
+  cavalry: { hp: 130, attack: 16, armor: 12, ...melee, range: 2.4, speed: 6.96 },
   enemyMelee: { hp: 65, attack: 12, armor: 2, ...melee, range: 1.6, speed: 3.3 },
   enemyArcher: { hp: 50, attack: 10, armor: 0, ...bow, range: 6, speed: 3 },
   enemyHeavy: { hp: 125, attack: 16, armor: 8, ...melee, range: 1.7, speed: 2.4 },

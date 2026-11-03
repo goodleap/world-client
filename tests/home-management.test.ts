@@ -21,7 +21,7 @@ test('recruitment reserves real inventory, sequences work, refunds and waits for
   advanceRecruitment(e,2,blocked);assert.equal(e.state.recruitment.queue[0].elapsed,15);assert.equal(e.state.recruitment.roster.length,0);
   const resumed=decodeEconomy(encodeEconomy(e)),unit=advanceRecruitment(resumed,.05)!;
   assert.equal(unit.role,'infantry');assert(!isBlocked(unit.spawn,unit.bodyRadius,economyObstacles([],[],[])));
-  assert.equal(livingPopulation(resumed.state),7);assert.equal(health(resumed.state,unit.id),140);
+  assert.equal(livingPopulation(resumed.state),7);assert.equal(health(resumed.state,unit.id),120);
   assert.equal(resumed.state.recruitment.queue[0].elapsed,0);
   const dogOrder=resumed.state.recruitment.queue[0];assert(cancelRecruit(resumed,dogOrder.serial));assert(!cancelRecruit(resumed,dogOrder.serial));
   assert.equal(resumed.state.inventory.food,initial.food-8);
@@ -44,8 +44,12 @@ test('new cavalry and dog have independent needs; death persists and releases on
 test('queue and human cap include pending recruits and reject unknown saved workers',()=>{
   const e=funded();for(let i=0;i<5;i++)assert(recruit(e,'farmer').ok);assert.equal(recruit(e,'farmer').ok,false);
   while(e.state.recruitment.queue.length)advanceRecruitment(e,10);
-  for(let i=0;i<9;i++){e.state.inventory.food=60;assert(recruit(e,'farmer').ok);advanceRecruitment(e,10);}
-  assert.equal(livingPopulation(e.state),20);e.state.inventory.food=60;assert.equal(recruit(e,'farmer').ok,false);
+  for(let i=0;i<188;i++){e.state.inventory.food=60;assert(recruit(e,'farmer').ok);advanceRecruitment(e,10);}
+  assert.equal(livingPopulation(e.state),199);e.state.inventory.food=60;assert(recruit(e,'farmer').ok);
+  assert.equal(recruit(e,'farmer').ok,false,'queued recruit reserves the 200th slot');
+  advanceRecruitment(e,10);assert.equal(livingPopulation(decodeEconomy(encodeEconomy(e)).state),200);
+  const combat=new Combat(e.state.combat,e,()=>[]);combat.hurt('infantry',1000,'enemy-0');
+  assert.equal(livingPopulation(e.state),199);assert(recruit(e,'farmer').ok,'death releases exactly one slot');
   const task=e.request('harvest','plot-0').task!;task.worker='recruit-farmer-99999';
   assert.throws(()=>decodeEconomy(encodeEconomy(e)),/任务存档/);
 });
@@ -56,9 +60,22 @@ test('groups move membership without changing orders, sum bars, prune dead membe
   assert(saveGroup(e,1,['dog',unit.id]));assert.deepEqual(groupMembers(e.state,0),['farmer','infantry']);
   assert.equal(saveGroup(e,2,['farmer','farmer']),false);
   const idle=()=>({moving:false,speed:0,working:false}),info=groupInfo(e,1,idle)!;
-  assert.equal(info.meters[0].maximum,170);assert.equal(info.meters[1].value,200);
+  assert.equal(info.meters[0].maximum,190);assert.equal(info.meters[1].value,200);
   const c=new Combat(e.state.combat,e,()=>[]);c.hurt(unit.id,1000,'enemy-0');pruneGroups(e);
   assert.deepEqual(e.state.groups[1],['dog']);assert.deepEqual(decodeEconomy(encodeEconomy(e)).state.groups,e.state.groups);
+});
+test('large armies can save more than 96 independent arrows without losing or duplicating them',()=>{
+  const e=funded(),target=e.state.combat.units.find(u=>u.id==='enemy-guard')!;
+  for(let i=0;i<100;i++){
+    e.state.inventory.food=60;e.state.inventory.wood=40;assert(recruit(e,'archer').ok);
+    const r=advanceRecruitment(e,15)!;
+    e.state.combat.projectiles.push({id:e.state.combat.nextAttack++,source:r.id,target:target.id,
+      from:{x:target.position.x+5,z:target.position.z},to:{...target.position},elapsed:.1,duration:.5,damage:14});
+  }
+  const restored=decodeEconomy(encodeEconomy(e));assert.deepEqual(restored.state.combat.projectiles,e.state.combat.projectiles);
+  const c=new Combat(restored.state.combat,restored,()=>[]);for(let i=0;i<10;i++)c.update(.05);
+  assert.equal(c.state.projectiles.length,0);assert.equal(c.unit(target.id)!.hp,0);
+  assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(restored)));
 });
 test('loose group destinations keep cavalry bodies separate and preserve the target center',()=>{
   const units=Array.from({length:6},(_,i)=>({id:String(i),position:{x:i*2,z:0},radius:1.12}));

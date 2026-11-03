@@ -32,11 +32,12 @@ for (const role of ['infantry', 'cavalry', 'archer']) test(`${role} catches and 
 
 test('enemy melee and archers use the same moving-target rules', () => {
   for (const id of ['enemy-guard', 'enemy-archer']) {
-    const { e, a, b, step } = duel(id, 'infantry', id === 'enemy-guard' ? 1.8 : 4);
-    e.state.vitals[b.id].stamina = 0; // A tired soldier is slower than the pursuing guard.
+    const { a, b, step } = duel(id, 'infantry', id === 'enemy-guard' ? 1.8 : 4);
+    // Controlled target motion tests enemy prediction independently of stamina.
+    b.order='rest';b.goal=undefined;b.route=[];
     const hp = b.hp;
-    for (let i = 0; i < 100 && b.hp === hp; i++) step();
-    assert(b.hp < hp, `${a.id} should hit a slower retreating opponent`);
+    for (let i = 0; i < 100 && b.hp === hp; i++){b.position.x-=.1;step();}
+    assert(b.hp < hp, `${a.id} should hit a nearby retreating opponent`);
   }
 });
 
@@ -53,8 +54,7 @@ test('a melee victim can still escape the committed strike or gain cover', () =>
 });
 
 test('a faster runner can escape a slower melee pursuer', () => {
-  const { e, a, b, step } = duel('infantry', 'enemy-guard', 2);
-  e.state.vitals[a.id].stamina = 0;
+  const { a, b, step } = duel('enemy-guard', 'cavalry', 3.2);
   const hp = b.hp, initial = Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z);
   for (let i = 0; i < 60; i++) step();
   assert.equal(b.hp, hp);
@@ -96,7 +96,7 @@ test('an in-flight lead shot survives reload and settles damage exactly once', (
   assert.deepEqual(next.state.projectiles, c.state.projectiles);
   const hp = b.hp;
   for (let i = 0; i < 20; i++) { restored.state.seconds += .05; next.update(.05); }
-  assert.equal(next.unit(b.id)!.hp, hp - fighterStats(a).attack + fighterStats(b).armor);
+  assert.equal(next.unit(b.id)!.hp, hp - fighterStats(a).attack * 20 / (20 + fighterStats(b).armor));
   assert.equal(next.state.projectiles.length, 0);
 });
 

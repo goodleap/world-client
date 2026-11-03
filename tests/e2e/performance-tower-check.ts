@@ -2,7 +2,8 @@ import {expect} from '@playwright/test';
 import type {Page,TestInfo} from '@playwright/test';
 import {Economy,encodeEconomy} from '../../src/game/economy.ts';
 import {buildingAt} from '../../src/game/construction.ts';
-import {newTower} from '../../src/game/towers.ts';
+import {newTower,TOWER_CONFIG} from '../../src/game/towers.ts';
+import {TOWER_SHAPE} from '../../src/game/tower-shape.ts';
 import {openGame,snapshot,panTo,clickGround} from './helpers.ts';
 
 export async function checkPerformanceTower(page:Page,info:TestInfo,touch:boolean){
@@ -25,12 +26,13 @@ export async function checkPerformanceTower(page:Page,info:TestInfo,touch:boolea
   await page.screenshot({path:info.outputPath('performance-settings.png'),scale:'css'});
   await page.locator('#graphics-back').click();await page.locator('#continue-game').click();
   await panTo(page,site,touch);
-  // Pick the solid roof through the real native mesh hit test, also at 65% rendering resolution.
-  await clickGround(page,site,touch,6.6);
+  // Pick the front stone footing through the real native mesh hit test, also at 65% rendering resolution.
+  await clickGround(page,{x:site.x+TOWER_SHAPE.baseHalf,z:site.z-TOWER_SHAPE.baseHalf},touch,.2);
   await expect(page.locator('[data-action="tower-garrison"]')).toBeVisible();
+  await expect(page.locator('#selection-card')).toContainText(`${TOWER_CONFIG.hp}/${TOWER_CONFIG.hp}`);
   await page.locator('[data-action="tower-garrison"]').click();
   await expect.poll(async()=>(await snapshot(page)).economy.towers[0].phase,{timeout:30000}).toBe('occupied');
-  let s=await snapshot(page);expect(s.residents.find(r=>r.id==='archer')!.elevation).toBe(3.15);
+  let s=await snapshot(page);expect(s.residents.find(r=>r.id==='archer')!.elevation).toBe(TOWER_CONFIG.height);
   await page.screenshot({path:info.outputPath('tower-game.png'),scale:'css'});
   await page.locator('[data-action="tower-select"]').click();
   await expect(page.locator('#resident-selection')).toContainText('塔上驻守');
@@ -40,7 +42,8 @@ export async function checkPerformanceTower(page:Page,info:TestInfo,touch:boolea
   await page.locator('#return-menu').click();await page.reload();await page.locator('#continue-save').click();
   await expect(page.locator('#loading')).toHaveClass(/loaded/,{timeout:90000});
   expect((await snapshot(page)).graphics.mode).toBe('minimum');expect((await snapshot(page)).economy.towers[0].phase).toBe('occupied');
-  await panTo(page,site,touch);await clickGround(page,site,touch,6.6);
+  await panTo(page,site,touch);await clickGround(page,{x:site.x+TOWER_SHAPE.baseHalf,z:site.z-TOWER_SHAPE.baseHalf},touch,.2);
+  await expect(page.locator('[data-action="tower-evict"]')).toBeVisible();
   await page.locator('[data-action="tower-evict"]').click();
   await expect.poll(async()=>(await snapshot(page)).economy.towers[0].phase).toBe('empty');
   await expect.poll(async()=>(await snapshot(page)).residents.find(r=>r.id==='archer')!.elevation).toBe(0);

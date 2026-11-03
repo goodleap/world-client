@@ -27,9 +27,10 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     && (f.cooking || f.meals > 0 || bodiesFor(id).some(b => e.state.vitals[b].meal))
     && distance(position(id), e.state.sites.find(s => s.id === f.id)!) <= V.foodRadiusCells * GRID_SIZE);
   const free = (id: string) => {
-    const u = combat.unit(id), v = e.state.vitals[id];
+    const u = combat.unit(id), v = e.state.vitals[id], movement = status(id);
     return e.state.seconds >= v.manualUntil && e.state.seconds >= v.retryAt && e.state.seconds >= v.hurtUntil
-      && !e.active(id) && !status(id).moving && !u?.attack && !u?.target && u?.order !== 'move' && u?.order !== 'retreat';
+      && !e.active(id) && !movement.moving && !movement.working && !u?.route.length && !u?.goal
+      && !u?.attack && !u?.target && u?.order !== 'move' && u?.order !== 'retreat';
   };
   function move(id: string, points: Point[]) {
     for (const point of points) {

@@ -72,7 +72,7 @@ export function createUI(app: HTMLElement) {
           <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small>开垦 · 无需材料</small></button>
           <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small>木材 ${ECONOMY_CONFIG.warehouseCost.wood} · 石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
           <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small>石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
-          <button id="build-tower" data-building="tower"><span>塔台 <small>2 × 2</small></span><small>木材 ${TOWER_CONFIG.cost.wood} · 石材 ${TOWER_CONFIG.cost.stone}</small></button>
+          <button id="build-tower" data-building="tower"><span>哨塔 <small>1.5 × 1.5</small></span><small>木材 ${TOWER_CONFIG.cost.wood} · 石材 ${TOWER_CONFIG.cost.stone}</small></button>
           <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
         </div>
         <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
@@ -128,7 +128,7 @@ export function createUI(app: HTMLElement) {
       <label for="sun-color" class="light-color">太阳光颜色<input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><p id="graphics-notice" class="dialog-note" role="status" hidden></p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房、塔台和火堆；手机可横向滑动选项，轻点选择或向上拖出放置。<br>选中单位后，底部卡片显示生命、体力与当前状态。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房、哨塔和火堆；手机可横向滑动选项，轻点选择或向上拖出放置。<br>选中单位后，底部卡片显示生命、体力与当前状态。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得资源及建设空地，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林、湖泊与通道不可建设。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -323,7 +323,7 @@ export function createUI(app: HTMLElement) {
       const label = id ? residentLabels.get(id) : undefined;
       if (!label) { attackMarker.remove(); return; }
       if (attackMarker.parentElement !== label) label.prepend(attackMarker);
-      const pulse = id === attackPulseId ? Math.max(0, 1 - (seconds - attackPulseAt) / .7) : 0;
+      const pulse = id === attackPulseId ? Math.max(0, Math.min(1, 1 - (seconds - attackPulseAt) / .7)) : 0;
       attackMarker.style.transform = `scale(${(1 + pulse * .65).toFixed(3)})`;
       attackMarker.style.opacity = String(pulse > 0 ? .7 + .3 * Math.cos(pulse * Math.PI * 4) : 1);
     },

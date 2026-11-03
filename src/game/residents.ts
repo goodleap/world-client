@@ -1,13 +1,13 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { attackAnimationPhase } from './combat-animation';
 import { DeathView, MountedDeathView } from './death-view.ts';
+import type { MountedDeathProfile } from './death-view.ts';
 import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 import { deathAge } from './death.ts';
 import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
 import type { Fighter } from './combat.ts';
 import { fighterStats } from './combat.ts';
-import { effort } from './vitals.ts';
 import type { Vitals } from './vitals.ts';
 import type { ResidentDefinition } from './resident-data.ts';
 import type { SavedResident } from './economy.ts';
@@ -56,6 +56,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const resting = new Set<string>();
   const obstaclesFor = (role: string) => worldObstacles(role !== 'farmer');
   const placeholderRoles = new Set<string>();
+  const mountedDeathProfile:MountedDeathProfile={};
   const soldierAssets = [
     { role: 'infantry', mounted: false },
     { role: 'cavalry', mounted: true },
@@ -88,7 +89,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
     return { definition, random, settings, state, human, animal, root, elevationRoot, label, marker, hit, renderMotion: new RenderMotion(root),
-      death: definition.role === 'cavalry' ? new MountedDeathView(root) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
+      death: definition.role === 'cavalry' ? new MountedDeathView(root,mountedDeathProfile) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
       ready:false, route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   };
   const actors=definitions.map(createActor);
@@ -160,7 +161,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, locomotion.has(actor.definition.id));
   const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
     stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
-      speed * effort(vitals, actor.definition.id), actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
+      speed, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
       [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
         radius: other.settings.bodyRadius, moving: other.movementSpeed > .08, purposeful: !!other.route.length || !!other.state.target,
         waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting }))]);
@@ -287,6 +288,16 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           animations: result.animationGroups.map(group => group.name),
         });
         characterBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
+        if(actor.death instanceof MountedDeathView&&!actor.death.prepared){
+          const preparation=actor.definition.id+':death';loadingProgress.begin(preparation,'骑兵：退场接地曲线准备');
+          await nextPaint();
+          actor.death.prepare(actor.facing,(characterLODs.get(actor.definition.id)??[]).map(p=>p.source),()=>{
+            for(const group of result.animationGroups)group.stop();
+            idle!.enableBlending=false;idle!.start(false).pause();idle!.goToFrame(idle!.from);
+          },result.fallPosture);
+          registerLocomotion(actor.definition.id,walk,run,{idle,walkSpeed:mountMetadata.gaits.RideWalk.speed,runSpeed:mountedRunReferenceSpeed});
+          loadingProgress.done(preparation);await nextPaint();
+        }
         actor.ready=true;actor.root.setEnabled(true);
         report?.((index + 1) / soldiers.length);
       }
@@ -309,7 +320,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     combatNeighbours: () => actors.filter(a => !combatPoses.has(a.definition.id) && !dead(a.definition.id)).map(a => ({ id: a.definition.id, position: a.state.position,
       radius: a.definition.bodyRadius, moving: a.movementSpeed > .08, purposeful: !!a.route.length, waiting: a.navigation.waiting, destination:a.route.at(-1) })),
-    syncCombat(units: Fighter[], seconds: number) {
+    syncCombat(units: Fighter[]) {
       for (const u of units) {
         combatPoses.set(u.id, u);
         const actor = actorById.get(u.id);if(!actor)continue;
@@ -324,14 +335,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           if(!actor.ready){actor.root.setEnabled(false);continue;}
           actor.label.hidden = true; actor.marker.setEnabled(false); resting.delete(u.id); works.delete(u.id);
           if (selected === actor) { selected = undefined; ui.setResident(); ui.setCombatHint(false); }
-          const meshes = (characterLODs.get(u.id) ?? []).map(pair => pair.source);
-          actor.death.sample(deathAge(u.diedAt, seconds), u.facing, meshes, () => {
-            setMotion(u.id, 'idle'); bowPoses.get(u.id)?.();
-            const clips = locomotion.get(u.id)!;
-            for (const g of [clips.walk, clips.run, clips.idle, clips.work, combatClips.get(u.id)]) g?.stop();
-            const rest = clips.idle ?? clips.walk;
-            rest.enableBlending = false; rest.start(false).pause(); rest.goToFrame(rest.from);
-          }, fallPostures.get(u.id));
           continue;
         }
         if (actor.death.snapshot().phase !== 'alive') { actor.death.reset(); actor.facing = NaN; }
@@ -358,14 +361,6 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.hit.isPickable = false; actor.label.hidden = true; actor.marker.setEnabled(false); resting.delete(id); works.delete(id);
         ui.clearResidentSpeech(id);
         if (selected === actor) { selected = undefined; ui.setResident(); ui.setCombatHint(false); }
-        const meshes = actor.definition.role === 'dog' ? [actor.animal!.mesh] : (characterLODs.get(id) ?? []).map(p => p.source);
-        if (actor.death.snapshot().phase === 'alive') actor.facing = actor.root.rotationQuaternion?.toEulerAngles().y ?? actor.facing;
-        actor.death.sample(deathAge(vitals[id].diedAt, seconds), actor.facing, meshes, () => {
-          if (actor.definition.role === 'dog') { actor.animal!.freezePose(); return; }
-          setMotion(id, 'idle'); const clips = locomotion.get(id)!;
-          for (const group of [clips.walk, clips.run, clips.idle, clips.work]) group?.stop();
-          const rest = clips.idle ?? clips.walk; rest.enableBlending = false; rest.start(false).pause(); rest.goToFrame(rest.from);
-        });
       }
     },
     farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
@@ -501,7 +496,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
           setMotion(actor.definition.id, work.status === 'working' ? 'work' : moved > .001 ? 'run' : 'idle',
-            work.status === 'working' ? activeElapsed / seconds * effort(vitals, actor.definition.id) : moved / seconds);
+            work.status === 'working' ? activeElapsed / seconds : moved / seconds);
           continue;
         }
         if (previewRole === 'farmer' && actor === farmer || previewRole === 'leader' && actor === leader) {
@@ -559,10 +554,24 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     resetPresentation() { for (const a of actors) a.renderMotion.reset(); },
     beginStep() { for (const a of actors) a.renderMotion.beginStep(); },
     endStep() { for (const a of actors) a.renderMotion.endStep(); },
-    present(alpha: number) {
+    present(alpha: number, seconds: number) {
       let moving = 0, advanced = 0;
       for (const actor of actors) {
-        if (!actor.ready || dead(actor.definition.id) || combatPoses.get(actor.definition.id)?.departed) { actor.renderMotion.reset(); continue; }
+        if (!actor.ready || combatPoses.get(actor.definition.id)?.departed) { actor.renderMotion.reset(); continue; }
+        if (dead(actor.definition.id)) {
+          const id=actor.definition.id,u=combatPoses.get(id);
+          if(!u&&actor.death.snapshot().phase==='alive')actor.facing=actor.root.rotationQuaternion?.toEulerAngles().y??actor.facing;
+          const meshes=actor.definition.role==='dog'?[actor.animal!.mesh]:(characterLODs.get(id)??[]).map(p=>p.source);
+          // Death remains authoritative at 20 Hz. Only native visual tracks use
+          // the same interpolated game time as movement and sampled attacks.
+          actor.death.sample(deathAge(u?.diedAt??vitals[id].diedAt,seconds-(1-alpha)*SimulationClock.step),u?.facing??actor.facing,meshes,()=>{
+            if(actor.definition.role==='dog'){actor.animal!.freezePose();return;}
+            setMotion(id,'idle');bowPoses.get(id)?.();const clips=locomotion.get(id)!;
+            for(const group of [clips.walk,clips.run,clips.idle,clips.work,combatClips.get(id)])group?.stop();
+            const rest=clips.idle??clips.walk;rest.enableBlending=false;rest.start(false).pause();rest.goToFrame(rest.from);
+          },fallPostures.get(id));
+          actor.renderMotion.reset();continue;
+        }
         const changed = actor.renderMotion.sample(alpha);
         if (actor.movementSpeed > .08) { moving++; if (changed) advanced++; }
         const u = combatPoses.get(actor.definition.id), clip = combatClips.get(actor.definition.id);

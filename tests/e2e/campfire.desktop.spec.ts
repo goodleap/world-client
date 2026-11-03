@@ -36,14 +36,22 @@ test('build, carry warehouse supplies, cook, heal, pause and reload the same par
   const paused = await snapshot(page);
   expect(paused.economy).toEqual(frozen.economy); expect(paused.doors).toEqual(frozen.doors); expect(paused.fires).toEqual(frozen.fires);
   expect(frozen.economy.vitals.infantry.stamina).toBeGreaterThan(15);
-  expect(frozen.combat.units.find(u => u.id === 'infantry')!.hp).toBeLessThan(140);
+  expect(frozen.combat.units.find(u => u.id === 'infantry')!.hp).toBeLessThan(120);
   await page.getByRole('button', { name: '回到主菜单', exact: true }).click();
   const saved = await page.evaluate(key => localStorage.getItem(key)!, ECONOMY_SAVE_KEY);
   const domain = decodeEconomy(saved).state;
   expect(domain.vitals.infantry.meal?.remaining).toBe(frozen.economy.vitals.infantry.meal?.remaining);
+  // Pause on the ready mutation, before another rendered frame can cook/eat.
+  await page.addInitScript(()=>{
+    const observer=new MutationObserver(()=>{
+      if(!document.getElementById('loading')?.classList.contains('loaded'))return;
+      observer.disconnect();document.getElementById('settings')?.click();
+    });
+    observer.observe(document,{subtree:true,attributes:true,attributeFilter:['class']});
+  });
   await page.reload(); await page.locator('#continue-save').click();
   await expect(page.locator('#loading')).toHaveClass(/loaded/, { timeout: 60_000 });
-  await page.locator('#settings').click();
+  await expect(page.locator('#settings-dialog')).toBeVisible();
   s = await snapshot(page);
   expect(s.economy.inventory.food).toBe(domain.inventory.food);
   expect(s.combat.units.find(u => u.id === 'infantry')!.hp).toBeLessThan(domain.combat.units.find(u => u.id === 'infantry')!.hp + 5);

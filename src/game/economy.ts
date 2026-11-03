@@ -12,12 +12,12 @@ import type { BuildingSite, BuildingKind } from './construction.ts';
 import { insidePolygon } from './polygon.ts';
 import { findPath } from './pathfinding.ts';
 import { canResidentWork, canResidentSupply } from './resident-data.ts';
-import { initialRecruitment, decodeRecruitment, homeResidents } from './recruitment.ts';
+import { initialRecruitment, decodeRecruitment, homeResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
 import type { RecruitmentState } from './recruitment.ts';
 import { initialGroups, GROUP_COUNT, GROUP_SIZE, pruneGroups } from './groups.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire } from './campfire.ts';
 import type { Campfire } from './campfire.ts';
-import { initialVitals, initialVital, alive, effort, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
+import { initialVitals, initialVital, alive, bodiesFor, needsFood, VITAL_CONFIG, maxHealth, vitalIds } from './vitals.ts';
 import type { Vitals } from './vitals.ts';
 
 export type Resource = 'wood' | 'stone' | 'food' | 'iron';
@@ -41,7 +41,7 @@ export interface EconomyState {
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
-  version: 14; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 15; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -60,7 +60,7 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export function initialEconomy(seed?: number): EconomyState {
   return {
-    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 14, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], version: 15, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -336,7 +336,7 @@ export class Economy {
       if (Math.floor(plot.growth / C.crops[plot.crop].growthSeconds * 3) !== previous) this.changed();
     }
     for (const task of this.state.tasks) if (task.status === 'working') {
-      task.progress = Math.min(C.workSeconds[task.kind], task.progress + seconds * effort(this.state.vitals, task.worker ?? 'farmer') * (['chop', 'mine', 'gather', 'harvest', 'till', 'build'].includes(task.kind) ? 1 + this.state.upgrades.tools * .25 : 1));
+      task.progress = Math.min(C.workSeconds[task.kind], task.progress + seconds * (['chop', 'mine', 'gather', 'harvest', 'till', 'build'].includes(task.kind) ? 1 + this.state.upgrades.tools * .25 : 1));
       if (task.progress >= C.workSeconds[task.kind]) this.settle(task);
     }
     for (const waiting of this.state.tasks) if (waiting.status === 'storage') this.settle(waiting);
@@ -428,7 +428,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 14) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 15) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
@@ -518,7 +518,7 @@ export function decodeEconomy(text: string): Economy {
   }
   for(const dog of [true,false]){
     const count=residents.filter(r=>(r.role==='dog')===dog&&alive(state,r.id)).length+state.recruitment.queue.filter(q=>(q.role==='dog')===dog).length;
-    if(count>(dog?4:20))throw new Error('招募名额存档无效');
+    if(count>(dog?DOG_LIMIT:POPULATION_LIMIT))throw new Error('招募名额存档无效');
   }
   validateTowers(state);
   const ids = new Set<number>(), targets = new Set<string>(), carriers = new Set<string>();

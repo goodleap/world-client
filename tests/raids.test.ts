@@ -172,8 +172,8 @@ test('an archer shot reloads against the same wolf and applies damage once', () 
   const s = setup(); const [w] = s.wave([{ x: 0, z: 0 }]);
   s.c.state.projectiles.push({ id: s.c.state.nextAttack++, source: 'archer', target: w.id, from: { x: 0, z: 2 }, to: { ...w.position }, elapsed: .1, duration: .2, damage: 18 });
   const e = decodeEconomy(encodeEconomy(s.e)), next = setup(e);
-  next.advance(.1); assert.equal(e.state.raids.wolves[0].hp, 58); assert.equal(e.state.combat.projectiles.length, 0);
-  const again = setup(decodeEconomy(encodeEconomy(e))); again.advance(.1); assert.equal(again.e.state.raids.wolves[0].hp, 58);
+  next.advance(.1); assert.equal(e.state.raids.wolves[0].hp, 75-120/7); assert.equal(e.state.combat.projectiles.length, 0);
+  const again = setup(decodeEconomy(encodeEconomy(e))); again.advance(.1); assert.equal(again.e.state.raids.wolves[0].hp, 75-120/7);
 });
 
 test('bite, theft, evasion and random timers freeze on nonpositive delta', () => {

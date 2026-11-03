@@ -2,9 +2,15 @@ import { test, expect } from '@playwright/test';
 import { initialEconomy } from '../../src/game/economy.ts';
 import { clickGround, openGame, selectUnit, snapshot } from './helpers.ts';
 
+// Command checks need visible motion between remote assertions on software GL.
+test.use({ viewport: { width: 900, height: 600 } });
 test.beforeEach(async ({ page }) => {
   const state = initialEconomy(); state.steward.enabled = false;
-  await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
+  state.inventory.food = 0; state.raids.nextAt = 600;
+  await page.addInitScript(state => {
+    localStorage.setItem('world-basic-economy-v1', JSON.stringify(state));
+    localStorage.setItem('world-shadows-enabled', 'false');
+  }, state);
 });
 
 test('farmer direct work clears selection, yields to movement, and resumes the same partial job', async ({ page }, info) => {
@@ -61,21 +67,38 @@ test('the selected dog runs to the latest destination and finishes its command',
   test.setTimeout(90000);
   const errors = await openGame(page);
   await selectUnit(page, 'dog');
+  // Capture and pause on the first rendered running pose. Multiple remote
+  // polls can otherwise outlive this short journey on software WebGL.
+  await page.evaluate(() => {
+    const observe = () => {
+      const dog = window.__DEMO__!.snapshot().residents.find(r => r.id === 'dog')!;
+      if (dog.moveCommand && dog.motion === 'run') {
+        document.getElementById('settings')!.click();
+        sessionStorage.setItem('test-dog-running', '1');
+      } else requestAnimationFrame(observe);
+    };
+    requestAnimationFrame(observe);
+  });
   await clickGround(page, { x: -1.2, z: -11 });
-  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.moveCommand).toBe(true);
-  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.motion).toBe('run');
+  await page.waitForFunction(() => sessionStorage.getItem('test-dog-running') === '1');
   const running = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
+  expect(running.moveCommand).toBe(true); expect(running.motion).toBe('run');
   expect(running.animalBones).toHaveLength(16);
   expect(running.dogLOD?.sharedSkeletonAndMaterials).toBe(true);
   expect(running.dogLOD?.triangles).toBeLessThanOrEqual(6546);
   expect(running.walking).toBe(false);
   expect(running.runPlaybackRate! * running.runReferenceSpeed!).toBeCloseTo(running.movementSpeed, 6);
   expect((await snapshot(page)).selection.resident).toBe('dog');
+  await page.locator('#continue-game').click();
   const destination = { x: -4.5, z: -9.5 };
   await clickGround(page, destination);
-  const redirected = (await snapshot(page)).residents.find(r => r.id === 'dog')!.destination!;
+  const redirectedDog = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
+  const redirected = redirectedDog.destination ?? redirectedDog.position;
   expect(redirected.x).toBeCloseTo(destination.x, 1); expect(redirected.z).toBeCloseTo(destination.z, 1);
-  await expect.poll(async () => (await snapshot(page)).residents.find(r => r.id === 'dog')!.moveCommand, { timeout: 90000 }).toBe(false);
+  await page.waitForFunction(() => {
+    if (window.__DEMO__!.snapshot().residents.find(r => r.id === 'dog')!.moveCommand) return false;
+    document.getElementById('settings')!.click(); return true;
+  }, undefined, { timeout: 45000 });
   const arrived = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
   expect(Math.hypot(arrived.position.x - destination.x, arrived.position.z - destination.z)).toBeLessThan(.13);
   await page.screenshot({ path: info.outputPath('dog-command.png') });

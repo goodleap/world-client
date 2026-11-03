@@ -1,0 +1,21 @@
+{
+  "backend": "Chromium SwiftShader; functional scale check, not device FPS",
+  "readings": [
+    {
+      "population": 100,
+      "loadedMs": 30759,
+      "seconds": 8.949999999999992,
+      "meshes": 7005,
+      "renderedFrames": 14,
+      "errors": []
+    },
+    {
+      "population": 200,
+      "loadedMs": 54480,
+      "seconds": 37.15000000000003,
+      "meshes": 12280,
+      "renderedFrames": 17,
+      "errors": []
+    }
+  ]
+}

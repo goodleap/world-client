@@ -84,7 +84,7 @@ test('tools accelerate production, equipment changes actual damage, and heavy gu
     a.position = { ...b.position, x: b.position.x + 1.5 }; b.order = 'hold';
     const c = new Combat(e.state.combat, e, () => []); c.attack([a.id], b.id); c.update(.05); c.update(fighterStats(a).windup + .01); return fighterStats(b).hp - b.hp;
   };
-  assert.equal(damage(1) - damage(0), 3);
+  assert(Math.abs(damage(1) - damage(0) - 30/11) < 1e-8);
   const heavy = fighterStats({ id: 'enemy-pass-0', role: 'infantry', team: 'enemy' });
   const normal = fighterStats({ id: 'enemy-guard', role: 'infantry', team: 'enemy' });
   assert.ok(heavy.speed < normal.speed && heavy.armor > normal.armor);

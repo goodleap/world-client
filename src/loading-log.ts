@@ -11,7 +11,7 @@ export function compactLoadingLog(items: readonly Item[]) {
   const downloads = items.filter(i => i.kind === 'download'), stages = items.filter(i => i.kind === 'stage');
   const groups = new Map<string, { count: number; workMs: number }>();
   for (const item of stages) {
-    const group = item.id.endsWith(':parse') ? 'parse' : /:(attach|geometry|materials)$/.test(item.id) ? 'assembly' : item.id;
+    const group = item.id.endsWith(':parse') ? 'parse' : /:(attach|geometry|materials|death)$/.test(item.id) ? 'assembly' : item.id;
     const value = groups.get(group) ?? { count: 0, workMs: 0 }; value.count++; value.workMs += round(item.elapsedMs); groups.set(group, value);
   }
   const span = (list: Item[]) => {

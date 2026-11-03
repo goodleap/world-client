@@ -61,6 +61,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
     },
     update(wolves: readonly Wolf[], seconds: number, camera: Camera, alpha = 1) {
       const lag = (1 - alpha) * SimulationClock.step;
+      const visualSeconds=seconds-lag;
       Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes);
       // A wave-size change shifts the fixed wolves between slots. Remove old
       // labels first so a later old slot cannot delete a newly rebound label.
@@ -72,11 +73,11 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
           actor.clip = ''; actor.phase = -1; actor.death.reset();
           actor.mesh.metadata = { ...actor.mesh.metadata, selectionKind: 'resident', id: wolf?.id };
         }
-        const active = !!wolf && wolf.mode !== 'gone' && (wolf.life === 'active' || deathAge(wolf.diedAt, seconds) < DEATH_END);
+        const active = !!wolf && wolf.mode !== 'gone' && (wolf.life === 'active' || deathAge(wolf.diedAt, visualSeconds) < DEATH_END);
         if (actor.root.isEnabled() !== active) actor.root.setEnabled(active); actor.visible = false;
         if (!wolf || !active) {
           if (actor.label) actor.label.hidden = true;
-          if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, seconds), wolf.facing, [actor.mesh], () => {});
+          if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, visualSeconds), wolf.facing, [actor.mesh], () => {});
           continue;
         }
         const before = previous.get(wolf.id);
@@ -85,7 +86,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         if (wolf.life === 'active') actor.root.position.y = 0;
         if (wolf.life === 'defeated') {
           if (actor.label) actor.label.hidden = true;
-          actor.death.sample(deathAge(wolf.diedAt, seconds), wolf.facing, [actor.mesh], () => {
+          actor.death.sample(deathAge(wolf.diedAt, visualSeconds), wolf.facing, [actor.mesh], () => {
             for (const g of actor.clips.values()) g.stop();
             const rest = actor.clips.get('Idle')!; rest.start(false).pause(); rest.goToFrame(rest.from);
           });
@@ -101,7 +102,8 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         if (!actor.visible) continue;
         const hurt = wolf.hurtAt !== undefined ? Math.max(0, seconds - lag - wolf.hurtAt) : Infinity;
         const clip = wolf.attack ? 'Bite' : hurt >= 0 && hurt < .26 ? 'Hurt' : wolf.feeding > 0 ? 'Feed' : wolf.speed > .08 ? 'Run' : 'Idle';
-        const phase = wolf.attack ? Math.min(1, Math.max(0, wolf.attack.elapsed - lag) / .55) : clip === 'Hurt' ? hurt / .26 : clip === 'Feed' ? Math.min(1, Math.max(0, wolf.feeding - lag) / 1.1) : clip === 'Run' ? before ? interpolateCycle(before.gait, wolf.gait, alpha) : wolf.gait : 0;
+        const idle=actor.clips.get('Idle')!,idleSeconds=(idle.to-idle.from)/(idle.targetedAnimations[0]?.animation.framePerSecond??60)||1;
+        const phase = wolf.attack ? Math.min(1, Math.max(0, wolf.attack.elapsed - lag) / .55) : clip === 'Hurt' ? hurt / .26 : clip === 'Feed' ? Math.min(1, Math.max(0, wolf.feeding - lag) / 1.1) : clip === 'Run' ? before ? interpolateCycle(before.gait, wolf.gait, alpha) : wolf.gait : ((Math.max(0,visualSeconds)+i*.17)%idleSeconds)/idleSeconds;
         if (actor.clip !== clip) {
           actor.clips.get(actor.clip)?.stop();
           const group = actor.clips.get(clip)!; group.start(false); group.pause(); actor.clip = clip; actor.phase = -1;
@@ -112,6 +114,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         selectCharacterLOD(actor.mesh, camera);
       }
     },
+    displayPosition(id:string){return pool.find(a=>a.id===id)?.root.position;},
     updateLabels(camera: Camera) {
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight, viewport = camera.viewport.toGlobal(width, height);
       for (const actor of pool) {

@@ -1,0 +1,27 @@
+{
+  "method": "Real Babylon frames with controlled 1/60 logic input and native constant animation delta; not a hardware FPS benchmark",
+  "summary": [
+    {
+      "id": "cavalry",
+      "movingFrames": 82,
+      "logicChanges": 28,
+      "renderChanges": 82,
+      "poseChanges": 82
+    },
+    {
+      "id": "farmer",
+      "movingFrames": 82,
+      "logicChanges": 28,
+      "renderChanges": 82,
+      "poseChanges": 82
+    },
+    {
+      "id": "dog",
+      "movingFrames": 82,
+      "logicChanges": 28,
+      "renderChanges": 82,
+      "poseChanges": 82
+    }
+  ],
+  "errors": []
+}

@@ -38,9 +38,6 @@ export function changeHealth(state: EconomyState, id: string, amount: number) {
     if (!value) { v.diedAt = state.seconds; v.rest = undefined; v.meal = undefined; }
   }
 }
-export function effort(vitals: Vitals, actor: string) {
-  return Math.min(...bodiesFor(actor).map(id => .5 + .5 * Math.min(1, (vitals[id]?.stamina ?? 100) / 25)));
-}
 export const needsFood = (state: EconomyState, id: string, threshold = VITAL_CONFIG.eatAt) =>
   alive(state, id) && (state.vitals[id].stamina < threshold || health(state, id) < maxHealth(id));
 export function eat(state: EconomyState, id: string, seconds: number) {

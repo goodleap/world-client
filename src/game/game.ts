@@ -1,4 +1,4 @@
-import { towerHeight, assignedTower, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
+import { towerHeight, assignedTower, garrisonCandidate, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
 import { createTowerRange } from './tower-range.ts';
 import { SimulationClock, RenderCadence } from './simulation-clock.ts';
 import { setCharacterLODQuality } from './character-lod.ts';
@@ -128,7 +128,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   }
   residents.restoreResidents(economy.state.residents);
   const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
-  residents.syncCombat(combat.state.units, economy.state.seconds);
+  residents.syncCombat(combat.state.units);
   const visibilityPoint = new Vector3(), visibilityScreen = new Vector3(), visibilityIdentity = Matrix.Identity();
   const raids = new Raids(economy, combat, {
     status: residents.needsStatus, command: (p, id) => residents.command(p, id), release: residents.releaseFarmerWork,
@@ -167,17 +167,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const combatIds = () => residents.selectedIds().filter(id=>combat.unit(id)?.team==='home');
   const clearResident = () => { selectedGroup=undefined; residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
   const clearSelection = () => { clearWorld(); clearResident(); };
-  const garrisonCandidate=(towerId:string)=>{
-    const tower=economy.state.towers.find(t=>t.id===towerId)!;
-    const selected=combat.controllable(residents.selectedIds()).filter(u=>u.role==='archer');
-    return (selected.length?selected:combat.state.units.filter(u=>u.team==='home'&&u.role==='archer'&&u.life==='active'&&!assignedTower(economy.state,u.id)&&!u.target&&!u.goal&&!economy.active(u.id)))
-      .sort((a,b)=>Math.hypot(a.position.x-tower.x,a.position.z-tower.z)-Math.hypot(b.position.x-tower.x,b.position.z-tower.z))[0];
-  };
   const showObjectActions = (object: WorldObject) => {
     const tower=economy.state.towers.find(t=>t.id===object.id&&t.hp>0);
     if(tower){
-      const candidate=garrisonCandidate(tower.id),id=tower.unit??candidate?.id,name=homeResidents(economy.state).find(r=>r.id===id)?.name??'弓兵';
-      ui.setSelection({name:'塔台',kind:'建筑',showHint:true,hint:`耐久 ${Math.ceil(tower.hp)}/${TOWER_CONFIG.hp} · ${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
+      const candidate=garrisonCandidate(economy,combat,tower.id,residents.selectedIds()),id=tower.unit??candidate?.id,name=homeResidents(economy.state).find(r=>r.id===id)?.name??'弓兵';
+      ui.setSelection({name:'哨塔',kind:'建筑',showHint:true,hint:`耐久 ${Math.ceil(tower.hp)}/${TOWER_CONFIG.hp} · ${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
         actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:'需要可用弓兵',disabled:!candidate}]});return;
     }
     if(object.id==='home-center'){ui.setSelection({name:'家园中心',kind:'建筑',hint:'招募居民与士兵',actions:[{id:'recruit',label:'招募'}]});return;}
@@ -229,7 +223,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if(action.startsWith('tower-')){
       const tower=economy.state.towers.find(t=>t.id===target&&t.hp>0);if(!tower)return;
       if(action==='tower-garrison'){
-        const candidate=garrisonCandidate(target);if(!candidate)return;
+        const candidate=garrisonCandidate(economy,combat,target,residents.selectedIds());if(!candidate)return;
         const result=requestGarrison(economy,combat,target,candidate.id);
         if(result.ok){manual(candidate.id);commandGuidance.request(candidate.id,`tower:${target}`);clearResident();}
         ui.targetHint(result.message,selectedWorld.anchor);
@@ -513,7 +507,6 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         residents.beginStep(); wolves.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
         controller.update(dt);
-        world.doors.update(dt);
         raids.update(dt);
         const recruited=advanceRecruitment(economy,dt,occupancy());
         const nextKey=definitions().map(r=>r.id).join(',');
@@ -524,11 +517,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
           if(combat.unit(recruited.id))combat.move([recruited.id],point);else controller.command(recruited.id,{kind:'move',point});
         }
         updateTowers(economy,combat);
-        combat.update(dt); residents.syncCombat(combat.state.units, economy.state.seconds);
+        combat.update(dt); residents.syncCombat(combat.state.units);
         residents.update(dt, previewRole, dt);
         needs.update(dt);
         residents.endStep();
-        world.fires.update(economy.state.campfires, dt, mapCenter);
         simulationSeconds += dt;
         uiElapsed += dt; autosave.advance(dt);
     });
@@ -543,7 +535,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     scene.animationTimeScale=ui.paused||resuming?0:1;
     scene.animationsEnabled=!ui.paused&&!resuming;
     if(!scene.animationsEnabled)scene.resetLastAnimationTimeFrame();
-    const motion = residents.present(simulationClock.alpha);
+    const motion = residents.present(simulationClock.alpha, economy.state.seconds);
+    // These are visual-only tracks; transactions and fuel stay in fixed steps.
+    world.doors.update(dt);
+    world.fires.update(economy.state.campfires, dt, mapCenter);
     combatView.update(combat.state, (1 - simulationClock.alpha) * SimulationClock.step);
     const worldStart = performance.now(); world.sync(); frameWork.worldMs += performance.now() - worldStart;
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
@@ -569,15 +564,15 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
     wolves.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
-    const pulse=commandGuidance.sample(economy.state.seconds,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
+    const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     const routeId=selectedId??pulse?.id,routeFighter=routeId?combat.unit(routeId):undefined;
     pathGuidance.update(routeId,routeId?residents.displayPosition(routeId)??routeFighter?.position??residents.needsStatus(routeId).position:undefined,
       routeId?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
     const attackTarget = selectedFighter?.target;
-    ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds);
+    ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
     if (attackPulse) {
       const target = combat.target(attackPulse.target);
-      if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(target.position);
+      if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(residents.displayPosition(target.id)??wolves.displayPosition(target.id)??target.position);
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
     const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;

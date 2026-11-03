@@ -7,6 +7,9 @@ import { DEATH, DEATH_END, deathPhase } from './death.ts';
 import type { Point } from './movement.ts';
 
 type FallOptions = { prone?: boolean; side?: number; offset?: Point; airborne?: boolean };
+interface GroundProfile { grounded: readonly number[]; height: number }
+/** One immutable profile per shared cavalry model, never shared animation state. */
+export interface MountedDeathProfile { rider?: GroundProfile; mount?: GroundProfile }
 /** Native sampled root tracks. Posed vertices establish actual ground contact;
  * no ragdoll, per-frame skin readback or additional render pass. */
 export class DeathView {
@@ -15,7 +18,9 @@ export class DeathView {
   private height = 0;
   private root: TransformNode;
   private options: FallOptions;
-  constructor(root: TransformNode, options: FallOptions = {}) { this.root = root; this.options = options; }
+  private profile?: GroundProfile;
+  constructor(root: TransformNode, options: FallOptions = {}, profile?: GroundProfile) { this.root = root; this.options = options; this.profile=profile; }
+  get groundProfile(){return this.profile;}
   sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup) {
     if (age >= DEATH_END) {
       if (this.age < DEATH_END) this.clip?.goToFrame(DEATH_END * 60);
@@ -41,34 +46,39 @@ export class DeathView {
         }
         return points;
       };
-      const fixed = posture ? undefined : readPoints();
+      const fixed = this.profile||posture ? undefined : readPoints();
       if (posture) posture.start(false).pause();
       const turn = new Animation('death-fall', 'rotationQuaternion', 60, Animation.ANIMATIONTYPE_QUATERNION, Animation.ANIMATIONLOOPMODE_CONSTANT);
       const lift = new Animation('death-ground-and-sink', 'position.y', 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
       const rotations = [], heights = [], x = [], z = [];
+      if(this.profile)this.height=this.profile.height;
       let grounded = 0;
       for (let i = 0; i <= 24; i++) {
         const t = i / 24, eased = t * t * (3 - 2 * t), angle = Math.PI / 2 * eased;
         // Only the single mounted rider unfolds from its seated pose. Sample
-        // its short native blend once at death, then use cached tracks forever.
-        posture?.goToFrame(t * DEATH.fall * 60);
-        const points = fixed ?? readPoints();
+        // its short native blend during preparation, then reuse the grounding
+        // profile without CPU skin readbacks when this or another rider dies.
         const pitch = this.options.prone ? angle : 0, roll = this.options.prone ? 0 : (this.options.side ?? -1) * angle;
-        let bottom = Infinity, top = -Infinity;
-        for (let j = 0; j < points.length; j += 3) {
-          const y = this.options.prone ? points[j + 1] * Math.cos(pitch) - points[j + 2] * Math.sin(pitch)
-            : points[j] * Math.sin(roll) + points[j + 1] * Math.cos(roll);
-          bottom = Math.min(bottom, y); top = Math.max(top, y);
+        if(this.profile)grounded=this.profile.grounded[i];
+        else{
+          posture?.goToFrame(t * DEATH.fall * 60);
+          const points=fixed??readPoints();let bottom=Infinity,top=-Infinity;
+          for(let j=0;j<points.length;j+=3){
+            const y=this.options.prone?points[j+1]*Math.cos(pitch)-points[j+2]*Math.sin(pitch)
+              :points[j]*Math.sin(roll)+points[j+1]*Math.cos(roll);
+            bottom=Math.min(bottom,y);top=Math.max(top,y);
+          }
+          grounded=points.length ? .015-bottom : 0;
+          if(this.options.airborne&&grounded<0)grounded*=eased;
+          if(i===24)this.height=points.length?top-bottom:3;
         }
-        grounded = points.length ? .015 - bottom : 0;
-        if (this.options.airborne && grounded < 0) grounded *= eased;
-        if (i === 24) this.height = points.length ? top - bottom : 3;
         const frame = DEATH.fall * 60 * t;
         rotations.push({ frame, value: Quaternion.RotationYawPitchRoll(facing, pitch, roll) });
         heights.push({ frame, value: grounded });
         x.push({ frame, value: (this.options.offset?.x ?? 0) * eased });
         z.push({ frame, value: (this.options.offset?.z ?? 0) * eased });
       }
+      this.profile??={grounded:heights.map(k=>k.value),height:this.height};
       rotations.push({ frame: DEATH_END * 60, value: rotations.at(-1)!.value.clone() });
       heights.push({ frame: (DEATH.fall + DEATH.hold) * 60, value: grounded }, { frame: DEATH_END * 60, value: grounded - this.height - .2 });
       turn.setKeys(rotations); lift.setKeys(heights);
@@ -100,7 +110,16 @@ export class MountedDeathView {
   private originals: { mesh: AbstractMesh; parent: AbstractMesh['parent']; position: Vector3; rotation: Vector3; quaternion: Quaternion | null; scaling: Vector3 }[] = [];
   private age = -1;
   private root: TransformNode;
-  constructor(root: TransformNode) { this.root = root; }
+  private profiles: MountedDeathProfile;
+  constructor(root: TransformNode, profiles:MountedDeathProfile={}) { this.root = root;this.profiles=profiles; }
+  get prepared(){return !!this.profiles.rider&&!!this.profiles.mount;}
+  /** Run once while the shared model loads, before gameplay can be interrupted. */
+  prepare(facing:number,meshes:readonly AbstractMesh[],pose:()=>void,posture?:AnimationGroup){
+    if(this.prepared)return;
+    const position=this.root.position.clone(),rotation=this.root.rotation.clone(),quaternion=this.root.rotationQuaternion?.clone()??null;
+    this.sample(0,facing,meshes,pose,posture);this.reset();
+    this.root.position.copyFrom(position);this.root.rotation.copyFrom(rotation);this.root.rotationQuaternion=quaternion;
+  }
   sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup) {
     this.age = age;
     if (age >= DEATH_END) { this.root.setEnabled(false); return; }
@@ -111,12 +130,13 @@ export class MountedDeathView {
       this.originals = meshes.map(mesh => ({ mesh, parent: mesh.parent, position: mesh.position.clone(), rotation: mesh.rotation.clone(),
         quaternion: mesh.rotationQuaternion?.clone() ?? null, scaling: mesh.scaling.clone() }));
       for (const mesh of meshes) mesh.setParent(mesh.skeleton?.bones[0]?.name.startsWith('Horse.') ? mount : rider);
-      this.rider = new DeathView(rider, { prone: true, airborne: true, offset: { x: 1.15, z: .1 } });
-      this.mount = new DeathView(mount, { side: 1, offset: { x: -.15, z: 0 } });
+      this.rider = new DeathView(rider, { prone: true, airborne: true, offset: { x: 1.15, z: .1 } },this.profiles.rider);
+      this.mount = new DeathView(mount, { side: 1, offset: { x: -.15, z: 0 } },this.profiles.mount);
     }
     const human = meshes.filter(m => !m.skeleton?.bones[0]?.name.startsWith('Horse.'));
     this.rider.sample(age, 0, human, () => {}, posture);
     this.mount!.sample(age, 0, meshes.filter(m => !human.includes(m)), () => {});
+    this.profiles.rider??=this.rider.groundProfile;this.profiles.mount??=this.mount!.groundProfile;
   }
   reset() {
     this.rider?.reset(); this.mount?.reset();

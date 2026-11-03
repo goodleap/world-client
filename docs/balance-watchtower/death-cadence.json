@@ -1,0 +1,60 @@
+{
+  "method": "Actual game render loop with controlled 60 Hz delta and unchanged 20 Hz simulation; not a hardware FPS benchmark",
+  "summary": [
+    {
+      "id": "farmer",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "infantry",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "archer",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "cavalry",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "dog",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "enemy-guard",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    },
+    {
+      "id": "wolf-wild-0",
+      "fallFrames": 33,
+      "fallChanges": 33,
+      "sinkFrames": 179,
+      "sinkChanges": 179
+    }
+  ],
+  "pause": "exact frozen pose",
+  "preparation": {
+    "cavalryGeometryReads": 0,
+    "preparedDuringLoadMs": 649.4000000059605
+  },
+  "errors": []
+}

@@ -5,7 +5,12 @@ import { Scene } from '@babylonjs/core/scene.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
-import { DeathView } from '../src/game/death-view.ts';
+import { DeathView, MountedDeathView } from '../src/game/death-view.ts';
+import type { MountedDeathProfile } from '../src/game/death-view.ts';
+import { Skeleton } from '@babylonjs/core/Bones/skeleton.js';
+import { Bone } from '@babylonjs/core/Bones/bone.js';
+import { Animation } from '@babylonjs/core/Animations/animation.js';
+import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
 import { DEATH_END, deathAge, deathPhase } from '../src/game/death.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { Combat } from '../src/game/combat.ts';
@@ -44,6 +49,27 @@ test('death stage survives every reload, future timestamps fail, and wolf loot s
  const goods=structuredClone(e.state.goods);const restored=decodeEconomy(encodeEconomy(e));
  const next=new Combat(restored.state.combat,restored,()=>[]), waves=new Raids(restored,next,people,()=>[],()=>true);
  restored.advance(.2); waves.update(.2);assert.deepEqual(restored.state.goods,goods);
+});
+test('mounted grounding is prepared once and shared without skin readback at either death',()=>{
+ const engine=new NullEngine(),scene=new Scene(engine),profiles:MountedDeathProfile={};let reads=0;
+ try{
+  const make=(id:string)=>{
+   const root=new TransformNode(id,scene),rider=MeshBuilder.CreateBox(id+'-rider',{height:1.4,depth:.5,width:.5},scene),mount=MeshBuilder.CreateBox(id+'-horse',{height:1,depth:2,width:.7},scene);
+   rider.parent=mount.parent=root;rider.position.y=1.8;mount.position.y=.5;
+   mount.skeleton=new Skeleton(id+'-horse-rig',id,scene);new Bone('Horse.root',mount.skeleton);
+   for(const mesh of [rider,mount]){const read=mesh.getPositionData.bind(mesh);mesh.getPositionData=(...args)=>{reads++;return read(...args);};}
+   const track=new Animation('unfold','position.y',60,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
+   track.setKeys([{frame:0,value:1.8},{frame:36,value:1}]);const posture=new AnimationGroup(id+'-posture',scene);posture.addTargetedAnimation(track,rider);
+   return {root,meshes:[rider,mount],posture,view:new MountedDeathView(root,profiles)};
+  };
+  const a=make('first');a.view.prepare(.4,a.meshes,()=>{},a.posture);assert(a.view.prepared);assert(reads>=26);
+  assert(a.meshes.every(m=>m.parent===a.root),'preparation restores living hierarchy');
+  const preparedReads=reads,b=make('recruit');b.root.position.x=10;b.view.prepare(1.2,b.meshes,()=>{},b.posture);
+  a.view.sample(.2,.4,a.meshes,()=>{},a.posture);const frozen=a.view.snapshot();
+  b.view.sample(4,1.2,b.meshes,()=>{},b.posture);assert.deepEqual(a.view.snapshot(),frozen,'another rider cannot advance the first death');
+  for(const age of [0,.2,.4,.6,1,3,5]){a.view.sample(age,.4,a.meshes,()=>{},a.posture);b.view.sample(age,1.2,b.meshes,()=>{},b.posture);assert.equal(a.view.snapshot().y,b.view.snapshot().y);}
+  assert.equal(reads,preparedReads,'both real deaths reuse the immutable grounding profile');
+ }finally{scene.dispose();engine.dispose();}
 });
 
 test('human falls forward in its own facing and ends face down with ground contact', () => {

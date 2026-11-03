@@ -10,9 +10,9 @@ import {createDaylight} from '../src/game/lighting.ts';
 import {createTowerModel} from '../src/game/tower-model.ts';
 const canvas=document.querySelector<HTMLCanvasElement>('canvas')!,engine=new Engine(canvas,true),scene=new Scene(engine);
 scene.clearColor=Color4.FromHexString('#ede6cbff');
-const view=new URLSearchParams(location.search).get('view'),camera=new ArcRotateCamera('review',view==='side'?0:view==='front'?-Math.PI/2:-1.03,view==='iso'?1.03:1.35,24,new Vector3(0,3.9,0),scene);
+const view=new URLSearchParams(location.search).get('view'),camera=new ArcRotateCamera('review',view==='side'?0:view==='front'?-Math.PI/2:-1.03,view==='iso'?1.03:1.35,24,new Vector3(0,1.35,0),scene);
 camera.mode=Camera.ORTHOGRAPHIC_CAMERA;
-const resize=()=>{engine.resize();const half=5.1,aspect=canvas.clientWidth/canvas.clientHeight;camera.orthoTop=half;camera.orthoBottom=-half;camera.orthoLeft=-half*aspect;camera.orthoRight=half*aspect;};resize();window.addEventListener('resize',resize);
+const resize=()=>{engine.resize();const aspect=canvas.clientWidth/canvas.clientHeight,half=Math.max(2.2,1.9/aspect);camera.orthoTop=half;camera.orthoBottom=-half;camera.orthoLeft=-half*aspect;camera.orthoRight=half*aspect;};resize();window.addEventListener('resize',resize);
 const palette=createPalette(scene),shadows=createDaylight(scene);createTowerModel(scene,palette);
 for(const mesh of scene.meshes){mesh.receiveShadows=true;shadows.addShadowCaster(mesh,false);}
 const ground=MeshBuilder.CreateGround('ground',{width:24,height:24},scene);ground.material=palette.pathLight;ground.receiveShadows=true;

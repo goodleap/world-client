@@ -169,7 +169,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
         continue;
       }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,
-        markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? site.kind==='tower'?3.5:1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
+        markerY: .12, anchor: { x: site.x + (built ? 0 : site.width * .25), y: built ? site.kind==='tower'?site.height:1.2 : .2, z: built ? site.z - site.depth / 2 : site.z + site.depth * .15 } }, state,
       () => built && site.kind !== 'tower' ? houseTemplate({ ...site, id: site.kind }, `${site.kind}-${state}`) : template(`${site.kind}-${state}`, () => {
         if(built&&site.kind==='tower'){createTowerModel(scene,p);return;}
         if (built) { referenceHouse(scene, p, { ...site, id: site.kind, x: 0, z: 0 }, false); return; }

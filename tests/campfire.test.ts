@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { gridPoint, GRID_SIZE } from '../src/game/world-data.ts';
 import { CAMPFIRE_CONFIG as F, newCampfire, advanceCampfire, fireAppearance } from '../src/game/campfire.ts';
-import { VITAL_CONFIG as V, vitalIds, health, maxHealth, eat, effort } from '../src/game/vitals.ts';
+import { VITAL_CONFIG as V, vitalIds, health, maxHealth, eat } from '../src/game/vitals.ts';
 import { createNeedsController } from '../src/game/needs-controller.ts';
 import { Combat } from '../src/game/combat.ts';
 import { RESIDENTS, ENEMIES } from '../src/game/resident-data.ts';
@@ -91,7 +91,9 @@ test('all controlled bodies drain stamina; exhausted workers and rider/horse can
   assert(Math.abs(e.state.vitals.farmer.stamina - (100 - V.workDrain * 5)) < 1e-6);
   assert(e.state.vitals.dog.stamina < 100); assert.equal(e.state.vitals.horse.stamina, e.state.vitals.cavalry.stamina);
   for (const id of vitalIds) e.state.vitals[id].stamina = 0;
-  assert.equal(effort(e.state.vitals, 'farmer'), .5); assert.equal(effort(e.state.vitals, 'cavalry'), .5);
+  advance(5);
+  for(const id of vitalIds)assert.equal(e.state.vitals[id].stamina,0);
+  assert(!e.state.vitals.farmer.rest,'working farmers keep their task at zero stamina');
 });
 test('dog, rider and horse consume distinct meals; manual orders interrupt rest without cancelling another unit', () => {
   const { e, f, site } = built(); Object.assign(f, { enabled: true, wood: 12, food: 12, meals: 3 });
@@ -102,6 +104,18 @@ test('dog, rider and horse consume distinct meals; manual orders interrupt rest 
   n.manual('dog'); assert.equal(e.state.vitals.dog.rest, undefined); assert(e.state.vitals.cavalry.rest);
   const stamina = e.state.vitals.dog.stamina; advance(1); assert(e.state.vitals.dog.stamina <= stamina);
   assert(e.state.vitals.horse.stamina > 10);
+});
+test('empty stamina never interrupts active farmer work, movement or a combat order for food',()=>{
+  const {e,f,site}=built();Object.assign(f,{enabled:true,wood:12,food:12,meals:4});
+  const {c,n,states}=needsHarness(e);
+  for(const id of ['farmer','dog','infantry']){e.state.vitals[id].stamina=0;states[id].position={x:site.x,z:site.z-4};}
+  states.farmer.working=true;states.dog.moving=true;
+  const soldier=c.unit('infantry')!;soldier.position={x:site.x,z:site.z-4};soldier.target='enemy-guard';soldier.order='attack';
+  n.update(.05);for(const id of ['farmer','dog','infantry'])assert(!e.state.vitals[id].rest,id);
+  assert.equal(soldier.target,'enemy-guard');
+  soldier.target=undefined;soldier.order='move';soldier.goal={x:site.x+8,z:site.z-4};
+  n.update(.05);assert(!e.state.vitals.infantry.rest,'an active move goal survives an empty route');
+  assert.deepEqual(soldier.goal,{x:site.x+8,z:site.z-4});
 });
 test('injured soldier walks to food and heals gradually, no fire means no automatic health or inventory changes', () => {
   const { e, f, site } = built(), { c, n, advance } = needsHarness(e); const u = c.unit('infantry')!;

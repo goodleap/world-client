@@ -24,8 +24,8 @@ test('melee windup hits once and repeated clicks cannot bypass cooldown', () => 
   const serial = a.attack!.id; const hp = b.hp;
   for (let i = 0; i < 5; i++) { c.attack([a.id], b.id); c.update((C.infantry.windup - .01) / 5); assert.equal(a.attack!.id, serial); }
   assert.equal(b.hp, hp);
-  c.update(.02); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
-  advance(c, C.infantry.recovery, () => c.attack([a.id], b.id)); assert.equal(b.hp, hp - C.infantry.attack + C.enemyMelee.armor);
+  c.update(.02); assert.equal(b.hp, hp - C.infantry.attack * 20 / (20 + C.enemyMelee.armor));
+  advance(c, C.infantry.recovery, () => c.attack([a.id], b.id)); assert.equal(b.hp, hp - C.infantry.attack * 20 / (20 + C.enemyMelee.armor));
   assert(a.cooldown > 0);
 });
 test('manual move cancels a windup, retains cooldown and suppresses auto acquisition throughout travel', () => {
@@ -54,8 +54,8 @@ test('projectiles release once, persist through reload, and cannot hit through c
   c.move([archer.id], { x: OUTPOST.x + 20, z: OUTPOST.z }); b.cooldown = 8;
   assert.equal(c.state.projectiles.length, 1); const hp = b.hp;
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
-  advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
-  advance(next, .3); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack + C.enemyMelee.armor);
+  advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack * 20 / (20 + C.enemyMelee.armor));
+  advance(next, .3); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack * 20 / (20 + C.enemyMelee.armor));
   const blocked = decodeEconomy(encodeEconomy(e));
   const wall: Obstacle = { kind: 'box', x: OUTPOST.x + 1.4, z: OUTPOST.z, halfWidth: .2, halfDepth: 10 };
   const cover = new Combat(blocked.state.combat, blocked, () => [wall]); advance(cover, .4);
@@ -149,7 +149,7 @@ test('a nearby fallback goal survives reload and an unreachable click preserves 
 });
 
 
-test('soldiers on both sides share the farmer hammer cycle and slow with fatigue', () => {
+test('soldiers on both sides share the farmer hammer cycle regardless of fatigue', () => {
   for (const stamina of [100, 0]) for (const id of ['infantry', 'archer', 'cavalry', 'enemy-guard', 'enemy-archer', 'enemy-pass-0']) {
     const { e, c } = setup();
     const attacker = c.unit(id)!, target = c.unit(attacker.team === 'home' ? 'enemy-guard' : 'infantry')!;
@@ -158,7 +158,7 @@ test('soldiers on both sides share the farmer hammer cycle and slow with fatigue
     for (const body of bodiesFor(id)) e.state.vitals[body].stamina = stamina;
     attacker.cooldown = 0; attacker.order = 'attack'; attacker.target = target.id; target.cooldown = 8;
     const starts: number[] = [], releases: number[] = []; let last = 0, released = 0;
-    const period = stamina ? .5 : 1;
+    const period = .5;
     for (let i = 0; i < 80; i++) {
       target.hp = fighterStats(target).hp; target.life = 'active'; c.update(.05);
       if (attacker.attack && attacker.attack.id !== last) { last = attacker.attack.id; starts.push(i * .05); }
@@ -168,8 +168,8 @@ test('soldiers on both sides share the farmer hammer cycle and slow with fatigue
     assert.equal(releases.length, starts.length, id + ' releases once in each complete cycle');
     for (let i = 1; i < starts.length; i++) assert(Math.abs(starts[i] - starts[i - 1] - period) < 1e-8, id + ' actual cadence');
     for (let i = 0; i < releases.length; i++) {
-      const contact = fighterStats(attacker).windup * (stamina ? 1 : 2);
-      assert(releases[i] - starts[i] >= contact - 1e-8 && releases[i] - starts[i] < contact + .05, id + ' action and release both slow');
+      const contact = fighterStats(attacker).windup;
+      assert(releases[i] - starts[i] >= contact - 1e-8 && releases[i] - starts[i] < contact + .05, id + ' action and release stay synchronized');
     }
     if (id === 'cavalry') assert.equal(c.state.projectiles.length, 0, 'lance settles melee damage');
   }

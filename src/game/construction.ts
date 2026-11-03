@@ -4,12 +4,13 @@ import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { nearRoad } from './road-layout.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
+import { TOWER_SHAPE } from './tower-shape.ts';
 
 export const BUILDING_TYPES = {
   farm: { name: '耕地', columns: 1, rows: 1, height: .1 },
   warehouse: { name: '仓库', columns: 3, rows: 2, height: 2.9 },
   house: { name: '民房', columns: 2, rows: 2, height: 2.5 },
-  tower: { name:'塔台', columns:2, rows:2, height:6.3 },
+  tower: { name:'哨塔', columns:TOWER_SHAPE.cells, rows:TOWER_SHAPE.cells, height:TOWER_SHAPE.height },
   campfire: { name: '火堆', columns: 2, rows: 2, height: 1.2 },
 } as const;
 export type BuildingKind = keyof typeof BUILDING_TYPES;

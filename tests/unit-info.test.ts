@@ -68,7 +68,7 @@ test('population rows show living units, authoritative vitals and upgraded comba
   assert.equal(rows.length, 6);
   assert(!rows.some(r => r.id === 'farmer-2' || r.id.startsWith('enemy-') || r.id === 'horse'));
   assert.deepEqual(rows.find(r => r.id === 'infantry'), { id:'infantry', name:'步兵', role:'infantry',
-    health:91, maxHealth:140, stamina:42.25, maxStamina:100, attack:28, armor:6, group:1 });
+    health:91, maxHealth:120, stamina:42.25, maxStamina:100, attack:21, armor:12, group:1 });
   assert.equal(rows.find(r => r.id === 'dog')!.attack, undefined);
   assert.equal(rows.find(r => r.id === 'dog')!.armor, 0);
   assert.equal(encodeEconomy(e), saved, 'inspection never changes orders, groups or the simulation');
@@ -79,7 +79,7 @@ test('new recruits appear once in population and dead soldiers disappear permane
   const e = new Economy(); e.setLeadership(false);
   assert(recruit(e, 'archer').ok); advanceRecruitment(e, 15);
   const roster = e.state.recruitment.roster[0], recruitRow = populationInfo(e.state).find(r => r.id === roster.id)!;
-  assert.equal(recruitRow.name, roster.name); assert.equal(recruitRow.attack,18);
+  assert.equal(recruitRow.name, roster.name); assert.equal(recruitRow.attack,14);
   assert.equal(populationInfo(e.state).filter(r => r.role !== 'dog').length,7);
   const c = new Combat(e.state.combat, e, () => []); c.hurt('infantry',9999,'enemy-guard');
   assert(!populationInfo(e.state).some(r => r.id === 'infantry'));

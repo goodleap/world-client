@@ -13,7 +13,8 @@ import { COMBAT_CONFIG as C, ENCOUNTERS, MELEE_CONTACT_GRACE } from './combat-co
 import { leadShot } from './combat-aim.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
-import { effort, VITAL_CONFIG, changeHealth, bodiesFor } from './vitals.ts';
+import { VITAL_CONFIG, changeHealth, bodiesFor } from './vitals.ts';
+import { hitDamage } from './combat-damage.ts';
 import { chooseTarget, hostile } from './targeting.ts';
 import type { CombatTarget } from './targeting.ts';
 
@@ -97,7 +98,7 @@ export class Combat {
       .concat(homeResidents(this.economy.state).filter(r => !this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
         position: this.residentPosition?.(r.id) ?? neighbours.find(n => n.id === r.id)?.position ?? this.economy.state.residents[r.id]?.position ?? r.spawn,
         hp: this.economy.state.vitals[r.id].hp!, life: this.economy.state.vitals[r.id].hp! > 0 ? 'active' as const : 'defeated' as const,
-        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(this.economy.state.towers.filter(t=>t.hp>0).map(t=>({id:t.id,team:'home' as const,position:{x:t.x,z:t.z},hp:t.hp,life:'active' as const,radius:1.7,canAttack:t.phase==='occupied',kind:'tower' as const,elevation:0})));
+        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(this.economy.state.towers.filter(t=>t.hp>0).map(t=>({id:t.id,team:'home' as const,position:{x:t.x,z:t.z},hp:t.hp,life:'active' as const,radius:(this.economy.state.sites.find(s=>s.id===t.id)?.width??2.5)/2,canAttack:t.phase==='occupied',kind:'tower' as const,elevation:0})));
   }
   target(id: string) { return this.targets().find(t => t.id === id); }
   setThreats(threats: readonly Fighter[]) {
@@ -128,6 +129,19 @@ export class Combat {
     return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) ?? (n as {destination?:Point}).destination }));
   }
   private stop(u: Fighter) { u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
+  private movePlan(u:Fighter,goal:Point,exact:boolean){
+    const tower=occupiedTower(this.economy.state,u.id);
+    const exit=tower?towerExit(this.economy.state,tower,this.solids(),this.neighbours(u).map(n=>({kind:'circle' as const,...n.position,radius:n.radius}))):undefined;
+    if(tower&&!exit)return;
+    const start=exit??u.position;
+    const path=exact?planWorkApproach(start,[goal],fighterRadius(u),WORLD_BOUNDS,this.solids(),this.reservations(u))
+      :planMoveDestination(start,goal,fighterRadius(u),WORLD_BOUNDS,this.solids(),this.reservations(u));
+    return path?{path,exit}:undefined;
+  }
+  canMoveTo(id:string,point:Point){
+    const u=this.controllable([id])[0];
+    return !!u&&Number.isFinite(point.x)&&Number.isFinite(point.z)&&!!this.movePlan(u,point,true);
+  }
   move(ids: readonly string[], point: Point, retreat = false, rest = false, preserveTower = false, exact = false) {
     let accepted = 0;
     for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
@@ -137,13 +151,9 @@ export class Combat {
       // Copy coordinates explicitly before pathfinding: a direct path retains
       // its destination, and spreading a Vector3 loses x/z in live goals/saves.
       const goal: Point = { x: requested.x, z: requested.z };
-      const tower=assignedTower(this.economy.state,u.id),occupied=tower?.phase==='occupied';
-      const exit=occupied?towerExit(this.economy.state,tower,this.solids(),this.neighbours(u).map(n=>({kind:'circle' as const,...n.position,radius:n.radius}))):undefined;
-      if(occupied&&!exit)continue;
-      const start=exit??u.position;
-      const path = rest||exact ? planWorkApproach(start, [goal], fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u))
-        : planMoveDestination(start, goal, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u));
-      if (!path) continue;
+      const tower=assignedTower(this.economy.state,u.id),plan=this.movePlan(u,goal,rest||exact);
+      if(!plan)continue;
+      const {path,exit}=plan;
       if(exit)u.position={...exit};
       if(tower){if(rest){tower.phase='meal';}else if(!preserveTower)releaseTower(this.economy.state,u.id);this.economy.revision++;}
       // Cancelling the windup never refunds the committed cooldown.
@@ -174,15 +184,15 @@ export class Combat {
   guard(ids: readonly string[]) {
     for (const u of this.controllable(ids)) { this.manual(u.id); u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
   }
-  private damage(victim: CombatTarget, amount: number, sourceId: string) {
+  private damage(victim: CombatTarget, amount: number, sourceId: string, ignoreArmor = false) {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
     if(victim.kind==='tower'){
-      damageTower(this.economy,victim.id,amount,(id,fall)=>{const u=this.unit(id)!;const target=this.target(id)!;this.damage(target,fall+this.stats(u).armor,'tower-collapse');});return;
+      damageTower(this.economy,victim.id,amount,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});return;
     }
     const target = this.unit(victim.id);
     if (!target) {
-      changeHealth(this.economy.state, victim.id, -Math.max(1, amount));
+      changeHealth(this.economy.state, victim.id, -hitDamage(amount));
       this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
       if (!this.economy.state.vitals[victim.id].hp) {
         this.economy.interrupt(victim.position, victim.id);
@@ -192,7 +202,7 @@ export class Combat {
       }
       this.economy.revision++; return;
     }
-    target.hp = Math.max(0, target.hp - Math.max(1, amount - this.stats(target).armor));
+    target.hp = Math.max(0, target.hp - hitDamage(amount, ignoreArmor ? 0 : this.stats(target).armor));
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
       const source = this.unit(sourceId);
@@ -244,7 +254,7 @@ export class Combat {
     const next = new Map<string, { position: Point; velocity: Point }>();
     for (const target of this.targets().filter(t => t.life === 'active')) {
       const previous = this.motion.get(target.id), unit = this.unit(target.id);
-      const speed = unit ? fighterStats(unit).speed * effort(this.economy.state.vitals, unit.id) : 10;
+      const speed = unit ? fighterStats(unit).speed : 10;
       let velocity = { x: 0, z: 0 };
       if (previous) {
         velocity = { x: (target.position.x - previous.position.x) / this.motionStep, z: (target.position.z - previous.position.z) / this.motionStep };
@@ -276,7 +286,7 @@ export class Combat {
     const radius = Math.max(fighterRadius(u) + target.radius + .12,
       // Allow one step for contact quantization and one for the target moving
       // after this approach point was sampled (either faction's update order).
-      Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup / effort(this.economy.state.vitals, u.id) + .1) - .1));
+      Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup + .1) - .1));
     const length = distance(u.position, target.position) || 1;
     const direct = { x: target.position.x + (u.position.x - target.position.x) * radius / length,
       z: target.position.z + (u.position.z - target.position.z) * radius / length };
@@ -294,7 +304,7 @@ export class Combat {
         .filter(p => this.visible(p, target.position, u.id, target.id));
       this.plan(u, points);
     }
-    this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
+    this.travel(u, dt, stats.speed);
   }
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
@@ -353,13 +363,13 @@ export class Combat {
       if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning) {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
-          this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
+          this.travel(u, dt, stats.speed);
         } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) u.defendFrom = undefined; }
         continue;
       }
       if (!target && this.economy.state.vitals[u.id]?.rest) continue;
       if (u.attack) {
-        const action = u.attack; action.elapsed += dt * effort(this.economy.state.vitals, u.id);
+        const action = u.attack; action.elapsed += dt;
         const victim = this.target(action.target);
         if (victim) u.facing = Math.atan2(victim.position.x - u.position.x, victim.position.z - u.position.z);
         if (!action.released && action.elapsed >= stats.windup) {
@@ -403,9 +413,9 @@ export class Combat {
       // Plant the feet only when the target is expected to remain within reach
       // at contact, including only the bounded committed-swing allowance.
       if (distance(u.position, target.position) <= this.reach(u, target) && clear
-        && distance(u.position, this.forecast(target, stats.windup / effort(this.economy.state.vitals, u.id) + .05)) <= this.reach(u, target) + (u.role === 'archer' ? .05 : MELEE_CONTACT_GRACE - .05)) {
+        && distance(u.position, this.forecast(target, stats.windup + .05)) <= this.reach(u, target) + (u.role === 'archer' ? .05 : MELEE_CONTACT_GRACE - .05)) {
         this.stop(u); u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
-        if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
+        if (!u.cooldown) { u.cooldown = stats.interval; u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else if(stationary){this.stop(u);u.target=undefined;} else {
         this.pursue(u, target, dt);
       }
@@ -446,7 +456,10 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
   const opponents = [...initial.units, ...threats, ...(Array.isArray(towers)?towers:[]).map(t=>({id:t.id,team:'home' as const})), ...residents.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
-  if (!raw || !Array.isArray(raw.units) || raw.units.length !== initial.units.length || !Array.isArray(raw.projectiles) || raw.projectiles.length > 96
+  // A 200-person army may have more than 96 arrows in flight. Bound saves by
+  // roster size and the validated three-second lifetime / attack cadence.
+  const projectileLimit=Math.max(96,initial.units.length*(Math.ceil(3/Math.min(C.archer.interval,C.enemyArcher.interval))+1));
+  if (!raw || !Array.isArray(raw.units) || raw.units.length !== initial.units.length || !Array.isArray(raw.projectiles) || raw.projectiles.length > projectileLimit
     || !Number.isSafeInteger(raw.nextAttack) || raw.nextAttack < 1 || typeof raw.discovered !== 'boolean' || typeof raw.cleared !== 'boolean'
     || typeof raw.rewardGranted !== 'boolean' || raw.rewardGranted !== raw.cleared || !Array.isArray(raw.rewardGoods) || raw.rewardGoods.length > 1000
     || new Set(raw.rewardGoods).size !== raw.rewardGoods.length || !raw.rewardGoods.every(id => /^goods-\d+$/.test(id))) throw new Error('战斗存档无效');

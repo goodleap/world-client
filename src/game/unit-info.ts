@@ -21,7 +21,7 @@ export function selectedUnitInfo(economy: Economy, id: string | undefined, movem
   let activity = '空闲';
   const tower=assignedTower(state,id);
   if(tower?.phase==='occupied')activity=fighter?.target?'塔上射击':'塔上驻守';
-  else if(tower?.phase==='approach')activity='前往塔台';
+  else if(tower?.phase==='approach')activity='前往哨塔';
   else if (state.raids.evading[id]) activity = '正在避险';
   else if (fighter?.attack || fighter?.target) activity = '正在战斗';
   else if (vital.rest && !moving && bodies.some(body => !!state.vitals[body].meal)) activity = '正在进食';

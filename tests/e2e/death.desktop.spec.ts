@@ -26,8 +26,8 @@ test('dead soldiers, enemy and wolf hold, pause, resume saved sinking and disapp
  expect(held.residents.find(r=>r.id==='cavalry')!.death).toMatchObject({rider:{phase:'hold'},mount:{phase:'hold'}});
  expect(held.combat.units.find(u=>u.id==='cavalry')).toMatchObject({hp:0,life:'defeated',route:[]});
  const food=held.economy.goods.filter(g=>g.resource==='food').reduce((n,g)=>n+g.amount,0);expect(food).toBe(2);
- await page.locator('#continue-game').click();
  await page.screenshot({path:info.outputPath('dead-units-hold.png')});
+ await page.locator('#continue-game').click();
  await page.waitForFunction(()=>{if(window.__DEMO__?.snapshot().residents.find(r=>r.id==='cavalry')?.death.phase!=='sink')return false;document.getElementById('settings')!.click();return true;});
  const sinking=await snapshot(page);
  const corpse=sinking.residents.find(r=>r.id==='cavalry')!;

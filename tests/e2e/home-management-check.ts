@@ -22,9 +22,9 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
   await expect(page.locator('#group-candidates [data-resident="farmer-2"]')).toHaveCount(0);
   await expect(page.locator('#group-candidates [data-resident="recruit-farmer-2"]')).toHaveCount(1);
   const infantry=page.locator('#group-candidates [data-resident="infantry"]'),state=await snapshot(page);
-  await expect(infantry.locator('[data-stat="health"]')).toHaveText(`${Math.ceil(state.combat.units.find(u=>u.id==='infantry')!.hp)}/140`);
+  await expect(infantry.locator('[data-stat="health"]')).toHaveText(`${Math.ceil(state.combat.units.find(u=>u.id==='infantry')!.hp)}/120`);
   await expect(infantry.locator('[data-stat="stamina"]')).toHaveText(`${Math.floor(state.economy.vitals.infantry.stamina)}/100`);
-  await expect(infantry.locator('[data-stat="combat"]')).toHaveText('28 / 6');
+  await expect(infantry.locator('[data-stat="combat"]')).toHaveText('21 / 12');
   await expect(page.locator('#group-candidates [data-resident="dog"] [data-stat="combat"]')).toHaveText('— / 0');
   await page.waitForTimeout(300);expect((await snapshot(page)).economy.seconds).toBe(state.economy.seconds);
   expect((await snapshot(page)).combat).toEqual(state.combat);

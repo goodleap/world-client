@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { Economy,encodeEconomy,decodeEconomy } from '../src/game/economy.ts';
 import { Combat } from '../src/game/combat.ts';
 import { buildingAt,buildingDoor } from '../src/game/construction.ts';
-import { newTower,requestGarrison,updateTowers,evictTower,TOWER_CONFIG,towerHeight,towerPlatform } from '../src/game/towers.ts';
+import { newTower,requestGarrison,updateTowers,evictTower,TOWER_CONFIG,towerHeight,towerPlatform,garrisonCandidate } from '../src/game/towers.ts';
+import { recruit,advanceRecruitment } from '../src/game/recruitment.ts';
 import { maxHealth } from '../src/game/vitals.ts';
 import { newWolf } from '../src/game/raid-state.ts';
 import { Raids } from '../src/game/raids.ts';
@@ -31,6 +32,28 @@ test('tower reserves one archer, approaches the real entrance and persists occup
   const approach=decodeEconomy(encodeEconomy(s.e));assert.equal(approach.state.towers[0].phase,'approach');
   s.step(3);assert.equal(s.tower.phase,'occupied');assert.equal(towerHeight(s.e.state,'archer'),TOWER_CONFIG.height);
   assert.equal(decodeEconomy(encodeEconomy(s.e)).state.towers[0].unit,'archer');
+});
+test('automatic garrison prefers reachable ungrouped archers and respects a single explicit choice',()=>{
+  const s=setup();s.e.state.inventory={wood:40,food:40,stone:0,iron:0};
+  const recruits=[];
+  for(let i=0;i<2;i++){assert(recruit(s.e,'archer').ok);recruits.push(advanceRecruitment(s.e,15)!);}
+  const c=new Combat(s.e.state.combat,s.e,()=>[]),near=c.unit(recruits[0].id)!,far=c.unit(recruits[1].id)!;
+  s.archer.position={x:s.site.x,z:s.site.z-3};near.position={x:s.site.x,z:s.site.z-5};far.position={x:s.site.x,z:s.site.z-9};
+  s.e.state.groups[0]=['archer'];
+  const before=encodeEconomy(s.e);
+  assert.equal(garrisonCandidate(s.e,c,s.tower.id)?.id,near.id);
+  assert.equal(garrisonCandidate(s.e,c,s.tower.id,['archer'])?.id,'archer');
+  assert.equal(encodeEconomy(s.e),before,'preview must not change orders, groups or seats');
+  near.target='enemy-guard';assert.equal(garrisonCandidate(s.e,c,s.tower.id)?.id,far.id);
+  far.goal={x:20,z:20};assert.equal(garrisonCandidate(s.e,c,s.tower.id)?.id,'archer');
+  near.target=undefined;far.goal=undefined;
+  // A closed enclosure around the nearest ungrouped archer excludes it.
+  const walls=[{kind:'box' as const,x:near.position.x,z:near.position.z-1,halfWidth:1,halfDepth:.1},
+    {kind:'box' as const,x:near.position.x,z:near.position.z+1,halfWidth:1,halfDepth:.1},
+    ...[-1,1].map(dx=>({kind:'box' as const,x:near.position.x+dx,z:near.position.z,halfWidth:.1,halfDepth:1}))];
+  const blocked=new Combat(s.e.state.combat,s.e,()=>walls);
+  assert.equal(garrisonCandidate(s.e,blocked,s.tower.id)?.id,far.id);
+  assert.equal(garrisonCandidate(s.e,blocked,s.tower.id,[near.id]),undefined,'explicit unreachable choice is not silently replaced');
 });
 test('garrison shoots at twelve units from the deck, checks cover and never chases',()=>{
   const s=setup();s.enter();const enemy=s.c.unit('enemy-grove-0')!;
@@ -70,16 +93,16 @@ test('wolves can bite the tower but cannot bite a garrison through the platform'
   const s=setup();s.enter();const w=newWolf('wolf-1-0',{x:s.site.x,z:s.site.z-2.8});
   Object.assign(s.e.state.raids,{wave:1,phase:'raid',wolves:[w],origin:{...w.position},startedAt:s.e.state.seconds});
   const people={status:(id:string)=>({position:RESIDENTS.find(r=>r.id===id)!.spawn,moving:false}),command:()=>false,release:()=>{},resting:()=>{},neighbours:()=>[]};
-  const raids=new Raids(s.e,s.c,people,()=>[{kind:'box',x:s.site.x,z:s.site.z,halfWidth:1.8,halfDepth:1.8}],()=>false);
+  const raids=new Raids(s.e,s.c,people,()=>[{kind:'box',x:s.site.x,z:s.site.z,halfWidth:s.site.width/2+.12,halfDepth:s.site.depth/2+.12}],()=>false);
   const hp=s.archer.hp;for(let i=0;i<30;i++){s.e.state.seconds+=.05;raids.update(.05);s.c.update(.05);}
-  assert.equal(w.target,s.tower.id);assert(s.tower.hp<300);assert.equal(s.archer.hp,hp);
+  assert.equal(w.target,s.tower.id);assert(s.tower.hp<TOWER_CONFIG.hp);assert.equal(s.archer.hp,hp);
   assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(s.e)));
 });
 
 test('tower construction spends its own cost once and validates missing or mismatched occupancy',()=>{
   const e=new Economy();e.setLeadership(false);e.state.inventory={wood:30,stone:20,food:24,iron:4};
   const result=e.placeBuilding('tower',{x:-10.8,z:-10.8});assert(result.ok,result.message);
-  const task=e.claim()!;e.arrive(task.id);e.advance(20);assert.equal(e.state.towers.length,1);assert.equal(e.state.towers[0].hp,300);
+  const task=e.claim()!;e.arrive(task.id);e.advance(20);assert.equal(e.state.towers.length,1);assert.equal(e.state.towers[0].hp,TOWER_CONFIG.hp);
   assert.equal(e.state.inventory.wood,10);assert.equal(e.state.inventory.stone,8);e.advance(20);assert.equal(e.state.towers.length,1);
   assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
   const invalid=JSON.parse(encodeEconomy(e));invalid.towers[0].unit='infantry';invalid.towers[0].phase='occupied';assert.throws(()=>decodeEconomy(JSON.stringify(invalid)));
