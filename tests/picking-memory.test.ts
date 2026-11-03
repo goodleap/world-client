@@ -11,7 +11,7 @@ import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
 import { Ray } from '@babylonjs/core/Culling/ray.js';
 import '@babylonjs/core/Culling/ray.js';
 import { prepareRenderTemplates } from '../src/game/render-mesh-memory.ts';
-import { createResidentPicking, createBuildingPicking } from '../src/game/picking-shapes.ts';
+import { createResidentPicking, createBuildingPicking, createWolfPicking } from '../src/game/picking-shapes.ts';
 import { isWorldPickable } from '../src/game/world-selection.ts';
 
 test('render clones retain shared geometry, posed bounds and skinning without per-vertex picking caches',()=>{
@@ -32,6 +32,19 @@ test('render clones retain shared geometry, posed bounds and skinning without pe
       assert(copy.getBoundingInfo().boundingBox.minimum.equals(min));assert(copy.getBoundingInfo().boundingBox.maximum.equals(max));
     }
     clones[0].dispose();assert.equal(mesh.getTotalVertices(),24);assert.equal(clones[1].getTotalVertices(),24);
+  }finally{scene.dispose();engine.dispose();}
+});
+
+test('wolf body is picked through its native cylinder without enabling the render mesh',()=>{
+  const engine=new NullEngine(),scene=new Scene(engine);
+  try{
+    const root=new TransformNode('wolf',scene),hit=createWolfPicking(scene,root,'wolf-wild-0');
+    root.position.set(3,0,4);root.rotation.y=1.2;hit.computeWorldMatrix(true);
+    const ray=new Ray(new Vector3(3,.8,0),new Vector3(0,0,1));
+    assert.equal(scene.pickWithRay(ray,isWorldPickable)?.pickedMesh?.metadata.id,'wolf-wild-0');
+    hit.metadata.id='wolf-2-0';assert.equal(scene.pickWithRay(ray,isWorldPickable)?.pickedMesh?.metadata.id,'wolf-2-0');
+    hit.isPickable=false;assert(!scene.pickWithRay(ray,isWorldPickable)?.hit);
+    hit.isPickable=true;root.setEnabled(false);assert(!scene.pickWithRay(ray,isWorldPickable)?.hit);
   }finally{scene.dispose();engine.dispose();}
 });
 

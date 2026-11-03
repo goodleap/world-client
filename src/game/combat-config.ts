@@ -36,6 +36,7 @@ export const COMBAT_CONFIG = {
   enemyHeavy: { hp: 125, attack: 16, armor: 8, ...melee, range: 1.7, speed: 2.4 },
   enemyCavalry: { hp: 110, attack: 14, armor: 6, ...melee, range: 2.4, speed: 6.2 },
   acquire: 8, chase: 14, projectileSpeed: 14,
+  campPursuit: { buffer: 6, quietSeconds: 3, closeRange: 3, returnAttackRange: 3 },
   reward: { wood: 24, stone: 16, food: 12 },
 };
 export type CombatRole = 'infantry' | 'archer' | 'cavalry' | 'wolf';

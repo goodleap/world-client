@@ -1,0 +1,116 @@
+{
+  "method": "Native Babylon rendering and pointer/touch events; each frame advances 1/60 game seconds; all mobile frames recorded and visually reviewed in sequence. Desktop pointer and lifecycle assertions also passed.",
+  "baselines": {
+    "world-client": "e1796d407183038bdf877a5ee4a15edd90d91487",
+    "world-design": "3cea26511ece1af0a0c95a0f2f230f3097d38ad7"
+  },
+  "reports": [
+    {
+      "name": "camp-mobile",
+      "frames": 150,
+      "oldBoundary": 14,
+      "hardLimit": 20,
+      "returnStartedAt": {
+        "x": -22.501635382849752,
+        "z": -36.14483764036808
+      },
+      "returnGoal": {
+        "x": -35.14512586593628,
+        "z": -41.21037030220032
+      },
+      "errors": [],
+      "elapsedGameSeconds": 2.5000000000000355,
+      "heroHP": {
+        "first": 120,
+        "last": 104
+      }
+    },
+    {
+      "name": "defence-mobile",
+      "frames": 140,
+      "retaliation": true,
+      "returnGoal": {
+        "x": -35.14512586593628,
+        "z": -41.21037030220032
+      },
+      "errors": [],
+      "elapsedGameSeconds": 2.3500000000000334,
+      "heroHP": {
+        "first": 120,
+        "last": 104
+      }
+    },
+    {
+      "name": "wolf-mobile",
+      "frames": 100,
+      "triangles": [
+        43244,
+        17296,
+        7206
+      ],
+      "lifecycle": {
+        "dead": null,
+        "rebound": "wolf-2-0",
+        "gone": null
+      },
+      "errors": [],
+      "elapsedGameSeconds": 1.6500000000000234,
+      "heroHP": {
+        "first": 110,
+        "last": 110
+      },
+      "wolfHP": {
+        "first": 75,
+        "last": 48.33333333333333
+      }
+    },
+    {
+      "name": "fallback-mobile",
+      "frames": 165,
+      "clicked": {
+        "x": -4,
+        "z": -25
+      },
+      "accepted": {
+        "x": -8.368935057575971,
+        "z": -22.94510688692075
+      },
+      "offset": 4.8280616445419255,
+      "errors": [],
+      "elapsedGameSeconds": 2.750000000000039,
+      "heroHP": {
+        "first": 130,
+        "last": 130
+      },
+      "finalPosition": {
+        "x": -8.368935057575971,
+        "z": -22.94510688692075
+      },
+      "arrivalError": 0.0
+    },
+    {
+      "name": "wolf-desktop",
+      "frames": 100,
+      "triangles": [
+        17296,
+        7206,
+        7206
+      ],
+      "lifecycle": {
+        "dead": null,
+        "rebound": "wolf-2-0",
+        "gone": null
+      },
+      "errors": [],
+      "elapsedGameSeconds": 1.6500000000000234,
+      "heroHP": {
+        "first": 110,
+        "last": 110
+      },
+      "wolfHP": {
+        "first": 75,
+        "last": 48.33333333333333
+      }
+    }
+  ]
+}

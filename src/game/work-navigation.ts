@@ -24,7 +24,7 @@ export function planWorkApproach(start: Point, points: readonly Point[], radius:
   }
 }
 
-export const MOVE_DESTINATION_RADIUS = 3;
+export const MOVE_DESTINATION_RADIUS = 6;
 
 /** Prefer the exact click, then the closest reachable free location in a
  * bounded neighbourhood. Solids, body clearance and live arrival reservations

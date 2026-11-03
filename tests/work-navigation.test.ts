@@ -55,11 +55,23 @@ test('a free but disconnected target falls back on the reachable side, without c
 });
 
 test('no reachable location inside the radius fails, and exact work approaches stay exact', () => {
-  const start={x:-4,z:0}, point={x:2,z:0};
+  const start={x:-4,z:0}, point={x:5,z:0};
   const solids=[{kind:'box' as const,x:-1.2,z:0,halfWidth:.3,halfDepth:5}];
   assert.equal(planMoveDestination(start,point,.29,bounds,solids,[]),undefined);
-  assert.equal(planMoveDestination(start,{x:9,z:0},.29,bounds,[],[]),undefined);
+  assert.equal(planMoveDestination(start,{x:12,z:0},.29,bounds,[],[]),undefined);
   assert.equal(planMoveDestination(start,{x:NaN,z:0},.29,bounds,[],[]),undefined);
-  assert.equal(planMoveDestination(start,{x:0,z:0},.29,bounds,[{kind:'circle',x:0,z:0,radius:3.1}],[]),undefined);
+  assert.equal(planMoveDestination({x:-8,z:0},{x:0,z:0},.29,{minX:-10,maxX:10,minZ:-10,maxZ:10},[{kind:'circle',x:0,z:0,radius:6.1}],[]),undefined);
   assert.equal(planWorkApproach(start,[{x:0,z:0}],.29,bounds,[{kind:'circle',x:0,z:0,radius:.8}],[]),undefined);
+});
+
+test('a click deep in blocked land finds a reachable shore beyond the former three-unit radius',()=>{
+  const start={x:-9,z:0},point={x:0,z:0},bounds={minX:-12,maxX:12,minZ:-12,maxZ:12};
+  const solids=[{kind:'circle' as const,...point,radius:4.2}];
+  for(const radius of [.29,.4,.6]){
+    const path=planMoveDestination(start,point,radius,bounds,solids,[])!;assert(path);
+    const end=path.at(-1)!;assert(Math.abs(Math.hypot(end.x,end.z)-(4.2+radius))<.01);
+    assert(Math.hypot(end.x,end.z)>3&&Math.hypot(end.x,end.z)<=6);
+    let from=start;for(const p of path){assert(segmentIsClear(from,p,radius,bounds,solids));from=p;}
+    assert.equal(planWorkApproach(start,[point],radius,bounds,solids,[]),undefined);
+  }
 });

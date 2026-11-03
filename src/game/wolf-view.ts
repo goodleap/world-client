@@ -22,6 +22,7 @@ import { interpolateAngle, interpolateCycle } from './render-motion.ts';
 import { sampleMotionPath } from './motion-path.ts';
 import { routeMotion } from './route-following.ts';
 import { SimulationClock } from './simulation-clock.ts';
+import { createWolfPicking } from './picking-shapes.ts';
 
 /** Shared geometry/material/immutable action tracks; independent native skeletons.
  * Pool is bounded by the wave cap plus fixed packs. No extra render pass. */
@@ -49,10 +50,11 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
     const bounds = mesh.getBoundingInfo().boundingBox;
     mesh.setBoundingInfo(new BoundingInfo(bounds.minimum.subtract(new Vector3(.3, .45, .45)), bounds.maximum.add(new Vector3(.3, .45, .45))));
     const lod = attachMeshLOD(mesh, medium, far);
+    const hit = createWolfPicking(scene, root, ''); hit.isPickable = false;
     shadows.addShadowCaster(mesh, false);
     for (const group of instance.animationGroups) { group.stop(); for (const t of group.targetedAnimations) t.animation.enableBlending = false; }
     mesh.material?.freeze(); root.setEnabled(false);
-    return { root, mesh, lod, death: new DeathView(root), clips: new Map(instance.animationGroups.map(g => [g.name, g])), id: '', label: undefined as HTMLElement | undefined, clip: '', phase: -1, visible: false };
+    return { root, mesh, hit, lod, death: new DeathView(root), clips: new Map(instance.animationGroups.map(g => [g.name, g])), id: '', label: undefined as HTMLElement | undefined, clip: '', phase: -1, visible: false };
   });
   loadingProgress.done('wolves:attach');
   const point = new Vector3(), projected = new Vector3(), identity = Matrix.Identity();
@@ -76,8 +78,10 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
           actor.id = wolf?.id ?? ''; actor.label = wolf ? ui.addResidentLabel(wolf.id, '灰狼') : undefined;
           actor.clip = ''; actor.phase = -1; actor.death.reset();
           actor.mesh.metadata = { ...actor.mesh.metadata, selectionKind: 'resident', id: wolf?.id };
+          actor.hit.metadata.id = wolf?.id;
         }
         const active = !!wolf && wolf.mode !== 'gone' && (wolf.life === 'active' || deathAge(wolf.diedAt, visualSeconds) < DEATH_END);
+        actor.hit.isPickable = !!wolf && wolf.life === 'active' && wolf.mode !== 'gone';
         if (actor.root.isEnabled() !== active) actor.root.setEnabled(active); actor.visible = false;
         if (!wolf || !active) {
           if (actor.label) actor.label.hidden = true;

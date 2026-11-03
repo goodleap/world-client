@@ -28,6 +28,7 @@ export interface Fighter {
   hp: number; experience: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
   diedAt?: number; departed?:boolean; deathElevation?:number; deathTower?:string;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
+  pursuitQuiet?: number;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
   route: Point[]; navigation: RouteState; planIn: number;
 }
@@ -124,6 +125,7 @@ export class Combat {
   hurt(id: string, damage: number, source: string) { const target = this.target(id); if (target) this.damage(target, damage, source); }
   private awardDamage(sourceId: string, damage: number) {
     const u = this.unit(sourceId);
+    if (u && damage > 0 && enemyDefinitions.has(u.id)) u.pursuitQuiet = 0;
     if (!u || u.role === 'wolf' || damage <= 0 || u.experience >= MAX_EXPERIENCE) return;
     const maximum = this.stats(u).hp;
     u.experience = Math.min(MAX_EXPERIENCE, u.experience + damage);
@@ -249,6 +251,7 @@ export class Combat {
       this.economy.revision++; return;
     }
     target.hp = Math.max(0, target.hp - hitDamage(amount, ignoreArmor ? 0 : this.stats(target).armor));
+    if (enemyDefinitions.has(target.id) && target.hp < victim.hp) target.pursuitQuiet = 0;
     this.awardDamage(sourceId, victim.hp - target.hp);
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
@@ -327,6 +330,12 @@ export class Combat {
     if (stop && distance(target.position, stop) <= speed * seconds) return stop;
     return { x: target.position.x + velocity.x * seconds, z: target.position.z + velocity.z * seconds };
   }
+  private canStrike(u: Fighter, target: CombatTarget) {
+    return distance(u.position, target.position) <= this.reach(u, target)
+      && this.visible(u.position, target.position, u.id, target.id)
+      && distance(u.position, this.forecast(target, this.stats(u).windup + .05)) <= this.reach(u, target)
+        + (u.role === 'archer' ? .05 : MELEE_CONTACT_GRACE - .05);
+  }
   private pursue(u: Fighter, target: CombatTarget, dt: number) {
     const range = this.reach(u, target), stats = this.stats(u);
     const radius = Math.max(fighterContactRadius(u) + (target.contactRadius ?? target.radius) + .12,
@@ -383,9 +392,22 @@ export class Combat {
       const explicit = u.order === 'attack' && target?.life === 'active';
       const anchor = u.team === 'enemy' ? this.camp(u) : u.defendFrom ?? u.position;
       const leash = u.team === 'enemy' ? Math.max(C.chase, this.camp(u).leash) : C.chase;
-      if (!explicit && target && (distance(u.position, target.position) > C.chase
-        || distance(target.position, anchor) > leash || distance(u.position, anchor) > leash)) {
+      const campGuard = u.team === 'enemy' && enemyDefinitions.has(u.id);
+      const opponent = target?.life === 'active' ? target : undefined;
+      const outside = distance(u.position, anchor) > leash || !!opponent
+        && (distance(opponent.position, anchor) > leash || distance(u.position, opponent.position) > C.chase);
+      let disengage = !campGuard && !!target && outside;
+      if (campGuard && !explicit && !returning) {
+        const close = opponent && distance(u.position, opponent.position) <= Math.max(C.campPursuit.closeRange, this.reach(u, opponent))
+          && this.visible(u.position, opponent.position, u.id, opponent.id);
+        u.pursuitQuiet = outside && !close ? Math.min(C.campPursuit.quietSeconds, (u.pursuitQuiet ?? 0) + dt) : 0;
+        disengage = distance(u.position, anchor) > leash + C.campPursuit.buffer
+          || !!opponent && distance(opponent.position, anchor) > leash + C.campPursuit.buffer
+          || outside && u.pursuitQuiet >= C.campPursuit.quietSeconds - 1e-8;
+      }
+      if (!explicit && !returning && disengage) {
         u.goal = u.team === 'enemy' ? { ...u.home } : { x: anchor.x, z: anchor.z }; u.order = 'hold'; u.target = undefined; u.attack = undefined;
+        u.pursuitQuiet = undefined;
         this.stop(u); continue;
       }
       if (!['move', 'retreat'].includes(u.order) && !returning && !explicit) {
@@ -406,11 +428,22 @@ export class Combat {
           u.target = target.id; u.order = 'guard'; u.goal = undefined;
         } else { u.target = undefined; u.attack = undefined; u.defendFrom = undefined; }
       }
-      if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning) {
+      if (returning && campGuard) {
+        const nearby = (t: CombatTarget) => this.canTarget(u, t)
+          && distance(u.position, t.position) <= Math.min(C.campPursuit.returnAttackRange, this.reach(u, t))
+          && this.visible(u.position, t.position, u.id, t.id);
+        target = opponent && nearby(opponent) ? opponent : chooseTarget(u, this.targets(u.team), C.campPursuit.returnAttackRange, nearby);
+        u.target = target?.id;
+      }
+      // A returning guard may strike in place, but keeps its home destination
+      // and resumes that route during cooldown. Never pursue from this state.
+      const returnStrike = returning && campGuard && (!!u.attack
+        || !!target && !u.cooldown && distance(u.position, u.goal!) > .15 && this.canStrike(u, target));
+      if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning && !returnStrike) {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
           this.travel(u, dt, stats.speed);
-        } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) u.defendFrom = undefined; }
+        } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) { u.defendFrom = undefined; u.target = undefined; u.pursuitQuiet = undefined; } }
         continue;
       }
       if (!target && this.economy.state.vitals[u.id]?.rest) continue;
@@ -434,6 +467,7 @@ export class Combat {
         }
         if (action.elapsed + 1e-8 < stats.windup + stats.recovery) continue;
         u.attack = undefined;
+        if (returning) { u.target = undefined; continue; }
         target = u.target ? this.target(u.target) : undefined;
         // Re-evaluate immediately at the end of recovery; do not add a hidden
         // simulation step to every attack cycle.
@@ -455,14 +489,12 @@ export class Combat {
         } else this.stop(u);
         if (u.order === 'attack') u.order = 'guard'; continue;
       }
-      const clear = this.visible(u.position,target.position,u.id,target.id);
       // Plant the feet only when the target is expected to remain within reach
       // at contact, including only the bounded committed-swing allowance.
-      if (distance(u.position, target.position) <= this.reach(u, target) && clear
-        && distance(u.position, this.forecast(target, stats.windup + .05)) <= this.reach(u, target) + (u.role === 'archer' ? .05 : MELEE_CONTACT_GRACE - .05)) {
+      if (this.canStrike(u, target)) {
         this.stop(u); this.face(u,target.position,dt);
         if (!u.cooldown) { u.cooldown = stats.interval; u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
-      } else if(stationary){this.stop(u);u.target=undefined;} else {
+      } else if(stationary || returning){this.stop(u);u.target=undefined;} else {
         this.pursue(u, target, dt);
       }
     }
@@ -522,6 +554,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
       || u.deathTower!==undefined&&!towers.some(t=>t.id===u.deathTower)
       || u.diedAt !== undefined && (!num(u.diedAt, 1e12) || u.life !== 'defeated')
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
+      || u.pursuitQuiet !== undefined && (!enemyDefinitions.has(u.id) || !num(u.pursuitQuiet, C.campPursuit.quietSeconds))
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
       || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');

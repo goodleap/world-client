@@ -14,7 +14,13 @@ export const RESIDENT_PICKING = {
 } satisfies Record<ResidentRole, { diameter: number; height: number }>;
 
 export function createResidentPicking(scene: Scene, root: TransformNode, id: string, role: ResidentRole) {
-  const { diameter, height } = RESIDENT_PICKING[role];
+  return createBodyPicking(scene, root, id, RESIDENT_PICKING[role]);
+}
+
+export const WOLF_PICKING = { diameter: 1.6, height: 1.5 } as const;
+export const createWolfPicking = (scene: Scene, root: TransformNode, id: string) => createBodyPicking(scene, root, id, WOLF_PICKING);
+
+function createBodyPicking(scene: Scene, root: TransformNode, id: string, { diameter, height }: { diameter: number; height: number }) {
   const hit = MeshBuilder.CreateCylinder(`${id}-hit`, { diameter, height, tessellation: 16 }, scene);
   hit.parent = root;
   // Role styling scales the visual root; selection sizes stay in world units.

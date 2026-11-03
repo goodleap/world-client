@@ -71,7 +71,7 @@ test('archers reposition around cover instead of releasing through it', () => {
 });
 test('enemy target is stable and chase is limited to the outpost', () => {
   const { c, a, b } = setup(); b.order = 'guard'; c.update(.05); assert.equal(b.target, a.id);
-  a.position = { x: OUTPOST.x + 20, z: OUTPOST.z }; c.move([a.id], { x: OUTPOST.x + 35, z: OUTPOST.z }); c.unit('archer')!.position = { x: 0, z: 0 }; c.update(.05);
+  a.position = { x: OUTPOST.x + C.chase + C.campPursuit.buffer + 1, z: OUTPOST.z }; c.move([a.id], { x: OUTPOST.x + 35, z: OUTPOST.z }); c.unit('archer')!.position = { x: 0, z: 0 }; c.update(.05);
   assert.equal(b.order, 'hold'); assert.equal(b.target, undefined);
   advance(c, 4); assert(Math.hypot(b.position.x - b.home.x, b.position.z - b.home.z) < .5);
 });
@@ -137,7 +137,7 @@ test('a picked Babylon destination actually moves the soldier and remains valid 
 });
 
 test('a nearby fallback goal survives reload and an unreachable click preserves the current order', () => {
-  const solids: Obstacle[] = [{kind:'circle',x:0,z:0,radius:.8}, {kind:'circle',x:10,z:0,radius:4}];
+  const solids: Obstacle[] = [{kind:'circle',x:0,z:0,radius:.8}, {kind:'circle',x:10,z:0,radius:7}];
   const { e, c, a }=setup(solids); a.position={x:-4,z:0};
   assert.equal(c.move([a.id],new Vector3(0,0,0)),1);
   const goal={...a.goal!}; assert(Math.hypot(goal.x,goal.z)<1.21);

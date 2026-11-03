@@ -36,7 +36,7 @@ test('both sides acquire in alert range, pursue outside it and return when the l
     target.position = { x: OUTPOST.x + C.acquire + 2, z: OUTPOST.z };
     target.order = 'move'; target.goal = { x: OUTPOST.x + 30, z: OUTPOST.z };
     c.update(.05); assert.equal(actor.target, target.id, 'leaving alert radius does not drop an established opponent');
-    target.position = { x: OUTPOST.x + C.chase + 2, z: OUTPOST.z };
+    target.position = { x: OUTPOST.x + C.chase + (friendly ? 2 : C.campPursuit.buffer + 1), z: OUTPOST.z };
     c.update(.05); assert.equal(actor.target, undefined); assert.equal(actor.order, 'hold');
     assert.deepEqual(actor.goal, friendly ? { x: anchor.x, z: anchor.z } : actor.home);
   }
@@ -46,7 +46,7 @@ test('enemy soldiers acquire every civilian role; lethal damage stops work/food 
   for (const id of ['farmer', 'farmer-2', 'farmer-leader', 'dog']) {
     const e = new Economy(), c = new Combat(e.state.combat, e, () => []), foe = c.unit('enemy-guard')!;
     e.setLeadership(false);
-    for (const u of c.state.units) if (u !== foe) u.position = { x: 65, z: 65 };
+    for (const u of c.state.units) if (u !== foe) { u.position = { x: 65, z: 65 }; u.cooldown = 8; }
     foe.position = { x: OUTPOST.x, z: OUTPOST.z };
     const position = { x: OUTPOST.x, z: OUTPOST.z + 1.3 };
     c.setResidentPositions(other => other === id ? position : { x: 65, z: 60 });
