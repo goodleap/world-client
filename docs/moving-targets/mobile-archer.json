@@ -1,0 +1,13 @@
+{
+  "hits": {
+    "enemy-raid-infantry-1-0": {
+      "seconds": 12.450000000000035,
+      "hp": 49,
+      "x": -4.085000000000001,
+      "z": -1
+    }
+  },
+  "paused": true,
+  "role": "archer",
+  "platform": "mobile"
+}

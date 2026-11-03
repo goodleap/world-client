@@ -8,8 +8,9 @@ import { homeResidents } from './recruitment.ts';
 import { segmentIsClear } from './wander.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import type { RouteState, Neighbour } from './route-following.ts';
-import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
+import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { COMBAT_CONFIG as C, ENCOUNTERS } from './combat-config.ts';
+import { leadShot } from './combat-aim.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
 import { effort, VITAL_CONFIG, changeHealth, bodiesFor } from './vitals.ts';
@@ -60,6 +61,8 @@ export class Combat {
   private units: Map<string, Fighter>;
   private threats: readonly Fighter[] = [];
   private statCache = new Map<string, { level: number; value: ReturnType<typeof fighterStats> }>();
+  private motion = new Map<string, { position: Point; velocity: Point }>();
+  private motionStep = .05;
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
     this.units = new Map(state.units.map(unit => [unit.id, unit]));
@@ -232,6 +235,62 @@ export class Combat {
     u.planIn = .8;
     u.route = planWorkApproach(u.position, points, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
   }
+  private sampleMotion(dt: number) {
+    const next = new Map<string, { position: Point; velocity: Point }>();
+    for (const target of this.targets().filter(t => t.life === 'active')) {
+      const previous = this.motion.get(target.id), unit = this.unit(target.id);
+      const speed = unit ? fighterStats(unit).speed * effort(this.economy.state.vitals, unit.id) : 10;
+      let velocity = { x: 0, z: 0 };
+      if (previous) {
+        velocity = { x: (target.position.x - previous.position.x) / this.motionStep, z: (target.position.z - previous.position.z) / this.motionStep };
+        // Repositioning/teleports are not a useful motion estimate.
+        if (Math.hypot(velocity.x, velocity.z) > speed + .1) velocity = { x: 0, z: 0 };
+      } else if (unit?.route.length && !unit.attack && !unit.navigation.waiting) {
+        const goal = unit.route[0], length = distance(unit.position, goal);
+        if (length > 1e-6) velocity = { x: (goal.x - unit.position.x) * speed / length, z: (goal.z - unit.position.z) * speed / length };
+      }
+      next.set(target.id, { position: { ...target.position }, velocity });
+    }
+    this.motion = next; this.motionStep = dt;
+  }
+  private targetMotion(target: CombatTarget) {
+    const velocity = this.motion.get(target.id)?.velocity ?? { x: 0, z: 0 };
+    const unit = this.unit(target.id), end = unit?.route.length === 1 ? unit.route[0] : undefined;
+    const speed = Math.hypot(velocity.x, velocity.z), length = end ? distance(target.position, end) : 0;
+    const stop = end && length > 1e-6 && speed > .01
+      && ((end.x - target.position.x) * velocity.x + (end.z - target.position.z) * velocity.z) / (length * speed) > .995 ? end : undefined;
+    return { velocity, speed, stop };
+  }
+  private forecast(target: CombatTarget, seconds: number) {
+    const { velocity, speed, stop } = this.targetMotion(target);
+    if (stop && distance(target.position, stop) <= speed * seconds) return stop;
+    return { x: target.position.x + velocity.x * seconds, z: target.position.z + velocity.z * seconds };
+  }
+  private pursue(u: Fighter, target: CombatTarget, dt: number) {
+    const range = this.reach(u, target), stats = this.stats(u);
+    const radius = Math.max(fighterRadius(u) + target.radius + .12,
+      // Allow one step for contact quantization and one for the target moving
+      // after this approach point was sampled (either faction's update order).
+      Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup + .1) - .1));
+    const length = distance(u.position, target.position) || 1;
+    const direct = { x: target.position.x + (u.position.x - target.position.x) * radius / length,
+      z: target.position.z + (u.position.z - target.position.z) * radius / length };
+    const neighbours = this.reservations(u);
+    // Refresh a clear direct approach every simulation step; no A* is needed
+    // to follow an opponent running through open ground. Keep detours when
+    // crowds or solids obstruct it, and retain the shared swept collision check.
+    if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours)
+      && segmentIsClear(u.position, direct, fighterRadius(u), WORLD_BOUNDS,
+      [...this.solids(), ...neighbours.map(n => ({ kind: 'circle' as const, ...n.position, radius: n.radius }))])) {
+      u.route = [direct];
+    } else if (u.planIn <= 0) {
+      const points = Array.from({ length: 12 }, (_, i) => ({ x: target.position.x + Math.cos(i * Math.PI / 6) * radius,
+        z: target.position.z + Math.sin(i * Math.PI / 6) * radius }))
+        .filter(p => this.visible(p, target.position, u.id, target.id));
+      this.plan(u, points);
+    }
+    this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
+  }
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     this.syncUnits();
@@ -240,6 +299,7 @@ export class Combat {
     while (remaining > 1e-8) { const dt = Math.min(remaining, .05); this.tick(dt); remaining -= dt; }
   }
   private tick(dt: number) {
+    this.sampleMotion(dt);
     for (const shot of [...this.state.projectiles]) {
       shot.elapsed += dt;
       if (shot.elapsed < shot.duration) continue;
@@ -302,8 +362,13 @@ export class Combat {
           if (target?.life === 'active' && distance(u.position, target.position) <= this.reach(u, target) + .15
             && this.visible(u.position,target.position,u.id,target.id)) {
             if (u.role !== 'archer') this.damage(target, stats.attack, u.id);
-            else this.state.projectiles.push({ id: action.id, source: u.id, target: target.id, from: { ...u.position,y:towerHeight(this.economy.state,u.id)+1.25 }, to: { ...target.position,y:(target.elevation??0)+1.25 },
-              elapsed: 0, duration: distance(u.position, target.position) / C.projectileSpeed, damage: stats.attack });
+            else {
+              const { velocity, stop } = this.targetMotion(target);
+              let aim = leadShot(u.position, target.position, velocity, C.projectileSpeed, stop);
+              if (!this.visible(u.position, aim.point, u.id, target.id)) aim = leadShot(u.position, target.position, { x: 0, z: 0 }, C.projectileSpeed);
+              this.state.projectiles.push({ id: action.id, source: u.id, target: target.id, from: { ...u.position,y:towerHeight(this.economy.state,u.id)+1.25 }, to: { ...aim.point,y:(target.elevation??0)+1.25 },
+                elapsed: 0, duration: aim.duration, damage: stats.attack });
+            }
           }
         }
         if (action.elapsed >= stats.windup + stats.recovery) u.attack = undefined;
@@ -327,18 +392,14 @@ export class Combat {
         if (u.order === 'attack') u.order = 'guard'; continue;
       }
       const clear = this.visible(u.position,target.position,u.id,target.id);
-      if (distance(u.position, target.position) <= this.reach(u, target) && clear) {
+      // Plant the feet only when the target is expected to remain within reach
+      // at contact. Keep the existing strike, cooldown and actual hit checks.
+      if (distance(u.position, target.position) <= this.reach(u, target) && clear
+        && distance(u.position, this.forecast(target, stats.windup + .05)) <= this.reach(u, target) + .05) {
         this.stop(u); u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
         if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else if(stationary){this.stop(u);u.target=undefined;} else {
-        if (u.planIn <= 0) {
-          const radius = Math.max(this.reach(u, target) * .8, fighterRadius(u) + target.radius + .1);
-          const points = Array.from({ length: 12 }, (_, i) => ({ x: target!.position.x + Math.cos(i * Math.PI / 6) * radius,
-            z: target!.position.z + Math.sin(i * Math.PI / 6) * radius }))
-            .filter(p => this.visible(p,target!.position,u.id,target!.id));
-          this.plan(u, points);
-        }
-        this.travel(u, dt, stats.speed * effort(this.economy.state.vitals, u.id));
+        this.pursue(u, target, dt);
       }
     }
     for (const camp of this.state.camps) {

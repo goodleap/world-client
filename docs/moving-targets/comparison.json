@@ -1,0 +1,62 @@
+{
+  "baselineCommit": "a5eecfd",
+  "scenario": "At most five game seconds; returning enemy starts 20 units from home, speed 3.3. Attacker starts its own range + 0.1 behind. No solid obstacles; stop when target dies.",
+  "before": [
+    {
+      "role": "infantry",
+      "attacks": 0,
+      "hits": 0,
+      "firstHit": null,
+      "hp": 65,
+      "attackerTravel": 14.54,
+      "remainingReturn": 3.5
+    },
+    {
+      "role": "cavalry",
+      "attacks": 1,
+      "hits": 0,
+      "firstHit": null,
+      "hp": 65,
+      "attackerTravel": 15.17,
+      "remainingReturn": 3.5
+    },
+    {
+      "role": "archer",
+      "attacks": 1,
+      "hits": 0,
+      "firstHit": null,
+      "hp": 65,
+      "attackerTravel": 15.66,
+      "remainingReturn": 3.5
+    }
+  ],
+  "after": [
+    {
+      "role": "infantry",
+      "attacks": 4,
+      "hits": 4,
+      "firstHit": 0.65,
+      "hp": 0,
+      "attackerTravel": 12.63,
+      "remainingReturn": 7.46
+    },
+    {
+      "role": "cavalry",
+      "attacks": 3,
+      "hits": 3,
+      "firstHit": 0.39999999999999997,
+      "hp": 0,
+      "attackerTravel": 5.15,
+      "remainingReturn": 15.05
+    },
+    {
+      "role": "archer",
+      "attacks": 4,
+      "hits": 4,
+      "firstHit": 1.4500000000000006,
+      "hp": 1,
+      "attackerTravel": 17.28,
+      "remainingReturn": 3.5
+    }
+  ]
+}
