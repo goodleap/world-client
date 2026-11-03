@@ -4,7 +4,7 @@ import type { Point } from './movement.ts';
  * damageable; faction and capability, rather than role names, drive targeting. */
 export interface CombatTarget {
   id: string; team: 'home' | 'enemy'; position: Point; hp: number;
-  life: 'active' | 'defeated'; radius: number; canAttack: boolean; elevation?:number; kind?:'building';
+  life: 'active' | 'defeated'; radius: number; contactRadius?: number; canAttack: boolean; elevation?:number; kind?:'building';
 }
 export const hostile = (a: Pick<CombatTarget, 'team'>, b: Pick<CombatTarget, 'team'>) => a.team !== b.team;
 export function chooseTarget(actor: Pick<CombatTarget, 'team' | 'position'>, candidates: readonly CombatTarget[],

@@ -1,0 +1,114 @@
+{
+  "method": "Actual Babylon/WebGL and native GLB clips, every consecutive 1/60-second game frame captured and reviewed in order; videos are controlled game-time playback, not hardware FPS measurements.",
+  "reports": [
+    {
+      "scenario": "farmer",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "Run"
+      ],
+      "errors": [],
+      "video": "farmer.mp4",
+      "everyRenderedFrameMoves": true,
+      "everyRenderedFrameChangesPose": true
+    },
+    {
+      "scenario": "infantry",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "ShieldRun"
+      ],
+      "errors": [],
+      "video": "infantry.mp4",
+      "everyRenderedFrameMoves": true,
+      "everyRenderedFrameChangesPose": true
+    },
+    {
+      "scenario": "archer",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "CarryRun"
+      ],
+      "errors": [],
+      "video": "archer.mp4",
+      "everyRenderedFrameMoves": true,
+      "everyRenderedFrameChangesPose": true
+    },
+    {
+      "scenario": "cavalry",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "RideRun"
+      ],
+      "errors": [],
+      "video": "cavalry.mp4",
+      "everyRenderedFrameMoves": true,
+      "everyRenderedFrameChangesPose": true
+    },
+    {
+      "scenario": "haul",
+      "frames": 156,
+      "commands": [],
+      "idleFrames": 1,
+      "clipStarts": [
+        "Run",
+        "Farmer rest pose"
+      ],
+      "errors": [],
+      "video": "haul.mp4",
+      "phases": [
+        {
+          "phase": "travelling",
+          "motion": "idle",
+          "fromFrame": 0,
+          "toFrame": 1
+        },
+        {
+          "phase": "travelling",
+          "motion": "run",
+          "fromFrame": 2,
+          "toFrame": 37
+        },
+        {
+          "phase": "delivering",
+          "motion": "run",
+          "fromFrame": 38,
+          "toFrame": 154
+        },
+        {
+          "phase": null,
+          "motion": "idle",
+          "fromFrame": 155,
+          "toFrame": 155
+        }
+      ],
+      "woodBefore": 8,
+      "woodAfter": 16,
+      "note": "The only idle frame after startup is the completed delivery at frame 155; no interruption/restart while running and hauling."
+    }
+  ]
+}

@@ -4,7 +4,6 @@ export interface Point { x: number; z: number }
 export type Obstacle =
   | { kind: 'box'; x: number; z: number; halfWidth: number; halfDepth: number }
   | ({ kind: 'polygon' } & PolygonArea)
-  | { kind:'capsule'; x:number; z:number; a:Point; b:Point; radius:number }
   | { kind: 'circle'; x: number; z: number; radius: number };
 
 export interface Bounds { minX: number; maxX: number; minZ: number; maxZ: number }
@@ -15,19 +14,12 @@ export function pointSegmentDistanceSquared(point: Point, from: Point, to: Point
   return (point.x - from.x - t * dx) ** 2 + (point.z - from.z - t * dz) ** 2;
 }
 
-export function segmentDistanceSquared(a:Point,b:Point,c:Point,d:Point){
-  const cross=(p:Point,q:Point,r:Point)=>(q.x-p.x)*(r.z-p.z)-(q.z-p.z)*(r.x-p.x);
-  if(cross(a,b,c)*cross(a,b,d)<0&&cross(c,d,a)*cross(c,d,b)<0)return 0;
-  return Math.min(pointSegmentDistanceSquared(a,c,d),pointSegmentDistanceSquared(b,c,d),pointSegmentDistanceSquared(c,a,b),pointSegmentDistanceSquared(d,a,b));
-}
-
 /** Exact swept disc against circles and rounded box corners. Sampling a segment
  * can miss a grazing contact, so the planner and follower must share this test. */
 export function sweepIsBlocked(from: Point, to: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
   const left=Math.min(from.x,to.x)-radius,right=Math.max(from.x,to.x)+radius;
   const bottom=Math.min(from.z,to.z)-radius,top=Math.max(from.z,to.z)+radius;
   return obstacles.some(obstacle => {
-    if(obstacle.kind==='capsule')return segmentDistanceSquared(from,to,obstacle.a,obstacle.b)<(radius+obstacle.radius)**2-1e-10;
     if (obstacle.kind === 'polygon') return sweepHitsPolygon(from, to, radius, obstacle);
     const halfX=obstacle.kind==='circle'?obstacle.radius:obstacle.halfWidth;
     const halfZ=obstacle.kind==='circle'?obstacle.radius:obstacle.halfDepth;
@@ -66,7 +58,6 @@ export function normalizeInput(x: number, z: number): Point {
 
 export function isBlocked(position: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
   return obstacles.some((obstacle) => {
-    if(obstacle.kind==='capsule')return pointSegmentDistanceSquared(position,obstacle.a,obstacle.b)<(radius+obstacle.radius)**2-1e-10;
     if (obstacle.kind === 'polygon') return insidePolygon(position, obstacle) || sweepHitsPolygon(position, position, radius, obstacle);
     if (obstacle.kind === 'circle') {
       return Math.hypot(position.x - obstacle.x, position.z - obstacle.z) < radius + obstacle.radius;

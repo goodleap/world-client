@@ -1,5 +1,5 @@
 import type { Point, Obstacle } from './movement.ts';
-import { isBlocked, sweepIsBlocked } from './movement.ts';
+import { isBlocked } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
@@ -28,7 +28,6 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   if (!LANDSCAPE.regions.some(r => r.build && corners.every(p => insidePolygon(p, r.area)))) return '请在区域内的平坦空地建设';
   const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .35, halfDepth: site.depth / 2 + .35 };
   const overlaps = (o: Obstacle) => {
-    if(o.kind==='capsule')return sweepIsBlocked(o.a,o.b,o.radius,[footprint]);
     if (o.kind === 'circle') return isBlocked(o, o.radius, [footprint]);
     if (o.kind === 'polygon') {
       const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * footprint.halfWidth, z: site.z + z * footprint.halfDepth }));

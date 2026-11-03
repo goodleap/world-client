@@ -1,6 +1,4 @@
-import {WORLD_BOUNDS} from '../src/game/world-data.ts';
-import {bodyAtClear,bodyObstacle} from '../src/game/body-shape.ts';
-import {fighterBody,travelRadius} from '../src/game/combat.ts';
+import {bodyObstacle} from '../src/game/body-shape.ts';
 import test from 'node:test';
 import { bodiesFor } from '../src/game/vitals.ts';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
@@ -82,9 +80,9 @@ test('actual map paths and shared crowd follower keep soldiers out of solids and
   const allies = c.state.units.filter(u => u.team === 'home');
   assert.equal(c.attack(allies.map(u => u.id), 'enemy-guard'), 3);
   advance(c, 20, () => {
-    for (const u of c.state.units) assert(fighterBody(u)?bodyAtClear(u.position,travelRadius(u)-.001,fighterBody(u)!,WORLD_BOUNDS,solids):!isBlocked(u.position,fighterRadius(u)-.001,solids), `${u.id} crossed terrain`);
+    for (const u of c.state.units) assert(!isBlocked(u.position,fighterRadius(u)-.001,solids), `${u.id} crossed terrain`);
     const live = c.state.units.filter(u => u.life !== 'defeated');
-    for (let i = 0; i < live.length; i++) for (const v of live.slice(i + 1)) assert(fighterBody(live[i])?bodyAtClear(live[i].position,travelRadius(live[i])-.005,fighterBody(live[i])!,WORLD_BOUNDS,[bodyObstacle(v.position,travelRadius(v),fighterBody(v))]):!isBlocked(live[i].position,travelRadius(live[i])-.005,[bodyObstacle(v.position,travelRadius(v),fighterBody(v))]),`${live[i].id}/${v.id} overlap`);
+    for (let i = 0; i < live.length; i++) for (const v of live.slice(i + 1)) assert(!isBlocked(live[i].position,fighterRadius(live[i])-.005,[bodyObstacle(v.position,fighterRadius(v))]),`${live[i].id}/${v.id} overlap`);
   });
   assert(c.unit('enemy-guard')!.hp < C.enemyMelee.hp);
 });

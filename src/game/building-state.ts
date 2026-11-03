@@ -6,7 +6,7 @@ export const BUILDING_STATS = {
   house: { name:'民房',hp:600,armor:8,wood:6,stone:4 },
   warehouse: { name:'仓库',hp:1000,armor:12,wood:12,stone:8 },
   center: { name:'家园中心',hp:1500,armor:15,wood:20,stone:16 },
-  tower: { name:'哨塔',hp:500,armor:10,wood:10,stone:6 },
+  tower: { name:'哨塔',hp:500,armor:20,wood:10,stone:6 },
   campfire: { name:'火堆',hp:200,armor:2,wood:0,stone:4 },
 } as const;
 export type StructureKind=keyof typeof BUILDING_STATS;

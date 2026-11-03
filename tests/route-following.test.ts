@@ -11,6 +11,27 @@ import { planMoveDestination } from '../src/game/work-navigation.ts';
 const bounds = { minX: -5, maxX: 5, minZ: -4, maxZ: 4 };
 const neighbour = (id: string, position: Point, moving = false): Neighbour => ({ id, position, radius: .4, moving, purposeful: false, waiting: false });
 
+test('a moving column keeps full speed instead of alternating run and idle inside the lookahead', () => {
+  for (const radius of [.29,.4,.6]) {
+    const state=createRouteState(), route=[{x:0,z:3.5}];
+    let position={x:0,z:-2*radius-.3};
+    for(let i=0;i<20;i++) {
+      const leader={...neighbour('leader',{x:0,z:i*.15},true),radius,heading:0,purposeful:true};
+      const step=stepRoute('follower',position,route,state,.05,3,radius,bounds,[],[leader]);
+      assert(Math.abs(step.distance-.15)<1e-7, 'same-speed queue must not pause before actual contact');
+      assert(!state.waiting);assert.equal(state.replans,0);position=step.position;
+    }
+  }
+});
+
+test('a cleared crossing resumes on the next step even before the retry timer expires',()=>{
+  const state=createRouteState(),route=[{x:3,z:0}],position={x:-1,z:0};
+  stepRoute('farmer',position,route,state,.05,5,.29,bounds,[],[neighbour('crossing',{x:0,z:0},true)]);
+  assert(state.waiting);assert(state.retryIn>0);
+  const next=stepRoute('farmer',position,route,state,.05,5,.29,bounds,[],[]);
+  assert(Math.abs(next.distance-.25)<1e-8);assert(!state.waiting);
+});
+
 test('a command detours around an idle resident and reaches its original destination without overlap', () => {
   const route = [{ x: 3, z: 0 }], state = createRouteState(), other = neighbour('farmer', { x: 0, z: 0 });
   let position = { x: -3, z: 0 }, widest = 0;
@@ -35,7 +56,7 @@ test('crossing traffic causes a stable wait, then movement resumes after it pass
     assert.ok(Math.hypot(next.position.x - other.position.x, next.position.z - other.position.z) >= .75 - 1e-8);
     position = next.position;
   }
-  assert.ok(stoppedFrames >= 7, 'wait lasts at least .35 s, not alternating run/idle frames');
+  assert.ok(stoppedFrames > 0, 'crossing traffic must still stop an obstructed move');
   assert.ok(resumed); assert.equal(route.length, 0);
 });
 

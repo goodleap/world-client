@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import type { Page, TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { Economy, encodeEconomy, decodeEconomy } from '../../src/game/economy.ts';
-import { createFighter, fighterStats } from '../../src/game/combat.ts';
+import { createFighter, fighterStats, fighterRadius } from '../../src/game/combat.ts';
 import { newResident } from '../../src/game/resident-data.ts';
 import { initialVital } from '../../src/game/vitals.ts';
 import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
@@ -27,7 +27,7 @@ export async function checkReturningTargets(page: Page, info: TestInfo, role: 'i
   e.state.combat.cleared = e.state.combat.rewardGranted = e.state.combat.discovered = true;
   const stats = fighterStats({ role, team: 'home' });
   const corridors = [{ id: role, start: { x: 4, z: -1 }, home: { x: -20, z: -1 },
-    actor: { x: 4 + stats.range + .1, z: -1 }, radius: role === 'cavalry' ? 1.12 : .4 }];
+    actor: { x: 4 + stats.range + .1, z: -1 }, radius: fighterRadius({role}) }];
   const solids = [...economyObstacles([], []), ...e.state.plots.map(p => ({ kind: 'box' as const, x: p.x, z: p.z, halfWidth: GRID_SIZE / 2, halfDepth: GRID_SIZE / 2 }))];
   const targets = corridors.map(({ id, start, home, actor: position, radius }, i) => {
     expect(isBlocked(position, radius, solids)).toBe(false);

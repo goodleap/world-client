@@ -21,7 +21,7 @@ test('mounted pointer movement reaches empty fire corners and goes around the st
     expect((await snapshot(page)).selection.resident).toBe('cavalry');
     await expect.poll(async () => {
       const rider = (await snapshot(page)).combat.units.find(u => u.id === 'cavalry')!;
-      expect(Math.hypot(rider.position.x - site.x, rider.position.z - site.z)).toBeGreaterThanOrEqual(CAMPFIRE_SHAPE.radius + 1.12 - .01);
+      expect(Math.hypot(rider.position.x - site.x, rider.position.z - site.z)).toBeGreaterThanOrEqual(CAMPFIRE_SHAPE.radius + .6 - .01);
       return Math.hypot(rider.position.x - goal.x, rider.position.z - goal.z);
     }, { timeout: 40_000 }).toBeLessThan(.2);
   }

@@ -1,0 +1,50 @@
+{
+  "before": {
+    "corner": {
+      "distance": 0.01,
+      "expected": 0.25
+    },
+    "column": {
+      "stops": 9,
+      "distance": 4.649999999999999
+    },
+    "cavalryStart": {
+      "position": {
+        "x": 0,
+        "z": 0
+      },
+      "facing": 0.2
+    }
+  },
+  "after": {
+    "corner": {
+      "pathDistance": 0.25,
+      "expected": 0.25,
+      "path": [
+        {
+          "x": 0,
+          "z": 0
+        },
+        {
+          "x": 0.01,
+          "z": 0
+        },
+        {
+          "x": 0.01,
+          "z": 0.24
+        }
+      ]
+    },
+    "column": {
+      "stops": 0,
+      "distance": 6.000000000000001
+    },
+    "cavalryStart": {
+      "position": {
+        "x": 0.34800000000000003,
+        "z": 0
+      },
+      "facing": 1.5707963267948966
+    }
+  }
+}

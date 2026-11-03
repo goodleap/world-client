@@ -1,4 +1,4 @@
-import {CAVALRY_BODY,bodyObstacle,bodyTurnClear,bodySegmentClear,angleDelta,type MovingBody} from './body-shape.ts';
+import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
 import { assignedTower, occupiedTower, towerHeight, towerExit, releaseTower, damageTower, TOWER_CONFIG } from './towers.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { WORLD_BOUNDS } from './world-data.ts';
@@ -43,12 +43,10 @@ export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0], arm
   const base = fighterStats(u), level = u.team === 'home' ? arms : 0;
   return { ...base, attack: base.attack + level * 3, armor: base.armor + level };
 }
-export const fighterBody=(u:Pick<Fighter,'role'|'facing'>):MovingBody|undefined=>u.role==='cavalry'?{halfLength:CAVALRY_BODY.halfLength,heading:u.facing}:undefined;
-export const travelRadius=(u:Pick<Fighter,'role'>)=>u.role==='cavalry'?CAVALRY_BODY.radius:fighterRadius(u);
-export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : u.role === 'wolf' ? .72 : .4;
-// Melee reach accounts for the target body, so foot soldiers can strike a
-// mounted opponent without routing into the horse's collision circle.
-const reach = (u: Fighter, target: CombatTarget) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, target.radius - .4));
+export const fighterRadius = (u: Pick<Fighter, 'role'>) => BODY_RADIUS[u.role];
+// Keep the established melee reach/approach spacing, independently of ground discs.
+export const fighterContactRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : fighterRadius(u);
+const reach = (u: Fighter, target: CombatTarget) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, (target.contactRadius ?? target.radius) - .4));
 export function createFighter(r:ResidentDefinition):Fighter {
   const role=r.role as CombatRole,team=r.id.startsWith('enemy-')?'enemy' as const:'home' as const;
   return {id:r.id,role,team,position:{...r.spawn},home:{...r.home},hp:fighterStats({id:r.id,role,team}).hp,
@@ -98,7 +96,7 @@ export class Combat {
   syncUnits() { this.units=new Map(this.state.units.map(u=>[u.id,u]));for(const u of this.threats)this.units.set(u.id,u); }
   unit(id: string) { return this.units.get(id) ?? this.state.units.find(u=>u.id===id); }
   setResidentPositions(read: (id: string) => Point) { this.residentPosition = read; }
-  private unitTarget(u:Fighter):CombatTarget { return {id:u.id,team:u.team,position:u.position,hp:u.hp,life:u.life,radius:fighterRadius(u),canAttack:true,elevation:towerHeight(this.economy.state,u.id)}; }
+  private unitTarget(u:Fighter):CombatTarget { return {id:u.id,team:u.team,position:u.position,hp:u.hp,life:u.life,radius:fighterRadius(u),contactRadius:fighterContactRadius(u),canAttack:true,elevation:towerHeight(this.economy.state,u.id)}; }
   targets(opponentsOf?:'home'|'enemy'): CombatTarget[] {
     const neighbours = this.civilians();
     return [...this.units.values()].filter(u=>!u.departed&&u.team!==opponentsOf).map(u=>this.unitTarget(u))
@@ -129,20 +127,18 @@ export class Combat {
   }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
-    return [...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units, ...this.threats].filter(n => n !== u && n.life !== 'defeated' && !n.departed && !occupiedTower(this.economy.state,n.id)).map(n => ({ id: n.id, position: n.position, radius: travelRadius(n), body:fighterBody(n),heading:n.facing,team:n.team,yield:n.team===u.team?(from:Point,toward:Point)=>this.yieldUnit(n,from,toward):undefined,
+    return [...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units, ...this.threats].filter(n => n !== u && n.life !== 'defeated' && !n.departed && !occupiedTower(this.economy.state,n.id)).map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n), heading:n.route.length?Math.atan2(n.route[0].x-n.position.x,n.route[0].z-n.position.z):n.facing,team:n.team,yield:n.team===u.team?(from:Point,toward:Point)=>this.yieldUnit(n,from,toward):undefined,
       moving: n.speed > .08, purposeful: !!n.route.length, waiting: n.navigation.waiting }))];
   }
   yieldUnit(u:Fighter,from:Point,toward:Point){
     if(u.life!=='active'||u.goal||u.route.length||u.attack||u.target||this.economy.active(u.id)||this.economy.state.vitals[u.id]?.rest||assignedTower(this.economy.state,u.id))return false;
-    const point=yieldPoint(u.position,from,toward,travelRadius(u),WORLD_BOUNDS,this.solids(),this.neighbours(u),fighterBody(u));
+    const point=yieldPoint(u.position,from,toward,fighterRadius(u),WORLD_BOUNDS,this.solids(),this.neighbours(u));
     if(!point)return false;u.route=[point];u.goal=point;u.order='move';resetRouteState(u.navigation);return true;
   }
   private face(u:Fighter,point:Point,dt:number){
-    const wanted=Math.atan2(point.x-u.position.x,point.z-u.position.z),body=fighterBody(u);
-    if(!body){u.facing=wanted;return;}
-    const heading=u.facing+Math.max(-4*dt,Math.min(4*dt,angleDelta(u.facing,wanted)));
-    if(bodyTurnClear(u.position,travelRadius(u),body,heading,WORLD_BOUNDS,[...this.solids(),...this.neighbours(u).map(n=>bodyObstacle(n.position,n.radius,n.body))]))u.facing=heading;
+    u.facing = turnTowards(u.facing, Math.atan2(point.x-u.position.x, point.z-u.position.z), dt, u.role === 'cavalry' ? 7 : 14);
   }
+
   private reservations(u: Fighter) {
     return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) ?? (n as {destination?:Point}).destination }));
   }
@@ -153,13 +149,13 @@ export class Combat {
     const exit=tower?towerExit(this.economy.state,tower,this.solids(),this.neighbours(u).map(n=>({kind:'circle' as const,...n.position,radius:n.radius}))):undefined;
     if(tower&&!exit)return;
     const start=exit??u.position;
-    return {start:{x:start.x,z:start.z},goal:{x:goal.x,z:goal.z},radius:travelRadius(u),body:fighterBody(u),bounds:WORLD_BOUNDS,solids:this.solids(),
-      neighbours:this.reservations(u).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,body:n.body,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined})),exit};
+    return {start:{x:start.x,z:start.z},goal:{x:goal.x,z:goal.z},radius:fighterRadius(u),bounds:WORLD_BOUNDS,solids:this.solids(),
+      neighbours:this.reservations(u).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined})),exit};
   }
   private movePlan(u:Fighter,goal:Point,exact:boolean,prepared?:readonly Point[]){
     const p=this.movementInput(u.id,goal);if(!p)return;
-    const path=prepared?validateNavigation(p,prepared):exact?planWorkApproach(p.start,[goal],p.radius,p.bounds,p.solids,p.neighbours,p.body)
-      :planMoveDestination(p.start,goal,p.radius,p.bounds,p.solids,p.neighbours,p.body);
+    const path=prepared?validateNavigation(p,prepared):exact?planWorkApproach(p.start,[goal],p.radius,p.bounds,p.solids,p.neighbours)
+      :planMoveDestination(p.start,goal,p.radius,p.bounds,p.solids,p.neighbours);
     return path?{path,exit:p.exit}:undefined;
   }
   canMoveTo(id:string,point:Point){
@@ -274,16 +270,14 @@ export class Combat {
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
   }
   private travel(u: Fighter, dt: number, speed: number) {
-    const previous = u.position;
-    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, travelRadius(u), WORLD_BOUNDS, this.solids(), this.neighbours(u),fighterBody(u));
-    u.position = step.position; u.speed = distance(previous, u.position) / dt;
-    if(step.facing!==undefined)u.facing=step.facing;
-    else if (u.speed > .01) u.facing = Math.atan2(u.position.x - previous.x, u.position.z - previous.z);
+    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.neighbours(u));
+    u.position = step.position; u.speed = step.distance / dt;
+    if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
   }
   private plan(u: Fighter, points: Point[]) {
     u.planIn = .8;
-    u.route = planWorkApproach(u.position, points, travelRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u),fighterBody(u)) ?? [];
+    u.route = planWorkApproach(u.position, points, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
   }
   private sampleMotion(dt: number) {
     const next = new Map<string, { position: Point; velocity: Point }>();
@@ -318,7 +312,7 @@ export class Combat {
   }
   private pursue(u: Fighter, target: CombatTarget, dt: number) {
     const range = this.reach(u, target), stats = this.stats(u);
-    const radius = Math.max(fighterRadius(u) + target.radius + .12,
+    const radius = Math.max(fighterContactRadius(u) + (target.contactRadius ?? target.radius) + .12,
       // Allow one step for contact quantization and one for the target moving
       // after this approach point was sampled (either faction's update order).
       Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup + .1) - .1));
@@ -329,9 +323,9 @@ export class Combat {
     // Refresh a clear direct approach every simulation step; no A* is needed
     // to follow an opponent running through open ground. Keep detours when
     // crowds or solids obstruct it, and retain the shared swept collision check.
-    const obstacles=[...this.solids(),...neighbours.map(n=>bodyObstacle(n.position,n.radius,n.body))],body=fighterBody(u);
-    const directClear=body?bodySegmentClear(u.position,direct,travelRadius(u),body,WORLD_BOUNDS,obstacles):segmentIsClear(u.position,direct,travelRadius(u),WORLD_BOUNDS,obstacles);
-    if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, travelRadius(u), neighbours) && directClear) {
+    const obstacles=[...this.solids(),...neighbours.map(n=>bodyObstacle(n.position,n.radius))];
+    const directClear=segmentIsClear(u.position,direct,fighterRadius(u),WORLD_BOUNDS,obstacles);
+    if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours) && directClear) {
       u.route = [direct];
     } else if (u.planIn <= 0) {
       const points = Array.from({ length: 12 }, (_, i) => ({ x: target.position.x + Math.cos(i * Math.PI / 6) * radius,

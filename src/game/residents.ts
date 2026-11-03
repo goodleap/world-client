@@ -1,4 +1,4 @@
-import {CAVALRY_BODY,bodyObstacle} from './body-shape.ts';
+import {bodyObstacle,turnTowards} from './body-shape.ts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { attackAnimationPhase } from './combat-animation';
 import { DeathView, MountedDeathView } from './death-view.ts';
@@ -30,7 +30,7 @@ import { HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResi
 import { destinationSpeed as commandedSpeed, runReferenceSpeed, mountedRunReferenceSpeed } from './locomotion.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { createRouteState, resetRouteState, stepRoute, yieldPoint } from './route-following.ts';
+import { createRouteState, resetRouteState, stepRoute, yieldPoint, routeMotion } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { validateNavigation } from './navigation-plan.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
@@ -92,7 +92,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
     return { definition, random, settings, state, human, animal, root, elevationRoot, label, marker, hit, renderMotion: new RenderMotion(root),
       death: definition.role === 'cavalry' ? new MountedDeathView(root,mountedDeathProfile) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
-      ready:false, route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
+      ready:false, stepPath: undefined as readonly Point[] | undefined, stepFacing: undefined as number | undefined,
+      route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   };
   const actors=definitions.map(createActor);
   const actorById = new Map(actors.map(actor => [actor.definition.id, actor]));
@@ -161,29 +162,34 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   };
   let extraNeighbours: () => Neighbour[] = () => [];
   let combatYield:(id:string,from:Point,toward:Point)=>boolean=()=>false;
-  const groundRadius=(a:typeof actors[number])=>a.definition.role==='cavalry'?CAVALRY_BODY.radius:a.settings.bodyRadius;
-  const groundBody=(a:typeof actors[number])=>a.definition.role==='cavalry'?{halfLength:CAVALRY_BODY.halfLength,heading:combatPoses.get(a.definition.id)?.facing??a.facing}:undefined;
+  const groundRadius=(a:typeof actors[number])=>a.settings.bodyRadius;
   const yieldActor=(actor:typeof actors[number],from:Point,toward:Point)=>{
     const id=actor.definition.id;if(combatPoses.has(id))return combatYield(id,from,toward);
     if(dead(id)||actor.route.length||works.has(id)||resting.has(id)||actor.definition.id.startsWith('enemy-'))return false;
-    const crowd=[...extraNeighbours(),...actors.filter(a=>a!==actor&&!dead(a.definition.id)).map(a=>({id:a.definition.id,position:a.state.position,radius:groundRadius(a),body:groundBody(a),moving:false,purposeful:false,waiting:false}))];
+    const crowd=[...extraNeighbours(),...actors.filter(a=>a!==actor&&!dead(a.definition.id)).map(a=>({id:a.definition.id,position:a.state.position,radius:groundRadius(a),moving:false,purposeful:false,waiting:false}))];
     const point=yieldPoint(actor.state.position,from,toward,groundRadius(actor),actor.settings.bounds,obstaclesFor(actor.definition.role),crowd);
     if(!point)return false;actor.route=[point];actor.state.target=undefined;resetRouteState(actor.navigation);return true;
   };
   const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, locomotion.has(actor.definition.id));
-  const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) =>
-    stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
+  const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number) => {
+    const result = stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed, actor.settings.bodyRadius, actor.settings.bounds, obstaclesFor(actor.definition.role),
       [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
-        radius: groundRadius(other),body:groundBody(other),heading:combatPoses.get(other.definition.id)?.facing??other.facing,
+        radius: groundRadius(other),heading: (() => {
+          const next = combatPoses.get(other.definition.id)?.route[0] ?? other.route[0];
+          return next ? Math.atan2(next.x-other.state.position.x,next.z-other.state.position.z) : other.facing;
+        })(),
         yield:!other.definition.id.startsWith('enemy-')?(from:Point,toward:Point)=>yieldActor(other,from,toward):undefined, moving: other.movementSpeed > .08, purposeful: !!(combatPoses.get(other.definition.id)?.route.length||other.route.length) || works.has(other.definition.id) || resting.has(other.definition.id),
-        waiting: (other.route.length ? other.navigation : other.wanderNavigation).waiting }))]);
+        waiting: combatPoses.get(other.definition.id)?.navigation.waiting ?? (other.route.length ? other.navigation : other.wanderNavigation).waiting }))]);
+    actor.stepPath = result.path; actor.stepFacing = result.facing;
+    return result;
+  };
   const workNeighbours = (actor: typeof actors[number]) => [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({
-    position: other.state.position, radius: groundRadius(other),body:groundBody(other), destination: combatPoses.get(other.definition.id)?.route.at(-1) ?? other.route.at(-1),
+    position: other.state.position, radius: groundRadius(other), destination: combatPoses.get(other.definition.id)?.route.at(-1) ?? other.route.at(-1),
   }))];
   const advanceRoute = (actor: typeof actors[number], seconds: number) => {
     const result = navigate(actor, actor.route, actor.navigation, seconds, destinationSpeed(actor));
-    actor.state.distanceTravelled += Math.hypot(result.position.x - actor.state.position.x, result.position.z - actor.state.position.z);
+    actor.state.distanceTravelled += result.distance;
     actor.state.position = result.position;
     return result;
   };
@@ -233,7 +239,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     setCombatYield(read:typeof combatYield){combatYield=read;},
     setExtraNeighbours(read: () => Neighbour[]) { extraNeighbours = read; },
-    occupancy: () => actors.filter(a => !dead(a.definition.id) && !combatPoses.get(a.definition.id)?.departed && a.elevationRoot.position.y<.1).map(actor => bodyObstacle(actor.state.position,groundRadius(actor),groundBody(actor))),
+    occupancy: () => actors.filter(a => !dead(a.definition.id) && !combatPoses.get(a.definition.id)?.departed && a.elevationRoot.position.y<.1).map(actor => bodyObstacle(actor.state.position,groundRadius(actor))),
     async loadDogModel() { for(const actor of actors.filter(a=>a.definition.role==='dog'&&!a.ready)){await actor.animal!.loadModel();actor.ready=true;actor.root.setEnabled(true);} },
     async loadFarmerModel(report?: ResourceProgress) {
       const farmers = actors.filter(a => a.definition.role === 'farmer'&&!a.ready);
@@ -333,7 +339,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       report?.(1);
     },
     combatNeighbours: () => actors.filter(a => !combatPoses.has(a.definition.id) && !dead(a.definition.id)).map(a => ({ id: a.definition.id, position: a.state.position,
-      radius: a.definition.bodyRadius, heading:a.facing,yield:(from:Point,toward:Point)=>yieldActor(a,from,toward), moving: a.movementSpeed > .08, purposeful: !!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id), waiting: a.navigation.waiting, destination:a.route.at(-1) })),
+      radius: a.definition.bodyRadius, heading:a.route.length?Math.atan2(a.route[0].x-a.state.position.x,a.route[0].z-a.state.position.z):a.facing,yield:(from:Point,toward:Point)=>yieldActor(a,from,toward), moving: a.movementSpeed > .08, purposeful: !!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id), waiting: a.navigation.waiting, destination:a.route.at(-1) })),
     syncCombat(units: Fighter[]) {
       for (const u of units) {
         combatPoses.set(u.id, u);
@@ -358,6 +364,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           Quaternion.RotationYawPitchRollToRef(u.facing, 0, 0, actor.root.rotationQuaternion);
         }
         actor.movementSpeed = u.speed;
+        actor.stepPath = routeMotion(u.navigation);
         const clip = combatClips.get(u.id);
         if (u.attack && clip) {
           setMotion(u.id, 'attack');
@@ -449,7 +456,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     movementInput(id:string,point:Point){
       const actor=actorById.get(id);if(!actor||dead(id))return;
       return {start:{x:actor.state.position.x,z:actor.state.position.z},goal:{x:point.x,z:point.z},radius:actor.settings.bodyRadius,
-        bounds:actor.settings.bounds,solids:obstaclesFor(actor.definition.role),neighbours:workNeighbours(actor).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,body:n.body,
+        bounds:actor.settings.bounds,solids:obstaclesFor(actor.definition.role),neighbours:workNeighbours(actor).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,
           destination:'destination' in n&&n.destination?{x:n.destination.x,z:n.destination.z}:undefined}))};
     },
     command(point: Point, id = selected?.definition.id, exact = false,prepared?:readonly Point[]) {
@@ -497,21 +504,20 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (resting.has(actor.definition.id) && !actor.route.length) { setMotion(actor.definition.id, 'idle'); actor.movementSpeed = 0; actor.animal?.update(seconds, 0, 0, false, !!vitals[actor.definition.id]?.meal); continue; }
         const work = works.get(actor.definition.id);
         if (work) {
-          const before = { ...actor.state.position };
+          let moved = 0;
           const workSeconds = Math.min(activeElapsed, .5);
           if (work.status === 'travelling') {
             let remaining = workSeconds;
             while (remaining > 1e-8 && actor.route.length) {
               const step = Math.min(remaining, .05);
-              if (advanceRoute(actor, step).unreachable) { work.status = 'blocked'; actor.route = []; break; }
+              const result = advanceRoute(actor, step); moved += result.distance;
+              if (result.unreachable) { work.status = 'blocked'; actor.route = []; break; }
               remaining -= step;
             }
             if (!actor.route.length && work.status !== 'blocked') work.status = 'arrived';
           }
-          const dx = actor.state.position.x - before.x, dz = actor.state.position.z - before.z;
-          const moved = Math.hypot(dx, dz);
           actor.movementSpeed = workSeconds > 0 ? moved / workSeconds : 0;
-          if (moved > .001) actor.facing = Math.atan2(dx, dz);
+          if (moved > .001 && actor.stepFacing !== undefined) actor.facing = turnTowards(actor.facing, actor.stepFacing, seconds);
           else if (work.status === 'arrived' || work.status === 'working') actor.facing = Math.atan2(work.target.x - actor.state.position.x, work.target.z - actor.state.position.z) + .35;
           actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
           actor.root.rotationQuaternion ??= Quaternion.Identity();
@@ -527,20 +533,24 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           else setMotion(actor.definition.id, 'idle');
           continue;
         }
-        const crowd: Obstacle[] = [...extraNeighbours().map(n => bodyObstacle(n.position,n.radius,n.body)), ...actors.filter((other) => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => bodyObstacle(other.state.position,groundRadius(other),groundBody(other)))];
-        const blockers = crowd.filter((other) => other.kind === 'capsule' || other.kind === 'circle'
+        const crowd: Obstacle[] = [...extraNeighbours().map(n => bodyObstacle(n.position,n.radius)), ...actors.filter((other) => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => bodyObstacle(other.state.position,groundRadius(other)))];
+        const blockers = crowd.filter((other) => other.kind === 'circle'
           && Math.hypot(other.x - actor.state.position.x, other.z - actor.state.position.z) >= other.radius + actor.settings.bodyRadius - 0.001);
         let velocity: Point;
+        let travelSpeed: number | undefined;
         const commanded = actor.route.length > 0;
         if (actor.route.length) {
           const before = { ...actor.state.position };
           let remaining = Math.min(activeElapsed, .5);
+          let travelled = 0;
           while (remaining > 1e-8 && actor.route.length) {
             const step = Math.min(remaining, .05);
-            if (advanceRoute(actor, step).unreachable) { actor.route = []; ui.targetHint('目标暂时无法到达', { x: actor.root.position.x, y: 2, z: actor.root.position.z }); break; }
+            const result = advanceRoute(actor, step); travelled += result.distance;
+            if (result.unreachable) { actor.route = []; ui.targetHint('目标暂时无法到达', { x: actor.root.position.x, y: 2, z: actor.root.position.z }); break; }
             remaining -= step;
           }
           velocity = { x: (actor.state.position.x - before.x) / seconds, z: (actor.state.position.z - before.z) / seconds };
+          travelSpeed = travelled / seconds;
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
         else velocity = stepWander(actor.state, actor.settings, seconds, [...obstaclesFor(actor.definition.role), ...blockers], actor.random, (goal, dt, speed) => {
@@ -550,7 +560,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           }
           return navigate(actor, actor.wanderRoute, actor.wanderNavigation, dt, speed);
         });
-        const speed = Math.hypot(velocity.x, velocity.z);
+        const speed = travelSpeed ?? Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
         actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
@@ -558,9 +568,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           // Dressed GLBs own their visible animation. Preserve the farmer's
           // working heading on release instead of resetting the hidden legacy rig.
           if (speed > 0.08) {
-            const target = Math.atan2(velocity.x, velocity.z);
-            const difference = Math.atan2(Math.sin(target - actor.facing), Math.cos(target - actor.facing));
-            actor.facing += difference * (1 - Math.exp(-seconds * (actor.definition.role === 'cavalry' ? 7 : 14)));
+            const target = actor.stepFacing ?? Math.atan2(velocity.x, velocity.z);
+            actor.facing = turnTowards(actor.facing, target, seconds, actor.definition.role === 'cavalry' ? 7 : 14);
           }
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
@@ -571,8 +580,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       }
     },
     resetPresentation() { for (const a of actors) a.renderMotion.reset(); },
-    beginStep() { for (const a of actors) a.renderMotion.beginStep(); },
-    endStep() { for (const a of actors) a.renderMotion.endStep(); },
+    beginStep() { for (const a of actors) { a.stepPath = undefined; a.stepFacing = undefined; a.renderMotion.beginStep(); } },
+    endStep() { for (const a of actors) a.renderMotion.endStep(a.stepPath); },
     present(alpha: number, seconds: number) {
       let moving = 0, advanced = 0;
       for (const actor of actors) {

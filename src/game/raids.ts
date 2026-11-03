@@ -1,4 +1,4 @@
-import { Combat, fighterRadius, fighterBody, travelRadius, createFighter } from './combat.ts';
+import { Combat, fighterRadius, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
@@ -70,7 +70,7 @@ export class Raids {
   manual(id: string) { delete this.state.evading[id]; }
   private neighboursFor(w: Wolf) {
     return [...this.people.neighbours().map(n=>({...n,yield:undefined})), ...this.combat.state.units.filter(u => u.life !== 'defeated').map(u => ({ id: u.id, position: u.position,
-      radius: travelRadius(u),body:fighterBody(u),heading:u.facing, moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
+      radius: fighterRadius(u),heading:u.facing, moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
   }
   private plan(w: Wolf, points: Point[]) {
     w.planIn = .9;
@@ -78,11 +78,10 @@ export class Raids {
     w.route = planWorkApproach(w.position, points, fighterRadius(w), WORLD_BOUNDS, this.solids(), reservations) ?? [];
   }
   private travel(w: Wolf, dt: number) {
-    const before = w.position;
     const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), this.neighboursFor(w));
     w.position = result.position;
-    const moved = distance(before, w.position); w.speed = moved / dt; w.gait = (w.gait + moved / 1.26) % 1;
-    if (moved > .0001) w.facing = Math.atan2(w.position.x - before.x, w.position.z - before.z);
+    const moved = result.distance; w.speed = moved / dt; w.gait = (w.gait + moved / 1.26) % 1;
+    if (result.facing !== undefined) w.facing = result.facing;
     if (result.unreachable) { w.route = []; w.planIn = 1.5; }
   }
   private flee(w: Wolf) {
@@ -230,7 +229,7 @@ export class Raids {
       w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
       if (!attack.released && attack.elapsed >= stats.windup) {
         attack.released = true;
-        if (victim.hp>0 && distance(w.position,target)<=stats.range+.15+Math.max(0,victim.radius-.4) && this.combat.visible(w.position,target,w.id,victim.id)) {
+        if (victim.hp>0 && distance(w.position,target)<=stats.range+.15+Math.max(0,(victim.contactRadius??victim.radius)-.4) && this.combat.visible(w.position,target,w.id,victim.id)) {
           this.combat.hurt(attack.target, stats.attack, w.id);
         }
       }
@@ -254,7 +253,7 @@ export class Raids {
     }
     if (w.target) {
       const victim=this.combat.target(w.target)!;
-      const target=victim.position,reach=stats.range+Math.max(0,victim.radius-.4);
+      const target=victim.position,reach=stats.range+Math.max(0,(victim.contactRadius??victim.radius)-.4);
       if (distance(w.position, target) <= reach && this.combat.visible(w.position,target,w.id,w.target)) {
         w.route = []; w.facing = Math.atan2(target.x - w.position.x, target.z - w.position.z);
         if (!w.cooldown) { w.cooldown = stats.interval; w.attack = { id: this.combat.state.nextAttack++, target: w.target, elapsed: 0, released: false }; }

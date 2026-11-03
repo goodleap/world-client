@@ -10,6 +10,7 @@ import { economyObstacles } from './economy-config.ts';
 import { maxHealth, needsFood } from './vitals.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
 import { BUILDING_STATS } from './building-state.ts';
+import { BODY_RADIUS } from './body-shape.ts';
 
 export const TOWER_CONFIG={hp:BUILDING_STATS.tower.hp,armor:BUILDING_STATS.tower.armor,range:12,height:TOWER_SHAPE.deck,cost:{wood:20,stone:12,food:0,iron:0},fallDamage:.25} as const;
 export interface TowerState extends Point {id:string;hp:number;unit?:string;phase:'empty'|'approach'|'occupied'|'meal'}
@@ -36,7 +37,7 @@ export function damageTower(e:Economy,id:string,amount:number,onFall:(id:string,
   if(unit){
     if(tower.phase==='occupied'){
       const solids=economyObstacles(e.state.depleted,e.state.sites,e.state.buildings);
-      const crowd=e.state.combat.units.filter(u=>u!==unit&&u.life==='active'&&!u.departed&&!occupiedTower(e.state,u.id)).map(u=>({kind:'circle' as const,...u.position,radius:u.role==='cavalry'?1.12:.4}));
+      const crowd=e.state.combat.units.filter(u=>u!==unit&&u.life==='active'&&!u.departed&&!occupiedTower(e.state,u.id)).map(u=>({kind:'circle' as const,...u.position,radius:BODY_RADIUS[u.role]}));
       // The former platform's center is now free ground if the door is occupied.
       const candidates=[buildingDoor(site),{x:tower.x,z:tower.z}];
       unit.position={...(candidates.find(p=>!isBlocked(p,.4,[...solids,...crowd]))??candidates[1])};

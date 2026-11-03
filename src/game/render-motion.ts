@@ -1,5 +1,7 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import type { Point } from './movement.ts';
+import { sampleMotionPath } from './motion-path.ts';
 
 /** Interpolate between completed logic steps. A separate native parent supplies
  * only the visual offset: navigation, collision, commands and saves still read
@@ -14,6 +16,7 @@ export class RenderMotion {
   private readonly matrix = Matrix.Identity();
   private readonly rotated = new Vector3();
   private readonly root: TransformNode;
+  private path?: readonly Point[];
   constructor(root: TransformNode) {
     this.root = root;
     this.layer = new TransformNode(`${root.name}-render-motion`, root.getScene());
@@ -29,13 +32,15 @@ export class RenderMotion {
     this.previous.position.copyFrom(this.current.position); this.previous.rotation.copyFrom(this.current.rotation);
     this.layer.position.setAll(0); this.layer.rotationQuaternion!.set(0, 0, 0, 1);
   }
-  endStep() { this.read(); }
+  endStep(path?: readonly Point[]) { this.read(); this.path = path; }
   reset() {
-    this.read(); this.beginStep(); this.position.copyFrom(this.current.position); this.rotation.copyFrom(this.current.rotation);
+    this.path = undefined; this.read(); this.beginStep(); this.position.copyFrom(this.current.position); this.rotation.copyFrom(this.current.rotation);
   }
   sample(alpha: number) {
     const x = this.position.x, y = this.position.y, z = this.position.z;
     Vector3.LerpToRef(this.previous.position, this.current.position, alpha, this.position);
+    const point = sampleMotionPath(this.previous.position, this.current.position, alpha, this.path);
+    this.position.x = point.x; this.position.z = point.z;
     Quaternion.SlerpToRef(this.previous.rotation, this.current.rotation, alpha, this.rotation);
     this.current.rotation.conjugateToRef(this.inverse);
     this.rotation.multiplyToRef(this.inverse, this.layer.rotationQuaternion!);
