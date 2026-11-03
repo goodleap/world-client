@@ -60,7 +60,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (residents.canWork(id)) economy.interrupt(residents.farmerPosition(id), id);
       return { ok: true, message: '前往目标位置' };
     }
-    if (!residents.canWork(id)) return { ok: false, message: '该单位不能执行这项作业，请选择农民' };
+    if (!residents.canWork(id)) return { ok: false, message: '此作业需要农民' };
     let task = economy.taskFor(instruction.target);
     if (task && (task.kind !== instruction.work || task.crop !== instruction.crop)) return { ok: false, message: '该目标已有其他任务' };
     if (!task) {

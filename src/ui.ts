@@ -180,6 +180,7 @@ export function createUI(app: HTMLElement) {
   const bubbles = new Map<string, HTMLElement>();
   const residentLabels = new Map<string, HTMLElement>();
   const healthIndicators = new Map<string, { state: HealthIndicator; bar: HTMLElement; fill: HTMLElement }>();
+  let inspectedEnemy: string | undefined;
   const residentSizes = new Map<HTMLElement, { width: number; height: number }>();
   const residentSizeObserver = new ResizeObserver(entries => {
     for (const entry of entries) residentSizes.delete(entry.target as HTMLElement);
@@ -359,6 +360,10 @@ export function createUI(app: HTMLElement) {
       attackMarker.style.opacity = String(pulse > 0 ? .7 + .3 * Math.cos(pulse * Math.PI * 4) : 1);
     },
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
+    setInspectedEnemy(id?: string) {
+      inspectedEnemy = id;
+      for (const [key, { state, bar }] of healthIndicators) bar.hidden = !(state.visible || key === id);
+    },
     setUnitHealth(id: string, hp: number, maximum: number, seconds: number, labelId = id) {
       const label = residentLabels.get(labelId); if (!label) return;
       let indicator = healthIndicators.get(id);
@@ -373,7 +378,8 @@ export function createUI(app: HTMLElement) {
       }
       const { state, bar, fill } = indicator;
       state.update(hp, maximum, seconds);
-      if (bar.hidden === state.visible) bar.hidden = !state.visible;
+      const visible = state.visible || id === inspectedEnemy;
+      if (bar.hidden === visible) bar.hidden = !visible;
       const scale = `scaleX(${state.fraction.toFixed(4)})`;
       if (fill.style.transform !== scale) fill.style.transform = scale;
       const current = String(Math.ceil(hp)), max = String(maximum);

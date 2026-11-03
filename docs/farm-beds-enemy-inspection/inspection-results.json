@@ -1,0 +1,17 @@
+{
+  "inspected": [
+    "enemy-ore-0",
+    "enemy-archer",
+    "enemy-orchard-1",
+    "wolf-wild-0"
+  ],
+  "headHealthOnly": true,
+  "redRing": true,
+  "toggle": true,
+  "mouseAndTouch": true,
+  "damageUpdates": true,
+  "deathClears": true,
+  "attackCommandPreserved": true,
+  "singleFarmerHint": true,
+  "errors": []
+}

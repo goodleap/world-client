@@ -8,7 +8,9 @@ import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.js';
 import type { WorldObject } from './world-selection.ts';
+import type { Point } from './movement.ts';
 export const SELECTION_COLOR = '#62e4ff';
+export const ENEMY_SELECTION_COLOR = '#ef6b58';
 
 /** Native skinned outlines follow animation. A selected instance gets a temporary
  * geometry-sharing mesh, so Babylon never highlights all instances of its source. */
@@ -25,6 +27,10 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
     const edge = MeshBuilder.CreateBox('selection-edge-' + i, { size: 1 }, scene);
     edge.material = edgeMaterial; edge.isPickable = false; edge.setEnabled(false); return edge;
   });
+  const enemyMaterial = new StandardMaterial('enemy-selection-ink', scene);
+  enemyMaterial.emissiveColor = Color3.FromHexString(ENEMY_SELECTION_COLOR); enemyMaterial.disableLighting = true;
+  const enemyRing = MeshBuilder.CreateTorus('enemy-inspection-ring', { diameter: 1, thickness: .045, tessellation: 40 }, scene);
+  enemyRing.material = enemyMaterial; enemyRing.isPickable = false; enemyRing.setEnabled(false);
   type Entry = { shown: Mesh; original?: InstancedMesh; levels: Mesh[] };
   const selected = new Map<AbstractMesh, Entry>();
   function remove(mesh: AbstractMesh, entry: Entry) {
@@ -81,6 +87,12 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
       });
     }
   }
-  return { update, snapshot: () => ({ color: SELECTION_COLOR, meshes: selected.size, area: fill.isEnabled(), technique: 'native-outline' }),
-    dispose() { for (const [m, e] of selected) remove(m, e); fill.dispose(); edges.forEach(e => e.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); } };
+  return { update,
+    inspectEnemy(point?: Point, radius = .65) {
+      enemyRing.setEnabled(!!point);
+      if (point) { enemyRing.position.set(point.x, .08, point.z); enemyRing.scaling.set(radius * 2, 1, radius * 2); }
+    },
+    snapshot: () => ({ color: SELECTION_COLOR, meshes: selected.size, area: fill.isEnabled(), technique: 'native-outline',
+      enemy: { visible: enemyRing.isEnabled(), color: ENEMY_SELECTION_COLOR, x: enemyRing.position.x, z: enemyRing.position.z } }),
+    dispose() { for (const [m, e] of selected) remove(m, e); fill.dispose(); edges.forEach(e => e.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); enemyRing.dispose(); enemyMaterial.dispose(); } };
 }

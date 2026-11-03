@@ -17,7 +17,7 @@ import { Raids } from './raids.ts';
 import { createWolfView } from './wolf-view.ts';
 import { createNeedsController } from './needs-controller.ts';
 import { health, maxHealth } from './vitals.ts';
-import { Combat, fighterStats } from './combat.ts';
+import { Combat, fighterStats, fighterRadius } from './combat.ts';
 import { createCombatView } from './combat-view.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { Engine } from '@babylonjs/core/Engines/engine';
@@ -181,9 +181,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   const towerRange=createTowerRange(scene);
   let selectedWorld: WorldObject | undefined;
-  const clearWorld = () => { selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
+  let selectedEnemy: string | undefined;
+  const clearEnemy = () => { selectedEnemy = undefined; ui.setInspectedEnemy(); selectionFeedback.inspectEnemy(); };
+  const clearWorld = () => { clearEnemy(); selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const combatIds = () => residents.selectedIds().filter(id=>combat.unit(id)?.team==='home');
-  const clearResident = () => { selectedGroup=undefined; residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
+  const clearResident = () => { clearEnemy(); selectedGroup=undefined; residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
   const clearSelection = () => { clearWorld(); clearResident(); };
   const showObjectActions = (object: WorldObject) => {
     const tower=economy.state.towers.find(t=>t.id===object.id&&t.hp>0);
@@ -196,9 +198,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const details = buildingSelection(economy,object.id,economySelection(economy, object)), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
     if (!economy.campfire(object.id) && unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
-    if (!economy.campfire(object.id) && unit && !residents.canWork(unit) && details.actions?.some(action => action.id !== 'cancel' && action.id !== 'demolish')) {
-      details.hint = '此作业需要农民';
-      details.actions = details.actions.map(action => ({ ...action, disabled: action.id !== 'cancel' && action.id !== 'demolish' }));
+    if (!economy.campfire(object.id) && unit && !residents.canWork(unit)
+      && (details.actions?.some(action => action.id !== 'cancel' && action.id !== 'demolish') || task && task.status !== 'storage')) {
+      details.hint = '此作业需要农民'; details.showHint = true;
+      details.actions = (details.actions ?? []).map(action => ({ ...action, disabled: action.id !== 'cancel' && action.id !== 'demolish' }));
     }
     ui.setSelection(details);
   };
@@ -278,7 +281,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build' || action === 'repair' || action === 'haul' || action === 'gather' || action === 'tools' || action === 'arms') instruction = { kind: 'work', work: action, target };
       if (instruction) {
         const id = selectedGroup===undefined ? residents.selectedId() : residents.selectedIds().find(id=>residents.canWork(id));
-        const result = id ? controller.command(id, instruction) : selectedGroup!==undefined?{ok:false,message:'此作业需要农民'}:economy.request(instruction.work, target, instruction.crop);
+        if (id && !residents.canWork(id) || selectedGroup !== undefined && !id) {
+          ui.clearTargetHint(); showObjectActions(selectedWorld); return;
+        }
+        const result = id ? controller.command(id, instruction) : economy.request(instruction.work, target, instruction.crop);
         if (result.ok && id) { manual(id); const task=economy.active(id); if(task)commandGuidance.request(id,task.id); setPreview(); clearResident(); }
         ui.targetHint(result.message, selectedWorld.anchor);
       }
@@ -372,6 +378,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const id = hit.pickedMesh.metadata.id;
       const fighter = combat.unit(id);
       if (fighter?.team === 'enemy') {
+        if (!combatIds().length) {
+          const toggleOff = selectedEnemy === id;
+          clearSelection();
+          if (!toggleOff && fighter.life === 'active' && fighter.hp > 0 && !fighter.departed) {
+            selectedEnemy = id; ui.setInspectedEnemy(id);
+          }
+          return;
+        }
         const count = combat.attack(combatIds(), id);
         ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: fighter.role === 'wolf' ? 1.9 : 2.6 });
         if (count) {
@@ -402,7 +416,6 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
           const task = economy.taskFor(object.id), actions = buildingSelection(economy,object.id,economySelection(economy, object)).actions ?? [];
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
           if (action) performAction(action);
-          else if (actions.length && !residents.selectedIds().some(id=>residents.canWork(id))) ui.targetHint('此作业需要农民', object.anchor);
           // Inspecting scenery or a growing crop switches the selection. Work
           // choices keep the unit until an instruction is accepted.
           else if (!actions.length) clearResident();
@@ -615,6 +628,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     }
     towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
     wolves.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
+    if (selectedEnemy) {
+      const enemy = combat.unit(selectedEnemy);
+      if (!enemy || enemy.life !== 'active' || enemy.hp <= 0 || enemy.departed) clearEnemy();
+      else selectionFeedback.inspectEnemy(residents.displayPosition(enemy.id) ?? wolves.displayPosition(enemy.id) ?? enemy.position, fighterRadius(enemy) + .25);
+    }
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
     const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     let routeId=selectedId??pulse?.id;
@@ -659,6 +677,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     renderedFrames++;
     minimap.update(cpuStart, ui.minimapOpen, () => {
       const selected = new Set(residents.selectedIds());
+      if (selectedEnemy) selected.add(selectedEnemy);
       const units = combat.state.units.filter(u => u.life === 'active' && !u.departed).map(u => ({
         id: u.id, ...(residents.displayPosition(u.id) ?? u.position), enemy: u.team === 'enemy', selected: selected.has(u.id),
       }));
@@ -666,7 +685,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         const p = residents.displayPosition(d.id); if (p) units.push({ id: d.id, x: p.x, z: p.z, enemy: false, selected: selected.has(d.id) });
       }
       for (const w of raids.wolves) if (w.life === 'active' && w.mode !== 'gone') {
-        const p = wolves.displayPosition(w.id) ?? w.position; units.push({ id: w.id, x: p.x, z: p.z, enemy: true, selected: false });
+        const p = wolves.displayPosition(w.id) ?? w.position; units.push({ id: w.id, x: p.x, z: p.z, enemy: true, selected: selected.has(w.id) });
       }
       // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
       const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();
@@ -782,7 +801,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       wolves: wolves.snapshot(),
       doors: world.doors.snapshot(), fires: world.fires.snapshot(),
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
-      selection: { resident: residents.selectedId(), group: selectedGroup, members:residents.selectedIds(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
+      selection: { resident: residents.selectedId(), enemy: selectedEnemy, group: selectedGroup, members:residents.selectedIds(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
         object: selectedWorld && { id: selectedWorld.id, name: selectedWorld.name, kind: selectedWorld.kind } },
       objects: [...world.objects.values()].map(object => {
         const point = Vector3.Project(new Vector3(object.anchor.x, object.anchor.y, object.anchor.z), projectionIdentity,

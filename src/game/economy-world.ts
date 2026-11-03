@@ -100,12 +100,11 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
   }
   function cropTemplate(kind: 'carrot' | 'wheat', stage: number) {
     return template(`${kind}-${stage}`, () => {
-      for(const x of [-.29,.29])for(const z of [-.29,.29]){
-        const first=scene.meshes.length;createCropModel(scene,p,carrot,kind,stage);
-        for(const mesh of scene.meshes.slice(first)){
-          mesh.scaling.scaleInPlace(.62);mesh.position.scaleInPlace(.62);mesh.position.x+=x;mesh.position.z+=z;mesh.position.y+=.11;
-        }
-      }
+      const first=scene.meshes.length;
+      createCropModel(scene,p,carrot,kind,stage);
+      // Keep the original single crop and all growth-stage dimensions. Only
+      // raise its roots from the former .10 soil level to the new .19 bed.
+      for(const mesh of scene.meshes.slice(first))mesh.position.y+=.09;
     });
   }
   function houseTemplate(site: Parameters<typeof referenceHouse>[2], name: string) {

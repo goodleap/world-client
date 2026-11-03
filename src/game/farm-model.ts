@@ -38,9 +38,8 @@ function boundary(mask: number) {
   outlines.set(mask,edges);return edges;
 }
 
-/** Only exposed perimeter segments shape the shoulder. Collinear edges merge,
- * so adjacent tiles do not leave a notch in an otherwise straight outer edge. */
-function surface(edges: readonly Boundary[], x: number, z: number) {
+/** Rounded shoulder for either one bed or the outside of connected soil. */
+function shoulderHeight(edges: readonly Boundary[], x: number, z: number) {
   const band=.60;let influence=0;
   for(const edge of edges){
     const across=edge.vertical?x:z,along=edge.vertical?z:x;
@@ -52,21 +51,27 @@ function surface(edges: readonly Boundary[], x: number, z: number) {
   return -.018+.205*(t*t*(3-2*t));
 }
 
-/** Native ground tessellation, analytic smooth normals and shared materials.
- * Adjacency variants preserve per-cell picking/work without visible grass seams. */
+/** Each cell keeps its own rounded mound. Neighbours only raise the trough floor
+ * above the meadow, including four-way joins; they never flatten the bed tops. */
 export function createFarmModel(scene: Scene, palette: Palette, mask=0) {
   let earth=scene.getMaterialByName('farm-earth') as StandardMaterial|null;
   if(!earth){earth=new StandardMaterial('farm-earth',scene);earth.diffuseColor=Color3.White();earth.specularColor=Color3.Black();}
-  const edges=boundary(mask);
+  const edges=boundary(mask),cellEdges=boundary(0);
+  const surface=(x:number,z:number)=>{
+    const mound=shoulderHeight(cellEdges,x,z);
+    // Full interior trough: .055 high, versus meadow .012 and bed top .187.
+    // Blending heights keeps matching normals and colors across shared edges.
+    return mound+(shoulderHeight(edges,x,z)-mound)*(.073/.205);
+  };
   const soil=MeshBuilder.CreateGround('farm-soil',{width:GRID_SIZE,height:GRID_SIZE,subdivisions:64},scene);
   const positions=soil.getVerticesData(VertexBuffer.PositionKind)!,normals:number[]=[],colors:number[]=[];
   const low=Color3.FromHexString('#a96335'),high=Color3.FromHexString('#cf8b4e'),epsilon=.0005;
   for(let i=0;i<positions.length;i+=3){
     // Concentrate the native grid on curved shoulders, retaining a broad top.
     const x=Math.sin(positions[i]/GRID_SIZE*Math.PI)*GRID_SIZE/2,z=Math.sin(positions[i+2]/GRID_SIZE*Math.PI)*GRID_SIZE/2;
-    const y=surface(edges,x,z);positions[i]=x;positions[i+1]=y;positions[i+2]=z;
-    const nx=(surface(edges,x-epsilon,z)-surface(edges,x+epsilon,z))/(2*epsilon);
-    const nz=(surface(edges,x,z-epsilon)-surface(edges,x,z+epsilon))/(2*epsilon),length=Math.hypot(nx,1,nz);
+    const y=surface(x,z);positions[i]=x;positions[i+1]=y;positions[i+2]=z;
+    const nx=(surface(x-epsilon,z)-surface(x+epsilon,z))/(2*epsilon);
+    const nz=(surface(x,z-epsilon)-surface(x,z+epsilon))/(2*epsilon),length=Math.hypot(nx,1,nz);
     normals.push(nx/length,1/length,nz/length);
     const tint=Color3.Lerp(low,high,(y+.018)/.205);
     const edge=Math.max(0,1-(y+.018)/.065),blended=Color3.Lerp(tint,palette.grass.diffuseColor,edge);
@@ -76,7 +81,7 @@ export function createFarmModel(scene: Scene, palette: Palette, mask=0) {
   soil.setVerticesData(VertexBuffer.NormalKind,normals);
   soil.setVerticesData(VertexBuffer.ColorKind,colors);soil.material=earth;
   for(const [x,z,size] of [[-.39,.21,.025],[.38,-.33,.032],[.44,.35,.022]]){
-    const grain=ellipsoid(scene,'farm-soil-grain',[size*1.6,size*.6,size],[x,surface(edges,x,z)+size*.12,z],earth,6);
+    const grain=ellipsoid(scene,'farm-soil-grain',[size*1.6,size*.6,size],[x,surface(x,z)+size*.12,z],earth,6);
     const tint=Color3.FromHexString('#c4864c');
     grain.setVerticesData(VertexBuffer.ColorKind,Array.from({length:grain.getTotalVertices()},()=>[tint.r,tint.g,tint.b,1]).flat());
   }
