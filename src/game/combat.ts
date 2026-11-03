@@ -95,15 +95,16 @@ export class Combat {
   syncUnits() { this.units=new Map(this.state.units.map(u=>[u.id,u]));for(const u of this.threats)this.units.set(u.id,u); }
   unit(id: string) { return this.units.get(id) ?? this.state.units.find(u=>u.id===id); }
   setResidentPositions(read: (id: string) => Point) { this.residentPosition = read; }
-  targets(): CombatTarget[] {
+  private unitTarget(u:Fighter):CombatTarget { return {id:u.id,team:u.team,position:u.position,hp:u.hp,life:u.life,radius:fighterRadius(u),canAttack:true,elevation:towerHeight(this.economy.state,u.id)}; }
+  targets(opponentsOf?:'home'|'enemy'): CombatTarget[] {
     const neighbours = this.civilians();
-    return [...this.units.values()].filter(u=>!u.departed).map(u => ({ id: u.id, team: u.team, position: u.position, hp: u.hp, life: u.life, radius: fighterRadius(u), canAttack: true, elevation:towerHeight(this.economy.state,u.id) }))
-      .concat(homeResidents(this.economy.state).filter(r => !this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
+    return [...this.units.values()].filter(u=>!u.departed&&u.team!==opponentsOf).map(u=>this.unitTarget(u))
+      .concat(homeResidents(this.economy.state).filter(r => opponentsOf!=='home'&&!this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
         position: this.residentPosition?.(r.id) ?? neighbours.find(n => n.id === r.id)?.position ?? this.economy.state.residents[r.id]?.position ?? r.spawn,
         hp: this.economy.state.vitals[r.id].hp!, life: this.economy.state.vitals[r.id].hp! > 0 ? 'active' as const : 'defeated' as const,
-        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(buildingList(this.economy.state).filter(b=>b.built&&b.hp>0).map(b=>({id:b.id,team:'home' as const,position:{x:b.x,z:b.z},hp:b.hp,life:'active' as const,radius:Math.max(b.width,b.depth)/2,canAttack:this.economy.state.towers.some(t=>t.id===b.id&&t.phase==='occupied'),kind:'building' as const,elevation:0})));
+        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(buildingList(this.economy.state).filter(b=>opponentsOf!=='home'&&b.built&&b.hp>0).map(b=>({id:b.id,team:'home' as const,position:{x:b.x,z:b.z},hp:b.hp,life:'active' as const,radius:Math.max(b.width,b.depth)/2,canAttack:this.economy.state.towers.some(t=>t.id===b.id&&t.phase==='occupied'),kind:'building' as const,elevation:0})));
   }
-  target(id: string) { return this.targets().find(t => t.id === id); }
+  target(id: string) { const unit=this.unit(id);return unit?(unit.departed?undefined:this.unitTarget(unit)):this.targets('enemy').find(t=>t.id===id); }
   setThreats(threats: readonly Fighter[]) {
     this.threats = threats;
     this.units = new Map([...this.state.units, ...threats].map(u => [u.id, u]));
@@ -366,7 +367,7 @@ export class Combat {
         // Keep combat opponents stable; promote a civilian target when a fighter
         // enters alert range. Both factions use exactly the same selection rule.
         if (!target || !target.canAttack) {
-          const candidate = chooseTarget(u, this.targets(), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
+          const candidate = chooseTarget(u, this.targets(u.team), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
             && this.visible(u.position,t.position,u.id,t.id));
           if (candidate && (!target || candidate.canAttack)) target = candidate;
         }

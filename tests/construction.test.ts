@@ -46,3 +46,10 @@ test('dynamic building coordinates and partial work survive save/load; obsolete 
   const corrupt = JSON.parse(encodeEconomy(e)); corrupt.sites[0].x += .25;
   assert.throws(() => decodeEconomy(JSON.stringify(corrupt)), /网格/);
 });
+
+test('the same group center and common route survive a current-version save',()=>{
+  const e=new Economy();e.state.groups[0]=['infantry','archer'];
+  e.state.groupMoves['0']={members:['infantry','archer'],center:{x:10,z:20},route:[{x:1,z:5},{x:10,z:20}]};
+  const restored=decodeEconomy(encodeEconomy(e));assert.deepEqual(restored.state.groupMoves,e.state.groupMoves);
+  const bad=JSON.parse(encodeEconomy(e));bad.groupMoves['0'].center.x=12;assert.throws(()=>decodeEconomy(JSON.stringify(bad)),/编队目标/);
+});

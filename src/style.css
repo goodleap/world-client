@@ -1276,3 +1276,40 @@ kbd {
 .performance-setting { display:grid; grid-template-columns:1fr auto; gap:8px; margin:18px 0; text-align:left; font-size:14px; }
 .performance-setting select { padding:8px; border:1px solid #c6cdb8; border-radius:8px; background:#eef0e4; color:var(--ink); font:inherit; }
 .performance-setting small { grid-column:1 / -1; color:#73816a; font-size:11px; }
+
+/* A dialog's content cannot resize its shell while the player is interacting. */
+.resources-dialog, .recruit-dialog {
+  box-sizing:border-box;
+  height:min(660px,calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  max-height:none; overflow:hidden;
+}
+.resources-dialog[open], .recruit-dialog[open] { display:flex; flex-direction:column; }
+.resources-dialog > *, .recruit-dialog > * { flex-shrink:0; }
+.resources-dialog > section:not([hidden]) { display:flex; flex-direction:column; flex:1; min-height:0; }
+.resources-dialog #resources-panel { overflow:auto; }
+.resources-dialog .population-scroll, .resources-dialog .building-scroll { flex:1; min-height:0; max-height:none; overscroll-behavior:contain; }
+.resources-dialog #group-notice, .resources-dialog #building-notice { min-height:32px; margin:6px 0 0; }
+.recruit-dialog { height:min(720px,calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); padding:24px; }
+.recruit-dialog h2 { margin:4px 40px 8px 0; }
+.recruit-dialog .eyebrow { margin:0; }
+#recruit-capacity { margin:4px 0 12px; }
+.recruit-options-scroll { flex:1; min-height:80px; overflow:auto; overscroll-behavior:contain; }
+.recruit-dialog h3 { margin:14px 0 8px; font-size:15px; }
+#recruit-queue { height:128px; overflow:auto; align-content:start; margin:0; overscroll-behavior:contain; }
+#recruit-queue:empty::before { content:'暂无招募'; color:#73816a; font-size:12px; }
+#recruit-notice { height:36px; overflow:auto; margin:8px 0 0; font-size:12px; }
+@media(max-height:480px) {
+  .resources-dialog, .recruit-dialog { padding:10px 16px; }
+  .resources-dialog #group-notice, .resources-dialog #building-notice { min-height:14px; margin:4px 0 0; font-size:11px; }
+  .recruit-dialog .eyebrow { display:none; }
+  .recruit-dialog h2 { font-size:20px; margin:0 40px 4px 0; line-height:24px; }
+  #recruit-capacity { margin:0 0 6px; font-size:11px; }
+  .recruit-options { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+  .recruit-options button { padding:5px; gap:2px; font-size:12px; }
+  .recruit-options small { font-size:10px; }
+  .recruit-dialog h3 { margin:6px 0 4px; font-size:12px; }
+  #recruit-queue { height:52px; }
+  .recruit-dialog .home-actions { margin-top:6px; }
+  .recruit-dialog .home-actions button { min-height:32px; }
+  #recruit-notice { height:26px; margin:4px 0 0; font-size:10px; }
+}

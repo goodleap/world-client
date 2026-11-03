@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { buildingAt } from '../src/game/construction.ts';
 import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { gridPoint, GRID_SIZE } from '../src/game/world-data.ts';
@@ -297,4 +298,20 @@ test('incoming fire interrupts automatic supply to retaliate, preserving paid ca
   assert.equal(u.target, enemy.id); assert(!e.state.vitals[u.id].rest);
   assert.equal(e.state.goods[0].state, 'ground'); assert.equal(e.state.inventory.wood, stock);
   assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
+});
+
+test('multiple fires reserve seats independently, prefer supplied seats and feed concurrently',()=>{
+  const {e,f,site}=built(),second=buildingAt('campfire',{x:site.x+12,z:site.z},'site-1');
+  e.state.sites.push(second);e.state.buildings.push(second.id);e.state.nextSiteId=2;
+  const g=newCampfire(second.id);e.state.campfires.push(g);Object.assign(f,{enabled:true});Object.assign(g,{enabled:true,wood:6,food:8,meals:4});
+  e.state.vitals.farmer.stamina=10;const h=needsHarness(e);h.states.farmer.position={x:site.x,z:site.z-4};
+  h.n.update(.01);assert.equal(e.state.vitals.farmer.rest?.camp,g.id,'skip closer unsupplied fire');
+  h.n.manual('farmer');e.state.vitals.farmer.manualUntil=0;e.state.vitals.farmer.retryAt=0;
+  Object.assign(f,{wood:6,food:8,meals:4});h.states.farmer.position={x:site.x,z:site.z-4};h.states['farmer-2'].position={x:second.x,z:second.z-4};e.state.vitals['farmer-2'].stamina=10;
+  h.n.update(.01);assert.equal(e.state.vitals.farmer.rest?.camp,f.id);assert.equal(e.state.vitals['farmer-2'].rest?.camp,g.id);
+  h.n.update(.5);assert(e.state.vitals.farmer.stamina>10&&e.state.vitals['farmer-2'].stamina>10,'both eat during the same game step');
+  const restored=decodeEconomy(encodeEconomy(e));assert.equal(restored.state.vitals.farmer.rest?.camp,f.id);assert.equal(restored.state.vitals['farmer-2'].rest?.camp,g.id);
+  h.n.manual('farmer');e.state.vitals.farmer.manualUntil=0;e.state.vitals.farmer.retryAt=0;h.states.farmer.position={x:site.x,z:site.z-4};
+  for(const [i,id] of ['farmer-2','farmer-leader','infantry','archer'].entries()){e.state.vitals[id].stamina=10;e.state.vitals[id].rest={camp:f.id,goal:{x:site.x+Math.cos(i*Math.PI/2)*4,z:site.z+Math.sin(i*Math.PI/2)*4}};}
+  h.n.update(.01);assert.equal(e.state.vitals.farmer.rest?.camp,g.id,'travelling reservations fill the nearer fire too');
 });

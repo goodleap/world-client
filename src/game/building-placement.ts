@@ -20,7 +20,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   edgeMaterial.disableLighting = true;
   const fill = MeshBuilder.CreateGround('placement-footprint', { width: 1, height: 1 }, scene);
   fill.material = fillMaterial;
-  const edges = Array.from({ length: 7 }, (_, i) => {
+  const edges = Array.from({ length: 8 }, (_, i) => {
     const edge = MeshBuilder.CreateBox(`placement-grid-${i}`, { size: 1 }, scene);
     edge.material = edgeMaterial; return edge;
   });
@@ -51,7 +51,8 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     let index = 0;
     for (const horizontal of [true, false]) {
       const count = horizontal ? type.rows : type.columns;
-      for (let i = 0; i <= count; i++) {
+      const stops=[...Array.from({length:Math.ceil(count)},(_,i)=>i),count];
+      for (const i of stops) {
         const edge = edges[index++], offset = (i / count - .5) * (horizontal ? depth : width), thickness = i === 0 || i === count ? .065 : .025;
         edge.scaling.set(horizontal ? width : thickness, .025, horizontal ? thickness : depth);
         edge.position.set(candidate.x + (horizontal ? 0 : offset), .17, candidate.z + (horizontal ? offset : 0));

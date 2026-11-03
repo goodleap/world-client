@@ -19,6 +19,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 export function createNeedsController(e: Economy, residents: Residents, combat: Combat,
   storageUse: (from: Point) => void = () => {}) {
   const notes = new Map<string, string>();
+  const nextSeatCheck = new Map<string,number>();
   const status = (id: string) => residents.needsStatus(id);
   const position = (id: string) => combat.unit(id)?.position ?? status(id).position;
   const needs = (id: string) => bodiesFor(id).some(body => needsFood(e.state, body, V.stopAt));
@@ -26,6 +27,8 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   const available = (id: string) => e.state.campfires.filter(f => f.enabled
     && (f.cooking || f.meals > 0 || bodiesFor(id).some(b => e.state.vitals[b].meal))
     && distance(position(id), e.state.sites.find(s => s.id === f.id)!) <= V.foodRadiusCells * GRID_SIZE);
+  const readyToServe=(id:string,f:typeof e.state.campfires[number])=>fireIsLit(f)
+    && (f.meals>0 || f.cooking&&(f.food>0||f.cook>0) || bodiesFor(id).some(b=>!!e.state.vitals[b].meal));
   const free = (id: string) => {
     const u = combat.unit(id), v = e.state.vitals[id], movement = status(id);
     return e.state.seconds >= v.manualUntil && e.state.seconds >= v.retryAt && e.state.seconds >= v.hurtUntil
@@ -45,7 +48,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     const v = e.state.vitals[id];
     if (e.active(id)?.kind === 'supply') e.interrupt(position(id), id);
     v.rest = undefined; v.retryAt = e.state.seconds + V.retrySeconds;
-    residents.setResting(id, false); notes.delete(id);
+    residents.setResting(id, false); notes.delete(id);nextSeatCheck.delete(id);
     if (stop) {
       const u = combat.unit(id);
       if (u?.order === 'rest') { u.order = 'hold'; u.goal = undefined; u.route = []; }
@@ -55,9 +58,13 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   function request(id: string, preferred?: string) {
     if (!homeResidents(e.state).some(r => r.id === id)) return { ok: false, message: '请选择我方人物或动物' };
     if (!hungry(id) || !free(id)) return { ok: false, message: '尚无需休整或正在执行指令' };
-    const candidates = available(id).filter(f => !preferred || f.id === preferred).sort((a, b) =>
-      distance(position(id), e.state.sites.find(s => s.id === a.id)!) - distance(position(id), e.state.sites.find(s => s.id === b.id)!));
+    return takeSeat(id,available(id).filter(f=>!preferred||f.id===preferred));
+  }
+  function takeSeat(id:string,fires:typeof e.state.campfires){
+    const candidates=[...fires].sort((a,b)=>Number(readyToServe(id,b))-Number(readyToServe(id,a))
+      || distance(position(id), e.state.sites.find(s => s.id === a.id)!) - distance(position(id), e.state.sites.find(s => s.id === b.id)!));
     for (const fire of candidates) {
+      if(Object.entries(e.state.vitals).filter(([other,v])=>other!==id&&v.rest?.camp===fire.id).length>=F.seats)continue;
       const site = e.state.sites.find(s => s.id === fire.id)!;
       for (let i = 0; i < F.seats; i++) {
         const angle = (i + .5) * Math.PI * 2 / F.seats;
@@ -146,8 +153,11 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         const rest = vital.rest, fire = e.campfire(rest.camp);
         if (!fire?.enabled || !fire.cooking && !fire.meals && !bodiesFor(r.id).some(b => e.state.vitals[b].meal)) { finish(r.id); continue; }
         if (rest.supply !== undefined) { updateSupply(r.id, rest); continue; }
-        const ready = fireIsLit(fire) && (fire.meals > 0 || bodiesFor(r.id).some(b => e.state.vitals[b].meal)
-          || fire.cooking && (fire.food > 0 || fire.cook > 0));
+        const ready = readyToServe(r.id,fire);
+        if(!ready&&!bodiesFor(r.id).some(id=>e.state.vitals[id].meal)&&e.state.seconds>=(nextSeatCheck.get(r.id)??0)){
+          nextSeatCheck.set(r.id,e.state.seconds+2);
+          if(takeSeat(r.id,available(r.id).filter(f=>f.id!==fire.id&&readyToServe(r.id,f))).ok)continue;
+        }
         if (!ready) { startSupply(r.id, rest); if (rest.supply !== undefined) continue; }
         if (distance(position(r.id), rest.goal) > .2) {
           const goal = u?.goal ?? state.goal;

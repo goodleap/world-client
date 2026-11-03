@@ -1,6 +1,6 @@
 import { OUTPOST, ENCOUNTERS } from './combat-config.ts';
-import { WORLD_BOUNDS, OBSTACLES } from './world-data.ts';
-import type { Obstacle, Point } from './movement.ts';
+import { WORLD_BOUNDS, OBSTACLES, LANDSCAPE } from './world-data.ts';
+import { isBlocked, type Obstacle, type Point } from './movement.ts';
 import type { WanderSettings } from './wander.ts';
 
 export type ResidentRole = 'farmer' | 'infantry' | 'archer' | 'cavalry' | 'dog';
@@ -25,17 +25,31 @@ export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'farmer-leader', role: 'farmer', name: '农民·领头', effects: ['leader'], spawn: { x: 0, z: -3.8 }, home: { x: 0, z: -3.8 }, areaRadius: 3.6, bodyRadius: .29, speed: 1.15, labelHeight: 2.35 },
 ];
 
+// Deterministic camp slots avoid actual terrain/resources and each other.
+const campSolids:Obstacle[]=[...OBSTACLES,...[...LANDSCAPE.rocks,...LANDSCAPE.iron].map(p=>({kind:'circle' as const,...p,radius:.85*p.scale})),
+  ...LANDSCAPE.forage.map(p=>({kind:'circle' as const,...p,radius:.65}))];
+function campSlots(c:typeof ENCOUNTERS[number]):Point[]{
+  const count=c.members??0,slots:Point[]=[],choices:Point[]=[];
+  for(let z=-4;z<=4;z++)for(let x=-4;x<=4;x++)choices.push({x:c.x+x*1.65,z:c.z+z*1.65});
+  choices.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z)||b.z-a.z||a.x-b.x);
+  for(const p of choices)if(slots.length<count&&!isBlocked(p,.4,campSolids)&&p.x>WORLD_BOUNDS.minX+1&&p.x<WORLD_BOUNDS.maxX-1&&p.z>WORLD_BOUNDS.minZ+1&&p.z<WORLD_BOUNDS.maxZ-1)slots.push(p);
+  if(slots.length<count)throw new Error(`营地 ${c.id} 没有足够安全出生点`);
+  return slots.sort((a,b)=>b.z-a.z||a.x-b.x);
+}
+const campSpawns=new Map(ENCOUNTERS.filter(c=>c.members).map(c=>[c.id,campSlots(c)]));
+const campArcher=(c:typeof ENCOUNTERS[number],i:number)=>!!c.members&&i>=c.members-Math.ceil(c.members*.3);
+
 /** Same shared infantry/archer assets; allegiance is gameplay data. */
 export const ENEMIES: readonly ResidentDefinition[] = [
   { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.15 },
   ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.members ?? (c.id === 'pass' ? 3 : 2) }, (_, i): ResidentDefinition => ({
-    id: `enemy-${c.id}-${i}`, role: c.members ? i===3?'archer':'infantry' : c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
-    variant: (c.id === 'pass'||c.members) && i === 0 ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
-    name: c.members?`${c.name}${i===0?'重卫':i===3?'弓手':'守卫'}`:c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : c.id === 'patrol' ? '巡逻兵' : c.name,
-    spawn: c.members?{x:c.x+(i?i-2:0)*1.5,z:c.z+(i?-1.5:0)}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
-    home: c.members?{x:c.x+(i?i-2:0)*1.5,z:c.z+(i?-1.5:0)}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
+    id: `enemy-${c.id}-${i}`, role: c.members ? campArcher(c,i)?'archer':'infantry' : c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
+    variant: (c.members?i<(c.members>=12?2:1):c.id === 'pass' && i === 0) ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
+    name: c.members?`${c.name.replace(/营地|据点|营寨/,'')}${i<(c.members>=12?2:1)?'重卫':campArcher(c,i)?'弓手':'守卫'}`:c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : c.id === 'patrol' ? '巡逻兵' : c.name,
+    spawn: c.members?{...campSpawns.get(c.id)![i]}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
+    home: c.members?{...campSpawns.get(c.id)![i]}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
     areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.4,
   }))),
 ];

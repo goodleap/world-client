@@ -65,6 +65,8 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
   await page.screenshot({path:info.outputPath('group-move.png'),scale:'css'});
   await page.locator('#clear-selection').click();await panTo(page,HOME_CENTER,touch);
   await clickGround(page,{x:HOME_CENTER.x-.35,z:HOME_CENTER.z-HOME_CENTER.depth/2-.2},touch,1.4);
+  await expect(page.locator('#recruit-dialog')).not.toBeVisible();
+  await page.locator('#selection-actions').getByRole('button',{name:'招募',exact:true}).click();
   await expect(page.locator('#recruit-dialog')).toBeVisible();
   const paused=(await snapshot(page)).economy.seconds;await page.waitForTimeout(500);expect((await snapshot(page)).economy.seconds).toBe(paused);
   await page.getByRole('button',{name:'招募田园犬'}).click();await page.getByRole('button',{name:'招募步兵'}).click();

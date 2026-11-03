@@ -4,6 +4,7 @@ import type { Palette } from './models.ts';
 import { roundedBox as rounded } from './environment-shapes.ts';
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TOWER_SHAPE } from './tower-shape.ts';
+import { GRID_SIZE } from './world-data.ts';
 
 // Tiny timber bevels need only one curved edge segment at game distance.
 const roundedBox=(scene:Scene,name:string,size:[number,number,number],at:[number,number,number],material:StandardMaterial,radius:number)=>rounded(scene,name,size,at,material,radius,1);
@@ -12,6 +13,12 @@ const roundedBox=(scene:Scene,name:string,size:[number,number,number],at:[number
  * silhouette. Batched by material; additional towers use native instances. */
 export function createTowerModel(scene:Scene,p:Palette){
   const {baseHalf:base,topHalf:top,deck,deckWidth:width}=TOWER_SHAPE;
+  const footprint=TOWER_SHAPE.cells*GRID_SIZE;
+  roundedBox(scene,'tower-foundation',[footprint,.08,footprint],[0,.04,0],p.pathLight,.06);
+  for(const side of [-1,1]){
+    roundedBox(scene,'tower-foundation-edge',[footprint,.1,.09],[0,.07,side*(footprint/2-.045)],p.stoneLight,.025);
+    roundedBox(scene,'tower-foundation-edge',[.09,.1,footprint-.18],[side*(footprint/2-.045),.07,0],p.stoneLight,.025);
+  }
   type V=[number,number,number];
   const beam=(name:string,a:V,b:V,size:number,material:StandardMaterial)=>{
     const from=Vector3.FromArray(a),to=Vector3.FromArray(b),direction=to.subtract(from);

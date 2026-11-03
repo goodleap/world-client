@@ -10,7 +10,7 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
 import type { Point } from './movement.ts';
 
 /** One reusable ground marker; native animations share the scene's pause clock. */
-export function createMoveFeedback(scene: Scene, options: { name?: string; color?: string; ring?: boolean } = {}) {
+export function createMoveFeedback(scene: Scene, options: { name?: string; color?: string; ring?: boolean; arrows?:boolean; diameter?:number } = {}) {
   const name = options.name ?? 'move-destination';
   const root = new TransformNode(name, scene);
   const material = new StandardMaterial(name + '-ink', scene);
@@ -18,10 +18,10 @@ export function createMoveFeedback(scene: Scene, options: { name?: string; color
   material.emissiveColor = Color3.FromHexString(options.color ?? '#fff5bd');
   material.backFaceCulling = false;
   if (options.ring !== false) {
-    const ring = MeshBuilder.CreateTorus(name + '-ring', { diameter: .5, thickness: .05, tessellation: 32 }, scene);
+    const ring = MeshBuilder.CreateTorus(name + '-ring', { diameter: options.diameter??.5, thickness: options.arrows===false?.085:.05, tessellation: 40 }, scene);
     ring.parent = root; ring.material = material; ring.isPickable = false;
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (options.arrows===false?0:4); i++) {
     const angle = i * Math.PI / 2;
     const arrow = MeshBuilder.CreateDisc(`${name}-arrow-${i}`, { radius: .19, tessellation: 3, sideOrientation: Mesh.DOUBLESIDE }, scene);
     arrow.parent = root; arrow.material = material; arrow.isPickable = false;

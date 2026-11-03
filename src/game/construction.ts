@@ -2,7 +2,6 @@ import type { Point, Obstacle } from './movement.ts';
 import { isBlocked } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
-import { nearRoad } from './road-layout.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
 
@@ -27,7 +26,6 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
     || site.x + site.width / 2 > WORLD_BOUNDS.maxX - 1 || site.z - site.depth / 2 < WORLD_BOUNDS.minZ + 1 || site.z + site.depth / 2 > WORLD_BOUNDS.maxZ - 1) return '请放在地图范围内';
   const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * (site.width / 2 + .35), z: site.z + z * (site.depth / 2 + .35) }));
   if (!LANDSCAPE.regions.some(r => r.build && corners.every(p => insidePolygon(p, r.area)))) return '请在区域内的平坦空地建设';
-  if (nearRoad(site, Math.hypot(site.width, site.depth) / 2 + .7)) return '请留出通道，在道路旁建设';
   const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .35, halfDepth: site.depth / 2 + .35 };
   const overlaps = (o: Obstacle) => {
     if (o.kind === 'circle') return isBlocked(o, o.radius, [footprint]);
@@ -41,7 +39,6 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   // Placement reserves grid footprints, independently of built-model collision.
   const obstacles = economyObstacles(state.depleted, state.sites, []);
   if (obstacles.some(overlaps)) return '此处有建筑、资源或水域';
-  if (site.kind === 'farm' && nearRoad(site, Math.hypot(site.width, site.depth) / 2)) return '请在道路旁的空地开垦';
   // Farmland may share cell edges so players can extend an existing field.
   const fieldMargin = site.kind === 'farm' ? -1e-6 : .35;
   if (state.plots.some(p => Math.abs(site.x - p.x) < (site.width + GRID_SIZE) / 2 + fieldMargin

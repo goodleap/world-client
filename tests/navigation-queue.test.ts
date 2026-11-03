@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createNavigationQueue } from '../src/game/navigation-queue.ts';
 import { planNavigation, validateNavigation, type NavigationInput } from '../src/game/navigation-plan.ts';
 import { groupDestinations } from '../src/game/group-orders.ts';
+import { ENCOUNTERS } from '../src/game/combat-config.ts';
 import { ENEMIES } from '../src/game/resident-data.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
@@ -41,9 +42,13 @@ test('every formation size centers on the click with sufficient body clearance',
     for(let i=0;i<count;i++)for(let j=0;j<i;j++)assert(Math.hypot(slots[i].point.x-slots[j].point.x,slots[i].point.z-slots[j].point.z)>2.24);
   }
 });
-test('four remote camps add sixteen reachable, separated enemies with mixed roles',()=>{
-  const extra=ENEMIES.filter(e=>['orchard','hollow','lowland','east'].includes(e.camp??'')),solids=economyObstacles([]);assert.equal(extra.length,16);
-  for(const e of extra){assert(Math.hypot(e.spawn.x,e.spawn.z)>50);assert(!isBlocked(e.spawn,e.bodyRadius,solids));
-    assert(findPath({x:0,z:1.2},e.spawn,e.bodyRadius,WORLD_BOUNDS,solids));}
-  assert.equal(extra.filter(e=>e.role==='archer').length,4);assert.equal(extra.filter(e=>e.variant==='heavy').length,4);
+test('larger camps have safe, reachable, separated mixed formations',()=>{
+  const solids=economyObstacles([]);assert.equal(ENEMIES.length,100);
+  for(const camp of ENCOUNTERS.filter(c=>c.members)){
+    const members=ENEMIES.filter(e=>e.camp===camp.id),first=members[0];assert.equal(members.length,camp.members);
+    assert(findPath({x:0,z:1.2},first.spawn,.4,WORLD_BOUNDS,solids),camp.id);
+    for(const e of members){assert(!isBlocked(e.spawn,.4,solids),e.id);assert(findPath(first.spawn,e.spawn,.4,WORLD_BOUNDS,solids),e.id);
+      for(const other of members)if(other!==e)assert(Math.hypot(e.spawn.x-other.spawn.x,e.spawn.z-other.spawn.z)>.8);}
+    assert(members.some(e=>e.role==='archer'));assert(members.some(e=>e.variant==='heavy'));
+  }
 });

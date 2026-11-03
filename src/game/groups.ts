@@ -11,7 +11,7 @@ export function groupMembers(state: EconomyState,index:number) {
 export function saveGroup(e: Economy,index:number,members:readonly string[]) {
   const alive=new Set(livingResidents(e.state).map(r=>r.id));
   if(!Number.isInteger(index)||index<0||index>=GROUP_COUNT||members.length>GROUP_SIZE||new Set(members).size!==members.length||members.some(id=>!alive.has(id)))return false;
-  e.state.groups=e.state.groups.map((group,i)=>i===index?[...members]:group.filter(id=>!members.includes(id)));e.revision++;return true;
+  e.state.groupMoves={};e.state.groups=e.state.groups.map((group,i)=>i===index?[...members]:group.filter(id=>!members.includes(id)));e.revision++;return true;
 }
 export function pruneGroups(e: Economy) {
   const groups=e.state.groups.map((_,i)=>groupMembers(e.state,i));

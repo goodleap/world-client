@@ -9,6 +9,8 @@ import { groupDestinations } from './group-orders.ts';
 import { CommandGuidance } from './command-guidance.ts';
 import { planMoveDestination } from './work-navigation.ts';
 import { createNavigationQueue } from './navigation-queue.ts';
+import { validateNavigation } from './navigation-plan.ts';
+import type { Point } from './movement.ts';
 import { selectedUnitInfo } from './unit-info.ts';
 import { livingPopulation, formatGameTime } from './home-status.ts';
 import { Raids } from './raids.ts';
@@ -156,13 +158,16 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
   }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
   const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
-  const manual = (id: string) => { navigation.cancel(id);needs.manual(id); raids.manual(id); };
+  const commandVersions=new Map<string,number>();
+  const clearGroupMove=(id:string)=>{for(const [key,order]of Object.entries(economy.state.groupMoves))if(order.members.includes(id))delete economy.state.groupMoves[key];};
+  const manual = (id: string,keepGroup=false) => { commandVersions.set(id,(commandVersions.get(id)??0)+1);navigation.cancel(id);if(!keepGroup)clearGroupMove(id);needs.manual(id); raids.manual(id); };
   const moveFeedback = createMoveFeedback(scene);
-  const attackFeedback = createMoveFeedback(scene, { name: 'attack-target', color: '#f18b70', ring: false });
+  const attackFeedback = createMoveFeedback(scene, { name: 'attack-target', color: '#f05b4b', arrows:false, diameter:1.4 });
   let attackPulse: { attacker: string; target: string } | undefined;
   const pathGuidance = createPathGuidance(scene);
   const commandGuidance = new CommandGuidance();
   let selectedGroup:number|undefined, settingRally=false;
+  let groupGuide:{key:string;route:Point[];solids:unknown}|undefined;
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   const towerRange=createTowerRange(scene);
   let selectedWorld: WorldObject | undefined;
@@ -350,7 +355,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
           ui.flashAttackTarget(id, economy.state.seconds);
           attackPulse = { attacker: combatIds()[0], target: id };
           moveFeedback.hide(); attackFeedback.show(fighter.position);
-          combatIds().forEach(manual); clearWorld(); setPreview(); save();
+          combatIds().forEach(id=>manual(id)); clearWorld(); setPreview(); save();
         }
         return;
       }
@@ -368,7 +373,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const object = id && world.objects.get(id);
       if (object) {
         selectWorld(object);
-        if(object.id==='home-center'&&buildingOperational(economy.state,object.id)&&economy.state.buildingHealth[object.id]===undefined){management.open();return;}
+        if(object.id==='home-center')return;
         if(economy.state.towers.some(t=>t.id===object.id&&t.hp>0))return;
         if (residents.selectedId() && !economy.campfire(object.id)) {
           const task = economy.taskFor(object.id), actions = buildingSelection(economy,object.id,economySelection(economy, object)).actions ?? [];
@@ -387,26 +392,40 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (distance <= 0 || !Number.isFinite(distance)) return;
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
-      const ids=residents.selectedIds(),defs=homeResidents(economy.state);
-      const slots=groupDestinations(ids.map(id=>({id,position:combat.unit(id)?.position??residents.needsStatus(id).position,radius:defs.find(r=>r.id===id)!.bodyRadius})),point);
-      // Acknowledge the clicked group center immediately. Real, obstacle-aware
-      // routes arrive from the worker, with the selected representative first.
+      const ids=residents.selectedIds(),defs=homeResidents(economy.state),group=selectedGroup;
+      const versions=new Map(ids.map(id=>{navigation.cancel(id);clearGroupMove(id);const v=(commandVersions.get(id)??0)+1;commandVersions.set(id,v);return[id,v];}));
+      const current=(id:string)=>commandVersions.get(id)===versions.get(id);
       commandGuidance.clear();clearWorld();setPreview();moveFeedback.show(point);
-      let accepted=0,finished=0,sharedRoute:readonly {x:number;z:number}[]|undefined;
-      const dispatch=(slot:typeof slots[number],retry=0)=>navigation.request(slot.id,
-        ()=>{const context=combat.unit(slot.id)?combat.movementInput(slot.id,slot.point):residents.movementInput(slot.id,slot.point);
-          return context?{...context,routeHint:sharedRoute}:undefined;},path=>{
-          const ok=!!path&&(combat.unit(slot.id)?combat.move([slot.id],slot.point,false,false,false,false,path)>0
-            :controller.command(slot.id,{kind:'move',point:slot.point,path}).ok);
-          if(path&&!ok&&retry===0){dispatch(slot,1);return;}
-          finished++;
-          if(ok){accepted++;sharedRoute=combat.unit(slot.id)?.route??residents.routeFor(slot.id);manual(slot.id);if(ids.length===1){const end=path!.at(-1);if(end)moveFeedback.show(end);}refreshEconomy();save();}
-          if(finished===slots.length&&accepted<ids.length){
-            if(!accepted)moveFeedback.hide();
-            ui.targetHint(accepted?`${accepted}/${ids.length} 名已接受指令`:'无法到达该位置',{x:point.x,y:.2,z:point.z});
+      const context=(id:string,goal:Point)=>combat.unit(id)?combat.movementInput(id,goal):residents.movementInput(id,goal);
+      const launch=(center:Point,common?:Point[])=>{
+        const members=ids.filter(current),slots=groupDestinations(members.map(id=>({id,position:combat.unit(id)?.position??residents.needsStatus(id).position,radius:defs.find(r=>r.id===id)!.bodyRadius})),center);
+        let accepted=0,finished=0,sharedRoute:readonly Point[]|undefined=common;
+        const order=group!==undefined&&common?{members,center:{x:center.x,z:center.z},route:common}:undefined;
+        const dispatch=(slot:typeof slots[number],retry=0)=>navigation.request(slot.id,()=>{
+          const p=current(slot.id)?context(slot.id,slot.point):undefined;return p?{...p,routeHint:sharedRoute}:undefined;
+        },path=>{
+          if(!current(slot.id))return;
+          const ok=!!path&&(combat.unit(slot.id)?combat.move([slot.id],slot.point,false,false,false,false,path)>0:controller.command(slot.id,{kind:'move',point:slot.point,path}).ok);
+          if(path&&!ok&&retry===0){dispatch(slot,1);return;}finished++;
+          if(ok){accepted++;sharedRoute=combat.unit(slot.id)?.route??residents.routeFor(slot.id);manual(slot.id,true);
+            if(order)economy.state.groupMoves[group!]=order;
+            else{const end=path!.at(-1);if(end)moveFeedback.show(end);}
+            refreshEconomy();save();
           }
+          if(finished===slots.length&&accepted<slots.length){if(!accepted)moveFeedback.hide();ui.targetHint(accepted?`${accepted}/${slots.length} 名已接受指令`:'无法到达该位置',{x:center.x,y:.2,z:center.z});}
         });
-      slots.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id)).forEach(slot=>dispatch(slot));
+        slots.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id)).forEach(slot=>dispatch(slot));
+      };
+      if(group!==undefined&&ids.length>1){
+        // Plan the common destination first. Individual offsets never redefine
+        // the guide endpoint; a nearby fallback updates both marker and guide.
+        navigation.request(`formation-${group}`,()=>{const id=ids.find(current);return id?context(id,point):undefined;},path=>{
+          if(!ids.some(current))return;
+          if(!path?.length){moveFeedback.hide();ui.targetHint('无法到达该位置',{x:point.x,y:.2,z:point.z});return;}
+          const center=path.at(-1)!;moveFeedback.show(center);launch(center,path);
+        });
+      }else launch(point);
+
     }
     else clearSelection();
   }, gesture => {
@@ -575,9 +594,23 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     wolves.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
     const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
-    const routeId=selectedId??pulse?.id,routeFighter=routeId?combat.unit(routeId):undefined;
+    let routeId=selectedId??pulse?.id;
+    const order=selectedGroup===undefined?undefined:economy.state.groupMoves[selectedGroup];
+    if(order)routeId=order.members.find(id=>health(economy.state,id)>0&&(combat.unit(id)?.route??residents.routeFor(id)).length>0);
+    const routeFighter=routeId?combat.unit(routeId):undefined;
+    let guideRoute=routeId&&!navigation.pending(routeId)?routeFighter?.route??residents.routeFor(routeId):[];
+    if(order&&routeId&&guideRoute.length){
+      const p=routeFighter?combat.movementInput(routeId,order.center):residents.movementInput(routeId,order.center);
+      if(p){const key=`${routeId}/${order.center.x}/${order.center.z}/${guideRoute.map(v=>`${v.x},${v.z}`).join(';')}`;
+        if(!groupGuide||key!==groupGuide.key||p.solids!==groupGuide.solids){
+          const live={...p,neighbours:[]};
+          groupGuide={key,solids:p.solids,route:validateNavigation(live,[...guideRoute.slice(0,-1),order.center])??validateNavigation(live,order.route)??[]};
+        }
+        guideRoute=groupGuide.route;
+      }
+    }else groupGuide=undefined;
     pathGuidance.update(routeId,routeId?residents.displayPosition(routeId)??routeFighter?.position??residents.needsStatus(routeId).position:undefined,
-      routeId&&!navigation.pending(routeId)?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
+      guideRoute,selectedId?1:pulse?.alpha??1);
     const attackTarget = selectedFighter?.target;
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
     if (attackPulse) {

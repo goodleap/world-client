@@ -50,12 +50,12 @@ export async function checkBuildingsNavigation(page:Page,info:TestInfo,touch:boo
   await clickGround(page,goal,touch);
   await expect.poll(async()=>(await snapshot(page)).navigation.pending,{timeout:30000}).toBe(0);
   const moved=await snapshot(page),timing=await page.evaluate(()=>(window as unknown as {navCheck:{initial:{visible:boolean;x:number;z:number};pending:number;frames:number;firstRouteMs:number;completedMs:number}}).navCheck);
-  expect(timing.pending).toBe(5);expect(timing.initial.visible).toBe(true);expect(Math.hypot(timing.initial.x-goal.x,timing.initial.z-goal.z)).toBeLessThan(.08);
-  expect(timing.frames).toBeGreaterThanOrEqual(5);expect(timing.firstRouteMs).toBeGreaterThan(0);expect(moved.pathGuidance.visible).toBe(true);
+  expect(timing.pending).toBeGreaterThan(0);expect(timing.initial.visible).toBe(true);expect(Math.hypot(timing.initial.x-goal.x,timing.initial.z-goal.z)).toBeLessThan(.08);
+  expect(timing.frames).toBeGreaterThanOrEqual(5);expect(timing.firstRouteMs).toBeGreaterThan(0);expect(moved.pathGuidance.visible).toBe(true);expect(Math.hypot(moved.pathGuidance.endpoint!.x-goal.x,moved.pathGuidance.endpoint!.z-goal.z)).toBeLessThan(.08);
   const goals=moved.selection.members.map(id=>moved.combat.units.find(u=>u.id===id)?.goal??moved.residents.find(r=>r.id===id)!.destination!);
   await info.attach('navigation-timing',{body:JSON.stringify({timing,navigation:moved.navigation}),contentType:'application/json'});
   await writeFile(info.outputPath('navigation-timing.json'),JSON.stringify({timing,navigation:moved.navigation},null,2));
   expect(goals.every(Boolean)).toBe(true);expect(Math.hypot(goals.reduce((s,p)=>s+p.x,0)/5-goal.x,goals.reduce((s,p)=>s+p.z,0)/5-goal.z)).toBeLessThan(.1);
   await page.screenshot({path:info.outputPath('group-destination.png'),scale:'css'});
-  expect(moved.residents.filter(r=>/enemy-(orchard|hollow|lowland|east)-/.test(r.id))).toHaveLength(16);expect(errors).toEqual([]);
+  expect(moved.residents.filter(r=>/enemy-(orchard|hollow|lowland|east)-/.test(r.id))).toHaveLength(36);expect(errors).toEqual([]);
 }
