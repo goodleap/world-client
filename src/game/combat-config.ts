@@ -34,6 +34,7 @@ export const COMBAT_CONFIG = {
   enemyMelee: { hp: 65, attack: 12, armor: 2, ...melee, range: 1.6, speed: 3.3 },
   enemyArcher: { hp: 50, attack: 10, armor: 0, ...bow, range: 6, speed: 3 },
   enemyHeavy: { hp: 125, attack: 16, armor: 8, ...melee, range: 1.7, speed: 2.4 },
+  enemyCavalry: { hp: 110, attack: 14, armor: 6, ...melee, range: 2.4, speed: 6.2 },
   acquire: 8, chase: 14, projectileSpeed: 14,
   reward: { wood: 24, stone: 16, food: 12 },
 };

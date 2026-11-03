@@ -1,4 +1,5 @@
 import {bodyObstacle,turnTowards} from './body-shape.ts';
+import { createResidentPicking } from './picking-shapes.ts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { attackAnimationPhase } from './combat-animation';
 import { DeathView, MountedDeathView } from './death-view.ts';
@@ -72,20 +73,17 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     const settings = wanderSettings(definition);
     const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random);
     const human = definition.role === 'dog' ? undefined : createCharacter(scene, p, shadows, {
-      id: definition.id, role: definition.role, marker: false, phase: index * 1.2, mounted: definition.role === 'cavalry',
+      id: definition.id, role: definition.role, marker: false, modelOnly:true, phase: index * 1.2, mounted: definition.role === 'cavalry',
     });
     const animal = definition.role === 'dog' || definition.role === 'cavalry'
-      ? createAnimal(scene, p, shadows, definition.role === 'dog' ? 'dog' : 'horse', `${definition.id}-animal`) : undefined;
+      ? createAnimal(scene, p, shadows, definition.role === 'dog' ? 'dog' : 'horse', `${definition.id}-animal`,true) : undefined;
     const root = animal?.root ?? human!.root;
     const elevationRoot=new TransformNode(`${definition.id}-elevation`,scene);root.parent=elevationRoot;
     if (definition.role === 'cavalry' && human) {
       human.root.parent = root; human.root.position.set(0, 0.88, -0.1);
     }
     root.position.set(state.position.x, 0, state.position.z);
-    const hit = MeshBuilder.CreateSphere(`${definition.id}-hit`, { diameter: 1.5 }, scene);
-    hit.parent = root; hit.position.y = definition.role === 'cavalry' ? 1.6 : 1.0; hit.scaling.y = 1.5; hit.visibility = 0;
-    if (definition.role === 'dog') { hit.position.y = .65; hit.scaling.set(.9, .8, 1.2); }
-    hit.metadata = { selectionKind: 'resident', id: definition.id };
+    const hit = createResidentPicking(scene, root, definition.id, definition.role);
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
@@ -483,10 +481,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       resetRouteState(farmer.navigation);
       works.set(unit, { id, target, status: 'travelling' });
     },
-    farmerWorkState: (unit = farmer.definition.id): (Pick<Work, 'id' | 'status'> & { waitingFor?: number; approachOccupied?: boolean }) | undefined => {
+    farmerWorkState: (unit = farmer.definition.id): (Pick<Work, 'id' | 'status'> & { waitingFor?: number; approachOccupied?: boolean; path?: readonly Point[] }) | undefined => {
       const work = works.get(unit), actor = actors.find(a => a.definition.id === unit)!;
       const goal = actor.route.at(-1);
-      return work && { id: work.id, status: work.status, waitingFor: actor.navigation.waited,
+      return work && { id: work.id, status: work.status, path: actor.route, waitingFor: actor.navigation.waited,
         approachOccupied: !!goal && occupiedApproach(goal, actor.settings.bodyRadius, workNeighbours(actor)) };
     },
     beginFarmerWork(id: number, unit = farmer.definition.id) { const work = works.get(unit); if (work?.id === id && work.status === 'arrived') work.status = 'working'; },

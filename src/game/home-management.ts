@@ -36,6 +36,12 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       input.type='checkbox';input.value=r.id;input.id=`group-member-${r.id}`;input.checked=draft.includes(r.id);
       input.setAttribute('aria-label',`将${r.name}编入 ${editing+1} 队`);
       label.htmlFor=input.id;label.textContent=r.name;label.title=r.name;
+      if(r.progression){
+        const rank=document.createElement('small'),{level,progress,required}=r.progression;
+        rank.dataset.stat='level';rank.textContent=`${level}级 · ${required?`${Math.floor(progress)}/${required}`:'满级'}`;
+        rank.title=required?`经验 ${Math.floor(progress)} / ${required}，造成实际伤害获得经验`:'已达最高等级';
+        label.append(rank);
+      }
       if(r.group!==undefined&&r.group!==editing){const other=document.createElement('small');other.textContent=`${r.group+1} 队`;label.append(other);}
       input.addEventListener('change',()=>{
         if(input.checked&&draft.length>=GROUP_SIZE){input.checked=false;notice('每队最多 6 名');return;}
@@ -49,6 +55,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     }));
   }
   function renderBuildings(){
+    (get('auto-repair') as HTMLInputElement).checked=e.state.autoRepair;
     const rows=[...buildingList(e.state),...e.state.plots.map(p=>({id:p.id,name:'耕地',built:true,hp:0,maxHealth:0,armor:0}))],key=JSON.stringify([rows,e.state.tasks.map(t=>[t.target,t.kind,t.status,Math.floor(t.progress)]),e.available()]);
     if(key===buildingKey)return;buildingKey=key;
     get('building-summary').textContent=`建筑 ${rows.filter(b=>b.maxHealth).length} · 耕地 ${e.state.plots.length} · 受损 ${rows.filter(b=>b.built&&b.hp<b.maxHealth).length}`;
@@ -66,11 +73,16 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
         else{const result=e.request('repair',b.id);get('building-notice').textContent=result.message;}
         callbacks.save();renderBuildings();
       });
-      control.disabled=!repair&&(!q||!!task);control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(b.maxHealth)action.append(control);
+      control.disabled=!repair&&!!task;control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(repair||q)action.append(control);
       if(e.demolition(b.id)){const remove=button('拆除',()=>callbacks.demolish(b.id));remove.setAttribute('aria-label',`拆除${b.name}`);action.append(remove);}
       tr.append(action);return tr;
     }));
   }
+  get('auto-repair').addEventListener('change',()=>{
+    e.setAutoRepair((get('auto-repair') as HTMLInputElement).checked);
+    get('building-notice').textContent=e.state.autoRepair?'自动维修已开启，材料不足或区域危险时等待':'自动维修已关闭，已安排的任务可单独取消';
+    callbacks.save();renderBuildings();
+  },options);
   for(const tab of ['resources','population','buildings'])get(`${tab}-tab`).addEventListener('click',()=>{
     for(const kind of ['resources','population','buildings']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
     if(tab==='population')edit();

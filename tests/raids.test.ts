@@ -200,3 +200,15 @@ test('warning persists for eight active seconds, alternates soldier raids and se
   assert(r.state.nextAt>=105&&r.state.nextAt<=135);
   const restored=setup(decodeEconomy(encodeEconomy(e)));restored.advance(.1);assert.deepEqual(restored.e.state.goods,loot);
 });
+
+test('fourth-wave cavalry replaces one raider and restores its route, level and health',()=>{
+  const {e,c,r}=setup();e.state.raids.wave=3;e.state.raids.nextAt=60;e.state.seconds=52;r.update(.05);
+  assert(r.state.pendingOrigin);const count=r.state.pendingCount;
+  e.state.seconds=60;r.update(.05);
+  const riders=r.state.soldiers.map(id=>c.unit(id)!).filter(u=>u.role==='cavalry');
+  assert.equal(r.state.soldiers.length,count);assert.equal(riders.length,1);
+  const rider=riders[0];assert.equal(rider.hp,110);assert(rider.route.length>0);
+  rider.experience=250;rider.hp=121;
+  const saved=decodeEconomy(encodeEconomy(e)).state.combat.units.find(u=>u.id===rider.id)!;
+  assert.equal(saved.role,'cavalry');assert.equal(saved.experience,250);assert.equal(saved.hp,121);assert.deepEqual(saved.route,rider.route);
+});

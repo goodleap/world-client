@@ -58,7 +58,7 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
           if (copy) { copy.isVisible = true; copy.setEnabled(true); copy.isPickable = false; levels.push(copy); }
           shown.addLODLevel(level.distanceOrScreenCoverage, copy);
         }
-        shown.isPickable = true; mesh.setEnabled(false);
+        shown.isPickable = mesh.isPickable; mesh.setEnabled(false);
         if (shadows.getShadowMap()?.renderList?.includes(mesh)) shadows.addShadowCaster(shown, false);
       } else if (mesh instanceof Mesh) shown = mesh;
       else continue;

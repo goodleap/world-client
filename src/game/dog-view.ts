@@ -1,4 +1,5 @@
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+import { prepareRenderTemplates } from './render-mesh-memory.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -21,6 +22,7 @@ function dogLibrary(scene:Scene) {
   if(!library){library=(async()=>{
     const url=modelAssets.dog,data=await modelData(url);
     const source=await loadingProgress.run(url+':parse','田园犬：共享模型与动作解析',()=>LoadAssetContainerAsync(data,scene,modelOptions(url)));
+    prepareRenderTemplates(source.meshes);
     source.animationGroups.forEach(g=>g.stop());createCharacterMaterialSetup(scene)(source.materials);
     source.materials.forEach(m=>m.freeze());scene.onDisposeObservable.add(()=>source.dispose());return source;
   })();libraries.set(scene,library);}

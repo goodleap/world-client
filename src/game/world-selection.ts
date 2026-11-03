@@ -10,8 +10,8 @@ export interface WorldObject {
 }
 export interface FaceRange { start: number; end: number; id: string }
 
-/** MergeMeshes preserves source triangle order; keep logical object identity
- * alongside the material batches without adding invisible picking volumes. */
+/** Trees/resources retain triangle identity through native material batching.
+ * Buildings and characters use their own simple picking volumes. */
 export function selectionRanges(meshes: readonly AbstractMesh[]): FaceRange[] {
   const ranges: FaceRange[] = [];
   let offset = 0;

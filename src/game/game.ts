@@ -7,7 +7,7 @@ import { advanceRecruitment, homeResidents } from './recruitment.ts';
 import { groupMembers, groupInfo, pruneGroups } from './groups.ts';
 import { groupDestinations } from './group-orders.ts';
 import { CommandGuidance } from './command-guidance.ts';
-import { planMoveDestination } from './work-navigation.ts';
+import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { createNavigationQueue } from './navigation-queue.ts';
 import { validateNavigation } from './navigation-plan.ts';
 import type { Point } from './movement.ts';
@@ -92,7 +92,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   applyPerformance();
   const palette = createPalette(scene);
   const definitions = () => [...homeResidents(economy.state), ...ENEMIES, ...economy.state.combat.units
-    .filter(u=>u.id.startsWith('enemy-raid-')).map(u=>({...newResident(u.role as 'infantry'|'archer',u.id,u.home),name:u.role==='archer'?'来袭弓兵':'来袭步兵'}))];
+    .filter(u=>u.id.startsWith('enemy-raid-')).map(u=>({...newResident(u.role as 'infantry'|'archer'|'cavalry',u.id,u.home),name:u.role==='archer'?'来袭弓兵':u.role==='cavalry'?'来袭骑兵':'来袭步兵'}))];
   let definitionKey=definitions().map(r=>r.id).join(',');
   let saveWarning = false;
   let canSave = false;
@@ -146,7 +146,13 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   residents.setExtraNeighbours(() => raids.neighbours());
   const occupancy = () => [...residents.occupancy(), ...raids.occupancy()];
   economy.setOccupancy(occupancy);
-  const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point));
+  const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point), {
+    plan(id, goal) {
+      const p = combat.unit(id) ? combat.movementInput(id, goal) : residents.movementInput(id, goal);
+      return p && planWorkApproach(p.start, [goal], p.radius, p.bounds, [...p.solids, ...raids.workObstacles()], p.neighbours);
+    },
+    current: id => combat.unit(id)?.route ?? residents.routeFor(id),
+  });
   const combatView = createCombatView(scene);
   combatView.update(combat.state);
   const farmerLeader = roleLeader('farmer');
@@ -157,7 +163,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
-  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id),points=>raids.unsafePath(points));
+  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id),points=>raids.unsafePath(points),()=>raids.workObstacles());
   const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
   const commandVersions=new Map<string,number>();
   const clearGroupMove=(id:string)=>{for(const [key,order]of Object.entries(economy.state.groupMoves))if(order.members.includes(id))delete economy.state.groupMoves[key];};
@@ -215,7 +221,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     updateEconomyUI(ui, economy);
     ui.setHomeStatus(livingPopulation(economy.state), formatGameTime(economy.state.seconds));
     for (const id of Object.keys(economy.state.vitals)) {
-      ui.setUnitHealth(id, health(economy.state, id), maxHealth(id), economy.state.seconds, id === 'horse' ? 'cavalry' : id.startsWith('horse:') ? id.slice(6) : id);
+      ui.setUnitHealth(id, health(economy.state, id), maxHealth(id, economy.state), economy.state.seconds, id === 'horse' ? 'cavalry' : id.startsWith('horse:') ? id.slice(6) : id);
     }
     for (const wolf of raids.wolves) ui.setUnitHealth(wolf.id, wolf.hp, fighterStats(wolf).hp, economy.state.seconds);
     ui.setRaidNotice(raids.state.noticeUntil > economy.state.seconds ? raids.state.notice + (raids.state.phase === 'raid' || raids.state.pendingOrigin ? ' · 查看' : '') : '');

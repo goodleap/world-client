@@ -106,6 +106,7 @@ export function createUI(app: HTMLElement) {
       </div>
       <section id="resources-panel" role="tabpanel" aria-labelledby="resources-tab"><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></section>
       <section id="buildings-panel" role="tabpanel" aria-labelledby="buildings-tab" hidden>
+        <label class="auto-repair-control"><input id="auto-repair" type="checkbox" role="switch">自动维修</label>
         <p id="building-summary" class="dialog-note"></p>
         <div class="building-scroll"><table class="building-table" aria-label="家园建筑">
           <thead><tr><th scope="col">名称</th><th scope="col">生命</th><th scope="col">防御</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>

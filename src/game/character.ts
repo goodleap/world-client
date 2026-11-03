@@ -2,6 +2,7 @@ import { Bone } from '@babylonjs/core/Bones/bone';
 import { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { cylinder, softBox, sphere } from './models.ts';
@@ -10,7 +11,7 @@ import { addOutfit, HUMAN_STYLES } from './character-outfits.ts';
 import type { HumanRole } from './character-outfits.ts';
 import { createSkinAssembly } from './skinning.ts';
 
-export interface CharacterOptions { id?: string; role?: HumanRole; marker?: boolean; phase?: number; mounted?: boolean }
+export interface CharacterOptions { id?: string; role?: HumanRole; marker?: boolean; phase?: number; mounted?: boolean; modelOnly?: boolean }
 
 export function createCharacter(scene: Scene, p: Palette, shadows: ShadowGenerator, options: CharacterOptions = {}) {
   const { id = 'player', role = 'traveler', marker: showMarker = true } = options;
@@ -26,6 +27,13 @@ export function createCharacter(scene: Scene, p: Palette, shadows: ShadowGenerat
   const rightArm = new Bone('right-arm', skeleton, torso, Matrix.Translation(0.32, 0.2, 0));
   const leftLeg = new Bone('left-leg', skeleton, hips, Matrix.Translation(-0.16, -0.05, 0));
   const rightLeg = new Bone('right-leg', skeleton, hips, Matrix.Translation(0.16, -0.05, 0));
+  // The game waits for the authored GLB before showing actors. Keep its root
+  // and interface without building a second, permanently hidden character.
+  if (options.modelOnly) {
+    const mesh=new Mesh(`${id}-anchor`,scene);mesh.parent=root;mesh.isPickable=false;
+    root.rotationQuaternion=Quaternion.RotationYawPitchRoll(Math.PI,0,0);
+    return {root,skeleton,mesh,role,partNames:[] as string[],update(_seconds:number,_x:number,_z:number){}};
+  }
   const assembly = createSkinAssembly();
   const skin = assembly.add;
   skin(softBox(scene, 'shirt', [0.57, 0.62, 0.4], [0, 1.03, 0], p[style.shirt], 0.1), torso);

@@ -20,7 +20,8 @@ export async function checkSafetyDemolition(page:Page,info:TestInfo,touch:boolea
   const saved=await snapshot(page);expect(saved.economy.sites).toHaveLength(0);expect(saved.economy.goods.some(g=>g.resource==='wood'&&g.state==='ground')).toBe(true);
   await page.screenshot({path:info.outputPath('building-list.png'),scale:'css'});await page.getByRole('button',{name:'关闭家园面板'}).click();
   await panTo(page,{x:-4,z:-4},touch);await selectUnit(page,'cavalry',touch);const before=(await snapshot(page)).combat.units.find(u=>u.id==='cavalry')!.position;
-  await clickGround(page,{x:-3.5,z:-1},touch);await expect.poll(async()=>{const u=(await snapshot(page)).combat.units.find(u=>u.id==='cavalry')!;return Math.hypot(u.position.x-before.x,u.position.z-before.z);},{timeout:30000}).toBeGreaterThan(1);
+  // Keep the ground command outside the projected rider/horse cylinder.
+  await clickGround(page,{x:-3.5,z:-10},touch);await expect.poll(async()=>{const u=(await snapshot(page)).combat.units.find(u=>u.id==='cavalry')!;return Math.hypot(u.position.x-before.x,u.position.z-before.z);},{timeout:30000}).toBeGreaterThan(1);
   const poses=[];for(let i=0;i<4;i++){poses.push((await snapshot(page)).combat.units.find(u=>u.id==='cavalry'));await page.waitForTimeout(250);}
   await info.attach('mounted-motion',{body:JSON.stringify(poses),contentType:'application/json'});await page.screenshot({path:info.outputPath('mounted-game.png'),scale:'css'});
   expect(errors).toEqual([]);

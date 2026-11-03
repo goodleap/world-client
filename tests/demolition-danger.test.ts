@@ -1,3 +1,4 @@
+import {updateDangerZones,pathInDanger} from '../src/game/danger-zones.ts';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {Economy,encodeEconomy,decodeEconomy} from '../src/game/economy.ts';
 import {buildingAt} from '../src/game/construction.ts';import {newCampfire} from '../src/game/campfire.ts';
@@ -30,15 +31,18 @@ test('occupied tower blocks demolition until a safe exit is available, then remo
   assert(!e.demolish(s.id).ok);assert.equal(e.state.sites.length,1);
   assert(e.demolish(s.id,id=>evictTower(e,c,id)).ok);assert.equal(u.hp,hp);assert.equal(e.state.towers.length,0);assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
 });
-test('danger is shared by all farmers, pauses without a timer escape, persists and needs five continuously safe game seconds',()=>{
+test('danger is shared by all farmers, pauses without a timer escape, persists and resumes only after its shared area stays safe for ten game seconds',()=>{
   let e=new Economy();e.setLeadership(false);e.state.goods.push({id:'goods-1',x:8,z:-3,resource:'wood',amount:8,state:'ground'});e.state.nextId=2;
   let t=e.request('haul','goods-1').task!;e.assign(t.id);e.arrive(t.id);e.updateCargo({x:4,z:-3});
   t.watchPath=[{x:0,z:-3},{x:8,z:-3},{...WAREHOUSE_DOOR}];e.holdDanger(t,{x:4,z:-3});
   assert.equal(e.state.goods[0].state,'ground');assert.equal(e.claim('farmer-2'),undefined);
   for(let i=0;i<20;i++){e.advance(.5);e.checkDanger(()=>true);}assert(t.danger);assert.equal(e.claim(),undefined);
-  e.checkDanger(()=>false);e.advance(3);e.checkDanger(()=>false);e=decodeEconomy(encodeEconomy(e));t=e.taskFor('goods-1')!;assert(t.danger);assert.equal(t.reason,'危险，等待清场');
-  e.checkDanger(()=>true);e.advance(10);e.checkDanger(()=>false);e.advance(4.9);e.checkDanger(()=>false);assert(t.danger);
-  e.advance(.11);e.checkDanger(()=>false);assert(!t.danger);assert.equal(e.claim('farmer-2')?.id,t.id);
+  updateDangerZones(e.state.dangerZones,[{id:'foe',x:4,z:-3,radius:2}],e.state.seconds);
+  const check=()=>{updateDangerZones(e.state.dangerZones,[],e.state.seconds);e.checkDanger(p=>pathInDanger(e.state.dangerZones,p));};
+  check();e.advance(3);check();e=decodeEconomy(encodeEconomy(e));t=e.taskFor('goods-1')!;assert(t.danger);assert.equal(t.reason,'危险，等待清场');
+  updateDangerZones(e.state.dangerZones,[{id:'foe',x:4,z:-3,radius:2}],e.state.seconds);check();
+  e.advance(9.9);check();assert(t.danger);
+  e.advance(.11);check();assert(!t.danger);assert.equal(e.claim('farmer-2')?.id,t.id);
   assert.equal(e.state.goods.reduce((n,g)=>n+g.amount,0),8);
 });
 test('dispatch checks a dangerous route before moving and gives another farmer safe work',()=>{
@@ -53,5 +57,5 @@ test('route risk covers enemies along intermediate segments, not just the destin
   const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]);for(const u of c.state.units)if(u.team==='enemy')u.departed=true;
   const foe=c.unit('enemy-guard')!;foe.departed=false;foe.position={x:0,z:0};
   const r=new Raids(e,c,{status:()=>({position:{x:30,z:30},moving:false}),command:()=>false,release:()=>{},resting:()=>{},neighbours:()=>[]},()=>[],()=>false);
-  assert(r.unsafePath([{x:-15,z:0},{x:15,z:0}]));assert(!r.unsafePath([{x:-15,z:10},{x:15,z:10}]));
+  assert(r.unsafePath([{x:-15,z:0},{x:15,z:0}]));assert(!r.unsafePath([{x:-15,z:20},{x:15,z:20}]));
 });

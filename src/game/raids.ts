@@ -1,9 +1,11 @@
 import { Combat, fighterRadius, createFighter } from './combat.ts';
-import { COMBAT_CONFIG } from './combat-config.ts';
+import { COMBAT_CONFIG, ENCOUNTERS } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
 import type { Economy } from './economy.ts';
-import { newResident } from './resident-data.ts';
+import { newResident, ENEMIES } from './resident-data.ts';
+import { DANGER_CONFIG, updateDangerZones, pathInDanger, dangerObstacles } from './danger-zones.ts';
+import type { AreaThreat } from './danger-zones.ts';
 import { homeResidents } from './recruitment.ts';
 import { initialVital } from './vitals.ts';
 import { health } from './vitals.ts';
@@ -37,6 +39,8 @@ export class Raids {
   private solids: () => readonly Obstacle[];
   private visible: (point: Point) => boolean;
   private decisions = 0;
+  private areaAt = -Infinity;
+  private areaSolids: Obstacle[] = [];
   constructor(economy: Economy, combat: Combat, people: RaidResidents, solids: () => readonly Obstacle[], visible: (point: Point) => boolean) {
     this.economy = economy; this.combat = combat; this.people = people; this.solids = solids; this.visible = visible;
     combat.setResidentPositions(id => people.status(id).position);
@@ -53,19 +57,25 @@ export class Raids {
       radius: fighterRadius(w), moving: w.speed > .08, purposeful: !!w.route.length, waiting: w.navigation.waiting }));
   }
   occupancy() { return this.neighbours().map(n => ({ kind: 'circle' as const, ...n.position, radius: n.radius })); }
-  unsafePath(points:readonly Point[]){
-    const threats=this.combat.targets('home').filter(t=>t.life==='active'&&!this.combat.unit(t.id)?.departed
-      &&!this.wolves.some(w=>w.id===t.id&&['gone','flee'].includes(w.mode)));
-    for(let i=0;i<points.length;i++){
-      const a=points[Math.max(0,i-1)],b=points[i],dx=b.x-a.x,dz=b.z-a.z,len=dx*dx+dz*dz;
-      for(const t of threats){
-        const k=len?Math.max(0,Math.min(1,((t.position.x-a.x)*dx+(t.position.z-a.z)*dz)/len)):0;
-        const near={x:a.x+dx*k,z:a.z+dz*k};
-        if(distance(near,t.position)<8&&this.clear(near,t.position))return true;
-      }
+  private updateAreas() {
+    const now=this.economy.state.seconds;
+    if(now<this.areaAt)return;
+    this.areaAt=now+DANGER_CONFIG.interval;
+    const units=this.combat.state.units.filter(u=>u.team==='enemy'&&u.life==='active'&&!u.departed);
+    const camps=new Set(units.map(u=>ENEMIES.find(r=>r.id===u.id)?.camp).filter(Boolean));
+    const threats:AreaThreat[]=ENCOUNTERS.filter(c=>camps.has(c.id)).map(c=>({id:`camp:${c.id}`,x:c.x,z:c.z,
+      radius:c.radius+COMBAT_CONFIG.acquire+DANGER_CONFIG.buffer,fixed:true}));
+    for(const u of [...units,...this.wolves.filter(w=>w.life==='active'&&w.mode!=='gone')]) {
+      threats.push({id:u.id,x:u.position.x,z:u.position.z,radius:(u.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire)+DANGER_CONFIG.buffer});
     }
-    return false;
+    updateDangerZones(this.economy.state.dangerZones,threats,now);
+    this.areaSolids=dangerObstacles(this.economy.state.dangerZones);
   }
+  unsafePath(points:readonly Point[]){
+    this.updateAreas();
+    return pathInDanger(this.economy.state.dangerZones,points);
+  }
+  workObstacles(){this.updateAreas();return this.areaSolids;}
   canWork(id: string) { return !this.state.evading[id] && health(this.economy.state, id) > 0; }
   manual(id: string) { delete this.state.evading[id]; }
   private neighboursFor(w: Wolf) {
@@ -131,7 +141,7 @@ export class Raids {
       const wolf=newWolf(`wolf-${state.wave}-${n}`,p);wolf.route=[{...origin},...route.map(p=>({...p}))];return wolf;
     });
     else for(const [n,p] of spots.entries()) {
-      const role=n%3===2?'archer':'infantry',id=`enemy-raid-${role}-${state.wave}-${n}`;
+      const role=state.wave>=4&&n===0?'cavalry':n%3===2?'archer':'infantry',id=`enemy-raid-${role}-${state.wave}-${n}`;
       const unit=createFighter(newResident(role,id,p));unit.goal={...home};unit.route=[{...origin},...route.map(p=>({...p}))];
       this.combat.state.units.push(unit);this.economy.state.vitals[id]=initialVital(id);state.soldiers.push(id);
     }
@@ -145,7 +155,7 @@ export class Raids {
     for (const r of homeResidents(this.economy.state)) {
       if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id]; continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
-      const nearby = threats.filter(w => distance(position, w.position) < 8 && this.clear(position, w.position));
+      const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire)+DANGER_CONFIG.buffer);
       if (this.combat.unit(r.id)) {
         for (const w of threats) if (distance(position, w.position) <= C.aidRadius
           && homeResidents(this.economy.state).some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
@@ -154,7 +164,9 @@ export class Raids {
         continue;
       }
       const evasion = this.state.evading[r.id];
-      if (!nearby.length) {
+      const zone=this.economy.state.dangerZones.find(z=>distance(position,z)<=z.radius);
+      const hazard=nearby.length?nearby.reduce((a,b)=>distance(position,a.position)<distance(position,b.position)?a:b).position:zone;
+      if (!hazard) {
         if (evasion && now >= evasion.safeAt) { this.people.release(r.id); delete this.state.evading[r.id]; }
         continue;
       }
@@ -164,12 +176,13 @@ export class Raids {
       e.safeAt = now + 5; vital.hurtUntil = Math.max(vital.hurtUntil, now + 1);
       if (e.planAt > now) continue;
       e.planAt = now + 2;
-      const wolf = nearby.reduce((a, b) => distance(position, a.position) < distance(position, b.position) ? a : b);
-      const dx = position.x - wolf.position.x, dz = position.z - wolf.position.z, length = Math.hypot(dx, dz) || 1;
-      const points = [{ x: position.x + dx / length * 8, z: position.z + dz / length * 8 },
+      const dx = position.x - hazard.x || .01, dz = position.z - hazard.z, length = Math.hypot(dx, dz) || 1;
+      const escapeDistance = C.acquire+DANGER_CONFIG.buffer+4;
+      const points = [{ x: position.x + dx / length * escapeDistance, z: position.z + dz / length * escapeDistance },
+        ...(zone ? circle(zone, zone.radius+2) : []),
         ...this.economy.state.campfires.filter(fireIsLit).flatMap(f => circle(this.economy.state.sites.find(s => s.id === f.id)!, 3)),
         ...this.economy.warehouseDoors()]
-        .filter(p => distance(p, wolf.position) > distance(position, wolf.position) + 2)
+        .filter(p => distance(p, hazard) > distance(position, hazard) + 2 && !this.unsafePath([p]))
         .sort((a, b) => distance(position, a) - distance(position, b));
       // Interrupt once: carried resources are preserved by the economy, never refunded.
       if (!evasion) { const task=this.economy.active(r.id);if(task){task.watchPath??=[{...position}];this.economy.holdDanger(task,position);}else this.economy.interrupt(position, r.id); this.people.release(r.id); vital.rest = undefined; this.people.resting(r.id, false); }
@@ -179,6 +192,7 @@ export class Raids {
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const dt = Math.min(seconds, .25), now = this.economy.state.seconds;
+    this.updateAreas();
     if(this.state.phase==='peace'){
       if(!this.state.pendingOrigin&&now>=this.state.nextAt-C.warning)this.warn();
       if(this.state.pendingOrigin&&now>=this.state.nextAt)this.spawn();

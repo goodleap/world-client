@@ -1196,6 +1196,8 @@ kbd {
 .building-table .damaged [data-stat=health] { color:#b94734; }
 .building-table button { min-height:38px; min-width:44px; padding:4px; border-radius:8px; border:1px solid #bacbbb; color:var(--ink); background:#e1efe7; }
 #building-summary, #building-notice { font-size:13px; margin:8px 0; }
+.auto-repair-control { display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; cursor:pointer; }
+.auto-repair-control input { width:19px; height:19px; margin:0; accent-color:#5e9d88; }
 @media(max-width:380px) { .building-table { font-size:11px; } .building-table th, .building-table td { padding-left:2px; padding-right:2px; } }
 @media(max-height:480px) { .building-scroll { max-height:calc(100dvh - 195px); } }
 .population-scroll { max-height:min(38dvh,340px); overflow:auto; border:1px solid #d7ddcb; border-radius:10px; }

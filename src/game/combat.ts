@@ -16,6 +16,7 @@ import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
 import { VITAL_CONFIG, changeHealth, bodiesFor } from './vitals.ts';
 import { hitDamage } from './combat-damage.ts';
+import { soldierLevel, levelHealth, MAX_EXPERIENCE } from './unit-progression.ts';
 import { buildingInfo, buildingList } from './building-state.ts';
 import { chooseTarget, hostile } from './targeting.ts';
 import type { CombatTarget } from './targeting.ts';
@@ -24,7 +25,7 @@ export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold' | 're
 export type CombatLife = 'active' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
-  hp: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
+  hp: number; experience: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
   diedAt?: number; departed?:boolean; deathElevation?:number; deathTower?:string;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
@@ -36,12 +37,15 @@ export interface CombatState { camps: CampState[]; units: Fighter[]; projectiles
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const enemyDefinitions = new Map(ENEMIES.map(enemy => [enemy.id, enemy]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
-  return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
+  return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : u.role === 'cavalry' ? C.enemyCavalry : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
 /** One effective-stat calculation for combat and inspection panels. */
-export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0], arms: number) {
-  const base = fighterStats(u), level = u.team === 'home' ? arms : 0;
-  return { ...base, attack: base.attack + level * 3, armor: base.armor + level };
+export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0] & { experience?: number }, arms: number) {
+  const base = fighterStats(u), equipment = u.team === 'home' ? arms : 0;
+  const rank = u.role === 'wolf' ? 0 : soldierLevel(u.experience) - 1;
+  return { ...base, hp: levelHealth(base.hp, rank ? u.experience : 0),
+    attack: Math.round(base.attack * (1 + rank * .1) * 10) / 10 + equipment * 3,
+    armor: base.armor + rank + equipment };
 }
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => BODY_RADIUS[u.role];
 // Keep the established melee reach/approach spacing, independently of ground discs.
@@ -49,7 +53,7 @@ export const fighterContactRadius = (u: Pick<Fighter, 'role'>) => u.role === 'ca
 const reach = (u: Fighter, target: CombatTarget) => fighterStats(u).range + (u.role === 'archer' ? 0 : Math.max(0, (target.contactRadius ?? target.radius) - .4));
 export function createFighter(r:ResidentDefinition):Fighter {
   const role=r.role as CombatRole,team=r.id.startsWith('enemy-')?'enemy' as const:'home' as const;
-  return {id:r.id,role,team,position:{...r.spawn},home:{...r.home},hp:fighterStats({id:r.id,role,team}).hp,
+  return {id:r.id,role,team,position:{...r.spawn},home:{...r.home},hp:fighterStats({id:r.id,role,team}).hp,experience:0,
     life:'active',order:'guard',facing:Math.PI,speed:0,cooldown:0,route:[],navigation:createRouteState(),planIn:0};
 }
 export function initialCombat(definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES]): CombatState {
@@ -68,7 +72,7 @@ export class Combat {
   private residentPosition?: (id: string) => Point;
   private units: Map<string, Fighter>;
   private threats: readonly Fighter[] = [];
-  private statCache = new Map<string, { level: number; value: ReturnType<typeof fighterStats> }>();
+  private statCache = new Map<string, { level: number; rank: number; value: ReturnType<typeof fighterStats> }>();
   private motion = new Map<string, { position: Point; velocity: Point }>();
   private motionStep = .05;
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
@@ -79,9 +83,10 @@ export class Combat {
     ?? {...ENCOUNTERS[0],id:'raid',x:(u.defendFrom??u.position).x,z:(u.defendFrom??u.position).z,leash:C.chase,patrol:[]}; }
   private stats(u: Fighter) {
     const level = u.team === 'home' ? this.economy.state.upgrades.arms : 0, cached = this.statCache.get(u.id);
-    if (cached?.level === level) return cached.value;
+    const rank = soldierLevel(u.experience);
+    if (cached?.level === level && cached.rank === rank) return cached.value;
     const value = effectiveFighterStats(u, level);
-    this.statCache.set(u.id, { level, value }); return value;
+    this.statCache.set(u.id, { level, rank, value }); return value;
   }
   private reach(u:Fighter,target:CombatTarget){return occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:reach(u,target);}
   canTarget(u:Pick<Fighter,'role'>,target:CombatTarget){return u.role==='archer'||(target.elevation??0)<.5;}
@@ -117,6 +122,15 @@ export class Combat {
     for (const id of this.statCache.keys()) if (!this.units.has(id)) this.statCache.delete(id);
   }
   hurt(id: string, damage: number, source: string) { const target = this.target(id); if (target) this.damage(target, damage, source); }
+  private awardDamage(sourceId: string, damage: number) {
+    const u = this.unit(sourceId);
+    if (!u || u.role === 'wolf' || damage <= 0 || u.experience >= MAX_EXPERIENCE) return;
+    const maximum = this.stats(u).hp;
+    u.experience = Math.min(MAX_EXPERIENCE, u.experience + damage);
+    // Keep the amount of existing injury; a projectile cannot revive its owner.
+    if (u.life === 'active') u.hp += this.stats(u).hp - maximum;
+    this.economy.revision++;
+  }
   assist(id: string, target: string) {
     const u = this.unit(id), foe = this.unit(target);
     if (!u || !foe || u.team !== 'home' || u.life !== 'active' || foe.life !== 'active' || u.target || u.attack || u.goal
@@ -211,6 +225,7 @@ export class Combat {
       const building=buildingInfo(this.economy.state,victim.id)!,damage=hitDamage(amount,building.armor);
       if(building.kind==='tower')damageTower(this.economy,victim.id,damage,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});
       else this.economy.damageBuilding(victim.id,damage);
+      this.awardDamage(sourceId, building.hp - (buildingInfo(this.economy.state, victim.id)?.hp ?? 0));
       if(!buildingInfo(this.economy.state,victim.id)?.hp){
         for(const u of [...this.state.units,...this.threats]){
           if(u.target===victim.id){u.target=undefined;this.stop(u);}
@@ -223,6 +238,7 @@ export class Combat {
     const target = this.unit(victim.id);
     if (!target) {
       changeHealth(this.economy.state, victim.id, -hitDamage(amount));
+      this.awardDamage(sourceId, victim.hp - this.economy.state.vitals[victim.id].hp!);
       this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
       if (!this.economy.state.vitals[victim.id].hp) {
         this.economy.interrupt(victim.position, victim.id);
@@ -233,6 +249,7 @@ export class Combat {
       this.economy.revision++; return;
     }
     target.hp = Math.max(0, target.hp - hitDamage(amount, ignoreArmor ? 0 : this.stats(target).armor));
+    this.awardDamage(sourceId, victim.hp - target.hp);
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
       const source = this.unit(sourceId);
@@ -264,7 +281,7 @@ export class Combat {
     if(tower){target.deathElevation=TOWER_CONFIG.height;target.deathTower=tower.id;}
     releaseTower(this.economy.state,target.id);this.economy.revision++;
     for (const id of bodiesFor(target.id)) {
-      this.economy.state.vitals[id].rest = undefined; this.economy.state.vitals[id].meal = undefined;
+      const vital = this.economy.state.vitals[id]; if (vital) { vital.rest = undefined; vital.meal = undefined; }
     }
     target.order = 'hold'; target.planIn = 0;
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
@@ -466,7 +483,7 @@ export class Combat {
         && !this.economy.state.sites.some(s => distance(s, config) < config.leash + 8)) {
         // Patrol routes only. Captured construction regions never repopulate.
         camp.cleared = camp.rewardGranted = false; camp.cycle++;
-        for (const u of units) { u.hp = fighterStats(u).hp; u.life = 'active'; u.diedAt = undefined; u.order = 'guard'; u.position = { ...u.home }; u.cooldown = 0; this.economy.state.vitals[u.id].stamina = 100; this.economy.state.vitals[u.id].hurtUntil = 0; }
+        for (const u of units) { u.experience = 0; u.hp = fighterStats(u).hp; u.life = 'active'; u.diedAt = undefined; u.order = 'guard'; u.position = { ...u.home }; u.cooldown = 0; this.economy.state.vitals[u.id].stamina = 100; this.economy.state.vitals[u.id].hurtUntil = 0; }
       }
     }
     this.state.discovered = this.state.camps.some(c => c.discovered);
@@ -480,8 +497,8 @@ export class Combat {
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly {id:string}[]=[]): CombatState {
   const raiders=(Array.isArray(raw?.units)?raw.units:[]).filter(u=>u.id?.startsWith('enemy-raid-'));
-  if(raiders.length>6||raiders.some(u=>!/^enemy-raid-(infantry|archer)-[1-9]\d*-[0-5]$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
-  const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer',u.id,u.home))]);
+  if(raiders.length>6||raiders.some(u=>!/^enemy-raid-(infantry|archer|cavalry)-[1-9]\d*-[0-5]$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
+  const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer'|'cavalry',u.id,u.home))]);
   const opponents = [...initial.units, ...threats, ...(Array.isArray(towers)?towers:[]).map(t=>({id:t.id,team:'home' as const})), ...residents.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
@@ -498,7 +515,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
   for (const template of initial.units) {
     const units = raw.units.filter(u => u.id === template.id), u = units[0];
     if (units.length !== 1 || u.role !== template.role || u.team !== template.team || !point(u.position) || !point(u.home)
-      || distance(u.home, template.home) > .001 || !num(u.hp, fighterStats(u).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'defeated'].includes(u.life)
+      || distance(u.home, template.home) > .001 || !num(u.experience, MAX_EXPERIENCE) || !num(u.hp, effectiveFighterStats(u, 0).hp) || !num(u.cooldown, 8) || !Number.isFinite(u.facing) || !['active', 'defeated'].includes(u.life)
       || !['guard', 'move', 'attack', 'retreat', 'hold', 'rest'].includes(u.order) || u.goal && !point(u.goal)
       || u.departed!==undefined&&(typeof u.departed!=='boolean'||!u.id.startsWith('enemy-raid-'))
       || u.deathElevation!==undefined&&(!num(u.deathElevation,6)||u.life!=='defeated'||u.role!=='archer')

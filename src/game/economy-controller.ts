@@ -6,7 +6,7 @@ import { ECONOMY_CONFIG } from './economy-config.ts';
 import type { createResidents } from './residents.ts';
 import type { createEconomyWorld } from './economy-world.ts';
 import type { CropKind, WorkKind, WorkTask } from './economy.ts';
-import type { Point } from './movement.ts';
+import type { Obstacle, Point } from './movement.ts';
 import { createSteward, stewardStatus } from './steward.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point; path?:readonly Point[] } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
@@ -14,15 +14,33 @@ type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' 
   'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork' | 'farmerIds'> & { farmerPosition: (id?: string) => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 
-export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}, onStorageUse: (from?: Point) => void = () => {}, canTakeWork: (id: string) => boolean = () => true, unsafePath?:(points:readonly Point[])=>boolean) {
+export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}, onStorageUse: (from?: Point) => void = () => {}, canTakeWork: (id: string) => boolean = () => true, unsafePath?:(points:readonly Point[])=>boolean, workObstacles:()=>readonly Obstacle[]=()=>[]) {
   const steward = createSteward(economy,p=>!unsafePath?.([p]));
   let safetyAt=0;
   function safeTask(task:WorkTask,from:Point,path:Point[]){
     if(!unsafePath)return true;
-    const end=path.at(-1)??from,solids=economyObstacles(economy.state.depleted,economy.state.sites,economy.state.buildings);
+    const zones=workObstacles(),target=economy.taskPoint(task),end=path.at(-1)??from;
+    const solids=economyObstacles(economy.state.depleted,economy.state.sites,economy.state.buildings);
+    task.watchPath=[{x:from.x,z:from.z},...path].map(p=>({x:p.x,z:p.z}));
+    if(target&&unsafePath([target])) {
+      task.watchPath=[{x:target.x,z:target.z}];economy.holdDanger(task,from);return false;
+    }
+    if(unsafePath(task.watchPath)) {
+      const detour=zones.length?findPath(from,end,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      if(!detour||unsafePath([from,...detour])){economy.holdDanger(task,from);return false;}
+      path.splice(0,path.length,...detour);
+    }
     const doors=economy.warehouseDoors().sort((a,b)=>Math.hypot(a.x-end.x,a.z-end.z)-Math.hypot(b.x-end.x,b.z-end.z));
-    let back:Point[]|undefined;for(const door of doors){back=findPath(end,door,.29,WORLD_BOUNDS,solids);if(back)break;}
-    task.watchPath=[{x:from.x,z:from.z},...path,...back??[]].map(p=>({x:p.x,z:p.z}));
+    let back:Point[]|undefined,blockedBack:Point[]|undefined;
+    for(const door of doors){
+      const candidate=findPath(end,door,.29,WORLD_BOUNDS,solids);
+      if(!candidate)continue;
+      if(!unsafePath([end,...candidate])){back=candidate;break;}
+      blockedBack??=candidate;
+      const detour=zones.length?findPath(end,door,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      if(detour&&!unsafePath([end,...detour])){back=detour;break;}
+    }
+    task.watchPath=[{x:from.x,z:from.z},...path,...back??blockedBack??[]].map(p=>({x:p.x,z:p.z}));
     if(task.danger||unsafePath(task.watchPath)){economy.holdDanger(task,from);return false;}
     return true;
   }
@@ -67,10 +85,21 @@ export function createEconomyController(economy: Economy, world: World, resident
   }
   function update(seconds: number) {
     if (seconds <= 0) return;
-    if(unsafePath&&economy.state.seconds>=safetyAt){
-      safetyAt=economy.state.seconds+.5;economy.checkDanger(unsafePath);
-      for(const task of economy.state.tasks)if(task.worker&&task.watchPath?.length&&!task.danger&&['travelling','working','delivering'].includes(task.status)&&unsafePath(task.watchPath)){
-        const worker=task.worker;economy.holdDanger(task,residents.farmerPosition(worker));residents.releaseFarmerWork(worker);
+    if(economy.state.seconds>=safetyAt){
+      safetyAt=economy.state.seconds+.5;
+      unsafePath?.([]); // Refresh shared regions once, before creating new work.
+      economy.arrangeRepairs();
+      if(unsafePath){
+        economy.checkDanger(unsafePath);
+        for(const task of economy.state.tasks)if(task.worker&&task.watchPath?.length&&!task.danger&&['travelling','working','delivering'].includes(task.status)&&unsafePath(task.watchPath)){
+          const worker=task.worker,from=residents.farmerPosition(worker),assigned=residents.farmerWorkState(worker);
+          const place=destination(task,from),path=assigned?.path?[...assigned.path]:place&&residents.planFarmerWork(place.points,worker);
+          if(path&&place&&safeTask(task,from,path)){
+            if(assigned?.status==='travelling')residents.startFarmerWork(task.id,path,place.target,worker);
+          }else{
+            economy.holdDanger(task,from);residents.releaseFarmerWork(worker);
+          }
+        }
       }
     }
     for (const id of residents.farmerIds()) economy.updateCargo(residents.farmerPosition(id), id);

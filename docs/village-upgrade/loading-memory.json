@@ -1,0 +1,33 @@
+{
+  "method": "Chromium, fresh game, 393x754 phone viewport, CDP Runtime.getHeapUsage sampled during load; retained values after HeapProfiler.collectGarbage. JavaScript heap and backing storage are separate; elapsed times are not compared under different CI load.",
+  "baseline": "world-client 55c8879b1f47b45d26fa29fa8e4b536ff1389025",
+  "before": {
+    "peakHeap": 1632495964,
+    "peakBacking": 225523100,
+    "retained": {
+      "usedSize": 1573571180,
+      "totalSize": 1578295296,
+      "embedderHeapUsedSize": 3493200,
+      "backingStorageSize": 170553379
+    },
+    "errors": []
+  },
+  "after": {
+    "peakHeap": 390516780,
+    "peakBacking": 173479097,
+    "retained": {
+      "usedSize": 306782936,
+      "totalSize": 309116928,
+      "embedderHeapUsedSize": 3466040,
+      "backingStorageSize": 164248356
+    },
+    "scene": {
+      "meshes": 6569,
+      "residents": 107,
+      "enemyCavalry": 14
+    },
+    "errors": []
+  },
+  "peakReduction": 0.7607854545360456,
+  "retainedReduction": 0.8050403185447258
+}

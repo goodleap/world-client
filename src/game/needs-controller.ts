@@ -8,6 +8,7 @@ import { VITAL_CONFIG as V, bodiesFor, alive, health, maxHealth, needsFood, eat 
 import type { Vital } from './vitals.ts';
 import type { Point } from './movement.ts';
 import { GRID_SIZE } from './world-data.ts';
+import { pathInDanger } from './danger-zones.ts';
 
 type Residents = Pick<ReturnType<typeof createResidents>, 'needsStatus' | 'setResting' | 'command' | 'releaseFarmerWork'>;
 type Rest = NonNullable<Vital['rest']>;
@@ -17,7 +18,10 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 /** Meals and personal supplies share economy reservations, goods and game time.
  * Movement still uses the existing crowd routes; manual orders always interrupt. */
 export function createNeedsController(e: Economy, residents: Residents, combat: Combat,
-  storageUse: (from: Point) => void = () => {}) {
+  storageUse: (from: Point) => void = () => {}, routes?: {
+    plan(id: string, goal: Point): Point[] | undefined;
+    current(id: string): readonly Point[];
+  }) {
   const notes = new Map<string, string>();
   const nextSeatCheck = new Map<string,number>();
   const status = (id: string) => residents.needsStatus(id);
@@ -26,6 +30,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   const hungry = (id: string) => bodiesFor(id).some(body => needsFood(e.state, body, V.eatAt));
   const available = (id: string) => e.state.campfires.filter(f => f.enabled
     && (f.cooking || f.meals > 0 || bodiesFor(id).some(b => e.state.vitals[b].meal))
+    && !pathInDanger(e.state.dangerZones, [e.state.sites.find(s => s.id === f.id)!])
     && distance(position(id), e.state.sites.find(s => s.id === f.id)!) <= V.foodRadiusCells * GRID_SIZE);
   const readyToServe=(id:string,f:typeof e.state.campfires[number])=>fireIsLit(f)
     && (f.meals>0 || f.cooking&&(f.food>0||f.cook>0) || bodiesFor(id).some(b=>!!e.state.vitals[b].meal));
@@ -38,7 +43,10 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   function move(id: string, points: Point[]) {
     for (const point of points) {
       const u = combat.unit(id);
-      if (u ? combat.move([id], point, false, true) > 0 : residents.command(point, id, true)) {
+      if (pathInDanger(e.state.dangerZones, [point])) continue;
+      const path = routes?.plan(id, point);
+      if ((routes && !path) || pathInDanger(e.state.dangerZones, [position(id), ...(path ?? [point])])) continue;
+      if (u ? combat.move([id], point, false, true, false, true, path) > 0 : residents.command(point, id, true, path)) {
         const goal = u?.goal ?? status(id).goal ?? point;
         return { x: goal.x, z: goal.z };
       }
@@ -90,8 +98,14 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       .flatMap(door => [0, -.8, .8].map(dx => ({ x: door.x + dx, z: door.z - extra })));
   }
   function routeSupply(id: string, rest: Rest) {
-    rest.supplyGoal = move(id, supplyPoints(id, rest));
+    const points = supplyPoints(id, rest);
+    rest.supplyGoal = move(id, points);
     if (rest.supplyGoal) return true;
+    const task = e.state.tasks.find(t => t.id === rest.supply)!;
+    if (points.some(p => pathInDanger(e.state.dangerZones, [position(id), p]))) {
+      task.watchPath = [position(id), ...points].map(p => ({ x: p.x, z: p.z }));
+      e.holdDanger(task, position(id)); finish(id); return false;
+    }
     e.defer(rest.supply!, '补给道路不通，稍后重试', position(id));
     rest.supply = undefined; e.state.vitals[id].retryAt = e.state.seconds + V.retrySeconds;
     notes.set(id, '补给道路不通'); move(id, [rest.goal]); return false;
@@ -101,7 +115,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     if (e.state.seconds < e.state.vitals[id].retryAt) return;
     const task = e.requestFireSupply(rest.camp);
     if (!task) { notes.set(id, '等待仓库补料'); e.state.vitals[id].retryAt = e.state.seconds + V.retrySeconds; return; }
-    if (task.status !== 'waiting' || task.retryAt > e.state.seconds) { notes.set(id, '等待补给'); return; }
+    if (task.status !== 'waiting' || task.danger || task.retryAt > e.state.seconds) { notes.set(id, task.danger ? '危险区域，等待补给' : '等待补给'); return; }
     if (!e.assign(task.id, id).ok) {
       notes.set(id, task.reason || '等待补给'); e.state.vitals[id].retryAt = e.state.seconds + V.retrySeconds; return;
     }
@@ -152,6 +166,15 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         }
         const rest = vital.rest, fire = e.campfire(rest.camp);
         if (!fire?.enabled || !fire.cooking && !fire.meals && !bodiesFor(r.id).some(b => e.state.vitals[b].meal)) { finish(r.id); continue; }
+        if (pathInDanger(e.state.dangerZones, [e.state.sites.find(s => s.id === rest.camp)!, rest.goal])
+          || pathInDanger(e.state.dangerZones, [position(r.id), ...(routes?.current(r.id) ?? u?.route ?? [])])) {
+          const task = e.active(r.id);
+          if (task?.kind === 'supply') {
+            task.watchPath = [position(r.id), ...(routes?.current(r.id) ?? u?.route ?? [rest.goal])].map(p => ({ x: p.x, z: p.z }));
+            e.holdDanger(task, position(r.id));
+          }
+          finish(r.id); continue;
+        }
         if (rest.supply !== undefined) { updateSupply(r.id, rest); continue; }
         const ready = readyToServe(r.id,fire);
         if(!ready&&!bodiesFor(r.id).some(id=>e.state.vitals[id].meal)&&e.state.seconds>=(nextSeatCheck.get(r.id)??0)){
@@ -179,9 +202,9 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       }
     },
     label(id: string) {
-      const v = e.state.vitals[id], u = combat.unit(id);
+      const v = e.state.vitals[id], u = combat.unit(id), horse = bodiesFor(id)[1];
       const suffix = v.rest ? notes.get(id) ?? (bodiesFor(id).some(b => e.state.vitals[b].meal) ? '进食' : '去休整') : u?.life === 'defeated' ? '死亡' : '';
-      return `${Math.ceil(health(e.state, id))}/${maxHealth(id)} · 体${Math.floor(v.stamina)}${unitRole(id) === 'cavalry' ? ` · 马${Math.ceil(health(e.state, bodiesFor(id)[1]))}/160 体${Math.floor(e.state.vitals[bodiesFor(id)[1]].stamina)}` : ''}${suffix ? ` · ${suffix}` : ''}`;
+      return `${Math.ceil(health(e.state, id))}/${maxHealth(id, e.state)} · 体${Math.floor(v.stamina)}${horse ? ` · 马${Math.ceil(health(e.state, horse))}/160 体${Math.floor(e.state.vitals[horse].stamina)}` : ''}${suffix ? ` · ${suffix}` : ''}`;
     },
   };
 }

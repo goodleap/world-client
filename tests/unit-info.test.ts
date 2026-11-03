@@ -68,7 +68,7 @@ test('population rows show living units, authoritative vitals and upgraded comba
   assert.equal(rows.length, 6);
   assert(!rows.some(r => r.id === 'farmer-2' || r.id.startsWith('enemy-') || r.id === 'horse'));
   assert.deepEqual(rows.find(r => r.id === 'infantry'), { id:'infantry', name:'步兵', role:'infantry',
-    health:91, maxHealth:120, stamina:42.25, maxStamina:100, attack:21, armor:12, group:1 });
+    health:91, maxHealth:120, stamina:42.25, maxStamina:100, attack:21, armor:12, group:1, progression:{level:1,experience:0,progress:0,required:200} });
   assert.equal(rows.find(r => r.id === 'dog')!.attack, undefined);
   assert.equal(rows.find(r => r.id === 'dog')!.armor, 0);
   assert.equal(encodeEconomy(e), saved, 'inspection never changes orders, groups or the simulation');

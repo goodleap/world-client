@@ -16,6 +16,7 @@ import { CAMPFIRE_SHAPE } from '../src/game/campfire-shape.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { updateDangerZones, pathInDanger } from '../src/game/danger-zones.ts';
 
 function built() {
   const e = new Economy(); e.setLeadership(false); e.state.inventory = { wood: 30, food: 30, stone: 20, iron: 0 };
@@ -86,7 +87,8 @@ test('one paid food portion restores stamina faster than health, saving and paus
   for (const id of vitalIds) { eat(restored.state, id, 8); assert.equal(restored.state.vitals[id].stamina, 50); assert.equal(health(restored.state, id), 22); assert.equal(restored.state.vitals[id].meal, undefined); }
 });
 test('all controlled bodies drain stamina; exhausted workers and rider/horse can still move and deliver supplies', () => {
-  const { e } = built(), { states, advance } = needsHarness(e);
+  const { e } = built(), { states, advance, n } = needsHarness(e);
+  assert.match(n.label(ENEMIES.find(r=>r.role==='cavalry')!.id), /^110\/110/);
   states.farmer.working = true; states.dog.speed = 1; states.cavalry.speed = 2;
   advance(5);
   assert(Math.abs(e.state.vitals.farmer.stamina - (100 - V.workDrain * 5)) < 1e-6);
@@ -158,7 +160,7 @@ test('built fire collision follows the actual stone circle, while construction r
   const engine = new NullEngine(), scene = new Scene(engine), view = createCampfireView(scene, createPalette(scene));
   view.add({ id: 'measure', x: 0, z: 0 });
   let outer = 0;
-  for (const mesh of scene.meshes.filter(m => m.metadata?.worldObjectId === 'measure')) {
+  for (const mesh of scene.meshes.filter(m => m.metadata?.worldObjectId === 'measure' && !m.metadata?.pickingProxy)) {
     const xyz = mesh.getVerticesData('position')!; mesh.computeWorldMatrix(true);
     for (let i = 0; i < xyz.length; i += 3) {
       const p = Vector3.TransformCoordinates(Vector3.FromArray(xyz, i), mesh.getWorldMatrix());
@@ -314,4 +316,28 @@ test('multiple fires reserve seats independently, prefer supplied seats and feed
   h.n.manual('farmer');e.state.vitals.farmer.manualUntil=0;e.state.vitals.farmer.retryAt=0;h.states.farmer.position={x:site.x,z:site.z-4};
   for(const [i,id] of ['farmer-2','farmer-leader','infantry','archer'].entries()){e.state.vitals[id].stamina=10;e.state.vitals[id].rest={camp:f.id,goal:{x:site.x+Math.cos(i*Math.PI/2)*4,z:site.z+Math.sin(i*Math.PI/2)*4}};}
   h.n.update(.01);assert.equal(e.state.vitals.farmer.rest?.camp,g.id,'travelling reservations fill the nearer fire too');
+});
+
+test('personal meals and paid supplies share dangerous areas and do not send farmers back before clearance',()=>{
+  const {e,f,site}=built();Object.assign(f,{enabled:true,wood:12,food:12,meals:2});
+  for(const v of Object.values(e.state.vitals))v.manualUntil=1000;
+  Object.assign(e.state.vitals.farmer,{manualUntil:0,stamina:5});
+  const {n,states}=needsHarness(e);states.farmer.position={x:site.x,z:site.z-6};
+  const currentRest=()=>e.state.vitals.farmer.rest;
+  const start={...states.farmer.position};
+  const threat={id:'camp:fire',x:site.x,z:site.z,radius:2,fixed:true};
+  updateDangerZones(e.state.dangerZones,[threat],e.state.seconds);n.update(.05);
+  assert.equal(currentRest(),undefined);assert.deepEqual(states.farmer.position,start);
+  updateDangerZones(e.state.dangerZones,[],e.state.seconds);e.advance(9.9);n.update(.05);
+  assert.equal(currentRest(),undefined,'temporary quiet must not invite the worker back');
+  e.advance(V.retrySeconds+.1);updateDangerZones(e.state.dangerZones,[],e.state.seconds);n.update(.05);
+  const rest=currentRest();assert(rest,'a safe fire can be used again');
+  const supply=e.request('supply',f.id,undefined,'manual',{resource:'wood',amount:2}).task!;
+  assert(e.assign(supply.id).ok);e.arrive(supply.id);rest.supply=supply.id;
+  const stock=e.state.inventory.wood;
+  updateDangerZones(e.state.dangerZones,[threat],e.state.seconds);n.update(.05);
+  assert(!e.state.vitals.farmer.rest);assert(supply.danger);
+  assert.equal(e.state.goods[0].state,'ground');assert.equal(e.state.inventory.wood,stock);
+  e.checkDanger(p=>pathInDanger(e.state.dangerZones,p));
+  assert.equal(e.claim('farmer-2'),undefined);assert.equal(e.state.inventory.wood,stock);
 });

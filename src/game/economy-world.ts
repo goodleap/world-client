@@ -25,6 +25,7 @@ import type { CampfireView } from './campfire-view.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 import type { BuildingDoors } from './building-doors.ts';
 import { attachBuildingLOD } from './building-lod.ts';
+import { createBuildingPicking } from './picking-shapes.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
@@ -81,7 +82,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     objects.set(object.id, object);
     if (instances.get(object.id)?.state === state) return;
     remove(object.id); objects.set(object.id, object);
-    const meshes = sources().map(source => {
+    const meshes:AbstractMesh[] = sources().map(source => {
       const mesh = source.createInstance(object.id + '-' + source.name);
       mesh.position.set(object.x, elevation, object.z); mesh.scaling.setAll(scale);
       mesh.rotation.y = rotation;
@@ -91,10 +92,20 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       if (source.getBoundingInfo().boundingBox.maximum.y * scale > .24) shadows.addShadowCaster(mesh, false);
       mesh.freezeWorldMatrix(); return mesh;
     });
+    if(object.kind==='building'||object.kind==='site'){
+      const hit=createBuildingPicking(scene,object.id,meshes);if(hit)meshes.push(hit);
+    }
     instances.set(object.id, { state, meshes });
   }
   function cropTemplate(kind: 'carrot' | 'wheat', stage: number) {
-    return template(`${kind}-${stage}`, () => createCropModel(scene, p, carrot, kind, stage));
+    return template(`${kind}-${stage}`, () => {
+      for(const x of [-.29,.29])for(const z of [-.29,.29]){
+        const first=scene.meshes.length;createCropModel(scene,p,carrot,kind,stage);
+        for(const mesh of scene.meshes.slice(first)){
+          mesh.scaling.scaleInPlace(.62);mesh.position.scaleInPlace(.62);mesh.position.x+=x;mesh.position.z+=z;mesh.position.y+=.07;
+        }
+      }
+    });
   }
   function houseTemplate(site: Parameters<typeof referenceHouse>[2], name: string) {
     const cached = templates.get(name); if (cached) return cached;
@@ -147,7 +158,11 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       show(object, `${plot.tilled}-${plot.crop}-${stage}-${mature}`, () => {
         const soil = template(plot.tilled ? 'tilled' : 'untilled', () => {
           roundedBox(scene, 'farm-cell', [GRID_SIZE - .06, .10, GRID_SIZE - .06], [0, .055, 0], plot.tilled ? p.soil : p.grass, .08);
-          if (plot.tilled) for (const x of [-.33, 0, .33]) roundedBox(scene, 'furrow', [.20, .08, 1.05], [x, .13, 0], p.soil, .04);
+          if (plot.tilled) {
+            for(const x of [-.29,.29])for(const z of [-.29,.29])roundedBox(scene,'square-bed',[.46,.06,.46],[x,.12,z],p.soil,.04);
+            roundedBox(scene,'field-ridge-x',[GRID_SIZE-.08,.07,.10],[0,.13,0],p.pathLight,.025);
+            roundedBox(scene,'field-ridge-z',[.10,.07,GRID_SIZE-.08],[0,.13,0],p.pathLight,.025);
+          }
         });
         return plot.crop ? [...soil, ...cropTemplate(plot.crop, stage)] : soil;
       });

@@ -2,6 +2,7 @@ import { Bone } from '@babylonjs/core/Bones/bone';
 import { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
@@ -10,10 +11,16 @@ import type { Palette } from './models.ts';
 import { createSkinAssembly } from './skinning.ts';
 import { createVillageDog } from './dog-view.ts';
 
-export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator, kind: 'horse' | 'dog', id: string) {
+export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator, kind: 'horse' | 'dog', id: string, modelOnly=false) {
   if (kind === 'dog') return createVillageDog(scene, shadows, id);
   const root = new TransformNode(id, scene);
   const skeleton = new Skeleton(`${id}-rig`, `${id}-rig`, scene);
+  if(modelOnly){
+    const mesh=new Mesh(`${id}-anchor`,scene);mesh.parent=root;mesh.isPickable=false;
+    root.rotationQuaternion=Quaternion.RotationYawPitchRoll(Math.PI,0,0);
+    return {root,skeleton,mesh,partNames:[] as string[],motion:'idle' as const,runPlaybackRate:undefined,runReferenceSpeed:undefined,
+      async loadModel(){},freezePose(){},lodInfo(){return undefined;},update(_seconds:number,_x:number,_z:number,_purposeful=false,_feeding=false){}};
+  }
   const body = new Bone('body', skeleton, null, Matrix.Identity());
   const head = new Bone('head', skeleton, body, Matrix.Translation(0, 1.82, 0.86));
   const legs: Bone[] = [];

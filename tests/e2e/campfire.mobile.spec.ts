@@ -5,7 +5,7 @@ import { openGame, snapshot, clickGround, selectUnit, panTo } from './helpers.ts
 
 test('touch fire controls, dog and horse meals, and manual move override', async ({ page }, info) => {
   test.setTimeout(150_000);
-  const e = new Economy(); e.setLeadership(false); e.state.inventory.stone = 8;
+  const e = new Economy(); e.setLeadership(false); e.state.inventory.stone = 8;e.state.raids.nextAt=1000;
   const placed = e.placeBuilding('campfire', { x: -10, z: -10 }); expect(placed.ok).toBe(true);
   const t = e.claim()!; e.arrive(t.id); e.advance(8);
   Object.assign(e.state.campfires[0], { wood: 12, food: 12, meals: 3 });
@@ -27,21 +27,33 @@ test('touch fire controls, dog and horse meals, and manual move override', async
 
   await expect.poll(async () => (await snapshot(page)).economy.vitals.horse.stamina, { timeout: 40_000 }).toBeGreaterThan(12);
   let s = await snapshot(page); expect(s.combat.units.find(u => u.id === 'cavalry')!.hp).toBeGreaterThan(40); expect(s.economy.vitals.horse.hp).toBeGreaterThan(40);
-  // The dog can eat on the far side of the fire, outside the previous view.
-  // Center the diners before asserting visible feedback; offscreen labels hide.
+  // Safe seats can finish meals at different times. Health bars deliberately
+  // hide four seconds after the last change; validate their current values.
   await panTo(page, site, true);
-  for (const id of ['dog', 'horse', 'cavalry']) await expect(page.locator(`[data-health="${id}"]`)).toBeVisible();
+  for (const id of ['dog', 'horse', 'cavalry']) {
+    const meter=page.locator(`[data-health="${id}"]`);await expect(meter).toHaveCount(1);
+    expect(Number(await meter.getAttribute('aria-valuenow'))).toBeGreaterThan(40);
+  }
   expect(s.economy.campfires[0].meals).toBeLessThan(3);
   await selectUnit(page, 'cavalry', true); await page.screenshot({ path: info.outputPath('meals-mobile.png') });
   await expect(page.locator('[data-resident="cavalry"]')).toHaveText('骑兵');
   const healthBars = await page.locator('[data-resident="cavalry"] .resident-health').evaluateAll(bars => bars.map(bar => {
-    const b = bar.getBoundingClientRect(); return { width: b.width, height: b.height };
+    const b = getComputedStyle(bar); return { width: parseFloat(b.width), height: parseFloat(b.height) };
   }));
   expect(healthBars).toEqual([{ width: 52, height: 7 }, { width: 52, height: 7 }]);
   const label = await page.locator('[data-resident="cavalry"]').boundingBox();
   expect(label!.x).toBeGreaterThanOrEqual(0); expect(label!.x + label!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  const before=(await snapshot(page)).combat.units.find(r=>r.id==='cavalry')!.position;
   await clickGround(page, { x: -2.7, z: -12.8 }, true);
-  s = await snapshot(page); expect(s.selection.resident).toBe('cavalry'); expect(s.economy.vitals.cavalry.rest).toBeUndefined();
-  expect(s.combat.units.find(r => r.id === 'cavalry')!.order).toBe('move');
+  // Navigation is accepted asynchronously by the existing worker queue.
+  await expect.poll(async()=>{
+    const next=await snapshot(page),v=next.economy.vitals.cavalry;
+    return !v.rest&&v.manualUntil>next.economy.seconds;
+  }).toBe(true);
+  await expect.poll(async()=>{
+    const p=(await snapshot(page)).combat.units.find(r=>r.id==='cavalry')!.position;
+    return Math.hypot(p.x-before.x,p.z-before.z);
+  }).toBeGreaterThan(1);
+  s = await snapshot(page); expect(s.selection.resident).toBe('cavalry');
   expect(errors).toEqual([]);
 });

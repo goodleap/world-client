@@ -1,0 +1,15 @@
+{
+  "scenario": "enemy-cavalry",
+  "frames": 210,
+  "commands": [],
+  "idleFrames": 2,
+  "clipStarts": [
+    "RideRun",
+    "LanceThrust"
+  ],
+  "errors": [],
+  "initialExperience": 199,
+  "finalExperience": 259.6666666666666,
+  "finalHealth": 53.905982905982896,
+  "attackFrames": 169
+}

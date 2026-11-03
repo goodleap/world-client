@@ -14,6 +14,7 @@ import type { Campfire } from './campfire.ts';
 import type { Point } from './movement.ts';
 import { CAMPFIRE_SHAPE as SHAPE } from './campfire-shape.ts';
 import { refreshFrozenMaterials } from './material-invalidation.ts';
+import { createFirePicking } from './picking-shapes.ts';
 
 /** A stone ring, charred logs and a removable roasting spit. Two pooled native
  * lights, no shadow maps, glow post-processes, smoke or particle emitters. */
@@ -36,7 +37,7 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
     for (const m of parts) { m.computeWorldMatrix(true); const group = groups.get(m.material) ?? []; group.push(m); groups.set(m.material, group); }
     for (const group of groups.values()) {
       const mesh = group.length === 1 ? group[0] : Mesh.MergeMeshes(group, true, true)!;
-      mesh.parent = root; mesh.metadata = { worldObjectId: root.name.split(':')[0] }; mesh.isPickable = true; mesh.receiveShadows = true;
+      mesh.parent = root; mesh.metadata = { worldObjectId: root.name.split(':')[0] }; mesh.isPickable = false; mesh.receiveShadows = true;
       if (root.name.endsWith(':base')) shadows?.addShadowCaster(mesh, false);
     }
   }
@@ -71,6 +72,7 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
     for (const x of [-.22, .1]) spit.push(roundedBox(scene, 'roast-score', [.035, .13, .035], [x, 1.4, -.08], p.golden, .012));
     merge(spit, roast);
     flame.parent = root; roast.parent = root; root.position.set(site.x, 0, site.z);
+    createFirePicking(scene,root,site.id,SHAPE.radius);
     flame.setEnabled(false); roast.setEnabled(false); items.set(site.id, { root, flame, roast, state: 'off' });
   }
   function remove(id: string) {

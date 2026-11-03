@@ -1,4 +1,5 @@
 import { DeathView } from './death-view.ts';
+import { prepareRenderTemplates } from './render-mesh-memory.ts';
 import { deathAge, DEATH_END } from './death.ts';
 import { createCharacterMaterialSetup } from './character-materials.ts';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
@@ -28,6 +29,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   const url = modelAssets.wolf;
   const data = await modelData(url);
   const source = await loadingProgress.run(url + ':parse', '灰狼：共享模型与动作', () => LoadAssetContainerAsync(data, scene, modelOptions(url)));
+  prepareRenderTemplates(source.meshes);
   createCharacterMaterialSetup(scene)(source.materials);
   scene.onDisposeObservable.add(() => source.dispose());
   const level = (mesh: { metadata?: any }) => mesh.metadata?.gltf?.extras?.wolfLOD as number | undefined;

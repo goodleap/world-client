@@ -2,6 +2,7 @@ import { assignedTower } from './towers.ts';
 import { WORK_NAMES } from './economy.ts';
 import type { Economy, EconomyState } from './economy.ts';
 import { effectiveFighterStats } from './combat.ts';
+import { experienceProgress } from './unit-progression.ts';
 import { unitRole } from './resident-data.ts';
 import { homeResidents } from './recruitment.ts';
 import { bodiesFor, health, maxHealth, VITAL_CONFIG } from './vitals.ts';
@@ -36,7 +37,7 @@ export function selectedUnitInfo(economy: Economy, id: string | undefined, movem
   // activity and remain independent in gameplay and saves.
   const prefix = unitRole(id) === 'cavalry' ? '骑手' : '';
   const meters: UnitMeter[] = [
-    { id: id + '-health', label: prefix + '生命', value: health(state, id), maximum: maxHealth(id), kind: 'health' },
+    { id: id + '-health', label: prefix + '生命', value: health(state, id), maximum: maxHealth(id, state), kind: 'health' },
     { id: id + '-stamina', label: prefix + '体力', value: vital.stamina, maximum: VITAL_CONFIG.maxStamina, kind: 'stamina' },
   ];
   return { id, activity, meters };
@@ -48,8 +49,9 @@ export function populationInfo(state: EconomyState) {
     const fighter = state.combat.units.find(u => u.id === r.id);
     const stats = fighter && effectiveFighterStats(fighter, state.upgrades.arms);
     const group = state.groups.findIndex(members => members.includes(r.id));
-    return { id: r.id, name: r.name, role: r.role, health: health(state, r.id), maxHealth: maxHealth(r.id),
+    return { id: r.id, name: r.name, role: r.role, health: health(state, r.id), maxHealth: maxHealth(r.id, state),
       stamina: state.vitals[r.id].stamina, maxStamina: VITAL_CONFIG.maxStamina,
+      ...(fighter ? { progression: experienceProgress(fighter.experience) } : {}),
       attack: stats?.attack, armor: stats?.armor ?? 0, group: group < 0 ? undefined : group };
   });
 }

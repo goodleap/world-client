@@ -21,6 +21,7 @@ import { attachMeshLOD } from './character-lod.ts';
 import type { CharacterLOD } from './character-lod.ts';
 import catalog from '../../studies/characters/roles.json';
 import { batchCharacterMaterials } from './character-material-batching.ts';
+import { prepareRenderTemplates } from './render-mesh-memory.ts';
 
 export type CharacterRole = keyof typeof catalog.roles;
 const parts: Record<string, { name: string; horse: boolean }> = catalog.parts;
@@ -57,6 +58,7 @@ export function createCharacterLibrary(scene: Scene) {
         if (shared) shared.applyToMesh(mesh);
         else geometries.set(key, mesh.geometry);
       }
+      prepareRenderTemplates(container.meshes);
       return container;
     };
     const urls = [modelAssets.characters, modelAssets.characterLOD, modelAssets.characterFarLOD];

@@ -34,7 +34,7 @@ export function raidRandom(state: RaidState) {
   return state.seed / 0x100000000;
 }
 export function newWolf(id: string, position: Point): Wolf {
-  return { id, role: 'wolf', team: 'enemy', position: { ...position }, home: { ...position }, hp: COMBAT_CONFIG.wolf.hp,
+  return { id, role: 'wolf', team: 'enemy', position: { ...position }, home: { ...position }, hp: COMBAT_CONFIG.wolf.hp, experience: 0,
     life: 'active', order: 'guard', facing: 0, speed: 0, cooldown: 0, route: [], navigation: createRouteState(), planIn: 0,
     mode: 'approach', fear: 0, carried: 0, settled: false, feeding: 0, gait: 0 };
 }
@@ -47,7 +47,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
     || !Array.isArray(raw.wolves) || raw.wolves.length > RAID_CONFIG.maxWolves || new Set(raw.wolves.map(w => w.id)).size !== raw.wolves.length
     || !Array.isArray(raw.wildWolves) || raw.wildWolves.length !== WILD_WOLF_SPAWNS.length
     || raw.wildWolves.some((w, i) => w.id !== `wolf-wild-${i}` || !point(w.home) || Math.hypot(w.home.x - WILD_WOLF_SPAWNS[i].x, w.home.z - WILD_WOLF_SPAWNS[i].z) > .001 || w.mode === 'gone')
-    || !Array.isArray(raw.soldiers)||raw.soldiers.length>6||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>!new RegExp(`^enemy-raid-(infantry|archer)-${raw.wave}-[0-5]$`).test(id))
+    || !Array.isArray(raw.soldiers)||raw.soldiers.length>6||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>!new RegExp(`^enemy-raid-(infantry|archer|cavalry)-${raw.wave}-[0-5]$`).test(id))
     ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,6)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
     || !raw.evading || typeof raw.evading !== 'object') throw new Error('狼群袭击存档无效');
   for (const [id, e] of Object.entries(raw.evading)) {
@@ -58,7 +58,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
   for (const w of allWolves(raw)) {
     if (!w || !(raw.wildWolves.includes(w) || new RegExp(`^wolf-${raw.wave}-[0-5]$`).test(w.id)) || w.role !== 'wolf' || w.team !== 'enemy'
       || !point(w.position) || !point(w.home) || !n(w.hp, COMBAT_CONFIG.wolf.hp) || !['active', 'defeated'].includes(w.life)
-      || (w.life === 'active') !== (w.hp > 0) || !['approach', 'hunt', 'feed', 'flee', 'gone'].includes(w.mode)
+      || (w.life === 'active') !== (w.hp > 0) || w.experience !== 0 || !['approach', 'hunt', 'feed', 'flee', 'gone'].includes(w.mode)
       || !n(w.cooldown, 2) || !n(w.fear, 10) || !n(w.feeding, 2) || !n(w.gait, 1) || ![0, 1].includes(w.carried)
       || w.diedAt !== undefined && (!n(w.diedAt) || w.life !== 'defeated')
       || w.defendFrom && !point(w.defendFrom)

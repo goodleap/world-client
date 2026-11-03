@@ -44,7 +44,7 @@ export function damageTower(e:Economy,id:string,amount:number,onFall:(id:string,
       unit.route=[];unit.goal=undefined;unit.attack=undefined;unit.target=undefined;unit.order='guard';unit.speed=0;
       e.state.vitals[unit.id].rest=undefined;unit.deathElevation=undefined;unit.deathTower=undefined;
       tower.unit=undefined;tower.phase='empty';
-      onFall(unit.id,maxHealth(unit.id)*TOWER_CONFIG.fallDamage);
+      onFall(unit.id,maxHealth(unit.id, e.state)*TOWER_CONFIG.fallDamage);
     }else{tower.unit=undefined;tower.phase='empty';}
   }
   for(const body of e.state.combat.units)if(body.deathTower===id){body.deathTower=undefined;body.deathElevation=0;}
