@@ -1023,7 +1023,7 @@ kbd {
 #game-page { --home-button-size:48px; }
 #home-resources, .settings-button { width:var(--home-button-size); height:var(--home-button-size); min-width:var(--home-button-size); min-height:var(--home-button-size); border-radius:15px; padding:0; pointer-events:auto; }
 #home-resources svg, .settings-button svg { width:26px; height:26px; }
-.resources-dialog { width:min(420px,calc(100% - 32px)); }
+.resources-dialog { width:min(520px,calc(100% - 24px)); padding:24px; }
 .resources-dialog .inventory { display:grid; gap:18px; background:transparent; box-shadow:none; padding:12px 0; font-size:17px; }
 .resources-dialog .inventory small { white-space:normal; font-size:12px; line-height:1.7; }
 .view-controls { padding:4px; }
@@ -1186,9 +1186,52 @@ kbd {
 .home-tabs { display:flex; gap:8px; margin:16px 0; }
 .home-tabs button { flex:1; min-height:38px; border:1px solid #c6cdb8; border-radius:9px; background:#e8ebdc; color:var(--ink); }
 .home-tabs [aria-selected=true], .home-tabs [aria-pressed=true] { background:#cdebe2; border-color:#79aa9b; }
-.group-candidates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:32vh; overflow:auto; }
-.group-candidates label { display:flex; gap:8px; align-items:center; min-height:40px; padding:6px; border:1px solid #d7ddcb; border-radius:8px; font-size:13px; }
-.group-candidates input { width:18px; height:18px; flex-shrink:0; }
+.population-scroll { max-height:min(38dvh,340px); overflow:auto; border:1px solid #d7ddcb; border-radius:10px; }
+.population-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+.population-table .population-check { width:26px; }
+.population-table .population-health { width:76px; }
+.population-table .population-stamina { width:70px; }
+.population-table .population-stats { width:64px; }
+.population-table th, .population-table td { padding:6px 4px; text-align:center; }
+.population-table thead th { position:sticky; top:0; background:#e8ebdc; z-index:1; font-size:11px; font-weight:normal; }
+.population-table th:nth-child(2), .population-table tbody th { text-align:left; }
+.population-table tbody tr + tr { border-top:1px solid #e0e4d6; }
+.population-table tbody tr:has(input:checked) { background:#e1efe7; }
+.population-table tbody th { padding-top:0; padding-bottom:0; font-weight:normal; }
+.population-table label { display:flex; flex-direction:column; justify-content:center; min-height:44px; overflow:hidden; cursor:pointer; }
+.population-table label small { font-size:10px; color:#668074; }
+.population-table input { width:17px; height:17px; margin:0; vertical-align:middle; accent-color:#5e9d88; }
+.population-table td { white-space:nowrap; }
+.population-table .low { color:#b94734; font-weight:bold; }
+#population-summary { margin:4px 0; font-size:14px; }
+#group-editor-tabs { margin:12px 0 8px; }
+.population-hint { margin:8px 0; }
+@media(max-width:600px) {
+  .resources-dialog { padding:20px 16px; }
+  .population-table { font-size:11px; }
+  .population-table .population-check { width:22px; }
+  .population-table .population-health { width:58px; }
+  .population-table .population-stamina { width:54px; }
+  .population-table .population-stats { width:46px; }
+  .population-table th, .population-table td { padding-left:2px; padding-right:2px; }
+  .population-table tbody th { font-size:12px; }
+}
+@media(max-height:480px) {
+  .resources-dialog { padding:12px 18px; }
+  .resources-dialog h2 { margin:0 40px 8px 0; font-size:20px; line-height:24px; }
+  .resources-dialog .dialog-close { top:8px; right:10px; }
+  .resources-dialog .home-tabs { margin:6px 0; }
+  .resources-dialog .home-tabs button { min-height:32px; }
+  .population-tools { display:grid; grid-template-columns:minmax(60px,.7fr) minmax(152px,1fr); gap:8px; align-items:center; margin-bottom:6px; }
+  #population-summary { margin:0; font-size:12px; }
+  #group-editor-tabs { margin:0; gap:4px; }
+  .population-hint { display:none; }
+  .population-scroll { max-height:calc(100dvh - 250px); }
+  .population-table label { min-height:36px; }
+  .resources-dialog .home-actions { margin-top:8px; }
+  .resources-dialog .home-actions button { min-height:36px; }
+  #group-notice { margin:4px 0 0; min-height:14px; font-size:11px; line-height:14px; }
+}
 .home-actions { display:flex; gap:10px; margin-top:16px; }
 .home-actions button { flex:1; min-height:40px; border-radius:9px; }
 .group-shortcuts { position:absolute; right:var(--right); top:50%; transform:translateY(-50%); z-index:var(--layer-controls); display:grid; gap:8px; }

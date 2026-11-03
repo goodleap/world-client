@@ -40,7 +40,7 @@ export function createUI(app: HTMLElement) {
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
-      <button id="home-resources" class="home-summary" aria-label="家园资源" title="查看家园资源与编队"><span id="population">人口 6</span><span id="resource-summary"></span></button>
+      <button id="home-resources" class="home-summary" aria-label="资源与人口" title="查看资源、人口与编队"><span id="population">人口 6</span><span id="resource-summary"></span></button>
       <div class="weather"><time id="game-time">00:00</time>${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
@@ -48,7 +48,7 @@ export function createUI(app: HTMLElement) {
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
       <span class="performance-triangles">三角形 <b id="triangles-value">—</b><small>/帧</small></span>
     </aside>
-    <aside class="economy-bar" aria-label="家园资源">
+    <aside class="economy-bar" aria-label="资源与人口">
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
     <button id="raid-notice" class="raid-notice" aria-live="polite" hidden></button>
@@ -97,7 +97,29 @@ export function createUI(app: HTMLElement) {
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
 
     <nav id="group-shortcuts" class="group-shortcuts" aria-label="快速选择编队"></nav>
-    <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title"><button class="dialog-close" aria-label="关闭家园面板">${icon('close')}</button><h2 id="resources-title">家园</h2><div class="home-tabs" role="tablist"><button id="resources-tab" role="tab" aria-controls="resources-panel" aria-selected="true">家园资源</button><button id="groups-tab" role="tab" aria-controls="groups-panel" aria-selected="false">编队</button></div><section id="resources-panel" role="tabpanel" aria-labelledby="resources-tab"><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></section><section id="groups-panel" role="tabpanel" aria-labelledby="groups-tab" hidden><div id="group-editor-tabs" class="home-tabs"></div><p class="dialog-note">每队最多 6 名。成员加入新队后会离开原队；编队不改变当前任务。</p><div id="group-candidates" class="group-candidates"></div><div class="home-actions"><button id="save-group" class="primary-button">保存编队</button><button id="clear-group">清空本队</button></div><p id="group-notice" role="status"></p></section></dialog>
+    <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title">
+      <button class="dialog-close" aria-label="关闭家园面板">${icon('close')}</button><h2 id="resources-title">家园</h2>
+      <div class="home-tabs" role="tablist" aria-label="家园信息">
+        <button id="resources-tab" role="tab" aria-controls="resources-panel" aria-selected="true">资源</button>
+        <button id="population-tab" role="tab" aria-controls="population-panel" aria-selected="false">人口</button>
+      </div>
+      <section id="resources-panel" role="tabpanel" aria-labelledby="resources-tab"><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></section>
+      <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
+        <div class="population-tools"><p id="population-summary"></p>
+          <div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div>
+        </div>
+        <p class="dialog-note population-hint">勾选成员后保存编队，每队最多 6 名。</p>
+        <div class="population-scroll">
+          <table class="population-table" aria-label="存活我方单位">
+            <colgroup><col class="population-check"><col><col class="population-health"><col class="population-stamina"><col class="population-stats"></colgroup>
+            <thead><tr><th scope="col" aria-label="编入队伍"></th><th scope="col">名称</th><th scope="col">生命</th><th scope="col">体力</th><th scope="col" aria-label="攻击与护甲">攻 / 防</th></tr></thead>
+            <tbody id="group-candidates"></tbody>
+          </table>
+        </div>
+        <div class="home-actions"><button id="save-group" class="primary-button">保存编队</button><button id="clear-group">清空本队</button></div>
+        <p id="group-notice" role="status"></p>
+      </section>
+    </dialog>
     <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div id="recruit-options" class="recruit-options"></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status">入队扣除可用库存并预留名额；取消退还材料。</p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="performance-setting" for="performance-mode">性能模式<select id="performance-mode"><option value="standard">标准 · 60 帧</option><option value="saving">省电 · 30 帧</option><option value="minimum">强省电 · 20 帧</option></select><small>省电模式降低画面分辨率与阴影，游戏速度保持不变。</small></label><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">

@@ -3,13 +3,14 @@ import type { Economy } from './economy.ts';
 import { RESOURCE_NAMES } from './economy.ts';
 import { recruit, cancelRecruit, RECRUIT_CONFIG, livingResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
 import { GROUP_COUNT, GROUP_SIZE, groupMembers, saveGroup } from './groups.ts';
+import { populationInfo } from './unit-info.ts';
 import type { ResidentRole } from './resident-data.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
 export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
-  let editing=0,draft:string[]=[],shortcutKey='',recruitKey='';
+  let editing=0,draft:string[]=[],shortcutKey='',recruitKey='',populationKey='';
   const button=(label:string,click:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.addEventListener('click',click,options);return b;};
   const notice=(message:string)=>{get('group-notice').textContent=message;};
   function edit(index=editing) {
@@ -17,28 +18,46 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     get('group-editor-tabs').replaceChildren(...Array.from({length:GROUP_COUNT},(_,i)=>{
       const b=button(`${i+1} 队`,()=>edit(i));b.setAttribute('aria-pressed',String(i===editing));return b;
     }));
-    get('group-candidates').replaceChildren(...livingResidents(e.state).map(r=>{
-      const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
-      input.type='checkbox';input.value=r.id;input.checked=draft.includes(r.id);
-      const other=e.state.groups.findIndex(g=>g.includes(r.id));
-      name.textContent=r.name+(other>=0&&other!==editing?` · ${other+1} 队`:'');
+    populationKey='';renderPopulation();
+  }
+  function renderPopulation() {
+    const rows=populationInfo(e.state), key=JSON.stringify([rows,editing]);
+    if(key===populationKey)return;populationKey=key;
+    // Keep unsaved membership choices while refreshing displayed vitals.
+    draft=draft.filter(id=>rows.some(r=>r.id===id));
+    const humans=rows.filter(r=>r.role!=='dog').length;
+    get('population-summary').textContent=`人口 ${humans} · 田园犬 ${rows.length-humans}`;
+    get('group-candidates').replaceChildren(...rows.map(r=>{
+      const row=document.createElement('tr'),check=document.createElement('td'),input=document.createElement('input');
+      const name=document.createElement('th'),label=document.createElement('label');
+      row.dataset.resident=r.id;name.scope='row';
+      input.type='checkbox';input.value=r.id;input.id=`group-member-${r.id}`;input.checked=draft.includes(r.id);
+      input.setAttribute('aria-label',`将${r.name}编入 ${editing+1} 队`);
+      label.htmlFor=input.id;label.textContent=r.name;label.title=r.name;
+      if(r.group!==undefined&&r.group!==editing){const other=document.createElement('small');other.textContent=`${r.group+1} 队`;label.append(other);}
       input.addEventListener('change',()=>{
         if(input.checked&&draft.length>=GROUP_SIZE){input.checked=false;notice('每队最多 6 名');return;}
         draft=input.checked?[...draft,r.id]:draft.filter(id=>id!==r.id);notice(`已选 ${draft.length} / ${GROUP_SIZE}`);
-      },options);label.append(input,name);return label;
+      },options);check.append(input);name.append(label);row.append(check,name);
+      const value=(kind:string,text:string,low=false)=>{const cell=document.createElement('td');cell.dataset.stat=kind;cell.textContent=text;cell.classList.toggle('low',low);return cell;};
+      row.append(value('health',`${Math.ceil(r.health)}/${r.maxHealth}`,r.health/r.maxHealth<.3),
+        value('stamina',`${Math.floor(r.stamina)}/${r.maxStamina}`,r.stamina/r.maxStamina<.3),
+        value('combat',`${r.attack??'—'} / ${r.armor}`));
+      return row;
     }));
   }
-  for(const tab of ['resources','groups'])get(`${tab}-tab`).addEventListener('click',()=>{
-    for(const kind of ['resources','groups']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
-    if(tab==='groups')edit();
+  for(const tab of ['resources','population'])get(`${tab}-tab`).addEventListener('click',()=>{
+    for(const kind of ['resources','population']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
+    if(tab==='population')edit();
   },options);
-  get('home-resources').addEventListener('click',()=>{if(!get('groups-panel').hidden)edit();},options);
+  get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();},options);
   get('save-group').addEventListener('click',()=>{
     if(saveGroup(e,editing,draft)){callbacks.save();edit();notice('编队已保存');refresh();}else notice('成员状态已变化，请重新选择');
   },options);
   get('clear-group').addEventListener('click',()=>{saveGroup(e,editing,[]);callbacks.save();edit();notice('本队已清空');refresh();},options);
   get('set-rally').addEventListener('click',()=>{ui.closeRecruitment();callbacks.rally();},options);
   function refresh(selected?:number) {
+    if(!get('population-panel').hidden && get('resources-dialog').hasAttribute('open'))renderPopulation();
     const groups=e.state.groups.map((_,i)=>groupMembers(e.state,i));
     const key=JSON.stringify([groups,selected]);
     if(key!==shortcutKey){shortcutKey=key;get('group-shortcuts').replaceChildren(...groups.flatMap((ids,i)=>{

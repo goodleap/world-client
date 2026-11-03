@@ -35,6 +35,11 @@ const enemyDefinitions = new Map(ENEMIES.map(enemy => [enemy.id, enemy]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
   return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
+/** One effective-stat calculation for combat and inspection panels. */
+export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0], arms: number) {
+  const base = fighterStats(u), level = u.team === 'home' ? arms : 0;
+  return { ...base, attack: base.attack + level * 3, armor: base.armor + level };
+}
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : u.role === 'wolf' ? .72 : .4;
 // Melee reach accounts for the target body, so foot soldiers can strike a
 // mounted opponent without routing into the horse's collision circle.
@@ -72,7 +77,7 @@ export class Combat {
   private stats(u: Fighter) {
     const level = u.team === 'home' ? this.economy.state.upgrades.arms : 0, cached = this.statCache.get(u.id);
     if (cached?.level === level) return cached.value;
-    const base = fighterStats(u), value = { ...base, attack: base.attack + level * 3, armor: base.armor + level };
+    const value = effectiveFighterStats(u, level);
     this.statCache.set(u.id, { level, value }); return value;
   }
   private reach(u:Fighter,target:CombatTarget){return occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:reach(u,target);}

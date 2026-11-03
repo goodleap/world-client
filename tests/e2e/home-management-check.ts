@@ -6,14 +6,49 @@ import { HOME_CENTER } from '../../src/game/world-data.ts';
 import { openGame,snapshot,panTo,clickGround } from './helpers.ts';
 
 export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean){
+  info.setTimeout(180000); // Software WebGL plus recruitment/reload and narrow layouts.
   const e=new Economy();e.setLeadership(false);e.state.inventory={wood:40,stone:24,food:60,iron:40};e.state.raids.nextAt=600;
+  e.state.upgrades.arms=2;e.state.combat.units.find(u=>u.id==='infantry')!.hp=91;e.state.vitals.infantry.stamina=42;
+  e.state.vitals['farmer-2'].hp=0;e.state.vitals['farmer-2'].diedAt=0;
   recruit(e,'cavalry');advanceRecruitment(e,25);recruit(e,'farmer');e.state.recruitment.queue[0].elapsed=9.7;
   await page.addInitScript(save=>{if(!localStorage.getItem('world-basic-economy-v1'))localStorage.setItem('world-basic-economy-v1',save);localStorage.setItem('world-shadows-enabled','false');},encodeEconomy(e));
   const errors=await openGame(page);
   await expect.poll(async()=>(await snapshot(page)).residents.some(r=>r.id==='recruit-farmer-2'&&r.model),{timeout:40000}).toBe(true);
-  await page.locator('#home-resources').click();await page.locator('#groups-tab').click();
+  await page.locator('#home-resources').click();await expect(page.getByRole('tab',{name:'资源',exact:true})).toHaveAttribute('aria-selected','true');
+  await page.getByRole('tab',{name:'人口',exact:true}).click();
+  const rows=page.locator('#group-candidates tr');
+  await expect(rows).toHaveCount(8);
+  await expect(page.locator('#population-summary')).toHaveText('人口 7 · 田园犬 1');
+  await expect(page.locator('#group-candidates [data-resident="farmer-2"]')).toHaveCount(0);
+  await expect(page.locator('#group-candidates [data-resident="recruit-farmer-2"]')).toHaveCount(1);
+  const infantry=page.locator('#group-candidates [data-resident="infantry"]'),state=await snapshot(page);
+  await expect(infantry.locator('[data-stat="health"]')).toHaveText(`${Math.ceil(state.combat.units.find(u=>u.id==='infantry')!.hp)}/140`);
+  await expect(infantry.locator('[data-stat="stamina"]')).toHaveText(`${Math.floor(state.economy.vitals.infantry.stamina)}/100`);
+  await expect(infantry.locator('[data-stat="combat"]')).toHaveText('28 / 6');
+  await expect(page.locator('#group-candidates [data-resident="dog"] [data-stat="combat"]')).toHaveText('— / 0');
+  await page.waitForTimeout(300);expect((await snapshot(page)).economy.seconds).toBe(state.economy.seconds);
+  expect((await snapshot(page)).combat).toEqual(state.combat);
+  if(touch){
+    const original=page.viewportSize()!;
+    for(const [width,height]of [[320,568],[844,390]]){
+      await page.setViewportSize({width,height});
+      expect(await page.locator('.population-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+      for(const cell of await infantry.locator('td').all())expect(await cell.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+      const bounds=(await page.locator('#resources-dialog').boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+      expect(bounds.y).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThanOrEqual(height);
+      await expect(page.locator('#save-group')).toBeInViewport();
+      await page.screenshot({path:info.outputPath(`population-${width}.png`),scale:'css'});
+    }
+    await page.setViewportSize(original);
+  }
+  await page.screenshot({path:info.outputPath('population-panel.png'),scale:'css'});
+  await page.getByRole('tab',{name:'资源',exact:true}).click();
+  await expect(page.locator('#inventory')).toBeVisible();
+  await page.getByRole('tab',{name:'人口',exact:true}).click();
   for(const id of ['infantry','archer','farmer'])await page.locator(`input[value="${id}"]`).check();
   await page.locator('#save-group').click();
+  await expect(page.locator('[data-group="0"]')).toHaveAttribute('aria-label','1 队，3 名');
   await page.screenshot({path:info.outputPath('group-editor.png'),scale:'css'});
   await page.getByRole('button',{name:'关闭家园面板'}).click();await page.locator('[data-group="0"]').click();
   expect((await snapshot(page)).selection.members).toHaveLength(3);

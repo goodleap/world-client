@@ -1,9 +1,10 @@
 import test from 'node:test';
+import { recruit, advanceRecruitment } from '../src/game/recruitment.ts';
 import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { Combat } from '../src/game/combat.ts';
 import { eat, maxHealth } from '../src/game/vitals.ts';
-import { selectedUnitInfo } from '../src/game/unit-info.ts';
+import { selectedUnitInfo, populationInfo } from '../src/game/unit-info.ts';
 
 test('unit inspection reads current health/stamina without changing orders or saved state', () => {
   const e = new Economy(); e.setLeadership(false);
@@ -55,4 +56,32 @@ test('activity follows real work transitions and combat priority; death removes 
   c.hurt(u.id,9999,'enemy-guard');
   assert.equal(selectedUnitInfo(e,u.id), undefined);
   assert.equal(selectedUnitInfo(decodeEconomy(encodeEconomy(e)),u.id), undefined);
+});
+
+test('population rows show living units, authoritative vitals and upgraded combat stats without side effects', () => {
+  const e = new Economy(); e.setLeadership(false); e.state.upgrades.arms = 2;
+  e.state.vitals['farmer-2'].hp = 0; e.state.vitals['farmer-2'].diedAt = 0;
+  const soldier = e.state.combat.units.find(u => u.id === 'infantry')!;
+  soldier.hp = 91; e.state.vitals.infantry.stamina = 42.25;
+  e.state.groups[1] = ['infantry'];
+  const saved = encodeEconomy(e), rows = populationInfo(e.state);
+  assert.equal(rows.length, 6);
+  assert(!rows.some(r => r.id === 'farmer-2' || r.id.startsWith('enemy-') || r.id === 'horse'));
+  assert.deepEqual(rows.find(r => r.id === 'infantry'), { id:'infantry', name:'步兵', role:'infantry',
+    health:91, maxHealth:140, stamina:42.25, maxStamina:100, attack:28, armor:6, group:1 });
+  assert.equal(rows.find(r => r.id === 'dog')!.attack, undefined);
+  assert.equal(rows.find(r => r.id === 'dog')!.armor, 0);
+  assert.equal(encodeEconomy(e), saved, 'inspection never changes orders, groups or the simulation');
+  assert.deepEqual(populationInfo(decodeEconomy(saved).state), rows);
+});
+
+test('new recruits appear once in population and dead soldiers disappear permanently', () => {
+  const e = new Economy(); e.setLeadership(false);
+  assert(recruit(e, 'archer').ok); advanceRecruitment(e, 15);
+  const roster = e.state.recruitment.roster[0], recruitRow = populationInfo(e.state).find(r => r.id === roster.id)!;
+  assert.equal(recruitRow.name, roster.name); assert.equal(recruitRow.attack,18);
+  assert.equal(populationInfo(e.state).filter(r => r.role !== 'dog').length,7);
+  const c = new Combat(e.state.combat, e, () => []); c.hurt('infantry',9999,'enemy-guard');
+  assert(!populationInfo(e.state).some(r => r.id === 'infantry'));
+  assert.deepEqual(populationInfo(decodeEconomy(encodeEconomy(e)).state), populationInfo(e.state));
 });
