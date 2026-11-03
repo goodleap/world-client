@@ -11,6 +11,10 @@ export const ENCOUNTERS = [
   { id: 'road', name: '路口守卫', x: -25, z: 9, radius: 3, leash: 16, discover: 18, repeat: 0, reward: { food: 4 }, patrol: [] },
   { id: 'grove', name: '林边守卫', x: 24, z: -2, radius: 3, leash: 16, discover: 18, repeat: 0, reward: { wood: 8 }, patrol: [] },
   { id: 'ore', name: '矿道守卫', x: -12, z: -25, radius: 3, leash: 16, discover: 18, repeat: 0, reward: { iron: 4 }, patrol: [] },
+  { id: 'orchard', name: '北林营地', x: -37, z: 59, members:4, radius:4, leash:16, discover:18, repeat:0, reward:{wood:12,food:8}, patrol:[] },
+  { id: 'hollow', name: '西谷营地', x: -67, z: -10, members:4, radius:4, leash:16, discover:18, repeat:0, reward:{stone:12,iron:4}, patrol:[] },
+  { id: 'lowland', name: '南坡营地', x: 22, z: -56, members:4, radius:4, leash:16, discover:18, repeat:0, reward:{food:12,wood:8}, patrol:[] },
+  { id: 'east', name: '东林营地', x: 66, z: -54, members:4, radius:4, leash:16, discover:18, repeat:0, reward:{iron:8,stone:8}, patrol:[] },
 ];
 const soldierTiming = (contact: number) => ({ interval: SOLDIER_ATTACK_SECONDS,
   windup: SOLDIER_ATTACK_SECONDS * contact, recovery: SOLDIER_ATTACK_SECONDS * (1 - contact) });

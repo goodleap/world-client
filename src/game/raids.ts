@@ -45,7 +45,7 @@ export class Raids {
   get state() { return this.economy.state.raids; }
   get wolves() { return allWolves(this.state); }
   private syncThreats() { this.combat.setThreats(this.wolves.filter(w => w.mode !== 'gone')); }
-  private position(id: string) { return this.combat.unit(id)?.position ?? this.economy.state.towers.find(t=>t.id===id) ?? this.people.status(id).position; }
+  private position(id: string) { return this.combat.target(id)?.position ?? this.people.status(id).position; }
   private fireClear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids().filter(o => !(o.kind === 'circle' && distance(o, b) < .01))); }
   private clear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids()); }
   neighbours(): Neighbour[] {
@@ -89,6 +89,8 @@ export class Raids {
       const r=candidates[(start+i)%candidates.length],origin={x:r.x+(raidRandom(state)-.5)*4,z:r.z+(raidRandom(state)-.5)*4};
       const spots=circle(origin,2.5).slice(0,count);
       if(spots.some(p=>!visible&&this.visible(p)||isBlocked(p,.72,this.solids())
+        ||this.combat.state.units.some(u=>u.life==='active'&&!u.departed&&distance(p,u.position)<fighterRadius(u)+.92)
+        ||this.wolves.some(w=>w.life==='active'&&w.mode!=='gone'&&distance(p,w.position)<1.64)
         ||homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16)
         ||[...BUILDINGS,...this.economy.state.sites].some(b=>distance(p,b)<12)
         ||!segmentIsClear(p,origin,.72,WORLD_BOUNDS,this.solids())))continue;
@@ -204,7 +206,7 @@ export class Raids {
       if (!wild && distance(w.position, w.home) < 2 && !this.visible(w.position) && !homeResidents(this.economy.state).some(r => distance(this.position(r.id), w.position) < 16)) {
         w.mode = 'gone'; w.route = []; this.syncThreats(); return;
       }
-      if (!w.route.length && w.planIn <= 0 && distance(w.position, w.home) >= .3) this.plan(w, [w.home]);
+      if (!w.route.length && w.planIn <= 0 && distance(w.position, w.home) >= .3) this.plan(w, wild?[w.home]:[w.home,...circle(w.home,1.5)]);
       this.travel(w, dt); return;
     }
     if (w.attack) {
@@ -230,7 +232,8 @@ export class Raids {
     }
     if ((!w.target || !this.combat.target(w.target)?.canAttack) && w.planIn <= 0) {
       const candidate = chooseTarget(w, this.combat.targets(), C.acquire,
-        t => this.combat.canTarget(w,t)&&this.combat.visible(w.position,t.position,w.id,t.id) && distance(anchor, t.position) <= C.chase);
+        t => this.combat.canTarget(w,t)&&this.combat.visible(w.position,t.position,w.id,t.id) && distance(anchor, t.position) <= C.chase
+          && !(t.kind==='building'&&!t.canAttack&&this.economy.state.campfires.some(f=>f.meals>0&&this.economy.state.sites.some(s=>s.id===f.id&&distance(s,w.position)<12))));
       if (candidate && (!w.target || candidate.canAttack)) {
         w.target = candidate.id; w.defendFrom ??= { ...anchor };
         w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = [];

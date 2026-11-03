@@ -4,6 +4,18 @@ import { Economy, pending, RESOURCE_NAMES, STATUS_NAMES, WORK_NAMES, resources }
 import type { WorldObject } from './world-selection.ts';
 import { fireIsLit } from './campfire.ts';
 import { BUILDING_TYPES } from './construction.ts';
+import { buildingInfo, repairQuote } from './building-state.ts';
+
+export function buildingSelection(e:Economy,id:string,details:SelectionDetails):SelectionDetails{
+  const b=buildingInfo(e.state,id);if(!b?.built)return details;
+  const task=e.taskFor(id),quote=repairQuote(e.state,id);
+  const actions=b.hp<=0?(details.actions??[]).filter(a=>a.id==='cancel'):details.actions??[];
+  if(quote&&!task)actions.push({id:'repair',label:`维修 · 木${quote.cost.wood} 石${quote.cost.stone}`});
+  else if(task?.kind==='repair'&&!actions.some(a=>a.id==='cancel'))actions.push({id:'cancel',label:'取消维修'});
+  const repairing=task?.kind==='repair';
+  const state=repairing?`维修 · ${STATUS_NAMES[task.status]}${task.status==='working'?` ${Math.floor(task.progress/C.workSeconds.repair*100)}%`:''}${task.reason?' · '+task.reason:''}`:b.hp<=0?'损毁，等待维修':'';
+  return {...details,showHint:true,hint:`生命 ${Math.ceil(b.hp)}/${b.maxHealth} · 防御 ${b.armor}${state?' · '+state:''}${!repairing&&details.hint&&details.hint!=='暂无可用操作'?' · '+details.hint:''}`,actions};
+}
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {
   const kinds = { building: '建筑', tree: '树木', crop: '农作物', scenery: '景物', plot: '土地', rock: '资源', site: '建设', goods: '待入库资源' };
@@ -65,7 +77,7 @@ export function updateEconomyUI(ui: GameUI, economy: Economy) {
   const active = economy.state.tasks.filter(pending), recent = economy.state.tasks.filter(t => !pending(t)).slice(-3).reverse();
   ui.setQueue([...active, ...recent].map(task => {
     const plotIndex = economy.state.plots.findIndex(plot => plot.id === task.target);
-    const target = task.target === 'warehouse' ? '仓库工坊' : task.target.startsWith('iron-') ? '铁矿' : task.target.startsWith('forage-') ? '林间食物' : task.kind === 'supply' ? `火堆 · ${RESOURCE_NAMES[task.resource!]} ${task.amount}` : plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
+    const target = task.kind === 'repair' ? buildingInfo(economy.state,task.target)?.name ?? '建筑' : task.target === 'warehouse' ? '仓库工坊' : task.target.startsWith('iron-') ? '铁矿' : task.target.startsWith('forage-') ? '林间食物' : task.kind === 'supply' ? `火堆 · ${RESOURCE_NAMES[task.resource!]} ${task.amount}` : plotIndex >= 0 ? `土地 ${plotIndex + 1}` : task.target.startsWith('goods-') ? '待入库资源' : task.target.startsWith('site') ? `用地 ${Number(task.target.slice(5)) + 1}` : task.target.startsWith('tree') ? '阔叶树' : '石材';
     return { id: task.id, title: `${WORK_NAMES[task.kind]} · ${target}`, status: task.kind === 'supply' && task.status === 'delivering' ? '送往火堆' : STATUS_NAMES[task.status],
       progress: Math.floor(task.progress / C.workSeconds[task.kind] * 100), reason: task.reason,
       cancellable: pending(task) && task.status !== 'storage' };

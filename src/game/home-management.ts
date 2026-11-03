@@ -5,12 +5,14 @@ import { recruit, cancelRecruit, RECRUIT_CONFIG, livingResidents, POPULATION_LIM
 import { GROUP_COUNT, GROUP_SIZE, groupMembers, saveGroup } from './groups.ts';
 import { populationInfo } from './unit-info.ts';
 import type { ResidentRole } from './resident-data.ts';
+import { buildingList, buildingOperational, repairQuote } from './building-state.ts';
+import { ECONOMY_CONFIG } from './economy-config.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
 export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
-  let editing=0,draft:string[]=[],shortcutKey='',recruitKey='',populationKey='';
+  let editing=0,draft:string[]=[],shortcutKey='',recruitKey='',populationKey='',buildingKey='';
   const button=(label:string,click:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.addEventListener('click',click,options);return b;};
   const notice=(message:string)=>{get('group-notice').textContent=message;};
   function edit(index=editing) {
@@ -46,11 +48,33 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       return row;
     }));
   }
-  for(const tab of ['resources','population'])get(`${tab}-tab`).addEventListener('click',()=>{
-    for(const kind of ['resources','population']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
+  function renderBuildings(){
+    const rows=buildingList(e.state),key=JSON.stringify([rows,e.state.tasks.map(t=>[t.target,t.kind,t.status,Math.floor(t.progress)]),e.available()]);
+    if(key===buildingKey)return;buildingKey=key;
+    get('building-summary').textContent=`建筑 ${rows.length} · 受损 ${rows.filter(b=>b.built&&b.hp<b.maxHealth).length}`;
+    get('building-rows').replaceChildren(...rows.map(b=>{
+      const tr=document.createElement('tr');tr.dataset.building=b.id;
+      const name=document.createElement('th');name.scope='row';name.textContent=b.name;name.title=b.id;
+      const q=repairQuote(e.state,b.id),task=e.taskFor(b.id),repair=task?.kind==='repair';
+      if(q&&!task){const cost=document.createElement('small');cost.textContent=`木${q.cost.wood} 石${q.cost.stone}`;name.append(cost);}
+      const cell=(stat:string,value:string)=>{const td=document.createElement('td');td.dataset.stat=stat;td.textContent=value;return td;};
+      const status=!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
+      tr.append(name,cell('health',b.built?`${Math.ceil(b.hp)}/${b.maxHealth}`:'—'),cell('armor',String(b.armor)),cell('status',status));
+      tr.classList.toggle('damaged',b.built&&b.hp<b.maxHealth);
+      const action=cell('action',''),control=button(repair?'取消':'维修',()=>{
+        if(repair){e.cancel(task.id);get('building-notice').textContent='维修已取消，预留材料已释放';}
+        else{const result=e.request('repair',b.id);get('building-notice').textContent=result.message;}
+        callbacks.save();renderBuildings();
+      });
+      control.disabled=!repair&&(!q||!!task);control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);action.append(control);tr.append(action);return tr;
+    }));
+  }
+  for(const tab of ['resources','population','buildings'])get(`${tab}-tab`).addEventListener('click',()=>{
+    for(const kind of ['resources','population','buildings']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
     if(tab==='population')edit();
+    if(tab==='buildings')renderBuildings();
   },options);
-  get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();},options);
+  get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();if(!get('buildings-panel').hidden)renderBuildings();},options);
   get('save-group').addEventListener('click',()=>{
     if(saveGroup(e,editing,draft)){callbacks.save();edit();notice('编队已保存');refresh();}else notice('成员状态已变化，请重新选择');
   },options);
@@ -58,6 +82,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
   get('set-rally').addEventListener('click',()=>{ui.closeRecruitment();callbacks.rally();},options);
   function refresh(selected?:number) {
     if(!get('population-panel').hidden && get('resources-dialog').hasAttribute('open'))renderPopulation();
+    if(!get('buildings-panel').hidden && get('resources-dialog').hasAttribute('open'))renderBuildings();
     const groups=e.state.groups.map((_,i)=>groupMembers(e.state,i));
     const key=JSON.stringify([groups,selected]);
     if(key!==shortcutKey){shortcutKey=key;get('group-shortcuts').replaceChildren(...groups.flatMap((ids,i)=>{
@@ -67,12 +92,14 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     }));}
     const alive=livingResidents(e.state),queue=e.state.recruitment.queue;
     const humans=alive.filter(r=>r.role!=='dog').length,dogs=alive.length-humans;
-    const nextKey=JSON.stringify([e.available(),humans,dogs,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
+    const centerOpen=buildingOperational(e.state,'home-center');
+    const nextKey=JSON.stringify([e.available(),humans,dogs,centerOpen,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
     if(nextKey===recruitKey)return;recruitKey=nextKey;
     get('recruit-capacity').textContent=`人口 ${humans} / ${POPULATION_LIMIT} · 田园犬 ${dogs} / ${DOG_LIMIT} · 排队 ${queue.length}`;
     get('recruit-options').replaceChildren(...Object.entries(RECRUIT_CONFIG).map(([role,config])=>{
       const cost=Object.entries(config.cost).map(([kind,amount])=>`${RESOURCE_NAMES[kind as keyof typeof RESOURCE_NAMES]} ${amount}`).join(' · ');
       const b=button('',()=>{const result=recruit(e,role as ResidentRole);get('recruit-notice').textContent=result.message;callbacks.save();refresh(selected);});
+      b.disabled=!centerOpen;
       const title=document.createElement('strong'),detail=document.createElement('small');title.textContent=`招募${config.name}`;detail.textContent=`${cost} · ${config.seconds} 秒`;b.append(title,detail);
       return b;
     }));

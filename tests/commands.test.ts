@@ -12,7 +12,7 @@ function setup(economy = new Economy()) {
   let reachable = true, starts = 0;
   const residents: Residents = {
     farmerIds: () => ['farmer'],
-    farmerPosition: () => ({ x: 0, z: 0 }),
+    farmerPosition: () => work?.status==='arrived'?{x:3,z:0}:{ x: 0, z: 0 },
     canWork: id => id === 'farmer', hasMoveCommand: id => moves.has(id),
     command(point, id = 'farmer') {
       if (!reachable) return false;

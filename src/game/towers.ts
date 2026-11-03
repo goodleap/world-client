@@ -9,8 +9,9 @@ import { WORLD_BOUNDS } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { maxHealth, needsFood } from './vitals.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
+import { BUILDING_STATS } from './building-state.ts';
 
-export const TOWER_CONFIG={hp:500,range:12,height:TOWER_SHAPE.deck,cost:{wood:20,stone:12,food:0,iron:0},fallDamage:.25} as const;
+export const TOWER_CONFIG={hp:BUILDING_STATS.tower.hp,armor:BUILDING_STATS.tower.armor,range:12,height:TOWER_SHAPE.deck,cost:{wood:20,stone:12,food:0,iron:0},fallDamage:.25} as const;
 export interface TowerState extends Point {id:string;hp:number;unit?:string;phase:'empty'|'approach'|'occupied'|'meal'}
 export const towerPlatform=(tower:Point):Point=>({x:tower.x,z:tower.z});
 export const newTower=(site:BuildingSite):TowerState=>({id:site.id,x:site.x,z:site.z,hp:TOWER_CONFIG.hp,phase:'empty'});

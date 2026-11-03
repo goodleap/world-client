@@ -1,0 +1,45 @@
+{
+  "note": "Cloud SwiftShader samples at different runtime load; behavior evidence, not an isolated hardware benchmark",
+  "beforeCorridorReuse": {
+    "timing": {
+      "initial": {
+        "visible": true,
+        "x": 46,
+        "z": 56.99039563659298
+      },
+      "pending": 5,
+      "frames": 8,
+      "firstRouteMs": 1507.3999999910593,
+      "completedMs": 3104.699999988079
+    },
+    "navigation": {
+      "pending": 0,
+      "completed": 5,
+      "lastMs": 3066,
+      "maxMs": 3066,
+      "workMs": 281,
+      "failed": false
+    }
+  },
+  "withCorridorReuse": {
+    "timing": {
+      "initial": {
+        "visible": true,
+        "x": 46,
+        "z": 56.99039563659298
+      },
+      "pending": 5,
+      "frames": 7,
+      "firstRouteMs": 1114.9000000059605,
+      "completedMs": 2019.5
+    },
+    "navigation": {
+      "pending": 0,
+      "completed": 5,
+      "lastMs": 1967,
+      "maxMs": 1967,
+      "workMs": 0,
+      "failed": false
+    }
+  }
+}

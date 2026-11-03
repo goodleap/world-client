@@ -30,11 +30,12 @@ export const ENEMIES: readonly ResidentDefinition[] = [
   { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: .4, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.15 },
-  ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.id === 'pass' ? 3 : 2 }, (_, i): ResidentDefinition => ({
-    id: `enemy-${c.id}-${i}`, role: c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
-    variant: c.id === 'pass' && i === 0 ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
-    name: c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : c.id === 'patrol' ? '巡逻兵' : c.name,
-    spawn: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) }, home: { x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
+  ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.members ?? (c.id === 'pass' ? 3 : 2) }, (_, i): ResidentDefinition => ({
+    id: `enemy-${c.id}-${i}`, role: c.members ? i===3?'archer':'infantry' : c.id === 'pass' && i > 0 ? 'archer' : 'infantry', camp: c.id,
+    variant: (c.id === 'pass'||c.members) && i === 0 ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,
+    name: c.members?`${c.name}${i===0?'重卫':i===3?'弓手':'守卫'}`:c.id === 'pass' ? i === 0 ? '山口重卫' : '山口弓手' : c.id === 'patrol' ? '巡逻兵' : c.name,
+    spawn: c.members?{x:c.x+(i?i-2:0)*1.5,z:c.z+(i?-1.5:0)}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
+    home: c.members?{x:c.x+(i?i-2:0)*1.5,z:c.z+(i?-1.5:0)}:{ x: c.x + (i - 1) * (c.id === 'patrol' ? .7 : 2), z: c.z + (i ? -2 : 1) },
     areaRadius: 0, bodyRadius: .4, speed: 1, labelHeight: 2.4,
   }))),
 ];

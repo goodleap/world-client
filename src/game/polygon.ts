@@ -24,7 +24,9 @@ export function insidePolygon(p: Point, area: PolygonArea): boolean {
   let inside = false;
   for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
     const a = points[i], b = points[j];
-    if (segmentDistanceSquared(p, a, b) < 1e-12) return true;
+    if (p.x>=Math.min(a.x,b.x)-1e-6&&p.x<=Math.max(a.x,b.x)+1e-6
+      &&p.z>=Math.min(a.z,b.z)-1e-6&&p.z<=Math.max(a.z,b.z)+1e-6
+      &&segmentDistanceSquared(p, a, b) < 1e-12) return true;
     if ((a.z > p.z) !== (b.z > p.z) && p.x < (b.x - a.x) * (p.z - a.z) / (b.z - a.z) + a.x) inside = !inside;
   }
   return inside && !area.holes?.some(hole => insidePolygon(p, hole));
@@ -48,8 +50,11 @@ export function sweepHitsPolygon(from: Point, to: Point, radius: number, area: P
 
 function sweepHitsBoundary(from: Point, to: Point, radius: number, area: PolygonArea) {
   const cross = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+  const minX=Math.min(from.x,to.x)-radius,maxX=Math.max(from.x,to.x)+radius;
+  const minZ=Math.min(from.z,to.z)-radius,maxZ=Math.max(from.z,to.z)+radius;
   for (let i = 0; i < area.points.length; i++) {
     const a = area.points[i], c = area.points[(i + 1) % area.points.length];
+    if(Math.max(a.x,c.x)<minX||Math.min(a.x,c.x)>maxX||Math.max(a.z,c.z)<minZ||Math.min(a.z,c.z)>maxZ)continue;
     // Include touching/collinear segments, but not disjoint collinear spans.
     const intersects = cross(from, to, a) * cross(from, to, c) <= 0 && cross(a, c, from) * cross(a, c, to) <= 0
       && Math.max(from.x, to.x) >= Math.min(a.x, c.x) && Math.min(from.x, to.x) <= Math.max(a.x, c.x)

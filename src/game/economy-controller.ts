@@ -6,7 +6,7 @@ import type { CropKind, WorkKind, WorkTask } from './economy.ts';
 import type { Point } from './movement.ts';
 import { createSteward, stewardStatus } from './steward.ts';
 
-export type UnitCommand = { kind: 'move'; point: Point } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
+export type UnitCommand = { kind: 'move'; point: Point; path?:readonly Point[] } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
 type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
   'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork' | 'farmerIds'> & { farmerPosition: (id?: string) => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
@@ -21,11 +21,11 @@ export function createEconomyController(economy: Economy, world: World, resident
   function destination(task: WorkTask, from?: Point) {
     const target = task.kind === 'supply' ? task.status === 'delivering' ? task.target : task.cargo ?? 'warehouse'
       : task.status === 'delivering' ? 'warehouse' : task.target;
-    return world.workPoints(target, from);
+    return world.workPoints(target, from,task.kind==='repair');
   }
   function command(id: string, instruction: UnitCommand): { ok: boolean; message: string } {
     if (instruction.kind === 'move') {
-      if (!residents.command(instruction.point, id)) return { ok: false, message: '无法到达该位置' };
+      if (!residents.command(instruction.point, id,false,instruction.path)) return { ok: false, message: '无法到达该位置' };
       if (residents.canWork(id)) economy.interrupt(residents.farmerPosition(id), id);
       return { ok: true, message: '前往目标位置' };
     }
@@ -86,12 +86,23 @@ export function createEconomyController(economy: Economy, world: World, resident
       else if (assigned?.status === 'blocked') {
         economy.defer(assigned.id, '暂时无法到达，稍后重试', residents.farmerPosition(id)); residents.releaseFarmerWork(id);
       } else if (assigned?.status === 'arrived') {
+        // A warehouse can be destroyed while cargo is en route. Recheck its
+        // current delivery doors before crediting inventory at the old door.
+        if(active?.status==='delivering'&&active.kind==='haul'){
+          const place=destination(active,residents.farmerPosition(id));
+          if(!place?.points.some(p=>Math.hypot(p.x-residents.farmerPosition(id).x,p.z-residents.farmerPosition(id).z)<.45)){
+            const path=place&&residents.planFarmerWork(place.points,id);
+            if(path&&place)residents.startFarmerWork(active.id,path,place.target,id);
+            else {economy.defer(active.id,'仓库暂时无法到达',residents.farmerPosition(id));residents.releaseFarmerWork(id);}
+            continue;
+          }
+        }
         storageChange(() => economy.arrive(assigned!.id), residents.farmerPosition(id));
         economy.updateCargo(residents.farmerPosition(id), id);
         if (economy.active(id)?.status === 'delivering') {
-          const place = destination(economy.active(id)!, residents.farmerPosition(id))!;
-          const path = residents.planFarmerWork(place.points, id);
-          if (path) residents.startFarmerWork(assigned.id, path, place.target, id);
+          const place = destination(economy.active(id)!, residents.farmerPosition(id));
+          const path = place&&residents.planFarmerWork(place.points, id);
+          if (path&&place) residents.startFarmerWork(assigned.id, path, place.target, id);
           else { economy.defer(assigned.id, '仓库暂时无法到达', residents.farmerPosition(id)); residents.releaseFarmerWork(id); }
         } else if (economy.active(id)?.status === 'working') residents.beginFarmerWork(assigned.id, id);
         else residents.releaseFarmerWork(id);

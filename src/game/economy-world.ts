@@ -15,7 +15,7 @@ import { RESOURCE_NAMES } from './economy.ts';
 import { createCropModel } from './crop-model.ts';
 import { createGroundGoodsModel, groundGoodsKind } from './ground-goods-model.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE, LANDSCAPE } from './world-data.ts';
+import { TREES, GRID_SIZE, LANDSCAPE, BUILDINGS } from './world-data.ts';
 import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
@@ -187,14 +187,15 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     }))];
     return true;
   }
-  function workPoints(target: string, from?: Point): { points: Point[]; target: Point } | undefined {
-    if (target === 'warehouse') {
+  function workPoints(target: string, from?: Point, repair=false): { points: Point[]; target: Point } | undefined {
+    if (target === 'warehouse'&&!repair) {
       const doors = economy.warehouseDoors().sort((a, b) => from ? Math.hypot(a.x - from.x, a.z - from.z) - Math.hypot(b.x - from.x, b.z - from.z) : 0);
+      if(!doors.length)return;
       return { target: doors[0], points: doors.flatMap(door => [door, { x: door.x - .8, z: door.z }, { x: door.x + .8, z: door.z }]) };
     }
     const goods = economy.state.goods.find(g => g.id === target);
     if (goods) return { target: goods, points: [{ x: goods.x, z: goods.z }] };
-    const plot = economy.plot(target), node = RESOURCE_NODES.find(n => n.id === target), site = economy.state.sites.find(s => s.id === target);
+    const plot = economy.plot(target), node = RESOURCE_NODES.find(n => n.id === target), site = economy.state.sites.find(s => s.id === target)??(repair?BUILDINGS.find(b=>b.id===target):undefined);
     const source = plot ?? node ?? site; if (!source) return;
     if (site) return { target: site, points: [
       { x: site.x, z: site.z - site.depth / 2 - .65 }, { x: site.x - site.width / 2 - .65, z: site.z },

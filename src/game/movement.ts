@@ -17,8 +17,13 @@ function pointSegmentDistanceSquared(point: Point, from: Point, to: Point): numb
 /** Exact swept disc against circles and rounded box corners. Sampling a segment
  * can miss a grazing contact, so the planner and follower must share this test. */
 export function sweepIsBlocked(from: Point, to: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
+  const left=Math.min(from.x,to.x)-radius,right=Math.max(from.x,to.x)+radius;
+  const bottom=Math.min(from.z,to.z)-radius,top=Math.max(from.z,to.z)+radius;
   return obstacles.some(obstacle => {
     if (obstacle.kind === 'polygon') return sweepHitsPolygon(from, to, radius, obstacle);
+    const halfX=obstacle.kind==='circle'?obstacle.radius:obstacle.halfWidth;
+    const halfZ=obstacle.kind==='circle'?obstacle.radius:obstacle.halfDepth;
+    if(obstacle.x+halfX<left||obstacle.x-halfX>right||obstacle.z+halfZ<bottom||obstacle.z-halfZ>top)return false;
     if (obstacle.kind === 'circle') {
       return pointSegmentDistanceSquared(obstacle, from, to) < (radius + obstacle.radius) ** 2 - 1e-10;
     }

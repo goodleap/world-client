@@ -1,0 +1,76 @@
+{
+  "environment": "cloud Node.js; computation only, excludes worker messages/render cadence",
+  "destination": {
+    "x": 46,
+    "z": 57
+  },
+  "radius": 0.4,
+  "rounds": [
+    {
+      "independent": {
+        "members": [
+          178.9,
+          227,
+          314.6,
+          272.4,
+          234.7
+        ],
+        "totalMs": 1228
+      },
+      "shared": {
+        "members": [
+          294.1,
+          0.5,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "totalMs": 295
+      }
+    },
+    {
+      "independent": {
+        "members": [
+          280.3,
+          239.5,
+          267.1,
+          226,
+          196.6
+        ],
+        "totalMs": 1210
+      },
+      "shared": {
+        "members": [
+          195.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "totalMs": 195
+      }
+    },
+    {
+      "independent": {
+        "members": [
+          239.1,
+          218.4,
+          277.6,
+          254.7,
+          265
+        ],
+        "totalMs": 1255
+      },
+      "shared": {
+        "members": [
+          239.7,
+          0.2,
+          0.1,
+          0.1,
+          0.1
+        ],
+        "totalMs": 240
+      }
+    }
+  ]
+}

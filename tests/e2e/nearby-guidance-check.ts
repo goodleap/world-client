@@ -42,11 +42,15 @@ export async function checkNearbyGuidance(page: Page, info: TestInfo, touch: boo
   // A click deep in the lake has no reachable point in the bounded search.
   await clickGround(page,{x:29,z:49},touch);
   await expect(page.locator('#target-hint')).toContainText('无法到达该位置');
-  expect((await snapshot(page)).combat.units.find(u=>u.id==='infantry')!.goal).toEqual(goal);
+  const afterFailure=(await snapshot(page)).combat.units.find(u=>u.id==='infantry')!;
+  if(afterFailure.goal)expect(afterFailure.goal).toEqual(goal);
+  else expect(Math.hypot(afterFailure.position.x-goal.x,afterFailure.position.z-goal.z)).toBeLessThan(.2);
   await page.locator('#settings').click();const held=await snapshot(page);
   await page.waitForTimeout(400);expect((await snapshot(page)).pathGuidance).toEqual(held.pathGuidance);
   await page.locator('#return-menu').click();await page.reload();await page.locator('#continue-save').click();
   await expect(page.locator('#loading')).toHaveClass(/loaded/,{timeout:60000});
-  expect((await snapshot(page)).combat.units.find(u=>u.id==='infantry')!.goal).toEqual(goal);
+  const resumed=(await snapshot(page)).combat.units.find(u=>u.id==='infantry')!;
+  if(resumed.goal)expect(resumed.goal).toEqual(goal);
+  else expect(Math.hypot(resumed.position.x-goal.x,resumed.position.z-goal.z)).toBeLessThan(.2);
   expect(errors).toEqual([]);
 }

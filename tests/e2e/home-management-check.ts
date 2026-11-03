@@ -52,10 +52,15 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
   await page.screenshot({path:info.outputPath('group-editor.png'),scale:'css'});
   await page.getByRole('button',{name:'关闭家园面板'}).click();await page.locator('[data-group="0"]').click();
   expect((await snapshot(page)).selection.members).toHaveLength(3);
-  await clickGround(page,{x:0,z:-8},touch);
-  let s=await snapshot(page);expect(s.combat.units.find(u=>u.id==='infantry')!.order).toBe('move');expect(s.combat.units.find(u=>u.id==='archer')!.order).toBe('move');
-  expect(s.residents.find(r=>r.id==='farmer')!.moveCommand).toBe(true);
-  const goals=[s.combat.units.find(u=>u.id==='infantry')!.goal!,s.combat.units.find(u=>u.id==='archer')!.goal!,s.residents.find(r=>r.id==='farmer')!.destination!];
+  await panTo(page,{x:0,z:-12},touch);
+  await clickGround(page,{x:0,z:-17},touch);
+  await expect.poll(async()=>(await snapshot(page)).navigation.pending).toBe(0);
+  let s=await snapshot(page);
+  // Earlier members keep moving while later routes are computed, so a nearby
+  // archer may already have arrived by the time the entire queue is finished.
+  const goals=['infantry','archer','farmer'].map(id=>{const fighter=s.combat.units.find(u=>u.id===id),resident=s.residents.find(r=>r.id===id)!;
+    return fighter?fighter.goal??fighter.position:resident.destination??resident.position;});
+  for(const goal of goals)expect(Math.hypot(goal.x,goal.z+17)).toBeLessThan(4);
   expect(new Set(goals.map(p=>JSON.stringify(p))).size).toBe(3);
   await page.screenshot({path:info.outputPath('group-move.png'),scale:'css'});
   await page.locator('#clear-selection').click();await panTo(page,HOME_CENTER,touch);

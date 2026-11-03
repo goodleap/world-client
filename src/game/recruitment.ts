@@ -8,6 +8,7 @@ import { WORLD_BOUNDS, HOME_CENTER } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { createFighter } from './combat.ts';
 import { bodiesFor, initialVital, health } from './vitals.ts';
+import { buildingOperational } from './building-state.ts';
 
 export const RECRUIT_CONFIG = {
   farmer: { name: '农民', seconds: 10, cost: { food: 6 } },
@@ -41,6 +42,7 @@ export function decodeRecruitment(raw:RecruitmentState):RecruitmentState {
   return {nextId:raw.nextId,roster,queue,rally:{...raw.rally}};
 }
 export function recruit(e: Economy, role: ResidentRole) {
+  if(!buildingOperational(e.state,'home-center'))return {ok:false,message:'家园中心已损毁，请先维修'};
   const state=e.state, config=RECRUIT_CONFIG[role];
   if (!config) return {ok:false,message:'请选择招募类型'};
   if(state.recruitment.queue.length>=RECRUIT_QUEUE_LIMIT)return {ok:false,message:'招募队列已满'};
@@ -67,6 +69,7 @@ export function cancelRecruit(e: Economy, serial: number) {
 /** A completed recruit waits at 100% until its whole body fits outside the door. */
 export function advanceRecruitment(e: Economy, seconds: number, occupants: readonly Obstacle[] = []) {
   if(!Number.isFinite(seconds)||seconds<=0)return;
+  if(!buildingOperational(e.state,'home-center'))return;
   const state=e.state, order=state.recruitment.queue[0];if(!order)return;
   order.elapsed=Math.min(RECRUIT_CONFIG[order.role].seconds,order.elapsed+seconds);
   if(order.elapsed<RECRUIT_CONFIG[order.role].seconds)return;

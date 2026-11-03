@@ -31,6 +31,7 @@ import { createWanderState, seededRandom, stepWander } from './wander.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
+import { validateNavigation } from './navigation-plan.ts';
 import mountMetadata from '../../studies/soldiers/cavalry/motion-plan.json';
 import animationMetadata from '../../studies/base-human/animation-metadata.json';
 import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
@@ -432,10 +433,17 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     selectedCanMove: () => !!selected,
     canWork: (id: string) => !dead(id) && canResidentWork(id),
     hasMoveCommand: (id: string) => !!actors.find(actor => actor.definition.id === id && actor.route.length && !works.has(actor.definition.id)),
-    command(point: Point, id = selected?.definition.id, exact = false) {
+    movementInput(id:string,point:Point){
+      const actor=actorById.get(id);if(!actor||dead(id))return;
+      return {start:{x:actor.state.position.x,z:actor.state.position.z},goal:{x:point.x,z:point.z},radius:actor.settings.bodyRadius,
+        bounds:actor.settings.bounds,solids:obstaclesFor(actor.definition.role),neighbours:workNeighbours(actor).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,
+          destination:'destination' in n&&n.destination?{x:n.destination.x,z:n.destination.z}:undefined}))};
+    },
+    command(point: Point, id = selected?.definition.id, exact = false,prepared?:readonly Point[]) {
       const actor = actors.find(entry => entry.definition.id === id);
       if (!actor || dead(actor.definition.id)) return false;
-      const path = exact ? planWorkApproach(actor.state.position, [point], actor.settings.bodyRadius, actor.settings.bounds,
+      const path = prepared?validateNavigation({start:actor.state.position,goal:point,radius:actor.settings.bodyRadius,bounds:actor.settings.bounds,
+        solids:obstaclesFor(actor.definition.role),neighbours:workNeighbours(actor)},prepared):exact ? planWorkApproach(actor.state.position, [point], actor.settings.bodyRadius, actor.settings.bounds,
         obstaclesFor(actor.definition.role), workNeighbours(actor)) : planMoveDestination(actor.state.position, point, actor.settings.bodyRadius, actor.settings.bounds,
         obstaclesFor(actor.definition.role), workNeighbours(actor));
       if (!path) return false;

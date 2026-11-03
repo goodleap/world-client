@@ -1,0 +1,60 @@
+{
+  "repair": [
+    {
+      "origin": "manual",
+      "id": 1,
+      "kind": "repair",
+      "target": "cottage",
+      "status": "working",
+      "progress": 1.4500000000000006,
+      "reserved": true,
+      "reason": "",
+      "retryAt": 0,
+      "repair": {
+        "hp": 60,
+        "cost": {
+          "wood": 1,
+          "stone": 1,
+          "food": 0,
+          "iron": 0
+        }
+      },
+      "worker": "farmer"
+    }
+  ],
+  "camp": [
+    {
+      "id": "enemy-orchard-0",
+      "position": {
+        "x": -37,
+        "z": 59
+      },
+      "model": true
+    },
+    {
+      "id": "enemy-orchard-1",
+      "position": {
+        "x": -38.5,
+        "z": 57.5
+      },
+      "model": true
+    },
+    {
+      "id": "enemy-orchard-2",
+      "position": {
+        "x": -37,
+        "z": 57.5
+      },
+      "model": true
+    },
+    {
+      "id": "enemy-orchard-3",
+      "position": {
+        "x": -35.5,
+        "z": 57.5
+      },
+      "model": true
+    }
+  ],
+  "errors": []
+}

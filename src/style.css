@@ -1186,6 +1186,18 @@ kbd {
 .home-tabs { display:flex; gap:8px; margin:16px 0; }
 .home-tabs button { flex:1; min-height:38px; border:1px solid #c6cdb8; border-radius:9px; background:#e8ebdc; color:var(--ink); }
 .home-tabs [aria-selected=true], .home-tabs [aria-pressed=true] { background:#cdebe2; border-color:#79aa9b; }
+.building-scroll { max-height:min(50dvh,400px); overflow:auto; border:1px solid #d7ddcb; border-radius:10px; }
+.building-table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+.building-table th, .building-table td { padding:8px 4px; text-align:center; white-space:nowrap; }
+.building-table tbody th { text-align:left; font-weight:normal; white-space:normal; }
+.building-table thead th { position:sticky; top:0; background:#e8ebdc; font-size:11px; }
+.building-table tbody tr + tr { border-top:1px solid #e0e4d6; }
+.building-table small { display:block; color:#668074; font-size:10px; }
+.building-table .damaged [data-stat=health] { color:#b94734; }
+.building-table button { min-height:38px; min-width:44px; padding:4px; border-radius:8px; border:1px solid #bacbbb; color:var(--ink); background:#e1efe7; }
+#building-summary, #building-notice { font-size:13px; margin:8px 0; }
+@media(max-width:380px) { .building-table { font-size:11px; } .building-table th, .building-table td { padding-left:2px; padding-right:2px; } }
+@media(max-height:480px) { .building-scroll { max-height:calc(100dvh - 195px); } }
 .population-scroll { max-height:min(38dvh,340px); overflow:auto; border:1px solid #d7ddcb; border-radius:10px; }
 .population-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
 .population-table .population-check { width:26px; }

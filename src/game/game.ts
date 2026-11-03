@@ -8,6 +8,7 @@ import { groupMembers, groupInfo, pruneGroups } from './groups.ts';
 import { groupDestinations } from './group-orders.ts';
 import { CommandGuidance } from './command-guidance.ts';
 import { planMoveDestination } from './work-navigation.ts';
+import { createNavigationQueue } from './navigation-queue.ts';
 import { selectedUnitInfo } from './unit-info.ts';
 import { livingPopulation, formatGameTime } from './home-status.ts';
 import { Raids } from './raids.ts';
@@ -43,7 +44,8 @@ import { ENEMIES, newResident, roleLeader } from './resident-data.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
 import { Economy, encodeEconomy, WORK_NAMES } from './economy.ts';
 import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
-import { economySelection, updateEconomyUI } from './economy-ui.ts';
+import { buildingSelection, economySelection, updateEconomyUI } from './economy-ui.ts';
+import { buildingOperational } from './building-state.ts';
 import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
 import { releaseModelDownloads } from './asset-cache.ts';
@@ -153,7 +155,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
   }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
-  const manual = (id: string) => { needs.manual(id); raids.manual(id); };
+  const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
+  const manual = (id: string) => { navigation.cancel(id);needs.manual(id); raids.manual(id); };
   const moveFeedback = createMoveFeedback(scene);
   const attackFeedback = createMoveFeedback(scene, { name: 'attack-target', color: '#f18b70', ring: false });
   let attackPulse: { attacker: string; target: string } | undefined;
@@ -171,11 +174,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const tower=economy.state.towers.find(t=>t.id===object.id&&t.hp>0);
     if(tower){
       const candidate=garrisonCandidate(economy,combat,tower.id,residents.selectedIds()),id=tower.unit??candidate?.id,name=homeResidents(economy.state).find(r=>r.id===id)?.name??'弓兵';
-      ui.setSelection({name:'哨塔',kind:'建筑',showHint:true,hint:`耐久 ${Math.ceil(tower.hp)}/${TOWER_CONFIG.hp} · ${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
-        actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:'需要可用弓兵',disabled:!candidate}]});return;
+      ui.setSelection(buildingSelection(economy,object.id,{name:'哨塔',kind:'建筑',showHint:true,hint:`${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
+        actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:'需要可用弓兵',disabled:!candidate}]}));return;
     }
-    if(object.id==='home-center'){ui.setSelection({name:'家园中心',kind:'建筑',hint:'招募居民与士兵',actions:[{id:'recruit',label:'招募'}]});return;}
-    const details = economySelection(economy, object), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
+    if(object.id==='home-center'){ui.setSelection(buildingSelection(economy,object.id,{name:'家园中心',kind:'建筑',hint:'招募居民与士兵',actions:[{id:'recruit',label:'招募',disabled:!buildingOperational(economy.state,object.id)}]}));return;}
+    const details = buildingSelection(economy,object.id,economySelection(economy, object)), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
     if (!economy.campfire(object.id) && unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
     if (!economy.campfire(object.id) && unit && !residents.canWork(unit) && details.actions?.some(action => action.id !== 'cancel')) {
@@ -246,7 +249,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         const task = economy.taskFor(target);
         if (task) instruction = { kind: 'work', work: task.kind, target, crop: task.crop };
       } else if (action === 'sow-carrot' || action === 'sow-wheat') instruction = { kind: 'work', work: 'sow', target, crop: action === 'sow-carrot' ? 'carrot' : 'wheat' };
-      else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build' || action === 'haul' || action === 'gather' || action === 'tools' || action === 'arms') instruction = { kind: 'work', work: action, target };
+      else if (action === 'till' || action === 'harvest' || action === 'chop' || action === 'mine' || action === 'build' || action === 'repair' || action === 'haul' || action === 'gather' || action === 'tools' || action === 'arms') instruction = { kind: 'work', work: action, target };
       if (instruction) {
         const id = selectedGroup===undefined ? residents.selectedId() : residents.selectedIds().find(id=>residents.canWork(id));
         const result = id ? controller.command(id, instruction) : selectedGroup!==undefined?{ok:false,message:'此作业需要农民'}:economy.request(instruction.work, target, instruction.crop);
@@ -365,10 +368,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const object = id && world.objects.get(id);
       if (object) {
         selectWorld(object);
-        if(object.id==='home-center'){management.open();return;}
+        if(object.id==='home-center'&&buildingOperational(economy.state,object.id)&&economy.state.buildingHealth[object.id]===undefined){management.open();return;}
         if(economy.state.towers.some(t=>t.id===object.id&&t.hp>0))return;
         if (residents.selectedId() && !economy.campfire(object.id)) {
-          const task = economy.taskFor(object.id), actions = economySelection(economy, object).actions ?? [];
+          const task = economy.taskFor(object.id), actions = buildingSelection(economy,object.id,economySelection(economy, object)).actions ?? [];
           const action = task && task.status !== 'storage' ? 'assign' : actions.length === 1 && actions[0].id !== 'cancel' ? actions[0].id : undefined;
           if (action) performAction(action);
           else if (actions.length && !residents.selectedIds().some(id=>residents.canWork(id))) ui.targetHint('此作业需要农民', object.anchor);
@@ -386,18 +389,24 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (residents.selectedCanMove()) {
       const ids=residents.selectedIds(),defs=homeResidents(economy.state);
       const slots=groupDestinations(ids.map(id=>({id,position:combat.unit(id)?.position??residents.needsStatus(id).position,radius:defs.find(r=>r.id===id)!.bodyRadius})),point);
-      let accepted=0;
-      for(const slot of slots){
-        const result=combat.unit(slot.id)?combat.move([slot.id],slot.point)>0:controller.command(slot.id,{kind:'move',point:slot.point}).ok;
-        if(result){accepted++;manual(slot.id);}
-      }
-      if(accepted){
-        commandGuidance.clear();clearWorld();setPreview();
-        const id=ids[0],destination=combat.unit(id)?.goal??residents.routeFor(id).at(-1);
-        if(destination)moveFeedback.show(destination);
-        if(accepted<ids.length)ui.targetHint(`${accepted}/${ids.length} 名已接受指令`,{x:point.x,y:.2,z:point.z});
-        refreshEconomy();save();
-      }else ui.targetHint('无法到达该位置',{x:point.x,y:.2,z:point.z});
+      // Acknowledge the clicked group center immediately. Real, obstacle-aware
+      // routes arrive from the worker, with the selected representative first.
+      commandGuidance.clear();clearWorld();setPreview();moveFeedback.show(point);
+      let accepted=0,finished=0,sharedRoute:readonly {x:number;z:number}[]|undefined;
+      const dispatch=(slot:typeof slots[number],retry=0)=>navigation.request(slot.id,
+        ()=>{const context=combat.unit(slot.id)?combat.movementInput(slot.id,slot.point):residents.movementInput(slot.id,slot.point);
+          return context?{...context,routeHint:sharedRoute}:undefined;},path=>{
+          const ok=!!path&&(combat.unit(slot.id)?combat.move([slot.id],slot.point,false,false,false,false,path)>0
+            :controller.command(slot.id,{kind:'move',point:slot.point,path}).ok);
+          if(path&&!ok&&retry===0){dispatch(slot,1);return;}
+          finished++;
+          if(ok){accepted++;sharedRoute=combat.unit(slot.id)?.route??residents.routeFor(slot.id);manual(slot.id);if(ids.length===1){const end=path!.at(-1);if(end)moveFeedback.show(end);}refreshEconomy();save();}
+          if(finished===slots.length&&accepted<ids.length){
+            if(!accepted)moveFeedback.hide();
+            ui.targetHint(accepted?`${accepted}/${ids.length} 名已接受指令`:'无法到达该位置',{x:point.x,y:.2,z:point.z});
+          }
+        });
+      slots.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id)).forEach(slot=>dispatch(slot));
     }
     else clearSelection();
   }, gesture => {
@@ -503,6 +512,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     const logicStart = performance.now();
+    if(!resuming&&!ui.paused)navigation.flush();
     if(!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
         residents.beginStep(); wolves.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
@@ -567,7 +577,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     const routeId=selectedId??pulse?.id,routeFighter=routeId?combat.unit(routeId):undefined;
     pathGuidance.update(routeId,routeId?residents.displayPosition(routeId)??routeFighter?.position??residents.needsStatus(routeId).position:undefined,
-      routeId?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
+      routeId&&!navigation.pending(routeId)?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
     const attackTarget = selectedFighter?.target;
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
     if (attackPulse) {
@@ -667,7 +677,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       lighting: { ...lighting },
       graphics: { mode: performanceMode, ...PERFORMANCE_MODES[performanceMode], userShadows },
       selection: { units: residents.selectedIds(), object: selectedWorld?.id, ...selectionFeedback.snapshot() },
-      saves: { ...saves, intervalSeconds: autosave.interval }, candidates: sceneCandidates.snapshot(),
+      saves: { ...saves, intervalSeconds: autosave.interval }, candidates: sceneCandidates.snapshot(), navigation:navigation.snapshot(),
       performance: { ...compactPerformanceLog(performanceDiagnostics.snapshot()), paused: ui.paused, suspended, renderedFrames },
       camera: cameraState(),
       shadows: {
@@ -718,7 +728,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       cells: world.land.length, fps: metrics.sample?.fps??engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
       diagnostics: performanceDiagnostics.snapshot(),
-      saves: { ...saves }, candidates: sceneCandidates.snapshot(),
+      saves: { ...saves }, candidates: sceneCandidates.snapshot(), navigation:navigation.snapshot(),
       rendering: {
         drawCalls: engine._drawCalls.current,
         activeTriangles: scene.getActiveIndices() / 3,
@@ -743,7 +753,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       engine.onContextRestoredObservable.remove(contextRestored);
-      management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      navigation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

@@ -40,7 +40,7 @@ export function createUI(app: HTMLElement) {
     <div id="resident-labels" class="resident-labels" aria-label="家园居民"></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
-      <button id="home-resources" class="home-summary" aria-label="资源与人口" title="查看资源、人口与编队"><span id="population">人口 6</span><span id="resource-summary"></span></button>
+      <button id="home-resources" class="home-summary" aria-label="资源、人口与建筑" title="查看资源、人口、编队与建筑"><span id="population">人口 6</span><span id="resource-summary"></span></button>
       <div class="weather"><time id="game-time">00:00</time>${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
@@ -102,8 +102,17 @@ export function createUI(app: HTMLElement) {
       <div class="home-tabs" role="tablist" aria-label="家园信息">
         <button id="resources-tab" role="tab" aria-controls="resources-panel" aria-selected="true">资源</button>
         <button id="population-tab" role="tab" aria-controls="population-panel" aria-selected="false">人口</button>
+        <button id="buildings-tab" role="tab" aria-controls="buildings-panel" aria-selected="false">建筑</button>
       </div>
       <section id="resources-panel" role="tabpanel" aria-labelledby="resources-tab"><div id="inventory" class="inventory"></div><p class="dialog-note">资源送达仓库后才可使用。预留材料用于已安排的建设。</p></section>
+      <section id="buildings-panel" role="tabpanel" aria-labelledby="buildings-tab" hidden>
+        <p id="building-summary" class="dialog-note"></p>
+        <div class="building-scroll"><table class="building-table" aria-label="家园建筑">
+          <thead><tr><th scope="col">名称</th><th scope="col">生命</th><th scope="col">防御</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
+          <tbody id="building-rows"></tbody>
+        </table></div>
+        <p id="building-notice" class="dialog-note" role="status">维修由农民执行，按本次缺损预留材料。</p>
+      </section>
       <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
         <div class="population-tools"><p id="population-summary"></p>
           <div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div>

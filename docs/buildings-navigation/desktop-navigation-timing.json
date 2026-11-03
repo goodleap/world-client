@@ -1,0 +1,21 @@
+{
+  "timing": {
+    "initial": {
+      "visible": true,
+      "x": 46,
+      "z": 57.00000550621601
+    },
+    "pending": 5,
+    "frames": 8,
+    "firstRouteMs": 1056.7000000029802,
+    "completedMs": 2105.9000000059605
+  },
+  "navigation": {
+    "pending": 0,
+    "completed": 5,
+    "lastMs": 2085,
+    "maxMs": 2085,
+    "workMs": 0,
+    "failed": false
+  }
+}

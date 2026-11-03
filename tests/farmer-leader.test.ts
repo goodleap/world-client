@@ -13,7 +13,7 @@ function crew() {
   const farmers = RESIDENTS.filter(resident => canResidentWork(resident.id));
   const residents: Residents = {
     farmerIds: () => farmers.map(resident => resident.id),
-    farmerPosition: (id = 'farmer') => farmers.find(resident => resident.id === id)!.spawn,
+    farmerPosition: (id = 'farmer') => work.get(id)?.status==='arrived'?{x:3,z:0}:farmers.find(resident => resident.id === id)!.spawn,
     canWork: canResidentWork, hasMoveCommand: id => moves.has(id),
     command(_point, id = 'farmer') { work.delete(id); moves.add(id); return true; },
     farmerWorkState: (id = 'farmer') => work.get(id),

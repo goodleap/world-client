@@ -1,5 +1,4 @@
 import { assignedTower, occupiedTower, towerHeight, towerExit, releaseTower, damageTower, TOWER_CONFIG } from './towers.ts';
-import type { TowerState } from './towers.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { WORLD_BOUNDS } from './world-data.ts';
 import { RESIDENTS, ENEMIES, newResident } from './resident-data.ts';
@@ -9,12 +8,14 @@ import { segmentIsClear } from './wander.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import type { RouteState, Neighbour } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
+import { validateNavigation } from './navigation-plan.ts';
 import { COMBAT_CONFIG as C, ENCOUNTERS, MELEE_CONTACT_GRACE } from './combat-config.ts';
 import { leadShot } from './combat-aim.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
 import { VITAL_CONFIG, changeHealth, bodiesFor } from './vitals.ts';
 import { hitDamage } from './combat-damage.ts';
+import { buildingInfo, buildingList } from './building-state.ts';
 import { chooseTarget, hostile } from './targeting.ts';
 import type { CombatTarget } from './targeting.ts';
 
@@ -87,7 +88,9 @@ export class Combat {
     const state=this.economy.state;
     const ignored=state.towers.filter(t=>t.hp>0&&(t.id===targetId||t.phase==='occupied'&&(t.unit===sourceId||t.unit===targetId)
       ||((from as {y?:number}).y??0)>2&&Math.hypot(from.x-t.x,from.z-t.z)<1.2));
-    return segmentIsClear(from,to,.05,WORLD_BOUNDS,this.solids().filter(o=>!ignored.some(t=>o.kind==='box'&&o.x===t.x&&o.z===t.z)));
+    const building=targetId?buildingInfo(state,targetId):undefined;
+    return segmentIsClear(from,to,.05,WORLD_BOUNDS,this.solids().filter(o=>!ignored.some(t=>o.kind==='box'&&o.x===t.x&&o.z===t.z)
+      &&!(building?.built&&o.kind!=='polygon'&&o.x===building.x&&o.z===building.z)));
   }
   syncUnits() { this.units=new Map(this.state.units.map(u=>[u.id,u]));for(const u of this.threats)this.units.set(u.id,u); }
   unit(id: string) { return this.units.get(id) ?? this.state.units.find(u=>u.id===id); }
@@ -98,7 +101,7 @@ export class Combat {
       .concat(homeResidents(this.economy.state).filter(r => !this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
         position: this.residentPosition?.(r.id) ?? neighbours.find(n => n.id === r.id)?.position ?? this.economy.state.residents[r.id]?.position ?? r.spawn,
         hp: this.economy.state.vitals[r.id].hp!, life: this.economy.state.vitals[r.id].hp! > 0 ? 'active' as const : 'defeated' as const,
-        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(this.economy.state.towers.filter(t=>t.hp>0).map(t=>({id:t.id,team:'home' as const,position:{x:t.x,z:t.z},hp:t.hp,life:'active' as const,radius:(this.economy.state.sites.find(s=>s.id===t.id)?.width??2.5)/2,canAttack:t.phase==='occupied',kind:'tower' as const,elevation:0})));
+        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(buildingList(this.economy.state).filter(b=>b.built&&b.hp>0).map(b=>({id:b.id,team:'home' as const,position:{x:b.x,z:b.z},hp:b.hp,life:'active' as const,radius:Math.max(b.width,b.depth)/2,canAttack:this.economy.state.towers.some(t=>t.id===b.id&&t.phase==='occupied'),kind:'building' as const,elevation:0})));
   }
   target(id: string) { return this.targets().find(t => t.id === id); }
   setThreats(threats: readonly Fighter[]) {
@@ -129,20 +132,26 @@ export class Combat {
     return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) ?? (n as {destination?:Point}).destination }));
   }
   private stop(u: Fighter) { u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
-  private movePlan(u:Fighter,goal:Point,exact:boolean){
+  movementInput(id:string,goal:Point){
+    const u=this.controllable([id])[0];if(!u)return;
     const tower=occupiedTower(this.economy.state,u.id);
     const exit=tower?towerExit(this.economy.state,tower,this.solids(),this.neighbours(u).map(n=>({kind:'circle' as const,...n.position,radius:n.radius}))):undefined;
     if(tower&&!exit)return;
     const start=exit??u.position;
-    const path=exact?planWorkApproach(start,[goal],fighterRadius(u),WORLD_BOUNDS,this.solids(),this.reservations(u))
-      :planMoveDestination(start,goal,fighterRadius(u),WORLD_BOUNDS,this.solids(),this.reservations(u));
-    return path?{path,exit}:undefined;
+    return {start:{x:start.x,z:start.z},goal:{x:goal.x,z:goal.z},radius:fighterRadius(u),bounds:WORLD_BOUNDS,solids:this.solids(),
+      neighbours:this.reservations(u).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined})),exit};
+  }
+  private movePlan(u:Fighter,goal:Point,exact:boolean,prepared?:readonly Point[]){
+    const p=this.movementInput(u.id,goal);if(!p)return;
+    const path=prepared?validateNavigation(p,prepared):exact?planWorkApproach(p.start,[goal],p.radius,p.bounds,p.solids,p.neighbours)
+      :planMoveDestination(p.start,goal,p.radius,p.bounds,p.solids,p.neighbours);
+    return path?{path,exit:p.exit}:undefined;
   }
   canMoveTo(id:string,point:Point){
     const u=this.controllable([id])[0];
     return !!u&&Number.isFinite(point.x)&&Number.isFinite(point.z)&&!!this.movePlan(u,point,true);
   }
-  move(ids: readonly string[], point: Point, retreat = false, rest = false, preserveTower = false, exact = false) {
+  move(ids: readonly string[], point: Point, retreat = false, rest = false, preserveTower = false, exact = false,prepared?:readonly Point[]) {
     let accepted = 0;
     for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
       const requested = retreat ? u.home : point;
@@ -151,7 +160,7 @@ export class Combat {
       // Copy coordinates explicitly before pathfinding: a direct path retains
       // its destination, and spreading a Vector3 loses x/z in live goals/saves.
       const goal: Point = { x: requested.x, z: requested.z };
-      const tower=assignedTower(this.economy.state,u.id),plan=this.movePlan(u,goal,rest||exact);
+      const tower=assignedTower(this.economy.state,u.id),plan=this.movePlan(u,goal,rest||exact,prepared);
       if(!plan)continue;
       const {path,exit}=plan;
       if(exit)u.position={...exit};
@@ -187,8 +196,18 @@ export class Combat {
   private damage(victim: CombatTarget, amount: number, sourceId: string, ignoreArmor = false) {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
-    if(victim.kind==='tower'){
-      damageTower(this.economy,victim.id,amount,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});return;
+    if(victim.kind==='building'){
+      const building=buildingInfo(this.economy.state,victim.id)!,damage=hitDamage(amount,building.armor);
+      if(building.kind==='tower')damageTower(this.economy,victim.id,damage,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});
+      else this.economy.damageBuilding(victim.id,damage);
+      if(!buildingInfo(this.economy.state,victim.id)?.hp){
+        for(const u of [...this.state.units,...this.threats]){
+          if(u.target===victim.id){u.target=undefined;this.stop(u);}
+          if(u.attack?.target===victim.id)u.attack=undefined;
+        }
+        this.state.projectiles=this.state.projectiles.filter(p=>p.target!==victim.id);
+      }
+      return;
     }
     const target = this.unit(victim.id);
     if (!target) {
@@ -449,7 +468,7 @@ export class Combat {
 
 /** Strict fixed-unit and external-target save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
-export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly TowerState[]=[]): CombatState {
+export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly {id:string}[]=[]): CombatState {
   const raiders=(Array.isArray(raw?.units)?raw.units:[]).filter(u=>u.id?.startsWith('enemy-raid-'));
   if(raiders.length>6||raiders.some(u=>!/^enemy-raid-(infantry|archer)-[1-9]\d*-[0-5]$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
   const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer',u.id,u.home))]);
