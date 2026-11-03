@@ -44,6 +44,8 @@ import { rigEnvelope } from './rig-envelope.ts';
 import { AnimationVisibility } from './animation-visibility.ts';
 import { Frustum } from '@babylonjs/core/Maths/math.frustum';
 import { createShadowCasterFilter } from './shadow-culling.ts';
+import { RenderMotion } from './render-motion.ts';
+import { SimulationClock } from './simulation-clock.ts';
 
 const walkReferenceSpeed = animationMetadata.animations.Walk.navigation_speed_reference;
 type ResourceProgress = (fraction: number) => void;
@@ -85,7 +87,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
     human?.update(0, 0, 0); animal?.update(0, 0, 0);
     const label = ui.addResidentLabel(definition.id, placeholderRoles.has(definition.role) ? `${definition.name}（占位）` : definition.name, definition.effects?.includes('leader'));
-    return { definition, random, settings, state, human, animal, root, elevationRoot, label, marker, hit,
+    return { definition, random, settings, state, human, animal, root, elevationRoot, label, marker, hit, renderMotion: new RenderMotion(root),
       death: definition.role === 'cavalry' ? new MountedDeathView(root) : new DeathView(root, { prone: definition.role !== 'dog' }), facing: Math.PI, movementSpeed: 0,
       ready:false, route: [] as Point[], navigation: createRouteState(), wanderRoute: [] as Point[], wanderNavigation: createRouteState() };
   };
@@ -379,7 +381,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const actor of actors) {
         const data = saved[actor.definition.id]; if (!data) continue;
         if (!isBlocked(data.position, actor.settings.bodyRadius, obstaclesFor(actor.definition.role))) {
-          actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, 0, data.position.z);
+          actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, 0, data.position.z); actor.renderMotion.reset();
           actor.state.target = undefined;
         }
       }
@@ -554,6 +556,25 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         }
       }
     },
+    resetPresentation() { for (const a of actors) a.renderMotion.reset(); },
+    beginStep() { for (const a of actors) a.renderMotion.beginStep(); },
+    endStep() { for (const a of actors) a.renderMotion.endStep(); },
+    present(alpha: number) {
+      let moving = 0, advanced = 0;
+      for (const actor of actors) {
+        if (!actor.ready || dead(actor.definition.id) || combatPoses.get(actor.definition.id)?.departed) { actor.renderMotion.reset(); continue; }
+        const changed = actor.renderMotion.sample(alpha);
+        if (actor.movementSpeed > .08) { moving++; if (changed) advanced++; }
+        const u = combatPoses.get(actor.definition.id), clip = combatClips.get(actor.definition.id);
+        if (u?.attack && clip) {
+          const stats = fighterStats(u), elapsed = Math.max(0, u.attack.elapsed - (1 - alpha) * SimulationClock.step);
+          const phase = attackAnimationPhase(u.role, elapsed, stats.windup, stats.recovery);
+          clip.goToFrame(clip.from + phase * (clip.to - clip.from)); bowPoses.get(u.id)?.(phase);
+        }
+      }
+      return { moving, advanced };
+    },
+    displayPosition(id: string) { return actorById.get(id)?.renderMotion.position; },
     updateAnimationVisibility(camera: Camera, seconds: number, preview = false) {
       Frustum.GetPlanesToRef(camera.getTransformationMatrix(), visualPlanes);
       for (const actor of actors) {
@@ -568,7 +589,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight;
       const viewport = camera.viewport.toGlobal(width, height);
       for (const actor of actors) {
-        labelPoint.set(actor.state.position.x, actor.definition.labelHeight+actor.elevationRoot.position.y, actor.state.position.z);
+        const position = actor.renderMotion.position;
+        labelPoint.set(position.x, actor.definition.labelHeight+actor.elevationRoot.position.y, position.z);
         Vector3.ProjectToRef(labelPoint, identity, scene.getTransformMatrix(), viewport, labelProjected);
         const projected = labelProjected;
         const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;
@@ -597,7 +619,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       placeholderWalking: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.walk.isPlaying ?? false),
       placeholderRunning: placeholderRoles.has(actor.definition.role) && (locomotion.get(actor.definition.id)?.run.isPlaying ?? false),
       legacyVisible: !!actor.human?.mesh.isEnabled() || (actor.definition.role === 'cavalry' && !!actor.animal?.mesh?.isEnabled()),
-      position: { ...actor.state.position }, state: actor.state.target ? 'walking' : 'idle',
+      position: { ...actor.state.position }, renderPosition: { x: actor.renderMotion.position.x, z: actor.renderMotion.position.z }, state: actor.state.target ? 'walking' : 'idle',
       facing: actor.root.rotationQuaternion?.asArray() ?? [],
       routeRemaining: actor.route.length,
       destination: actor.route.at(-1),

@@ -4,6 +4,7 @@
 export class SimulationClock {
   static readonly step = .05;
   private remainder = 0;
+  get alpha() { return Math.min(1, Math.max(0, this.remainder / SimulationClock.step)); }
   advance(elapsed:number, update:(seconds:number)=>void) {
     if(!Number.isFinite(elapsed)||elapsed<=0)return 0;
     this.remainder+=elapsed;

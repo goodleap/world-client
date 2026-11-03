@@ -17,11 +17,14 @@ export async function checkRuntimePerformance(page: Page, info: TestInfo, touch:
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('world-basic-economy-v1')!));
   expect(saved.seconds).toBe(paused.economy.seconds);
   await page.waitForTimeout(300);
-  expect((await snapshot(page)).saves.count).toBe(paused.saves.count);
+  const frozen = await snapshot(page);
+  expect(frozen.saves.count).toBe(paused.saves.count);
+  expect(frozen.residents.map(r => [r.renderPosition, r.modelPose])).toEqual(paused.residents.map(r => [r.renderPosition, r.modelPose]));
   await page.locator('#copy-diagnostics').click();
   const text = await page.evaluate(() => (window as any).__copiedLog as string), report = JSON.parse(text);
   expect(text.length).toBeLessThan(10000); expect(report.schema).toBe(2);
   expect(report.performance.latest.context.mode).toBe('standard'); expect(report.performance.latest.context.fpsLimit).toBe(60);
+  expect(report.performance.latest.context.motion).toMatchObject({ stepMs: 50, interpolation: true, animationClock: 'render' });
   expect(report.performance.scene.lod.units).toBeGreaterThan(0);
   expect(Object.values(report.performance.scene.buildingLOD).reduce((n: number, v) => n + Number(v), 0)).toBeGreaterThan(0);
   const p = report.performance.latest.passes;

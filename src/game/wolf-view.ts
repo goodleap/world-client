@@ -17,6 +17,8 @@ import type { Wolf } from './raid-state.ts';
 import { RAID_CONFIG, WILD_WOLF_SPAWNS } from './raid-state.ts';
 import type { GameUI } from '../ui.ts';
 import { loadingProgress } from '../loading-progress.ts';
+import { interpolateAngle, interpolateCycle } from './render-motion.ts';
+import { SimulationClock } from './simulation-clock.ts';
 
 /** Shared geometry/material/immutable action tracks; independent native skeletons.
  * Pool is bounded by the wave cap plus fixed packs. No extra render pass. */
@@ -51,8 +53,14 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   loadingProgress.done('wolves:attach');
   const point = new Vector3(), projected = new Vector3(), identity = Matrix.Identity();
   const planes = Frustum.GetPlanes(Matrix.Identity());
+  const previous = new Map<string, { x: number; z: number; facing: number; gait: number }>();
   return {
-    update(wolves: readonly Wolf[], seconds: number, camera: Camera) {
+    beginStep(wolves: readonly Wolf[]) {
+      previous.clear();
+      for (const w of wolves) previous.set(w.id, { ...w.position, facing: w.facing, gait: w.gait });
+    },
+    update(wolves: readonly Wolf[], seconds: number, camera: Camera, alpha = 1) {
+      const lag = (1 - alpha) * SimulationClock.step;
       Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes);
       // A wave-size change shifts the fixed wolves between slots. Remove old
       // labels first so a later old slot cannot delete a newly rebound label.
@@ -71,7 +79,9 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
           if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, seconds), wolf.facing, [actor.mesh], () => {});
           continue;
         }
-        actor.root.position.x = wolf.position.x; actor.root.position.z = wolf.position.z;
+        const before = previous.get(wolf.id);
+        actor.root.position.x = before && wolf.life === 'active' ? before.x + (wolf.position.x - before.x) * alpha : wolf.position.x;
+        actor.root.position.z = before && wolf.life === 'active' ? before.z + (wolf.position.z - before.z) * alpha : wolf.position.z;
         if (wolf.life === 'active') actor.root.position.y = 0;
         if (wolf.life === 'defeated') {
           if (actor.label) actor.label.hidden = true;
@@ -83,15 +93,15 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
           selectCharacterLOD(actor.mesh, camera); continue;
         }
         actor.root.rotationQuaternion ??= Quaternion.Identity();
-        Quaternion.RotationYawPitchRollToRef(wolf.facing, 0, 0, actor.root.rotationQuaternion);
+        Quaternion.RotationYawPitchRollToRef(before ? interpolateAngle(before.facing, wolf.facing, alpha) : wolf.facing, 0, 0, actor.root.rotationQuaternion);
         actor.root.computeWorldMatrix(true); actor.mesh.computeWorldMatrix(true);
         actor.visible = actor.mesh.isInFrustum(planes);
         // Offscreen poses need no sampling. Authoritative phases keep running
         // in the simulation, so returning to view resumes at the right phase.
         if (!actor.visible) continue;
-        const hurt = wolf.hurtAt !== undefined ? seconds - wolf.hurtAt : Infinity;
+        const hurt = wolf.hurtAt !== undefined ? Math.max(0, seconds - lag - wolf.hurtAt) : Infinity;
         const clip = wolf.attack ? 'Bite' : hurt >= 0 && hurt < .26 ? 'Hurt' : wolf.feeding > 0 ? 'Feed' : wolf.speed > .08 ? 'Run' : 'Idle';
-        const phase = wolf.attack ? Math.min(1, wolf.attack.elapsed / .55) : clip === 'Hurt' ? hurt / .26 : clip === 'Feed' ? Math.min(1, wolf.feeding / 1.1) : clip === 'Run' ? wolf.gait : 0;
+        const phase = wolf.attack ? Math.min(1, Math.max(0, wolf.attack.elapsed - lag) / .55) : clip === 'Hurt' ? hurt / .26 : clip === 'Feed' ? Math.min(1, Math.max(0, wolf.feeding - lag) / 1.1) : clip === 'Run' ? before ? interpolateCycle(before.gait, wolf.gait, alpha) : wolf.gait : 0;
         if (actor.clip !== clip) {
           actor.clips.get(actor.clip)?.stop();
           const group = actor.clips.get(clip)!; group.start(false); group.pause(); actor.clip = clip; actor.phase = -1;

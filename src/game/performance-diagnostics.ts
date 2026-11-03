@@ -12,7 +12,8 @@ import { buildingLODCounts } from './building-lod.ts';
 type LodSample = { id: string; parts: number; mapParts: number; farParts?: number }[];
 export type FrameWork = { logicMs: number; worldMs: number; saveMs: number; sceneMs: number };
 export type PerformanceContext = { mode: string; fpsLimit: number; selected: number; selectionKind?: string;
-  candidates: number; camera: { x: number; y: number; z: number }; shadows: boolean };
+  candidates: number; camera: { x: number; y: number; z: number }; shadows: boolean;
+  motion?: { stepMs: number; alpha: number; steps: number; moving: number; advanced: number; interpolation: boolean; animationClock: string } };
 
 /** Native counters measure submitted work, including instances and shadow passes.
  * GPU queries are optional: unsupported / disjoint samples never become CPU estimates. */

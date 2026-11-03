@@ -479,7 +479,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let uiElapsed = 0;
   let keyboardPanning = false;
   const simulationClock=new SimulationClock(),renderCadence=new RenderCadence();
-  let animationSeconds=0,renderElapsed=0,cpuSinceFrame=0;
+  let renderElapsed=0,cpuSinceFrame=0,fixedSteps=0;
+  residents.resetPresentation();
   // Babylon owns scheduling. A paused panel needs one final frame (for example
   // to clear a building preview), then no animation, culling or GPU submissions.
   // Resizes/context restoration invalidate that retained image once.
@@ -508,7 +509,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     const logicStart = performance.now();
-    if(!resuming&&!ui.paused) animationSeconds+=simulationClock.advance(elapsed,dt=>{
+    if(!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
+        residents.beginStep(); wolves.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
         controller.update(dt);
         world.doors.update(dt);
@@ -525,6 +527,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         combat.update(dt); residents.syncCombat(combat.state.units, economy.state.seconds);
         residents.update(dt, previewRole, dt);
         needs.update(dt);
+        residents.endStep();
         world.fires.update(economy.state.campfires, dt, mapCenter);
         simulationSeconds += dt;
         uiElapsed += dt; autosave.advance(dt);
@@ -534,11 +537,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if(autosave.due()) save();
     if(!renderCadence.ready(elapsed,PERFORMANCE_MODES[performanceMode].fps,resuming||ui.paused)){cpuSinceFrame+=performance.now()-cpuStart;return;}
     const cameraRenderDt=ui.paused?0:Math.min(renderElapsed,.25);
-    const dt=animationSeconds;
-    scene.animationTimeScale=ui.paused||resuming?0:renderElapsed>0?dt/renderElapsed:1;
+    const dt=ui.paused||resuming?0:renderElapsed;
+    // Locomotion/work clips run on every rendered frame; fixed-step logic owns
+    // outcomes, while position and sampled attacks interpolate completed steps.
+    scene.animationTimeScale=ui.paused||resuming?0:1;
     scene.animationsEnabled=!ui.paused&&!resuming;
     if(!scene.animationsEnabled)scene.resetLastAnimationTimeFrame();
-    combatView.update(combat.state);
+    const motion = residents.present(simulationClock.alpha);
+    combatView.update(combat.state, (1 - simulationClock.alpha) * SimulationClock.step);
     const worldStart = performance.now(); world.sync(); frameWork.worldMs += performance.now() - worldStart;
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'leader' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
@@ -561,11 +567,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       selectionRevision = selectionKey;
     }
     towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
-    wolves.update(raids.wolves, economy.state.seconds, camera);
+    wolves.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
     const pulse=commandGuidance.sample(economy.state.seconds,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     const routeId=selectedId??pulse?.id,routeFighter=routeId?combat.unit(routeId):undefined;
-    pathGuidance.update(routeId,routeId?routeFighter?.position??residents.needsStatus(routeId).position:undefined,
+    pathGuidance.update(routeId,routeId?residents.displayPosition(routeId)??routeFighter?.position??residents.needsStatus(routeId).position:undefined,
       routeId?routeFighter?.route??residents.routeFor(routeId):[],selectedId?1:pulse?.alpha??1);
     const attackTarget = selectedFighter?.target;
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds);
@@ -576,7 +582,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     }
     const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
     residents.updateLabels(camera); wolves.updateLabels(camera);
-    animationSeconds=0;renderElapsed=0;
+    renderElapsed=0;
     if (selectedWorld) {
       const { anchor } = selectedWorld;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
@@ -594,7 +600,9 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     cpuSinceFrame=0;
     const context = { mode: performanceMode, fpsLimit: PERFORMANCE_MODES[performanceMode].fps,
       selected: residents.selectedIds().length, selectionKind: selectedWorld?.kind,
-      candidates: sceneCandidates.snapshot().candidates, camera: { x: camera.target.x, y: camera.target.y, z: camera.target.z }, shadows: scene.shadowsEnabled };
+      candidates: sceneCandidates.snapshot().candidates, camera: { x: camera.target.x, y: camera.target.y, z: camera.target.z }, shadows: scene.shadowsEnabled,
+      motion: { stepMs: SimulationClock.step * 1000, alpha: simulationClock.alpha, steps: fixedSteps, ...motion, interpolation: true, animationClock: 'render' } };
+    fixedSteps = 0;
     if (ui.paused || resuming) performanceDiagnostics.resetFrameClock();
     else performanceDiagnostics.frame(cpuStart, metrics.lastFrameCpuMs, frameWork, context);
     frameWork.logicMs = frameWork.worldMs = frameWork.saveMs = frameWork.sceneMs = 0;
