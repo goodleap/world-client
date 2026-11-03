@@ -1,4 +1,6 @@
 /** First playable PvE tuning. Trial values, not permanent balance rules. */
+import actions from '../../studies/characters/combat-actions.json' with { type: 'json' };
+import { SOLDIER_ATTACK_SECONDS } from './action-timing.ts';
 import { GRID_SIZE } from './world-data.ts';
 export const OUTPOST = { x: -22 * GRID_SIZE, z: -25 * GRID_SIZE, radius: 5, leash: 12, discover: 16 };
 export const ENCOUNTERS = [
@@ -10,17 +12,20 @@ export const ENCOUNTERS = [
   { id: 'grove', name: '林边守卫', x: 24, z: -2, radius: 3, leash: 16, discover: 18, repeat: 0, reward: { wood: 8 }, patrol: [] },
   { id: 'ore', name: '矿道守卫', x: -12, z: -25, radius: 3, leash: 16, discover: 18, repeat: 0, reward: { iron: 4 }, patrol: [] },
 ];
-// 3.5x trial tempo leaves headroom for the 50 ms simulation step: measured
-// full-stamina cadence remains at least 3x the previous release on both sides.
-const TEMPO = 3.5;
+const soldierTiming = (contact: number) => ({ interval: SOLDIER_ATTACK_SECONDS,
+  windup: SOLDIER_ATTACK_SECONDS * contact, recovery: SOLDIER_ATTACK_SECONDS * (1 - contact) });
+const melee = soldierTiming(actions.SwordSlash.releasePhase), bow = soldierTiming(actions.BowShot.releasePhase);
+// A committed melee swing can follow a nearby retreating body by half a unit.
+// Starting an attack still requires the ordinary weapon reach and clear sight.
+export const MELEE_CONTACT_GRACE = .5;
 export const COMBAT_CONFIG = {
   wolf: { hp: 75, attack: 8, armor: 1, interval: 1.1, windup: .24, recovery: .31, range: 1.7, speed: 3.3 },
-  infantry: { hp: 140, attack: 22, armor: 4, interval: 1.3 / TEMPO, windup: .38 / TEMPO, recovery: .42 / TEMPO, range: 1.6, speed: 4.6 },
-  archer: { hp: 90, attack: 18, armor: 1, interval: 1.65 / TEMPO, windup: .55 / TEMPO, recovery: .4 / TEMPO, range: 7, speed: 4.8 },
-  cavalry: { hp: 100, attack: 26, armor: 3, interval: 1.3 / TEMPO, windup: .38 / TEMPO, recovery: .42 / TEMPO, range: 2.4, speed: 6.96 },
-  enemyMelee: { hp: 65, attack: 12, armor: 2, interval: 1.6 / TEMPO, windup: .48 / TEMPO, recovery: .4 / TEMPO, range: 1.6, speed: 3.3 },
-  enemyArcher: { hp: 50, attack: 10, armor: 0, interval: 2 / TEMPO, windup: .65 / TEMPO, recovery: .4 / TEMPO, range: 6, speed: 3 },
-  enemyHeavy: { hp: 125, attack: 16, armor: 8, interval: 2 / TEMPO, windup: .65 / TEMPO, recovery: .5 / TEMPO, range: 1.7, speed: 2.4 },
+  infantry: { hp: 140, attack: 22, armor: 4, ...melee, range: 1.6, speed: 4.6 },
+  archer: { hp: 90, attack: 18, armor: 1, ...bow, range: 7, speed: 4.8 },
+  cavalry: { hp: 100, attack: 26, armor: 3, ...melee, range: 2.4, speed: 6.96 },
+  enemyMelee: { hp: 65, attack: 12, armor: 2, ...melee, range: 1.6, speed: 3.3 },
+  enemyArcher: { hp: 50, attack: 10, armor: 0, ...bow, range: 6, speed: 3 },
+  enemyHeavy: { hp: 125, attack: 16, armor: 8, ...melee, range: 1.7, speed: 2.4 },
   acquire: 8, chase: 14, projectileSpeed: 14,
   reward: { wood: 24, stone: 16, food: 12 },
 };

@@ -9,9 +9,9 @@ const release = {
 };
 
 /** Map each fighter's own windup/recovery to the shared clip's contact frame.
- * Enemy variants have different timing ratios; damage still belongs to Combat. */
+ * All soldier variants share the farmer work cadence; damage still belongs to Combat. */
 export function attackAnimationPhase(role: CombatRole, elapsed: number, windup: number, recovery: number) {
   const contact = release[role], time = Math.max(0, elapsed);
-  return Math.min(1, time <= windup ? contact * time / windup
+  return Math.min(1, time <= windup ? contact * (time / windup)
     : contact + (1 - contact) * (time - windup) / recovery);
 }

@@ -9,7 +9,7 @@ import { segmentIsClear } from './wander.ts';
 import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import type { RouteState, Neighbour } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
-import { COMBAT_CONFIG as C, ENCOUNTERS } from './combat-config.ts';
+import { COMBAT_CONFIG as C, ENCOUNTERS, MELEE_CONTACT_GRACE } from './combat-config.ts';
 import { leadShot } from './combat-aim.ts';
 import type { CombatRole } from './combat-config.ts';
 import type { Economy } from './economy.ts';
@@ -271,7 +271,7 @@ export class Combat {
     const radius = Math.max(fighterRadius(u) + target.radius + .12,
       // Allow one step for contact quantization and one for the target moving
       // after this approach point was sampled (either faction's update order).
-      Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup + .1) - .1));
+      Math.min(range * .8, range - this.targetMotion(target).speed * (stats.windup / effort(this.economy.state.vitals, u.id) + .1) - .1));
     const length = distance(u.position, target.position) || 1;
     const direct = { x: target.position.x + (u.position.x - target.position.x) * radius / length,
       z: target.position.z + (u.position.z - target.position.z) * radius / length };
@@ -310,7 +310,7 @@ export class Combat {
     }
     for (const u of this.state.units) {
       const stats = this.stats(u);
-      u.speed = 0; u.cooldown = Math.max(0, u.cooldown - dt); u.planIn = Math.max(0, u.planIn - dt);
+      u.speed = 0; u.cooldown = u.cooldown <= dt + 1e-8 ? 0 : u.cooldown - dt; u.planIn = Math.max(0, u.planIn - dt);
       if (u.life === 'defeated'||u.departed) continue;
       if (u.team === 'home') for (const camp of this.state.camps) { const definition = ENCOUNTERS.find(c => c.id === camp.id)!; if (distance(u.position, definition) < definition.discover) camp.discovered = true; }
       // Commands to move and a return to the engagement anchor take priority.
@@ -354,25 +354,28 @@ export class Combat {
       }
       if (!target && this.economy.state.vitals[u.id]?.rest) continue;
       if (u.attack) {
-        const action = u.attack; action.elapsed += dt;
-        const target = this.target(action.target);
-        if (target) u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
+        const action = u.attack; action.elapsed += dt * effort(this.economy.state.vitals, u.id);
+        const victim = this.target(action.target);
+        if (victim) u.facing = Math.atan2(victim.position.x - u.position.x, victim.position.z - u.position.z);
         if (!action.released && action.elapsed >= stats.windup) {
           action.released = true;
-          if (target?.life === 'active' && distance(u.position, target.position) <= this.reach(u, target) + .15
-            && this.visible(u.position,target.position,u.id,target.id)) {
-            if (u.role !== 'archer') this.damage(target, stats.attack, u.id);
+          if (victim?.life === 'active' && distance(u.position, victim.position) <= this.reach(u, victim) + (u.role === 'archer' ? .15 : MELEE_CONTACT_GRACE)
+            && this.visible(u.position,victim.position,u.id,victim.id)) {
+            if (u.role !== 'archer') this.damage(victim, stats.attack, u.id);
             else {
-              const { velocity, stop } = this.targetMotion(target);
-              let aim = leadShot(u.position, target.position, velocity, C.projectileSpeed, stop);
-              if (!this.visible(u.position, aim.point, u.id, target.id)) aim = leadShot(u.position, target.position, { x: 0, z: 0 }, C.projectileSpeed);
-              this.state.projectiles.push({ id: action.id, source: u.id, target: target.id, from: { ...u.position,y:towerHeight(this.economy.state,u.id)+1.25 }, to: { ...aim.point,y:(target.elevation??0)+1.25 },
+              const { velocity, stop } = this.targetMotion(victim);
+              let aim = leadShot(u.position, victim.position, velocity, C.projectileSpeed, stop);
+              if (!this.visible(u.position, aim.point, u.id, victim.id)) aim = leadShot(u.position, victim.position, { x: 0, z: 0 }, C.projectileSpeed);
+              this.state.projectiles.push({ id: action.id, source: u.id, target: victim.id, from: { ...u.position,y:towerHeight(this.economy.state,u.id)+1.25 }, to: { ...aim.point,y:(victim.elevation??0)+1.25 },
                 elapsed: 0, duration: aim.duration, damage: stats.attack });
             }
           }
         }
-        if (action.elapsed >= stats.windup + stats.recovery) u.attack = undefined;
-        continue;
+        if (action.elapsed + 1e-8 < stats.windup + stats.recovery) continue;
+        u.attack = undefined;
+        target = u.target ? this.target(u.target) : undefined;
+        // Re-evaluate immediately at the end of recovery; do not add a hidden
+        // simulation step to every attack cycle.
       }
       if (!target || target.life !== 'active') {
         u.target = undefined;
@@ -393,9 +396,9 @@ export class Combat {
       }
       const clear = this.visible(u.position,target.position,u.id,target.id);
       // Plant the feet only when the target is expected to remain within reach
-      // at contact. Keep the existing strike, cooldown and actual hit checks.
+      // at contact, including only the bounded committed-swing allowance.
       if (distance(u.position, target.position) <= this.reach(u, target) && clear
-        && distance(u.position, this.forecast(target, stats.windup + .05)) <= this.reach(u, target) + .05) {
+        && distance(u.position, this.forecast(target, stats.windup / effort(this.economy.state.vitals, u.id) + .05)) <= this.reach(u, target) + (u.role === 'archer' ? .05 : MELEE_CONTACT_GRACE - .05)) {
         this.stop(u); u.facing = Math.atan2(target.position.x - u.position.x, target.position.z - u.position.z);
         if (!u.cooldown) { u.cooldown = stats.interval / effort(this.economy.state.vitals, u.id); u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
       } else if(stationary){this.stop(u);u.target=undefined;} else {

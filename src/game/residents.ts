@@ -24,6 +24,7 @@ import { createCharacter } from './character.ts';
 import { createAnimal } from './animal.ts';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
+import { WORK_PLAYBACK_RATE } from './action-timing.ts';
 import { HUMAN_SPEED_MULTIPLIER, RESIDENTS, ENEMIES, RESIDENT_OBSTACLES, canResidentWork, roleLeader, wanderSettings } from './resident-data.ts';
 import { destinationSpeed as commandedSpeed, runReferenceSpeed, mountedRunReferenceSpeed } from './locomotion.ts';
 import { createWanderState, seededRandom, stepWander } from './wander.ts';
@@ -191,7 +192,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       } else if (motion !== 'attack') (motion === 'work' ? clips.work : motion === 'run' ? clips.run : clips.walk)?.play(true);
       clips.motion = motion;
     }
-    if (motion === 'work' && clips.work) clips.work.speedRatio = (speed || 1) * HUMAN_SPEED_MULTIPLIER;
+    if (motion === 'work' && clips.work) clips.work.speedRatio = (speed || 1) * WORK_PLAYBACK_RATE;
     else if (motion !== 'idle' && motion !== 'attack') {
       const clip = motion === 'run' ? clips.run : clips.walk;
       clip.speedRatio = speed / (motion === 'run' ? clips.runSpeed : clips.walkSpeed);

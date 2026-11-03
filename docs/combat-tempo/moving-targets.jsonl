@@ -1,0 +1,3 @@
+{"role":"infantry","attacks":3,"hits":3,"firstHit":0.8000000000000002,"hp":5,"attackerTravel":15.98,"remainingReturn":3.5}
+{"role":"cavalry","attacks":3,"hits":3,"firstHit":0.49999999999999994,"hp":0,"attackerTravel":7.62,"remainingReturn":12.25}
+{"role":"archer","attacks":3,"hits":3,"firstHit":1.800000000000001,"hp":17,"attackerTravel":16.8,"remainingReturn":3.5}

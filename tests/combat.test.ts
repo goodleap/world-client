@@ -1,7 +1,8 @@
 import test from 'node:test';
+import { bodiesFor } from '../src/game/vitals.ts';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import assert from 'node:assert/strict';
-import { Combat, fighterRadius } from '../src/game/combat.ts';
+import { Combat, fighterRadius, fighterStats } from '../src/game/combat.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { COMBAT_CONFIG as C, OUTPOST, ENCOUNTERS } from '../src/game/combat-config.ts';
 import { economyObstacles } from '../src/game/economy-config.ts';
@@ -148,20 +149,28 @@ test('a nearby fallback goal survives reload and an unreachable click preserves 
 });
 
 
-test('both sides sustain at least triple the former attack cadence, including mounted melee', () => {
-  for (const [id, previous] of [['infantry', 1.3], ['archer', 1.65], ['cavalry', 1.3], ['enemy-guard', 1.6], ['enemy-archer', 2]] as const) {
-    const { c } = setup();
+test('soldiers on both sides share the farmer hammer cycle and slow with fatigue', () => {
+  for (const stamina of [100, 0]) for (const id of ['infantry', 'archer', 'cavalry', 'enemy-guard', 'enemy-archer', 'enemy-pass-0']) {
+    const { e, c } = setup();
     const attacker = c.unit(id)!, target = c.unit(attacker.team === 'home' ? 'enemy-guard' : 'infantry')!;
     attacker.position = { x: OUTPOST.x, z: OUTPOST.z }; target.position = { x: OUTPOST.x + 1.58, z: OUTPOST.z };
     for (const other of c.state.units) if (other !== attacker && other !== target) other.position = { x: 20, z: 20 };
+    for (const body of bodiesFor(id)) e.state.vitals[body].stamina = stamina;
     attacker.cooldown = 0; attacker.order = 'attack'; attacker.target = target.id; target.cooldown = 8;
-    const starts: number[] = []; let last = 0;
+    const starts: number[] = [], releases: number[] = []; let last = 0, released = 0;
+    const period = stamina ? .5 : 1;
     for (let i = 0; i < 80; i++) {
-      target.hp = 140; target.life = 'active'; c.update(.05);
+      target.hp = fighterStats(target).hp; target.life = 'active'; c.update(.05);
       if (attacker.attack && attacker.attack.id !== last) { last = attacker.attack.id; starts.push(i * .05); }
+      if (attacker.attack?.released && attacker.attack.id !== released) { released = attacker.attack.id; releases.push(i * .05); }
     }
-    assert(starts.length >= 6, id);
-    for (let i = 1; i < starts.length; i++) assert(starts[i] - starts[i - 1] <= previous / 3 + 1e-8, id + ' actual cadence');
+    assert(starts.length >= 4, id);
+    assert.equal(releases.length, starts.length, id + ' releases once in each complete cycle');
+    for (let i = 1; i < starts.length; i++) assert(Math.abs(starts[i] - starts[i - 1] - period) < 1e-8, id + ' actual cadence');
+    for (let i = 0; i < releases.length; i++) {
+      const contact = fighterStats(attacker).windup * (stamina ? 1 : 2);
+      assert(releases[i] - starts[i] >= contact - 1e-8 && releases[i] - starts[i] < contact + .05, id + ' action and release both slow');
+    }
     if (id === 'cavalry') assert.equal(c.state.projectiles.length, 0, 'lance settles melee damage');
   }
 });

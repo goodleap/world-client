@@ -47,7 +47,7 @@ test('a melee victim can still escape the committed strike or gain cover', () =>
     const hp = b.hp;
     if (cover) walls.push({ kind: 'box', x: (a.position.x + b.position.x) / 2, z: b.position.z, halfWidth: .05, halfDepth: 2 });
     else b.position = { x: b.position.x - 4, z: b.position.z };
-    for (let i = 0; i < 3; i++) step();
+    while (a.attack && !a.attack.released) step();
     assert.equal(b.hp, hp);
   }
 });
@@ -124,4 +124,19 @@ test('soldiers can hit a fleeing wolf updated by the real raid movement system',
     assert(wolf.hp < hp, `${id} should hit the fleeing wolf`);
     assert(Math.hypot(wolf.position.x - wolf.home.x, wolf.position.z - wolf.home.z) > 2);
   }
+});
+
+test('slower melee has a bounded follow-through without extending attack initiation', () => {
+  for (const offset of [.45, .55]) {
+    const { a, b, step } = duel('infantry', 'enemy-guard', 1.6);
+    b.goal = undefined; b.route = []; step(); assert(a.attack);
+    const hp = b.hp;
+    b.position.x = a.position.x - 1.6 - offset;
+    b.order = 'hold'; b.goal = { ...b.position }; // Prevent retaliation and hold position for contact.
+    while (!a.attack?.released) { b.order = 'hold'; b.goal = { ...b.position }; step(); }
+    assert.equal(b.hp < hp, offset < .5);
+  }
+  const { a, b, step } = duel('infantry', 'enemy-guard', 1.9);
+  b.goal = undefined; b.route = []; step();
+  assert(!a.attack, 'follow-through does not permit starting from outside ordinary reach');
 });
