@@ -40,14 +40,14 @@ function boundary(mask: number) {
 
 /** Rounded shoulder for either one bed or the outside of connected soil. */
 function shoulderHeight(edges: readonly Boundary[], x: number, z: number) {
-  const band=.60;let influence=0;
+  const band=.32;let influence=0;
   for(const edge of edges){
     const across=edge.vertical?x:z,along=edge.vertical?z:x;
     const distance=Math.hypot(across-edge.at,Math.max(edge.from-along,0,along-edge.to));
     influence+=Math.max(0,1-distance/band)**2;
   }
   const distance=band*(1-Math.sqrt(influence));
-  const t=Math.max(0,Math.min(1,(distance-.025)/.26));
+  const t=Math.max(0,Math.min(1,(distance-.008)/.10));
   return -.018+.205*(t*t*(3-2*t));
 }
 

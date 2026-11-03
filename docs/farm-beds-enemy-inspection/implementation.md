@@ -50,3 +50,17 @@ node tools/review-enemy-inspection.mjs
 [敌军头顶血条](inspect-infantry.png) · [敌方骑兵](inspect-cavalry.png) · [攻击指令](attack-command.png) · [唯一作业提示](farmer-hint.png)
 
 [拆除后外沿](removed.png) · [重载后](reloaded.png) · [俯视接缝](soil-block-top.png) · [单块侧面](soil-single-side.png)
+
+## 后续修正：地块铺满格子、收窄浅沟
+
+用户指出四边留白仍太宽，现将圆肩推近格边：直边处两块之间的沟及两侧坡面总宽从约 0.57 收至 0.216 世界单位，每格仍占 1.69×1.69。四边接近边缘的位置仍为隆起土面，保留独立圆角和浅沟，顶部、沟底及作物高度与尺寸沿用本批已确认值。仅调整原网格的高度曲线与圆角影响范围，不增加网格、材质或每帧计算。
+
+两项耕地几何测试通过，包含窄边距、连接高度／法线／颜色、四格交点无洞及拆除还原；类型检查和生产构建通过。Chromium 原生 Babylon 场景检查单块、两格、四格、L 形，以及 393×852 手机视口的实际田地；地块点击仍定位正确，播种按钮可用，浏览器无错误。
+
+```sh
+node --test --test-isolation=none tests/farm-model.test.ts
+npm run build
+MAP_FARM_REVIEW_CASES=model,appearance MAP_FARM_REVIEW_DIR=/tmp/world-farm-tight-beds node tools/review-map-farm.mjs
+```
+
+最新外观：[四格窄沟](beds-wide-block.png) · [手机实际田地](beds-wide-mobile.png) · [独立点选](beds-wide-selected.png) · [浏览器结果](beds-wide-results.json)。上文早先图片保留为本批修正前的记录。

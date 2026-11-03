@@ -25,6 +25,12 @@ test('individual beds retain raised centers and joined soil troughs, including f
     for(const layout of [[[0,0],[1,0]],[[0,0],[0,1]],[[0,0],[1,0],[0,1]],[[0,0],[1,0],[0,1],[1,1]]]){
       const points=layout.map(([x,z])=>({x:x*GRID_SIZE,z:z*GRID_SIZE})),tilled=new Set(points.map(farmGridKey));
       const meshes=points.map(p=>{const mesh=createFarmModel(scene,palette,farmNeighbourMask(p,tilled));mesh.position.set(p.x,0,p.z);mesh.computeWorldMatrix(true);return mesh;});
+      // Most of the cell is raised soil; only a narrow shoulder reaches the
+      // joining trough. This catches reintroducing the former wide margins.
+      const nearEdge=Math.sin(11*Math.PI/32)*half;
+      for(const mesh of meshes)for(const [x,z]of [[nearEdge,0],[-nearEdge,0],[0,nearEdge],[0,-nearEdge]]){
+        assert(vertex(mesh,x,z)[0]>.17,'bed fills the cell nearly to its edges');
+      }
       for(let a=0;a<points.length;a++)for(let b=a+1;b<points.length;b++){
         const dx=(points[b].x-points[a].x)/GRID_SIZE,dz=(points[b].z-points[a].z)/GRID_SIZE;
         if(Math.abs(dx)+Math.abs(dz)!==1)continue;
