@@ -7,7 +7,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
 import { Ray } from '@babylonjs/core/Culling/ray.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
-import { objectAtFace, selectionRanges } from '../src/game/world-selection.ts';
+import { objectAtFace, selectionRanges, isWorldPickable } from '../src/game/world-selection.ts';
 
 test('ray picks retain logical identities after transforming and batching different objects', () => {
   const engine = new NullEngine(); const scene = new Scene(engine);
@@ -30,4 +30,18 @@ test('ray picks retain logical identities after transforming and batching differ
     }
     assert.equal(objectAtFace(ranges, -1), undefined);
   } finally { scene.dispose(); engine.dispose(); }
+});
+
+test('render-only building LODs cannot steal ground clicks, while the true building remains selectable',()=>{
+  const engine=new NullEngine(),scene=new Scene(engine);
+  try{
+    const source=MeshBuilder.CreateBox('building',{size:2},scene);source.position.x=10;source.metadata={worldObjectId:'warehouse'};
+    const lod=MeshBuilder.CreateBox('lod',{size:2},scene);lod.metadata={worldObjectId:'warehouse',buildingLOD:'map'};lod.isPickable=false;
+    source.computeWorldMatrix(true);lod.computeWorldMatrix(true);
+    const ray=new Ray(new Vector3(0,5,0),new Vector3(0,-1,0));
+    assert(scene.pickWithRay(ray,m=>!!m.metadata?.worldObjectId)?.hit,'old custom predicate bypasses isPickable');
+    assert(!scene.pickWithRay(ray,isWorldPickable)?.hit);
+    assert.equal(scene.pickWithRay(new Ray(new Vector3(10,5,0),new Vector3(0,-1,0)),isWorldPickable)?.pickedMesh,source);
+    source.setEnabled(false);assert(!scene.pickWithRay(new Ray(new Vector3(10,5,0),new Vector3(0,-1,0)),isWorldPickable)?.hit);
+  }finally{scene.dispose();engine.dispose();}
 });

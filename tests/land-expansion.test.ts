@@ -25,9 +25,9 @@ test('all opening plots are tilled and four adjacent extensions reserve independ
   assert.equal(restored.state.tasks.filter(pending).length, 4);
 });
 
-test('farm placement rejects roads and cancellation restores the cell without reusing its identity', () => {
+test('farm placement allows roads and cancellation restores the cell without reusing its identity', () => {
   const e = new Economy(), point = gridPoint(51.5, 55.5);
-  assert.match(e.placeBuilding('farm', gridPoint(50.5, 50.5)).message, /道路/);
+  const road=e.placeBuilding('farm',gridPoint(50.5,50.5));assert(road.ok);e.cancel(road.task!.id);
   const first = e.placeBuilding('farm', point).task!;
   e.claim(); e.arrive(first.id); e.advance(1);
   assert(e.cancel(first.id)); assert.equal(e.plot(first.target), undefined);

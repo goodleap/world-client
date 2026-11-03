@@ -1313,3 +1313,6 @@ kbd {
   .recruit-dialog .home-actions button { min-height:32px; }
   #recruit-notice { height:26px; margin:4px 0 0; font-size:10px; }
 }
+.demolish-dialog { width: min(360px, calc(100vw - 32px)); }
+.demolish-dialog p { line-height: 1.7; }
+.building-table td[data-stat="action"] button + button { margin-top: 4px; }

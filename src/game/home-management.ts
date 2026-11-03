@@ -9,7 +9,7 @@ import { buildingList, buildingOperational, repairQuote } from './building-state
 import { ECONOMY_CONFIG } from './economy-config.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
-export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void}) {
+export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
   let editing=0,draft:string[]=[],shortcutKey='',recruitKey='',populationKey='',buildingKey='';
@@ -49,24 +49,26 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     }));
   }
   function renderBuildings(){
-    const rows=buildingList(e.state),key=JSON.stringify([rows,e.state.tasks.map(t=>[t.target,t.kind,t.status,Math.floor(t.progress)]),e.available()]);
+    const rows=[...buildingList(e.state),...e.state.plots.map(p=>({id:p.id,name:'耕地',built:true,hp:0,maxHealth:0,armor:0}))],key=JSON.stringify([rows,e.state.tasks.map(t=>[t.target,t.kind,t.status,Math.floor(t.progress)]),e.available()]);
     if(key===buildingKey)return;buildingKey=key;
-    get('building-summary').textContent=`建筑 ${rows.length} · 受损 ${rows.filter(b=>b.built&&b.hp<b.maxHealth).length}`;
+    get('building-summary').textContent=`建筑 ${rows.filter(b=>b.maxHealth).length} · 耕地 ${e.state.plots.length} · 受损 ${rows.filter(b=>b.built&&b.hp<b.maxHealth).length}`;
     get('building-rows').replaceChildren(...rows.map(b=>{
       const tr=document.createElement('tr');tr.dataset.building=b.id;
       const name=document.createElement('th');name.scope='row';name.textContent=b.name;name.title=b.id;
       const q=repairQuote(e.state,b.id),task=e.taskFor(b.id),repair=task?.kind==='repair';
       if(q&&!task){const cost=document.createElement('small');cost.textContent=`木${q.cost.wood} 石${q.cost.stone}`;name.append(cost);}
       const cell=(stat:string,value:string)=>{const td=document.createElement('td');td.dataset.stat=stat;td.textContent=value;return td;};
-      const status=!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
-      tr.append(name,cell('health',b.built?`${Math.ceil(b.hp)}/${b.maxHealth}`:'—'),cell('armor',String(b.armor)),cell('status',status));
+      const status=!b.maxHealth?(e.plot(b.id)?.crop?'种植中':'空地'):!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
+      tr.append(name,cell('health',b.maxHealth?b.built?`${Math.ceil(b.hp)}/${b.maxHealth}`:'—':'—'),cell('armor',b.maxHealth?String(b.armor):'—'),cell('status',status));
       tr.classList.toggle('damaged',b.built&&b.hp<b.maxHealth);
       const action=cell('action',''),control=button(repair?'取消':'维修',()=>{
         if(repair){e.cancel(task.id);get('building-notice').textContent='维修已取消，预留材料已释放';}
         else{const result=e.request('repair',b.id);get('building-notice').textContent=result.message;}
         callbacks.save();renderBuildings();
       });
-      control.disabled=!repair&&(!q||!!task);control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);action.append(control);tr.append(action);return tr;
+      control.disabled=!repair&&(!q||!!task);control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(b.maxHealth)action.append(control);
+      if(e.demolition(b.id)){const remove=button('拆除',()=>callbacks.demolish(b.id));remove.setAttribute('aria-label',`拆除${b.name}`);action.append(remove);}
+      tr.append(action);return tr;
     }));
   }
   for(const tab of ['resources','population','buildings'])get(`${tab}-tab`).addEventListener('click',()=>{

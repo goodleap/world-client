@@ -1,0 +1,14 @@
+import {chromium} from 'playwright';import{writeFile,mkdir}from'node:fs/promises';
+import{Economy,encodeEconomy}from'../src/game/economy.ts';import{buildingAt}from'../src/game/construction.ts';
+const out='docs/safety-demolition';await mkdir(out,{recursive:true});const e=new Economy();e.setLeadership(false);e.state.raids.nextAt=1000;
+const site=buildingAt('house',{x:-10,z:-10},'site-0');e.state.sites.push(site);e.state.buildings.push(site.id);e.state.nextSiteId=1;
+const enemy=e.state.combat.units.find(u=>u.id==='enemy-guard');const goods={id:'goods-1',resource:'wood',amount:8,state:'ground',x:enemy.position.x+3,z:enemy.position.z};e.state.goods.push(goods);e.state.nextId=2;
+const task=e.request('haul',goods.id).task;task.watchPath=[{x:0,z:-3},{x:goods.x,z:goods.z}];e.holdDanger(task);
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage']});
+const page=await browser.newPage({viewport:{width:390,height:754},deviceScaleFactor:3,isMobile:true,hasTouch:true}),errors=[];page.on('pageerror',v=>errors.push(v.message));
+await page.addInitScript(save=>{localStorage.setItem('world-basic-economy-v1',save);localStorage.setItem('world-shadows-enabled','false');},encodeEconomy(e));
+await page.goto('http://127.0.0.1:4175');await page.locator('#continue-save').click();await page.waitForFunction(()=>document.querySelector('#loading')?.classList.contains('loaded'),{},{timeout:90000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await page.screenshot({path:out+'/phone-game.png',scale:'css'});
+await page.locator('#home-resources').click();await page.getByRole('tab',{name:'建筑',exact:true}).click();await page.screenshot({path:out+'/phone-buildings.png',scale:'css'});
+await page.locator('[data-building="site-0"]').getByRole('button',{name:/拆除/}).click();await page.screenshot({path:out+'/phone-confirm.png',scale:'css'});
+await writeFile(out+'/phone-review.json',JSON.stringify({viewport:page.viewportSize(),errors},null,2));console.log(JSON.stringify({errors}));await browser.close();

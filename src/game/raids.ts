@@ -1,4 +1,4 @@
-import { Combat, fighterRadius, createFighter } from './combat.ts';
+import { Combat, fighterRadius, fighterBody, travelRadius, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
@@ -53,11 +53,24 @@ export class Raids {
       radius: fighterRadius(w), moving: w.speed > .08, purposeful: !!w.route.length, waiting: w.navigation.waiting }));
   }
   occupancy() { return this.neighbours().map(n => ({ kind: 'circle' as const, ...n.position, radius: n.radius })); }
+  unsafePath(points:readonly Point[]){
+    const threats=this.combat.targets('home').filter(t=>t.life==='active'&&!this.combat.unit(t.id)?.departed
+      &&!this.wolves.some(w=>w.id===t.id&&['gone','flee'].includes(w.mode)));
+    for(let i=0;i<points.length;i++){
+      const a=points[Math.max(0,i-1)],b=points[i],dx=b.x-a.x,dz=b.z-a.z,len=dx*dx+dz*dz;
+      for(const t of threats){
+        const k=len?Math.max(0,Math.min(1,((t.position.x-a.x)*dx+(t.position.z-a.z)*dz)/len)):0;
+        const near={x:a.x+dx*k,z:a.z+dz*k};
+        if(distance(near,t.position)<8&&this.clear(near,t.position))return true;
+      }
+    }
+    return false;
+  }
   canWork(id: string) { return !this.state.evading[id] && health(this.economy.state, id) > 0; }
   manual(id: string) { delete this.state.evading[id]; }
   private neighboursFor(w: Wolf) {
-    return [...this.people.neighbours(), ...this.combat.state.units.filter(u => u.life !== 'defeated').map(u => ({ id: u.id, position: u.position,
-      radius: fighterRadius(u), moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
+    return [...this.people.neighbours().map(n=>({...n,yield:undefined})), ...this.combat.state.units.filter(u => u.life !== 'defeated').map(u => ({ id: u.id, position: u.position,
+      radius: travelRadius(u),body:fighterBody(u),heading:u.facing, moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
   }
   private plan(w: Wolf, points: Point[]) {
     w.planIn = .9;
@@ -160,7 +173,7 @@ export class Raids {
         .filter(p => distance(p, wolf.position) > distance(position, wolf.position) + 2)
         .sort((a, b) => distance(position, a) - distance(position, b));
       // Interrupt once: carried resources are preserved by the economy, never refunded.
-      if (!evasion) { this.economy.interrupt(position, r.id); this.people.release(r.id); vital.rest = undefined; this.people.resting(r.id, false); }
+      if (!evasion) { const task=this.economy.active(r.id);if(task){task.watchPath??=[{...position}];this.economy.holdDanger(task,position);}else this.economy.interrupt(position, r.id); this.people.release(r.id); vital.rest = undefined; this.people.resting(r.id, false); }
       for (const point of points) if (this.people.command(point, r.id)) break;
     }
   }

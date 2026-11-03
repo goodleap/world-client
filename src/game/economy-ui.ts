@@ -7,9 +7,10 @@ import { BUILDING_TYPES } from './construction.ts';
 import { buildingInfo, repairQuote } from './building-state.ts';
 
 export function buildingSelection(e:Economy,id:string,details:SelectionDetails):SelectionDetails{
+  if(e.demolition(id))details={...details,actions:[...(details.actions??[]),{id:'demolish',label:'拆除'}]};
   const b=buildingInfo(e.state,id);if(!b?.built)return details;
   const task=e.taskFor(id),quote=repairQuote(e.state,id);
-  const actions=b.hp<=0?(details.actions??[]).filter(a=>a.id==='cancel'):details.actions??[];
+  const actions=b.hp<=0?(details.actions??[]).filter(a=>a.id==='cancel'||a.id==='demolish'):details.actions??[];
   if(quote&&!task)actions.push({id:'repair',label:`维修 · 木${quote.cost.wood} 石${quote.cost.stone}`});
   else if(task?.kind==='repair'&&!actions.some(a=>a.id==='cancel'))actions.push({id:'cancel',label:'取消维修'});
   const repairing=task?.kind==='repair';

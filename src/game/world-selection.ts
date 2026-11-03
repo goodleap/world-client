@@ -32,3 +32,9 @@ export function objectAtFace(ranges: readonly FaceRange[], faceId: number): stri
   if (!Number.isInteger(faceId) || faceId < 0) return;
   return ranges.find(range => faceId >= range.start && faceId < range.end)?.id;
 }
+
+/** Native LOD meshes share labels but are render-only. A custom picking
+ * predicate must retain Babylon's enabled/visible/pickable checks. */
+export function isWorldPickable(mesh:AbstractMesh){
+  return mesh.isPickable&&mesh.isVisible&&mesh.isEnabled()&&(mesh.metadata?.selectionKind==='resident'||!!mesh.metadata?.worldObjectId||!!mesh.metadata?.worldFaceRanges?.length);
+}

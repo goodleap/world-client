@@ -129,6 +129,7 @@ export function createUI(app: HTMLElement) {
         <p id="group-notice" role="status"></p>
       </section>
     </dialog>
+    <dialog id="demolish-dialog" class="paper-dialog demolish-dialog" aria-labelledby="demolish-title"><button class="dialog-close" aria-label="取消拆除">${icon('close')}</button><h2 id="demolish-title">拆除建筑</h2><p id="demolish-description"></p><div class="home-actions"><button id="demolish-confirm">确认拆除</button></div></dialog>
     <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status">入队扣除可用库存并预留名额；取消退还材料。</p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="performance-setting" for="performance-mode">性能模式<select id="performance-mode"><option value="standard">标准 · 60 帧</option><option value="saving">省电 · 30 帧</option><option value="minimum">强省电 · 20 帧</option></select><small>省电模式降低画面分辨率与阴影，游戏速度保持不变。</small></label><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
@@ -161,7 +162,9 @@ export function createUI(app: HTMLElement) {
   });
   const resources = get<HTMLDialogElement>('resources-dialog');
   const recruitment = get<HTMLDialogElement>('recruit-dialog');
-  const dialogs = [settings, graphics, help, detail, resources, recruitment];
+  const demolition=get<HTMLDialogElement>('demolish-dialog');
+  const dialogs = [settings, graphics, help, detail, resources, recruitment, demolition];
+  let confirmDemolition: (()=>void)|undefined;
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
   const residentLabels = new Map<string, HTMLElement>();
@@ -195,6 +198,7 @@ export function createUI(app: HTMLElement) {
   const switchDialog = (from: HTMLDialogElement, to: HTMLDialogElement) => { showDialog(to); from.close(); };
   // Settings is the explicit pause screen. Only its Continue action resumes.
   settings.querySelector<HTMLButtonElement>('.dialog-close')!.hidden = true;
+  get('demolish-confirm').addEventListener('click',()=>{const action=confirmDemolition;confirmDemolition=undefined;demolition.close();action?.();},options);
   const closeDialog = (dialog: HTMLDialogElement) => {
     if (dialog === graphics) switchDialog(graphics, settings);
     else if (dialog !== settings) dialog.close();
@@ -420,6 +424,7 @@ export function createUI(app: HTMLElement) {
     bind(id: string, callback: () => void) {
       get(id).addEventListener('click', () => { callback(); focusGame(); }, options);
     },
+    confirmDemolition(name:string,description:string,action:()=>void){get('demolish-title').textContent=`拆除${name}`;get('demolish-description').textContent=description;confirmDemolition=action;showDialog(demolition);},
     openRecruitment() { showDialog(recruitment); },
     closeRecruitment() { recruitment.close(); },
     setNearby(landmark: Landmark | undefined) {

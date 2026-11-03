@@ -40,7 +40,7 @@ import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
 import { nextPaint } from '../launcher.ts';
 import { FrameMetrics } from './frame-metrics.ts';
-import { objectAtFace } from './world-selection.ts';
+import { objectAtFace, isWorldPickable } from './world-selection.ts';
 import type { WorldObject } from './world-selection.ts';
 import { ENEMIES, newResident, roleLeader } from './resident-data.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
@@ -134,6 +134,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const combat = new Combat(economy.state.combat, economy, () => world.obstacles(true), () => residents.combatNeighbours());
   residents.syncCombat(combat.state.units);
   const visibilityPoint = new Vector3(), visibilityScreen = new Vector3(), visibilityIdentity = Matrix.Identity();
+  residents.setCombatYield((id,from,toward)=>{const u=combat.unit(id);return !!u&&combat.yieldUnit(u,from,toward);});
   const raids = new Raids(economy, combat, {
     status: residents.needsStatus, command: (p, id) => residents.command(p, id), release: residents.releaseFarmerWork,
     resting: residents.setResting, neighbours: residents.combatNeighbours,
@@ -156,7 +157,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
-  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id));
+  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id),points=>raids.unsafePath(points));
   const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
   const commandVersions=new Map<string,number>();
   const clearGroupMove=(id:string)=>{for(const [key,order]of Object.entries(economy.state.groupMoves))if(order.members.includes(id))delete economy.state.groupMoves[key];};
@@ -186,9 +187,9 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const details = buildingSelection(economy,object.id,economySelection(economy, object)), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
     if (!economy.campfire(object.id) && unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
-    if (!economy.campfire(object.id) && unit && !residents.canWork(unit) && details.actions?.some(action => action.id !== 'cancel')) {
+    if (!economy.campfire(object.id) && unit && !residents.canWork(unit) && details.actions?.some(action => action.id !== 'cancel' && action.id !== 'demolish')) {
       details.hint = '此作业需要农民';
-      details.actions = details.actions.map(action => ({ ...action, disabled: action.id !== 'cancel' }));
+      details.actions = details.actions.map(action => ({ ...action, disabled: action.id !== 'cancel' && action.id !== 'demolish' }));
     }
     ui.setSelection(details);
   };
@@ -224,9 +225,20 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       else clearWorld();
     }
   };
+  const requestDemolition=(id:string)=>{
+    const quote=economy.demolition(id);if(!quote)return;
+    ui.confirmDemolition(quote.name,`拆除会取消相关作业${quote.built?`，返还木材 ${quote.refund.wood}、石材 ${quote.refund.stone}，放在地面等待搬运`:'，释放预留材料'}。${economy.plot(id)?'土地和作物将一起移除。':''}确定拆除？`,()=>{
+      const resting=homeResidents(economy.state).filter(r=>economy.state.vitals[r.id]?.rest?.camp===id).map(r=>r.id);
+      const result=economy.demolish(id,target=>evictTower(economy,combat,target));
+      if(result.ok)for(const unit of resting){if(combat.unit(unit))combat.guard([unit]);else residents.releaseFarmerWork(unit);}
+      if(result.ok){for(const worker of residents.farmerIds())if(!economy.active(worker))residents.releaseFarmerWork(worker);clearWorld();world.sync();}
+      ui.toast(result.message);refreshEconomy();save();
+    });
+  };
   const performAction = (action: string) => {
     if (!selectedWorld || ui.paused || suspended) return;
     const target = selectedWorld.id;
+    if(action==='demolish'){requestDemolition(target);return;}
     if(target==='home-center'&&action==='recruit'){management.open();return;}
     if(action.startsWith('tower-')){
       const tower=economy.state.towers.find(t=>t.id===target&&t.hp>0);if(!tower)return;
@@ -269,7 +281,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (economy.cancel(id)) { world.sync(); refreshEconomy(); save(); }
   });
   const management=createHomeManagement(economy,ui,{
-    save:()=>{refreshEconomy();return save();},
+    save:()=>{refreshEconomy();return save();},demolish:requestDemolition,
     select:index=>{
       if(ui.paused||suspended)return;
       const members=groupMembers(economy.state,index);if(!members.length)return;
@@ -344,7 +356,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         else ui.targetHint('无法到达该位置',{x:point.x,y:.2,z:point.z});
       }return;
     }
-    const hit = scene.pick(x, y, mesh => mesh.isVisible && (mesh.metadata?.selectionKind === 'resident' || !!mesh.metadata?.worldObjectId || !!mesh.metadata?.worldFaceRanges?.length));
+    const hit = scene.pick(x, y, isWorldPickable);
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
       const id = hit.pickedMesh.metadata.id;
       const fighter = combat.unit(id);

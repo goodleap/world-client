@@ -26,7 +26,7 @@ export function chooseCrop(e: Economy): CropKind {
   if (e.state.inventory.food < 24 && committed('carrot') < 2) return 'carrot';
   return committed('wheat') <= committed('carrot') ? 'wheat' : 'carrot';
 }
-export function createSteward(economy: Economy) {
+export function createSteward(economy: Economy, safe:(point:Point)=>boolean=()=>true) {
   return {
     /** Called only after one idle farmer has exhausted existing runnable jobs.
      * Consider alternatives, but commit exactly one order for that vacancy. */
@@ -59,7 +59,7 @@ export function createSteward(economy: Economy) {
       }
       candidates.sort((a, b) => a.priority - b.priority
         || Math.hypot(a.point.x - position.x, a.point.z - position.z) - Math.hypot(b.point.x - position.x, b.point.z - position.z));
-      const job = candidates[0];
+      const job = candidates.find(c=>safe(c.point));
       return job && economy.request(job.kind, job.target, job.crop, 'steward').task;
     },
   };
