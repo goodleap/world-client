@@ -3,7 +3,6 @@ import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
-import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import type { Scene } from '@babylonjs/core/scene';
@@ -15,8 +14,6 @@ export const SELECTION_COLOR = '#62e4ff';
  * geometry-sharing mesh, so Babylon never highlights all instances of its source. */
 export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) {
   const color = Color3.FromHexString(SELECTION_COLOR);
-  const glow = new HighlightLayer('selection-glow', scene, { mainTextureRatio: .5, blurHorizontalSize: .7, blurVerticalSize: .7 });
-  glow.innerGlow = false; glow.outerGlow = true;
   const fillMaterial = new StandardMaterial('selection-area-fill', scene);
   fillMaterial.diffuseColor = color; fillMaterial.emissiveColor = color.scale(.4); fillMaterial.alpha = .23;
   fillMaterial.disableLighting = true; fillMaterial.zOffset = -2;
@@ -32,7 +29,7 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
   const selected = new Map<AbstractMesh, Entry>();
   function remove(mesh: AbstractMesh, entry: Entry) {
     if (!entry.shown.isDisposed()) {
-      glow.removeMesh(entry.shown); entry.shown.renderOutline = false; entry.shown.renderOverlay = false;
+      entry.shown.renderOutline = false; entry.shown.renderOverlay = false;
       if (entry.original) { shadows.removeShadowCaster(entry.shown, false); entry.shown.dispose(); }
     }
     if (entry.original && !entry.original.isDisposed()) entry.original.setEnabled(true);
@@ -53,9 +50,9 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
         if (shadows.getShadowMap()?.renderList?.includes(mesh)) shadows.addShadowCaster(shown, false);
       } else if (mesh instanceof Mesh) shown = mesh;
       else continue;
-      shown.renderOutline = false; shown.outlineWidth = .035; shown.outlineColor = color;
-      shown.renderOverlay = true; shown.overlayColor = color; shown.overlayAlpha = .06;
-      glow.addMesh(shown, color); selected.set(mesh, { shown, original });
+      shown.renderOutline = true; shown.outlineWidth = .01; shown.outlineColor = color;
+      shown.renderOverlay = false;
+      selected.set(mesh, { shown, original });
     }
     const area = !!object?.width && !!object?.depth;
     fill.setEnabled(area); edges.forEach(e => e.setEnabled(area));
@@ -69,6 +66,6 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
       });
     }
   }
-  return { update, snapshot: () => ({ color: SELECTION_COLOR, meshes: selected.size, area: fill.isEnabled() }),
-    dispose() { for (const [m, e] of selected) remove(m, e); glow.dispose(); fill.dispose(); edges.forEach(e => e.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); } };
+  return { update, snapshot: () => ({ color: SELECTION_COLOR, meshes: selected.size, area: fill.isEnabled(), technique: 'native-outline' }),
+    dispose() { for (const [m, e] of selected) remove(m, e); fill.dispose(); edges.forEach(e => e.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); } };
 }

@@ -1,5 +1,6 @@
 import { loadingProgress, byteLabel } from './loading-progress.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
+import { compactLoadingLog } from './loading-log.ts';
 export type ReportProgress = (percent: number, description: string) => void;
 export type StartMode = 'new' | 'continue';
 type SaveStatus = 'ready' | 'empty' | 'invalid' | 'unavailable';
@@ -47,7 +48,7 @@ export function createLauncher() {
   };
   const ticker = setInterval(renderDetails, 500);
   get('copy-loading').addEventListener('click', async () => {
-    const ok = await copyDiagnostics(JSON.stringify({ ...diagnosticContext(), phase: screen.dataset.phase, loading: loadingProgress.snapshot() }, null, 2), details);
+    const ok = await copyDiagnostics(JSON.stringify({ ...diagnosticContext(), schema: 2, phase: screen.dataset.phase, loading: compactLoadingLog(loadingProgress.snapshot()) }), details);
     get('copy-loading-status').textContent = ok ? '加载诊断已复制' : '复制失败，请允许剪贴板访问后重试';
   }, { signal: abort.signal });
   let onStart: (mode: StartMode) => void = () => {};

@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite';
 import { statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+
+let buildId = 'unknown';
+try { buildId = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { /* source archives */ }
 
 export default defineConfig({
   base: './',
-  define: { __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf', 'dog/dog']
+  define: { __BUILD_ID__: JSON.stringify(buildId), __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf', 'dog/dog']
     .map(path => [path.split('/').pop(), statSync(new URL(`./studies/${path}.glb`, import.meta.url)).size]))) },
   server: { port: 5173, strictPort: true },
   build: {

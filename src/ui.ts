@@ -147,7 +147,7 @@ export function createUI(app: HTMLElement) {
   record.addEventListener('click', () => { get('settings-notice').textContent = recordPerformance(); });
   let diagnostics: () => unknown = diagnosticContext;
   copy.addEventListener('click', async () => {
-    const ok = await copyDiagnostics(JSON.stringify(diagnostics(), null, 2), settings);
+    const ok = await copyDiagnostics(JSON.stringify(diagnostics()), settings);
     get('settings-notice').textContent = ok ? '最近 10 秒性能日志已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
   });
   const resources = get<HTMLDialogElement>('resources-dialog');

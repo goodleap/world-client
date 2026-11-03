@@ -1,0 +1,595 @@
+{
+  "readings": [
+    {
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 16.210502143221923,
+        "overview": false,
+        "x": 1.6884148120880127,
+        "z": -2,
+        "target": {
+          "x": 1.6884148120880127,
+          "y": 0.5,
+          "z": -2
+        }
+      },
+      "performance": {
+        "timeMs": 18267,
+        "zoom": 16.210502143221923,
+        "paused": false,
+        "fps": 0.772499034376207,
+        "cpuMs": 102.79999999701977,
+        "frameMs": 1294.5,
+        "frameP95Ms": 1294.5,
+        "gpuMs": 1173.421787,
+        "gpuTimingSupported": true,
+        "gpuSampleAgeMs": 2440.0999999940395,
+        "drawCalls": 347,
+        "submittedTriangles": 1788956,
+        "shadowDrawCalls": 172,
+        "shadowTriangles": 779898,
+        "shadowCpuMs": 5.299999997019768,
+        "selectionDrawCalls": 0,
+        "selectionTriangles": 0,
+        "mainDrawCalls": 175,
+        "mainTriangles": 1009058,
+        "cullingCpuMs": 5,
+        "activeMeshes": 209,
+        "meshes": 1938,
+        "geometries": 630,
+        "textures": 51,
+        "materials": 102,
+        "skeletons": 55,
+        "animationGroups": 333,
+        "renderLoops": 1,
+        "width": 589,
+        "height": 1131,
+        "scaling": 0.6666666666666666,
+        "shadowSize": 1024,
+        "shadowLodCamera": "map-shadow-lod",
+        "lod": [
+          {
+            "id": "farmer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-leader",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "infantry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "cavalry",
+            "parts": 19,
+            "mapParts": 19,
+            "farParts": 19
+          },
+          {
+            "id": "enemy-guard",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-sentry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-pass-1",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-patrol-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-patrol-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          }
+        ],
+        "context": {
+          "mode": "standard",
+          "fpsLimit": 60,
+          "selected": 0,
+          "candidates": 783,
+          "camera": {
+            "x": 1.6884148120880127,
+            "y": 0.5,
+            "z": -2
+          },
+          "shadows": true
+        }
+      },
+      "selection": {
+        "color": "#62e4ff",
+        "meshes": 0,
+        "area": false,
+        "technique": "native-outline"
+      },
+      "rendering": {
+        "drawCalls": 347,
+        "activeTriangles": 1788956,
+        "visibleGeometryTriangles": 8416326,
+        "batchedParts": 1110
+      }
+    },
+    {
+      "selected": "infantry",
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 16.210502143221923,
+        "overview": false,
+        "x": 1.6884148120880127,
+        "z": -2,
+        "target": {
+          "x": 1.6884148120880127,
+          "y": 0.5,
+          "z": -2
+        }
+      },
+      "performance": {
+        "timeMs": 34317,
+        "zoom": 16.210502143221923,
+        "paused": false,
+        "fps": 1.0887316276537833,
+        "cpuMs": 35,
+        "frameMs": 918.5,
+        "frameP95Ms": 918.5,
+        "gpuMs": 959.163767,
+        "gpuTimingSupported": true,
+        "gpuSampleAgeMs": 1828.3000000044703,
+        "drawCalls": 378,
+        "submittedTriangles": 1980298,
+        "shadowDrawCalls": 172,
+        "shadowTriangles": 827418,
+        "shadowCpuMs": 3.399999998509884,
+        "selectionDrawCalls": 30,
+        "selectionTriangles": 90204,
+        "mainDrawCalls": 176,
+        "mainTriangles": 1062676,
+        "cullingCpuMs": 5.899999998509884,
+        "activeMeshes": 230,
+        "meshes": 1958,
+        "geometries": 630,
+        "textures": 51,
+        "materials": 102,
+        "skeletons": 55,
+        "animationGroups": 333,
+        "renderLoops": 1,
+        "width": 589,
+        "height": 1131,
+        "scaling": 0.6666666666666666,
+        "shadowSize": 1024,
+        "shadowLodCamera": "map-shadow-lod",
+        "lod": [
+          {
+            "id": "farmer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-leader",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "infantry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "cavalry",
+            "parts": 19,
+            "mapParts": 19,
+            "farParts": 19
+          },
+          {
+            "id": "enemy-guard",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-sentry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-pass-1",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-patrol-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-patrol-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          }
+        ],
+        "context": {
+          "mode": "standard",
+          "fpsLimit": 60,
+          "selected": 1,
+          "candidates": 800,
+          "camera": {
+            "x": 1.6884148120880127,
+            "y": 0.5,
+            "z": -2
+          },
+          "shadows": true
+        }
+      },
+      "selection": {
+        "color": "#62e4ff",
+        "meshes": 47,
+        "area": false,
+        "technique": "native-outline"
+      },
+      "rendering": {
+        "drawCalls": 378,
+        "activeTriangles": 1980298,
+        "visibleGeometryTriangles": 8414288,
+        "batchedParts": 1110
+      }
+    },
+    {
+      "camera": {
+        "alpha": -1.5707963267948966,
+        "beta": 0.76,
+        "zoom": 16.210502143221923,
+        "overview": false,
+        "x": 1.6884148120880127,
+        "z": -2,
+        "target": {
+          "x": 1.6884148120880127,
+          "y": 0.5,
+          "z": -2
+        }
+      },
+      "performance": {
+        "timeMs": 42255,
+        "zoom": 16.210502143221923,
+        "paused": false,
+        "fps": 1.297016861219196,
+        "cpuMs": 26.899999998509884,
+        "frameMs": 771,
+        "frameP95Ms": 771,
+        "gpuMs": 804.553622,
+        "gpuTimingSupported": true,
+        "gpuSampleAgeMs": 1479.3999999985099,
+        "drawCalls": 347,
+        "submittedTriangles": 1849116,
+        "shadowDrawCalls": 172,
+        "shadowTriangles": 824766,
+        "shadowCpuMs": 3.600000001490116,
+        "selectionDrawCalls": 0,
+        "selectionTriangles": 0,
+        "mainDrawCalls": 175,
+        "mainTriangles": 1024350,
+        "cullingCpuMs": 5.899999998509884,
+        "activeMeshes": 225,
+        "meshes": 1956,
+        "geometries": 632,
+        "textures": 51,
+        "materials": 102,
+        "skeletons": 55,
+        "animationGroups": 333,
+        "renderLoops": 1,
+        "width": 589,
+        "height": 1131,
+        "scaling": 0.6666666666666666,
+        "shadowSize": 1024,
+        "shadowLodCamera": "map-shadow-lod",
+        "lod": [
+          {
+            "id": "farmer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "farmer-leader",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "infantry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "cavalry",
+            "parts": 19,
+            "mapParts": 19,
+            "farParts": 19
+          },
+          {
+            "id": "enemy-guard",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-sentry",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-archer",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-pass-1",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-pass-2",
+            "parts": 14,
+            "mapParts": 14,
+            "farParts": 14
+          },
+          {
+            "id": "enemy-patrol-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-patrol-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-road-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-grove-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-0",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          },
+          {
+            "id": "enemy-ore-1",
+            "parts": 15,
+            "mapParts": 15,
+            "farParts": 15
+          }
+        ],
+        "context": {
+          "mode": "standard",
+          "fpsLimit": 60,
+          "selected": 0,
+          "candidates": 798,
+          "camera": {
+            "x": 1.6884148120880127,
+            "y": 0.5,
+            "z": -2
+          },
+          "shadows": true
+        }
+      },
+      "selection": {
+        "color": "#62e4ff",
+        "meshes": 0,
+        "area": false,
+        "technique": "native-outline"
+      },
+      "rendering": {
+        "drawCalls": 347,
+        "activeTriangles": 1849116,
+        "visibleGeometryTriangles": 8431172,
+        "batchedParts": 1110
+      }
+    }
+  ],
+  "errors": [],
+  "logChars": 4161
+}
