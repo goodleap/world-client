@@ -8,7 +8,7 @@ function fixture(): Report {
   const history: NonNullable<Report['latest']>[] = Array.from({ length: 120 }, (_, index) => ({
     timeMs: 100_000 + index * 500, zoom: 16.210502143221923, paused: false,
     fps: 33.96226415094713, cpuMs: 9.333333333333334, frameMs: 29.44444444444121, frameP95Ms: 32,
-    gpuMs: null, gpuTimingSupported: false, gpuSampleAgeMs: null,
+    jsHeapMB: 123.456, gpuMs: null, gpuTimingSupported: false, gpuSampleAgeMs: null,
     drawCalls: 428, submittedTriangles: 2418670, shadowDrawCalls: 209, shadowTriangles: 1174280,
     selectionDrawCalls: 30, selectionTriangles: 90000, mainDrawCalls: 189, mainTriangles: 1154390,
     shadowCpuMs: 4.000000000058208, cullingCpuMs: 2, activeMeshes: 254,
@@ -28,6 +28,7 @@ test('small export retains ten seconds, context, pass totals, slow-frame phases 
   const source = fixture(), report = compactPerformanceLog(source);
   assert.equal(report.samples, 21); assert.ok(report.timeline.rows.length <= 6);
   assert.equal(report.sampleAgeMs, 60000.12); assert.equal(report.latest!.fps, 33.96);
+  assert.equal(report.latest!.jsHeapMB, 123.46);
   assert.deepEqual(report.latest!.passes.total, [428, 2418670]);
   assert.equal(Object.entries(report.latest!.passes).filter(([k]) => k !== 'total').reduce((n, [, v]) => n + v[1], 0), report.latest!.passes.total[1]);
   assert.equal(report.latest!.context!.fpsLimit, 60); assert.equal(report.latest!.context!.camera.z, -4.35);

@@ -20,7 +20,7 @@ export function compactPerformanceLog(report: Report) {
     return values.length ? { min: Math.min(...values), mean: values.reduce((a, b) => a + b, 0) / values.length, max: Math.max(...values) } : null;
   };
   const counts = (s: Sample) => ({ timeMs: s.timeMs, fps: s.fps, cpuMs: s.cpuMs, frameMs: s.frameMs, frameP95Ms: s.frameP95Ms,
-    gpuMs: s.gpuMs, gpuSampleAgeMs: s.gpuSampleAgeMs, cullingCpuMs: s.cullingCpuMs, shadowCpuMs: s.shadowCpuMs,
+    jsHeapMB: s.jsHeapMB, gpuMs: s.gpuMs, gpuSampleAgeMs: s.gpuSampleAgeMs, cullingCpuMs: s.cullingCpuMs, shadowCpuMs: s.shadowCpuMs,
     passes: { main: [s.mainDrawCalls, s.mainTriangles], shadow: [s.shadowDrawCalls, s.shadowTriangles],
       selection: [s.selectionDrawCalls, s.selectionTriangles], total: [s.drawCalls, s.submittedTriangles] },
     activeMeshes: s.activeMeshes, zoom: s.zoom, renderLoops: s.renderLoops, context: s.context });
@@ -38,6 +38,6 @@ export function compactPerformanceLog(report: Report) {
       rows: timeline.map(s => [s.timeMs, s.fps, s.cpuMs, s.frameP95Ms, s.drawCalls, s.submittedTriangles, s.context?.mode, s.context?.selected]) },
     slowFrames: report.slowFrames.filter(recent).sort((a, b) => b.frameMs - a.frameMs || b.cpuMs - a.cpuMs).slice(0, 3),
     marks: report.marks.filter(m => recent(m.sample)).slice(-3).map(m => ({ label: m.label, ...counts(m.sample) })),
-    units: 'ms; passes=[drawCalls,triangles]; LOD counts parts; CPU=measured work, GPU null=unavailable; frame interval includes scheduling',
+    units: 'ms; JS heap MB=1e6 bytes, excludes GPU/page process, null=unavailable; passes=[drawCalls,triangles]; LOD counts parts; CPU=measured work, GPU null=unavailable; frame interval includes scheduling',
   });
 }

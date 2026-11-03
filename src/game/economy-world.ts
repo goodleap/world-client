@@ -26,6 +26,7 @@ import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 import type { BuildingDoors } from './building-doors.ts';
 import { attachBuildingLOD } from './building-lod.ts';
 import { createBuildingPicking } from './picking-shapes.ts';
+import { createFarmModel, farmGridKey, farmNeighbourMask } from './farm-model.ts';
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
@@ -102,7 +103,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       for(const x of [-.29,.29])for(const z of [-.29,.29]){
         const first=scene.meshes.length;createCropModel(scene,p,carrot,kind,stage);
         for(const mesh of scene.meshes.slice(first)){
-          mesh.scaling.scaleInPlace(.62);mesh.position.scaleInPlace(.62);mesh.position.x+=x;mesh.position.z+=z;mesh.position.y+=.07;
+          mesh.scaling.scaleInPlace(.62);mesh.position.scaleInPlace(.62);mesh.position.x+=x;mesh.position.z+=z;mesh.position.y+=.11;
         }
       }
     });
@@ -148,21 +149,19 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       }), node.scale, node.rotation);
     }
     for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);
+    const tilled = new Set(economy.state.plots.filter(plot => plot.tilled).map(farmGridKey));
     for (const plot of economy.state.plots) {
+      const neighbours = plot.tilled ? farmNeighbourMask(plot, tilled) : 0;
       const definition = plot;
       const mature = !!plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds;
       const stage = mature ? 2 : plot.crop && plot.growth >= C.crops[plot.crop].growthSeconds / 3 ? 1 : 0;
       const name = plot.crop ? C.crops[plot.crop].name : plot.tilled ? '耕地' : '待开垦土地';
       const object: WorldObject = { ...definition, kind: plot.crop ? 'crop' : 'plot', name, radius: GRID_SIZE / 2, width: GRID_SIZE, depth: GRID_SIZE,
-        markerY: .12, anchor: { x: definition.x, y: plot.crop ? .5 : .12, z: definition.z } };
-      show(object, `${plot.tilled}-${plot.crop}-${stage}-${mature}`, () => {
-        const soil = template(plot.tilled ? 'tilled' : 'untilled', () => {
-          roundedBox(scene, 'farm-cell', [GRID_SIZE - .06, .10, GRID_SIZE - .06], [0, .055, 0], plot.tilled ? p.soil : p.grass, .08);
-          if (plot.tilled) {
-            for(const x of [-.29,.29])for(const z of [-.29,.29])roundedBox(scene,'square-bed',[.46,.06,.46],[x,.12,z],p.soil,.04);
-            roundedBox(scene,'field-ridge-x',[GRID_SIZE-.08,.07,.10],[0,.13,0],p.pathLight,.025);
-            roundedBox(scene,'field-ridge-z',[.10,.07,GRID_SIZE-.08],[0,.13,0],p.pathLight,.025);
-          }
+        markerY: plot.tilled ? .20 : .12, anchor: { x: definition.x, y: plot.crop ? .5 : plot.tilled ? .20 : .12, z: definition.z } };
+      show(object, `${plot.tilled}-${neighbours}-${plot.crop}-${stage}-${mature}`, () => {
+        const soil = template(plot.tilled ? `tilled-${neighbours}` : 'untilled', () => {
+          if (plot.tilled) createFarmModel(scene, p, neighbours);
+          else roundedBox(scene, 'farm-cell', [GRID_SIZE - .06, .10, GRID_SIZE - .06], [0, .055, 0], p.grass, .08);
         });
         return plot.crop ? [...soil, ...cropTemplate(plot.crop, stage)] : soil;
       });
@@ -170,7 +169,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     for (const id of instances.keys()) if (id.startsWith('goods-') && !economy.state.goods.some(g => g.id === id && g.state === 'ground')) remove(id);
     for (const goods of economy.state.goods) if (goods.state === 'ground') {
       const kind = groundGoodsKind(goods), name = goods.crop ? C.crops[goods.crop].name : RESOURCE_NAMES[goods.resource];
-      const elevation = economy.state.plots.some(plot => Math.abs(plot.x-goods.x) < GRID_SIZE/2 && Math.abs(plot.z-goods.z) < GRID_SIZE/2) ? .17 : 0;
+      const elevation = economy.state.plots.some(plot => Math.abs(plot.x-goods.x) < GRID_SIZE/2 && Math.abs(plot.z-goods.z) < GRID_SIZE/2) ? .20 : 0;
       show({ ...goods, kind: 'goods', name: `待入库${name}`, radius: .55, anchor: { x: goods.x, y: elevation+.5, z: goods.z } }, `${kind}-${goods.x}-${goods.z}-${elevation}`,
         () => template('goods-' + kind, () => createGroundGoodsModel(scene, p, carrot, rockMaterial, goods)), 1, 0, elevation);
     }

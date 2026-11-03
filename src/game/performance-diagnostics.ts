@@ -9,6 +9,7 @@ import type { FrameSample } from './frame-metrics.ts';
 import { SceneComponentConstants } from '@babylonjs/core/sceneComponent';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { buildingLODCounts } from './building-lod.ts';
+import { readJSHeapMB } from './heap-memory.ts';
 type LodSample = { id: string; parts: number; mapParts: number; farParts?: number }[];
 export type FrameWork = { logicMs: number; worldMs: number; saveMs: number; sceneMs: number };
 export type PerformanceContext = { mode: string; fpsLimit: number; selected: number; selectionKind?: string;
@@ -59,6 +60,7 @@ export function createPerformanceDiagnostics(engine: Engine, scene: Scene, shado
   observeShadowMap();
   const read = (sample: FrameSample, cadence: { meanMs: number; p95Ms: number }, zoom: number, paused: boolean, lod: LodSample, context?: PerformanceContext) => ({
     timeMs: Math.round(performance.now()), zoom, paused, ...sample, frameMs: cadence.meanMs, frameP95Ms: cadence.p95Ms,
+    jsHeapMB: readJSHeapMB(),
     gpuMs: engineMeter.captureGPUFrameTime && engineMeter.gpuFrameTimeCounter.count > 0 ? engineMeter.gpuFrameTimeCounter.current / 1e6 : null,
     gpuTimingSupported: !!engine.getCaps().timerQuery,
     gpuSampleAgeMs: gpuUpdated === undefined ? null : performance.now() - gpuUpdated,

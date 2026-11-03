@@ -30,6 +30,7 @@
     "studies/calibration.ts",
     "studies/campfire.ts",
     "studies/goods.ts",
-    "studies/tower.ts"
+    "studies/tower.ts",
+    "studies/farm.ts"
   ]
 }

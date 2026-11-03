@@ -29,6 +29,7 @@ const icons = {
   check: '<path d="m5 12 4 4L19 6"/>',
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
   settings: '<path d="m10 3-.5 2-2 .9-1.9-.5-2 3.4L5 10v2l-1.4 1.2 2 3.5 1.9-.5 2 .9.5 2h4l.5-2 2-.9 1.9.5 2-3.5L19 12v-2l1.4-1.2-2-3.4-1.9.5-2-.9L14 3Z"/><circle cx="12" cy="11" r="3"/>',
+  map: '<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Zm6-2v16M15 5v16"/>',
 };
 function icon(name: keyof typeof icons, viewBox = '0 0 24 24') {
   return `<svg width="22" height="22" viewBox="${viewBox}" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]}</svg>`;
@@ -43,10 +44,18 @@ export function createUI(app: HTMLElement) {
       <button id="home-resources" class="home-summary" aria-label="资源、人口与建筑" title="查看资源、人口、编队与建筑"><span id="population">人口 6</span><span id="resource-summary"></span></button>
       <div class="weather"><time id="game-time">00:00</time>${icon('sun')}<span>初夏<span class="weather-divider">/</span>晴</span></div>
     </header>
+    <button id="map-toggle" class="map-button icon-button" aria-label="展开小地图" title="展开小地图" aria-expanded="false" aria-controls="minimap-panel">${icon('map')}</button>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
+    <section id="minimap-panel" class="minimap-panel" aria-label="小地图" hidden>
+      <div class="minimap-heading"><span>小地图</span><span aria-label="上方为北">N ↑</span></div>
+      <canvas id="minimap" width="320" height="320" role="img" aria-label="地形、道路、建筑与单位位置，浅色框为当前视野，蓝点为我方，红点为敌方"></canvas>
+      <div class="minimap-legend"><span><i class="map-home"></i>我方</span><span><i class="map-enemy"></i>敌方</span><span><i class="map-view"></i>视野</span></div>
+    </section>
+    <div class="status-stack">
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="约每半秒更新。FPS 与 CPU 为这段时间的平均值；CPU 包含游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。三角形为采样帧实际提交总量，包含主画面、阴影等渲染通道。">
       <span>FPS <b id="fps-value">—</b></span><span>CPU <b id="cpu-value">—</b><small>ms/帧</small></span>
       <span class="performance-triangles">三角形 <b id="triangles-value">—</b><small>/帧</small></span>
+      <span class="performance-memory" title="浏览器提供的 JavaScript 已用堆内存，不含 GPU、贴图及页面进程的全部内存；不支持时显示 —。">JS 内存 <b id="memory-value">—</b><small>MB</small></span>
     </aside>
     <aside class="economy-bar" aria-label="资源与人口">
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
@@ -57,6 +66,7 @@ export function createUI(app: HTMLElement) {
       <p class="queue-note">农民·领头参与作业，并指挥农民经营小屋周围 30 格。手动指令优先，资源送到仓库才入库。</p>
       <ol id="queue-list"></ol>
     </section>
+    </div>
     <aside class="journey" aria-label="探索进度" hidden>
       <div class="eyebrow"><span class="status-dot"></span> 初到家园</div>
       <div class="journey-heading"><h2>沿着小路，走一走</h2><span id="progress-count">0<span> / 3</span></span></div>
@@ -183,6 +193,13 @@ export function createUI(app: HTMLElement) {
   const discovered = new Set<string>();
   const abort = new AbortController();
   const options = { signal: abort.signal };
+  const minimapPanel = get('minimap-panel'), mapToggle = get<HTMLButtonElement>('map-toggle');
+  mapToggle.addEventListener('click', () => {
+    minimapPanel.hidden = !minimapPanel.hidden;
+    mapToggle.setAttribute('aria-expanded', String(!minimapPanel.hidden));
+    mapToggle.setAttribute('aria-label', minimapPanel.hidden ? '展开小地图' : '收起小地图');
+    mapToggle.title = minimapPanel.hidden ? '展开小地图' : '收起小地图';
+  }, options);
   let nearby: Landmark | undefined;
   let loading = true;
   let backgroundPaused = false;
@@ -381,6 +398,8 @@ export function createUI(app: HTMLElement) {
       const transform = `translate(${x.toFixed(2)}px, ${(y - nameHeight - gap).toFixed(2)}px) translate(-50%, -100%)`;
       if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
+    minimapCanvas: get<HTMLCanvasElement>('minimap'),
+    get minimapOpen() { return !minimapPanel.hidden; },
     get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
     pauseForBackground() { backgroundPaused = true; if (!loading) showBackgroundPause(); },
     bindPause(callback: () => void) { onPauseChange = callback; },
@@ -525,11 +544,12 @@ export function createUI(app: HTMLElement) {
         }
       }
     },
-    setPerformance(sample?: FrameSample, triangles?: number) {
+    setPerformance(sample?: FrameSample, triangles?: number, heapMB: number | null = null) {
       get('fps-value').textContent = sample ? sample.fps.toFixed(1) : '—';
       get('cpu-value').textContent = sample ? sample.cpuMs.toFixed(2) : '—';
       get('triangles-value').textContent = triangles === undefined ? '—'
         : triangles >= 10000 ? `${(triangles / 10000).toFixed(1)}万` : Math.round(triangles).toLocaleString('zh-CN');
+      get('memory-value').textContent = heapMB === null ? '—' : heapMB.toFixed(1);
     },
     toast(message: string) {
       clearTimeout(toastTimer);

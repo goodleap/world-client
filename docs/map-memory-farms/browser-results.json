@@ -1,0 +1,262 @@
+{
+  "reports": [
+    {
+      "name": "mobile",
+      "layouts": [
+        {
+          "viewport": {
+            "width": 320,
+            "height": 720
+          },
+          "boxes": {
+            "home-resources": {
+              "x": 8,
+              "y": 8,
+              "w": 118.640625,
+              "h": 41,
+              "right": 126.640625,
+              "bottom": 49
+            },
+            "settings": {
+              "x": 271,
+              "y": 8,
+              "w": 41,
+              "h": 41,
+              "right": 312,
+              "bottom": 49
+            },
+            "map-toggle": {
+              "x": 225,
+              "y": 8,
+              "w": 41,
+              "h": 41,
+              "right": 266,
+              "bottom": 49
+            },
+            "performance": {
+              "x": 8,
+              "y": 57,
+              "w": 124.8125,
+              "h": 59,
+              "right": 132.8125,
+              "bottom": 116
+            },
+            "queue-toggle": {
+              "x": 8,
+              "y": 123,
+              "w": 60.171875,
+              "h": 44,
+              "right": 68.171875,
+              "bottom": 167
+            },
+            "minimap-panel": {
+              "x": 184,
+              "y": 57,
+              "w": 128,
+              "h": 166,
+              "right": 312,
+              "bottom": 223
+            }
+          }
+        },
+        {
+          "viewport": {
+            "width": 393,
+            "height": 852
+          },
+          "boxes": {
+            "home-resources": {
+              "x": 12,
+              "y": 12,
+              "w": 118.640625,
+              "h": 41,
+              "right": 130.640625,
+              "bottom": 53
+            },
+            "settings": {
+              "x": 340,
+              "y": 12,
+              "w": 41,
+              "h": 41,
+              "right": 381,
+              "bottom": 53
+            },
+            "map-toggle": {
+              "x": 294,
+              "y": 12,
+              "w": 41,
+              "h": 41,
+              "right": 335,
+              "bottom": 53
+            },
+            "performance": {
+              "x": 12,
+              "y": 61,
+              "w": 139.734375,
+              "h": 64,
+              "right": 151.734375,
+              "bottom": 125
+            },
+            "queue-toggle": {
+              "x": 12,
+              "y": 132,
+              "w": 60.171875,
+              "h": 44,
+              "right": 72.171875,
+              "bottom": 176
+            },
+            "minimap-panel": {
+              "x": 223.8125,
+              "y": 61,
+              "w": 157.1875,
+              "h": 195.1875,
+              "right": 381,
+              "bottom": 256.1875
+            }
+          }
+        },
+        {
+          "viewport": {
+            "width": 844,
+            "height": 390
+          },
+          "boxes": {
+            "home-resources": {
+              "x": 8,
+              "y": 8,
+              "w": 134.90625,
+              "h": 48,
+              "right": 142.90625,
+              "bottom": 56
+            },
+            "settings": {
+              "x": 788,
+              "y": 8,
+              "w": 48,
+              "h": 48,
+              "right": 836,
+              "bottom": 56
+            },
+            "map-toggle": {
+              "x": 732,
+              "y": 8,
+              "w": 48,
+              "h": 48,
+              "right": 780,
+              "bottom": 56
+            },
+            "performance": {
+              "x": 8,
+              "y": 64,
+              "w": 139.734375,
+              "h": 64,
+              "right": 147.734375,
+              "bottom": 128
+            },
+            "queue-toggle": {
+              "x": 8,
+              "y": 135,
+              "w": 64.171875,
+              "h": 44,
+              "right": 72.171875,
+              "bottom": 179
+            },
+            "minimap-panel": {
+              "x": 664.40625,
+              "y": 64,
+              "w": 171.59375,
+              "h": 209.59375,
+              "right": 836,
+              "bottom": 273.59375
+            }
+          }
+        }
+      ],
+      "heap": "537.9",
+      "collapsedStopsDrawing": true,
+      "terrainBuilds": 1,
+      "pointerDoesNotCommandUnits": true,
+      "viewportTracksCamera": true,
+      "renderLoops": 1,
+      "farming": {
+        "harvested": true,
+        "demolished": true,
+        "reloaded": true
+      },
+      "errors": []
+    },
+    {
+      "name": "desktop",
+      "layouts": [
+        {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "boxes": {
+            "home-resources": {
+              "x": 16,
+              "y": 16,
+              "w": 134.90625,
+              "h": 48,
+              "right": 150.90625,
+              "bottom": 64
+            },
+            "settings": {
+              "x": 1216,
+              "y": 16,
+              "w": 48,
+              "h": 48,
+              "right": 1264,
+              "bottom": 64
+            },
+            "map-toggle": {
+              "x": 1160,
+              "y": 16,
+              "w": 48,
+              "h": 48,
+              "right": 1208,
+              "bottom": 64
+            },
+            "performance": {
+              "x": 16,
+              "y": 72,
+              "w": 139.734375,
+              "h": 64,
+              "right": 155.734375,
+              "bottom": 136
+            },
+            "queue-toggle": {
+              "x": 16,
+              "y": 143,
+              "w": 64.171875,
+              "h": 44,
+              "right": 80.171875,
+              "bottom": 187
+            },
+            "minimap-panel": {
+              "x": 1064,
+              "y": 72,
+              "w": 200,
+              "h": 238,
+              "right": 1264,
+              "bottom": 310
+            }
+          }
+        }
+      ],
+      "heap": "—",
+      "collapsedStopsDrawing": true,
+      "terrainBuilds": 1,
+      "pointerDoesNotCommandUnits": true,
+      "viewportTracksCamera": true,
+      "renderLoops": 1,
+      "errors": []
+    },
+    {
+      "name": "appearance",
+      "soilSelection": true,
+      "errors": []
+    }
+  ]
+}

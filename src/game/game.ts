@@ -54,6 +54,9 @@ import { releaseModelDownloads } from './asset-cache.ts';
 import { createMoveFeedback } from './move-feedback.ts';
 import { createPathGuidance } from './path-guidance.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
+import { readJSHeapMB } from './heap-memory.ts';
+import { createMinimap } from './minimap.ts';
+import { Plane } from '@babylonjs/core/Maths/math.plane.js';
 import { compactPerformanceLog, roundLog } from '../performance-log.ts';
 import { compactLoadingLog } from '../loading-log.ts';
 import { createSceneCandidates } from './scene-candidates.ts';
@@ -326,6 +329,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let simulationSeconds = 0;
   const metrics = new FrameMetrics();
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
+  const minimap = createMinimap(ui.minimapCanvas);
+  const mapGround = new Plane(0, 1, 0, 0);
   const sceneCandidates = createSceneCandidates(scene);
   const lifecycle = new AbortController();
   const target = new Vector3();
@@ -652,6 +657,27 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
     }
     renderedFrames++;
+    minimap.update(cpuStart, ui.minimapOpen, () => {
+      const selected = new Set(residents.selectedIds());
+      const units = combat.state.units.filter(u => u.life === 'active' && !u.departed).map(u => ({
+        id: u.id, ...(residents.displayPosition(u.id) ?? u.position), enemy: u.team === 'enemy', selected: selected.has(u.id),
+      }));
+      for (const d of homeResidents(economy.state)) if ((d.role === 'farmer' || d.role === 'dog') && (economy.state.vitals[d.id]?.hp ?? 0) > 0) {
+        const p = residents.displayPosition(d.id); if (p) units.push({ id: d.id, x: p.x, z: p.z, enemy: false, selected: selected.has(d.id) });
+      }
+      for (const w of raids.wolves) if (w.life === 'active' && w.mode !== 'gone') {
+        const p = wolves.displayPosition(w.id) ?? w.position; units.push({ id: w.id, x: p.x, z: p.z, enemy: true, selected: false });
+      }
+      // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
+      const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();
+      const view = [[0, 0], [width, 0], [width, height], [0, height]].flatMap(([x, y]) => {
+        const ray = scene.createPickingRay(x, y, projectionIdentity, camera), distance = ray.intersectsPlane(mapGround);
+        if (distance === null) return [];
+        const p = ray.origin.add(ray.direction.scale(distance)); return [{ x: p.x, z: p.z }];
+      });
+      return { units, view, plots: economy.state.plots,
+        buildings: [...world.objects.values()].filter(o => o.kind === 'building' || o.kind === 'site').map(o => ({ ...o, site: o.kind === 'site' })) };
+    });
     const sample = !ui.paused && !resuming ? metrics.record(cpuStart-cpuSinceFrame, performance.now()) : undefined;
     cpuSinceFrame=0;
     const context = { mode: performanceMode, fpsLimit: PERFORMANCE_MODES[performanceMode].fps,
@@ -663,7 +689,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     else performanceDiagnostics.frame(cpuStart, metrics.lastFrameCpuMs, frameWork, context);
     frameWork.logicMs = frameWork.worldMs = frameWork.saveMs = frameWork.sceneMs = 0;
     if (sample) {
-      ui.setPerformance(sample, scene.getActiveIndices() / 3);
+      ui.setPerformance(sample, scene.getActiveIndices() / 3, readJSHeapMB());
       performanceDiagnostics.record(sample, metrics.cadence, currentZoom, ui.paused, residents.lodSummary(), context);
     }
     if (canSave && ui.paused) engine.stopRenderLoop(render);
@@ -714,7 +740,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
 
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
-    performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
+    minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   await nextPaint();
   loadingProgress.done('first-frame');
@@ -776,6 +802,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       farmerLegPose: residents.farmerLegPose(),
       residents: residents.snapshot(),
       characterLibrary: residents.sharedLibraryInfo(),
+      minimap: minimap.snapshot(),
       cells: world.land.length, fps: metrics.sample?.fps??engine.getFps(),
       performance: { ...metrics.sample, lastFrameCpuMs: metrics.lastFrameCpuMs },
       diagnostics: performanceDiagnostics.snapshot(),
@@ -804,7 +831,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       engine.onContextRestoredObservable.remove(contextRestored);
-      navigation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      navigation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); minimap.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

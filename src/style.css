@@ -1318,3 +1318,33 @@ kbd {
 .demolish-dialog { width: min(360px, calc(100vw - 32px)); }
 .demolish-dialog p { line-height: 1.7; }
 .building-table td[data-stat="action"] button + button { margin-top: 4px; }
+
+/* Map and settings share the corner controls. Status stays in one flow so
+   performance, the work queue and event notices cannot cover one another. */
+#game-page { --top-gap:8px; }
+.topbar { display:grid; grid-template-columns:minmax(0,1fr) auto; right:calc(var(--right) + 2 * var(--corner-size) + 2 * var(--top-gap)); gap:var(--top-gap); }
+#home-resources.home-summary { justify-self:start; max-width:100%; box-sizing:border-box; }
+#resource-summary { display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.weather { width:65px; height:var(--corner-size); min-width:0; font-size:10px; padding:3px 4px; gap:0 3px; }
+#game-time { width:100%; text-align:center; }
+.weather svg { width:12px; height:12px; }
+.map-button { position:absolute; top:var(--top); right:calc(var(--right) + var(--corner-size) + var(--top-gap)); z-index:var(--layer-controls); width:var(--corner-size); height:var(--corner-size); padding:0; border:1px solid #fff; border-radius:15px; background:var(--paper); }
+.map-button[aria-expanded=true] { background:#d5f6f4; border-color:#62e4ff; }
+.map-button svg { width:23px; height:23px; }
+.minimap-panel { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); right:var(--right); z-index:var(--layer-controls); width:clamp(124px,40vw,200px); box-sizing:border-box; padding:7px; border:1px solid #fff9; border-radius:13px; background:var(--paper); color:var(--ink); touch-action:none; }
+.minimap-heading { display:flex; justify-content:space-between; margin-bottom:5px; font-size:10px; }
+#minimap { display:block; width:100%; height:auto; border-radius:6px; }
+.minimap-legend { display:flex; justify-content:space-between; gap:3px; margin-top:5px; font-size:9px; white-space:nowrap; }
+.minimap-legend span { display:flex; align-items:center; gap:3px; }
+.minimap-legend i { display:inline-block; width:5px; height:5px; border-radius:50%; }
+.map-home { background:#3db8cd; }.map-enemy { background:#d85c45; }
+.minimap-legend .map-view { width:7px; height:5px; border:1px solid #879477; border-radius:1px; }
+.status-stack { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); left:var(--left); z-index:var(--layer-controls); display:flex; flex-direction:column; align-items:flex-start; gap:7px; width:max-content; max-width:calc(100% - var(--left) - var(--right)); pointer-events:none; }
+.status-stack .performance-hud { position:static; padding:6px 7px; column-gap:7px; row-gap:3px; font-size:10px; }
+.performance-triangles, .performance-memory { grid-column:1 / -1; text-align:left; }
+.status-stack .economy-bar { position:static; width:auto; font-size:11px; pointer-events:auto; }
+.status-stack .raid-notice { position:static; max-width:160px; padding:7px 9px; font-size:11px; pointer-events:auto; }
+.status-stack .queue-panel { top:calc(100% + 7px); left:0; width:min(330px,calc(100vw - var(--left) - var(--right))); max-width:none; max-height:min(48dvh,calc(100dvh - var(--top) - 200px)); box-sizing:border-box; pointer-events:auto; }
+@media(max-width:600px) { #game-page { --top-gap:5px; } }
+@media(max-width:360px) { .status-stack .performance-hud { font-size:9px; column-gap:5px; } .performance-hud small { font-size:8px; margin-left:2px; } }
+@media(max-height:500px) { .minimap-panel { width:min(172px,44dvh); } }
