@@ -1,4 +1,4 @@
-import {findPath} from './pathfinding.ts';
+import {planPath} from './path-planner.ts';
 import {economyObstacles} from './economy-config.ts';
 import {WORLD_BOUNDS} from './world-data.ts';
 import { Economy } from './economy.ts';
@@ -27,20 +27,24 @@ export function createEconomyController(economy: Economy, world: World, resident
       task.watchPath=[{x:target.x,z:target.z}];return pause();
     }
     if(unsafePath(task.watchPath)) {
-      const detour=zones.length?findPath(from,end,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      const detour=zones.length?planPath(from,end,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      if(detour===null)return null;
       if(!detour||unsafePath([from,...detour])){return pause();}
       path.splice(0,path.length,...detour);
     }
     const doors=economy.warehouseDoors().sort((a,b)=>Math.hypot(a.x-end.x,a.z-end.z)-Math.hypot(b.x-end.x,b.z-end.z));
-    let back:Point[]|undefined,blockedBack:Point[]|undefined;
+    let back:Point[]|undefined,blockedBack:Point[]|undefined,pending=false;
     for(const door of doors){
-      const candidate=findPath(end,door,.29,WORLD_BOUNDS,solids);
+      const candidate=planPath(end,door,.29,WORLD_BOUNDS,solids);
+      if(candidate===null){pending=true;continue;}
       if(!candidate)continue;
       if(!unsafePath([end,...candidate])){back=candidate;break;}
       blockedBack??=candidate;
-      const detour=zones.length?findPath(end,door,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      const detour=zones.length?planPath(end,door,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      if(detour===null)pending=true;
       if(detour&&!unsafePath([end,...detour])){back=detour;break;}
     }
+    if(!back&&pending)return null;
     task.watchPath=[{x:from.x,z:from.z},...path,...back??blockedBack??[]].map(p=>({x:p.x,z:p.z}));
     if(task.danger||unsafePath(task.watchPath)){return pause();}
     return true;
@@ -78,6 +82,12 @@ export function createEconomyController(economy: Economy, world: World, resident
     if (task.worker && task.worker !== id && task.status !== 'waiting') return { ok: false, message: '其他农民正在执行该任务' };
     const place = destination(task, residents.farmerPosition(id));
     const path = place && residents.planFarmerWork(place.points, id);
+    if(path===null){
+      economy.updateCargo(residents.farmerPosition(id),id);
+      const result=economy.assign(task.id,id);
+      if(result.ok)residents.releaseFarmerWork(id);
+      return result;
+    }
     if (!place || !path) {
       if (!task.worker) economy.defer(task.id, '暂时无法到达，稍后重试');
       return { ok: false, message: '暂时无法到达，作业已保留' };
@@ -123,7 +133,9 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (!assigned && active && !residents.hasMoveCommand(id)) {
         const place = destination(active, residents.farmerPosition(id));
         const path = place && residents.planFarmerWork(place.points, id);
-        if (path && place && safeTask(active,residents.farmerPosition(id),path)) residents.startFarmerWork(active.id, path, place.target, id);
+        const safe=path&&safeTask(active,residents.farmerPosition(id),path);
+        if(path===null||safe===null)continue;
+        if (path && place && safe) residents.startFarmerWork(active.id, path, place.target, id);
         else economy.defer(active.id, '暂时无法到达，稍后重试', residents.farmerPosition(id));
         assigned = residents.farmerWorkState(id);
       }
@@ -132,7 +144,9 @@ export function createEconomyController(economy: Economy, world: World, resident
         approachRetry.set(id, economy.state.seconds + 2);
         const place = destination(active, residents.farmerPosition(id));
         const path = place && residents.planFarmerWork(place.points, id);
-        if (path && place) { if(safeTask(active,residents.farmerPosition(id),path)){residents.startFarmerWork(active.id,path,place.target,id);active.reason='';}else residents.releaseFarmerWork(id); }
+        const safe=path&&safeTask(active,residents.farmerPosition(id),path);
+        if(path===null||safe===null){approachRetry.set(id,economy.state.seconds+.05);continue;}
+        if (path && place) { if(safe){residents.startFarmerWork(active.id,path,place.target,id);active.reason='';}else residents.releaseFarmerWork(id); }
         else active.reason = '作业点被占用，等待空位';
       }
       if (assigned && assigned.id !== active?.id) residents.releaseFarmerWork(id);
@@ -145,7 +159,9 @@ export function createEconomyController(economy: Economy, world: World, resident
           const place=destination(active,residents.farmerPosition(id));
           if(!place?.points.some(p=>Math.hypot(p.x-residents.farmerPosition(id).x,p.z-residents.farmerPosition(id).z)<.45)){
             const path=place&&residents.planFarmerWork(place.points,id);
-            if(path&&place&&safeTask(active,residents.farmerPosition(id),path))residents.startFarmerWork(active.id,path,place.target,id);
+            const safe=path&&safeTask(active,residents.farmerPosition(id),path);
+            if(path===null||safe===null)continue;
+            if(path&&place&&safe)residents.startFarmerWork(active.id,path,place.target,id);
             else {economy.defer(active.id,'仓库暂时无法到达',residents.farmerPosition(id));residents.releaseFarmerWork(id);}
             continue;
           }
@@ -155,7 +171,9 @@ export function createEconomyController(economy: Economy, world: World, resident
         if (economy.active(id)?.status === 'delivering') {
           const place = destination(economy.active(id)!, residents.farmerPosition(id));
           const path = place&&residents.planFarmerWork(place.points, id);
-          if (path&&place&&safeTask(economy.active(id)!,residents.farmerPosition(id),path)) residents.startFarmerWork(assigned.id, path, place.target, id);
+          const safe=path&&safeTask(economy.active(id)!,residents.farmerPosition(id),path);
+          if(path===null||safe===null){residents.releaseFarmerWork(id);continue;}
+          if (path&&place&&safe) residents.startFarmerWork(assigned.id, path, place.target, id);
           else { economy.defer(assigned.id, '仓库暂时无法到达', residents.farmerPosition(id)); residents.releaseFarmerWork(id); }
         } else if (economy.active(id)?.status === 'working') residents.beginFarmerWork(assigned.id, id);
         else residents.releaseFarmerWork(id);
@@ -175,11 +193,13 @@ export function createEconomyController(economy: Economy, world: World, resident
           let searches = 0;
           const created = steward.requestWork(from, job => {
             const key = `${id}:${job.kind}:${job.target}`;
-            if ((rejectedUntil.get(key) ?? 0) > economy.state.seconds || searches >= 8) return false;
+            if ((rejectedUntil.get(key) ?? 0) > economy.state.seconds || searches >= 2) return false;
             searches++;
             const probe: WorkTask = { ...job, id: -1, origin: 'steward', status: 'waiting', progress: 0, reserved: false, reason: '', retryAt: 0 };
             const place = destination(probe, from), path = place && residents.planFarmerWork(place.points, id);
-            if (!place || !path || !safeTask(probe, from, path, false)) {
+            const safe=path&&safeTask(probe,from,path,false);
+            if(path===null||safe===null)return false;
+            if (!place || !path || !safe) {
               rejectedUntil.set(key, economy.state.seconds + 2);
               if (rejectedUntil.size > 512) rejectedUntil.delete(rejectedUntil.keys().next().value!);
               return false;
@@ -194,7 +214,9 @@ export function createEconomyController(economy: Economy, world: World, resident
         const place = cached?.place ?? destination(task, residents.farmerPosition(id));
         const path = cached?.path ?? (place && residents.planFarmerWork(place.points, id));
         if (cached) task.watchPath = cached.watchPath;
-        if (place && path) { if(!cached&&!safeTask(task,residents.farmerPosition(id),path))continue; residents.startFarmerWork(task.id, path, place.target, id); if (economy.state.steward.enabled && task.origin === 'steward') onDispatch(id, task); break; }
+        const safe=cached?true:path&&safeTask(task,residents.farmerPosition(id),path);
+        if(path===null||safe===null)break;
+        if (place && path) { if(!safe)continue; residents.startFarmerWork(task.id, path, place.target, id); if (economy.state.steward.enabled && task.origin === 'steward') onDispatch(id, task); break; }
         economy.defer(task.id, '暂时无法到达，稍后重试');
       }
     }

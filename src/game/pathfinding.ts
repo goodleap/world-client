@@ -31,8 +31,8 @@ export function findPath(start: Point, goal: Point, radius: number, bounds: Boun
  * parents for the nearest reachable alternative instead of running A* for
  * every candidate around a wall or disconnected patch of land. */
 export function findPathToGoals(start: Point, goals: readonly Point[], radius: number, bounds: Bounds, obstacles: readonly Obstacle[], cell = PATH_CELL_SIZE): Point[] | undefined {
+  goals=goals.filter(p=>inBounds(p,radius,bounds)&&!isBlocked(p,radius,obstacles));
   const goal = goals[0]; if (!goal) return;
-  if (!inBounds(goal, radius, bounds) || isBlocked(goal, radius, obstacles)) return undefined;
   const clear = (a: Point, b: Point) => segmentIsClear(a, b, radius, bounds, obstacles);
   if (clear(start, goal)) return [goal];
   const width = Math.floor((bounds.maxX - bounds.minX) / cell) + 1;
@@ -85,10 +85,15 @@ export function findPathToGoals(start: Point, goals: readonly Point[], radius: n
     }
   }
   for (const candidate of goals.slice(1)) {
-    const id = idOf(candidate);
-    if (id < 0 || id >= total || !closed[id]) continue;
-    const from = id === startId ? start : point(id);
-    if (clear(from, candidate)) return routeTo(id, candidate);
+    // Work/attack approaches are not necessarily on the grid. A reachable
+    // adjacent cell may connect even when the nearest rounded cell is blocked.
+    const center=idOf(candidate),cx=center%width,cz=Math.floor(center/width);
+    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+      const x=cx+dx,z=cz+dz,id=z*width+x;
+      if(x<0||x>=width||z<0||z>=height||!closed[id])continue;
+      const from=id===startId?start:point(id);
+      if(clear(from,candidate))return routeTo(id,candidate);
+    }
   }
   return undefined;
 }

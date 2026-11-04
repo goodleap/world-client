@@ -10,12 +10,15 @@ export interface MinimapFrame {
   view: Point[];
 }
 
-/** Native Canvas 2D schematic: static terrain cached once, live markers at 5 Hz.
+/** Native Canvas 2D schematic: cached terrain/buildings, live markers at 5 Hz.
+ * The camera footprint follows each rendered frame, independently of markers.
  * No second Babylon camera, render pass, picking, or autonomous animation loop. */
 export function createMinimap(canvas: HTMLCanvasElement) {
   const width = 320, height = Math.round(width * MAP_DEPTH / MAP_WIDTH), pad = 0;
-  let background: HTMLCanvasElement | undefined, context: CanvasRenderingContext2D | null = null;
-  let visible = false, nextAt = 0, draws = 0, terrainBuilds = 0;
+  let background: HTMLCanvasElement | undefined, map: HTMLCanvasElement | undefined, markers: HTMLCanvasElement | undefined;
+  let context: CanvasRenderingContext2D | null = null;
+  let visible = false, nextAt = 0, draws = 0, terrainBuilds = 0, markerDraws = 0, mapBuilds = 0, mapKey = '';
+  let totalMs=0,maxMs=0;
   let last: { units: number; buildings: number; view: Point[] } | undefined;
   const point = (p: Point) => ({ x: pad + (p.x - WORLD_BOUNDS.minX) / MAP_WIDTH * (width - pad * 2),
     y: pad + (WORLD_BOUNDS.maxZ - p.z) / MAP_DEPTH * (height - pad * 2) });
@@ -41,39 +44,54 @@ export function createMinimap(canvas: HTMLCanvasElement) {
     for (const path of ROAD_PATHS) { ctx.beginPath(); line(ctx, path); ctx.stroke(); }
     ctx.fillStyle = '#6faeb0'; area(ctx, LANDSCAPE.lake);
     terrainBuilds++;
+    map = document.createElement('canvas'); map.width = width; map.height = height;
+    markers = document.createElement('canvas'); markers.width = width; markers.height = height;
   }
   return {
-    update(time: number, open: boolean, read: () => MinimapFrame) {
+    update(time: number, open: boolean, read: () => Omit<MinimapFrame,'view'>, readView: () => Point[]) {
       if (!open) { visible = false; return; }
-      if (visible && time < nextAt) return;
-      visible = true; nextAt = time + 200;
+      const started=performance.now();
+      const refresh = !visible || time >= nextAt;
+      visible = true;
       if (!background) prepare();
-      if (!context || !background) return;
-      const ctx = context, state = read();
-      ctx.drawImage(background, 0, 0);
-      ctx.fillStyle = '#b87943';
-      const plotSize = GRID_SIZE / MAP_WIDTH * (width - pad * 2);
-      for (const p of state.plots) { const q = point(p); ctx.fillRect(q.x - plotSize / 2, q.y - plotSize / 2, plotSize, plotSize); }
-      for (const b of state.buildings) {
-        const q = point(b), w = Math.max(3, (b.width ?? b.radius * 2) / MAP_WIDTH * (width - pad * 2));
-        const h = Math.max(3, (b.depth ?? b.radius * 2) / MAP_DEPTH * (height - pad * 2));
-        ctx.fillStyle = b.site ? '#d4c9a3' : '#f5db9c'; ctx.strokeStyle = '#6d503a'; ctx.lineWidth = 1;
-        ctx.fillRect(q.x - w / 2, q.y - h / 2, w, h); ctx.strokeRect(q.x - w / 2, q.y - h / 2, w, h);
+      if (!context || !background || !map || !markers) return;
+      const view = readView();
+      if (!refresh && last?.view.length === view.length && view.every((p,i)=>Math.abs(p.x-last!.view[i].x)<1e-6 && Math.abs(p.z-last!.view[i].z)<1e-6)) return;
+      if (refresh) {
+        nextAt = time + 200;
+        const state = read(), key = JSON.stringify([state.plots.map(p=>[p.x,p.z]),state.buildings]);
+        if (key !== mapKey) {
+          const ctx = map.getContext('2d')!;
+          ctx.drawImage(background,0,0); ctx.fillStyle = '#b87943';
+          const plotSize = GRID_SIZE / MAP_WIDTH * (width - pad * 2);
+          for (const p of state.plots) { const q = point(p); ctx.fillRect(q.x - plotSize / 2, q.y - plotSize / 2, plotSize, plotSize); }
+          for (const b of state.buildings) {
+            const q = point(b), w = Math.max(3, (b.width ?? b.radius * 2) / MAP_WIDTH * (width - pad * 2));
+            const h = Math.max(3, (b.depth ?? b.radius * 2) / MAP_DEPTH * (height - pad * 2));
+            ctx.fillStyle = b.site ? '#d4c9a3' : '#f5db9c'; ctx.strokeStyle = '#6d503a'; ctx.lineWidth = 1;
+            ctx.fillRect(q.x - w / 2, q.y - h / 2, w, h); ctx.strokeRect(q.x - w / 2, q.y - h / 2, w, h);
+          }
+          mapKey = key; mapBuilds++;
+        }
+        const ctx = markers.getContext('2d')!; ctx.clearRect(0,0,width,height);
+        for (const unit of state.units) {
+          const q = point(unit); ctx.beginPath(); ctx.arc(q.x, q.y, unit.selected ? 3.8 : 2.3, 0, Math.PI * 2);
+          ctx.fillStyle = unit.enemy ? '#e46b51' : '#63def0'; ctx.fill();
+          ctx.strokeStyle = unit.selected ? '#ffffff' : '#344c3c'; ctx.lineWidth = unit.selected ? 1.8 : .65; ctx.stroke();
+        }
+        markerDraws++; last = { units: state.units.length, buildings: state.buildings.length, view };
       }
-      ctx.save(); ctx.beginPath(); ctx.rect(pad, pad, width - pad * 2, height - pad * 2); ctx.clip();
-      if (state.view.length === 4) {
-        ctx.beginPath(); line(ctx, state.view, true); ctx.fillStyle = '#fffbe723'; ctx.fill();
+      const ctx = context;
+      ctx.drawImage(map,0,0);
+      if (view.length === 4) {
+        ctx.beginPath(); line(ctx, view, true); ctx.fillStyle = '#fffbe723'; ctx.fill();
         ctx.strokeStyle = '#fffbe7'; ctx.lineWidth = 1.8; ctx.stroke();
       }
-      for (const unit of state.units) {
-        const q = point(unit); ctx.beginPath(); ctx.arc(q.x, q.y, unit.selected ? 3.8 : 2.3, 0, Math.PI * 2);
-        ctx.fillStyle = unit.enemy ? '#e46b51' : '#63def0'; ctx.fill();
-        ctx.strokeStyle = unit.selected ? '#ffffff' : '#344c3c'; ctx.lineWidth = unit.selected ? 1.8 : .65; ctx.stroke();
-      }
-      ctx.restore(); draws++;
-      last = { units: state.units.length, buildings: state.buildings.length, view: state.view };
+      ctx.drawImage(markers,0,0); draws++;
+      if(last)last.view=view;
+      const elapsed=performance.now()-started;totalMs+=elapsed;maxMs=Math.max(maxMs,elapsed);
     },
-    snapshot: () => ({ visible, draws, terrainBuilds, ...last }),
-    dispose() { visible = false; background = undefined; context = null; canvas.width = canvas.height = 0; },
+    snapshot: () => ({ visible, draws, markerDraws, mapBuilds, terrainBuilds, totalMs, maxMs, ...last }),
+    dispose() { visible = false; for(const layer of [background,map,markers,canvas])if(layer)layer.width=layer.height=0; background = map = markers = undefined; context = null; },
   };
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Economy,encodeEconomy,decodeEconomy } from '../src/game/economy.ts';
 import { Combat } from '../src/game/combat.ts';
 import { buildingAt,buildingDoor } from '../src/game/construction.ts';
-import { newTower,requestGarrison,updateTowers,evictTower,TOWER_CONFIG,towerHeight,towerPlatform,garrisonCandidate } from '../src/game/towers.ts';
+import { newTower,requestGarrison,updateTowers,evictTower,TOWER_CONFIG,towerHeight,towerPlatform,garrisonCandidate,garrisonAvailability } from '../src/game/towers.ts';
 import { recruit,advanceRecruitment } from '../src/game/recruitment.ts';
 import { maxHealth } from '../src/game/vitals.ts';
 import { newWolf } from '../src/game/raid-state.ts';
@@ -54,6 +54,23 @@ test('automatic garrison prefers reachable ungrouped archers and respects a sing
   const blocked=new Combat(s.e.state.combat,s.e,()=>walls);
   assert.equal(garrisonCandidate(s.e,blocked,s.tower.id)?.id,far.id);
   assert.equal(garrisonCandidate(s.e,blocked,s.tower.id,[near.id]),undefined,'explicit unreachable choice is not silently replaced');
+});
+test('an idle person at the entrance does not disable automatic garrison; the archer waits without overlapping',()=>{
+  const s=setup(),door=buildingDoor(s.site);
+  const blocker={id:'farmer',position:{...door},radius:.29,moving:false,purposeful:false,waiting:false};
+  const c=new Combat(s.e.state.combat,s.e,()=>[{kind:'box',x:s.site.x,z:s.site.z,halfWidth:s.site.width/2+.12,halfDepth:s.site.depth/2+.12}],()=>[blocker]);
+  assert.equal(garrisonCandidate(s.e,c,s.tower.id)?.id,'archer');
+  assert(requestGarrison(s.e,c,s.tower.id,'archer').ok);
+  const step=()=>{s.e.state.seconds+=.05;updateTowers(s.e,c);c.update(.05);};
+  for(let i=0;i<60;i++){
+    step();assert(Math.hypot(s.archer.position.x-door.x,s.archer.position.z-door.z)>=.69-1e-6);
+  }
+  assert.equal(s.tower.phase,'approach');
+  blocker.position={x:door.x+3,z:door.z};
+  for(let i=0;i<60&&s.tower.phase==='approach';i++)step();
+  assert.equal(s.tower.phase,'occupied');assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(s.e)));
+  const blocked=setup(),wall=new Combat(blocked.e.state.combat,blocked.e,()=>[{kind:'circle',...buildingDoor(blocked.site),radius:2}]);
+  assert.equal(garrisonAvailability(blocked.e,wall,blocked.tower.id).reason,'入口无法到达');
 });
 test('garrison shoots at twelve units from the deck, checks cover and never chases',()=>{
   const s=setup();s.enter();const enemy=s.c.unit('enemy-grove-0')!;

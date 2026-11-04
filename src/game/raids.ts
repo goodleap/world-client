@@ -14,6 +14,7 @@ import { BUILDINGS, LANDSCAPE, WORLD_BOUNDS } from './world-data.ts';
 import { isBlocked } from './movement.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
+import { validateNavigation } from './navigation-plan.ts';
 import { resetRouteState, stepRoute } from './route-following.ts';
 import type { Neighbour } from './route-following.ts';
 import { segmentIsClear } from './wander.ts';
@@ -45,6 +46,8 @@ export class Raids {
   private decisions = 0;
   private areaAt = -Infinity;
   private areaSolids: Obstacle[] = [];
+  private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
+  private warningCandidate?:{origin:Point;count:number};
   constructor(economy: Economy, combat: Combat, people: RaidResidents, solids: () => readonly Obstacle[], visible: (point: Point) => boolean) {
     this.economy = economy; this.combat = combat; this.people = people; this.solids = solids; this.visible = visible;
     combat.setResidentPositions(id => people.status(id).position);
@@ -86,9 +89,14 @@ export class Raids {
       radius: fighterRadius(u),heading:u.facing, moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
   }
   private plan(w: Wolf, points: Point[]) {
-    w.planIn = .9;
+    const intent=`${w.mode}/${w.target??''}/${w.foodTarget??''}`;
+    let pending=this.planning.get(w.id);
+    if(!pending||pending.intent!==intent)pending={intent,start:{...w.position},points};
     const reservations = this.neighboursFor(w).map(n => ({ ...n, destination: fighterDestination(this.combat.unit(n.id)) }));
-    w.route = planWorkApproach(w.position, points, fighterRadius(w), WORLD_BOUNDS, this.solids(), reservations) ?? [];
+    const solids=this.solids(),radius=fighterRadius(w),path=planWorkApproach(pending.start,pending.points,radius,WORLD_BOUNDS,solids,reservations);
+    if(path===null){this.planning.set(w.id,pending);w.planIn=.05;return;}
+    this.planning.delete(w.id);w.planIn=.9;
+    w.route=path?validateNavigation({start:w.position,goal:path.at(-1)!,radius,bounds:WORLD_BOUNDS,solids,neighbours:reservations},path)??[]:[];
   }
   private travel(w: Wolf, dt: number) {
     const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), this.neighboursFor(w));
@@ -113,6 +121,19 @@ export class Raids {
   }
   private warn() {
     const state=this.state,now=this.economy.state.seconds;
+    const announce=(origin:Point,count:number)=>{
+      this.warningCandidate=undefined;
+      state.pendingOrigin=origin;state.pendingCount=count;state.warningAt=now;state.nextAt=Math.max(state.nextAt,now+C.warning);
+      const direction=Math.abs(origin.x)>Math.abs(origin.z)?origin.x>0?'东侧':'西侧':origin.z>0?'北侧':'南侧';
+      state.notice=`${direction}发现${state.wave%2?'敌兵':'狼群'} · 即将来袭`;state.noticeUntil=state.nextAt;
+      this.economy.revision++;
+    };
+    if(this.warningCandidate){
+      const {origin,count}=this.warningCandidate,route=planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]);
+      if(route===null)return;
+      this.warningCandidate=undefined;
+      if(route&&this.spawnClear(origin,spawnSpots(origin,count))){announce(origin,count);return;}
+    }
     const defenders=this.combat.state.units.filter(u=>u.team==='home'&&u.life==='active'&&u.hp>COMBAT_CONFIG[u.role].hp*.35).length;
     const base=defenders<2?1:state.wave===0?2:Math.min(C.maxWolves,2+Math.floor(defenders/3)+this.economy.state.upgrades.arms);
     const count=state.wave%2 ? Math.min(C.maxSoldiers,base*2) : base;
@@ -124,11 +145,10 @@ export class Raids {
       const r=candidates[(start+i)%candidates.length],origin={x:r.x+(raidRandom(state)-.5)*16,z:r.z+(raidRandom(state)-.5)*16};
       const spots=spawnSpots(origin,count);
       if (!this.spawnClear(origin, spots) || !visible && spots.some(p => this.visible(p))) continue;
-      if(!planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]))continue;
-      state.pendingOrigin=origin;state.pendingCount=count;state.warningAt=now;state.nextAt=Math.max(state.nextAt,now+C.warning);
-      const direction=Math.abs(origin.x)>Math.abs(origin.z)?origin.x>0?'东侧':'西侧':origin.z>0?'北侧':'南侧';
-      state.notice=`${direction}发现${state.wave%2?'敌兵':'狼群'} · 即将来袭`;state.noticeUntil=state.nextAt;
-      this.economy.revision++;return;
+      const route=planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]);
+      if(route===null){this.warningCandidate={origin,count};return;}
+      if(!route)continue;
+      announce(origin,count);return;
     }
     state.nextAt=now+5+C.warning;
   }
@@ -137,6 +157,7 @@ export class Raids {
     if(!origin)return;
     const count=state.pendingCount,spots=spawnSpots(origin,count);
     const route=planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]);
+    if(route===null)return;
     if(!route||!this.spawnClear(origin, spots)) {
       state.pendingOrigin=undefined;state.pendingCount=0;state.nextAt=now+5+C.warning;return;
     }

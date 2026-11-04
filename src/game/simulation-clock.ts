@@ -3,14 +3,22 @@
  * by the caller, never by a frame-rate-dependent delta clamp. */
 export class SimulationClock {
   static readonly step = .05;
+  static readonly maxSteps = 3;
+  static readonly budgetMs = 6;
   private remainder = 0;
+  private now:()=>number;
+  constructor(now = () => performance.now()) { this.now=now; }
+  get pendingSeconds() { return this.remainder; }
   get alpha() { return Math.min(1, Math.max(0, this.remainder / SimulationClock.step)); }
   advance(elapsed:number, update:(seconds:number)=>void) {
-    if(!Number.isFinite(elapsed)||elapsed<=0)return 0;
+    if(!Number.isFinite(elapsed)||elapsed<0)return 0;
     this.remainder+=elapsed;
-    let advanced=0;
+    let advanced=0, steps=0;
+    const started=this.now();
     while(this.remainder+1e-9>=SimulationClock.step){
       update(SimulationClock.step);this.remainder-=SimulationClock.step;advanced+=SimulationClock.step;
+      // Yield to input/rendering; retain every unfinished step for later frames.
+      if(++steps>=SimulationClock.maxSteps||this.now()-started>=SimulationClock.budgetMs)break;
     }
     this.remainder=Math.max(0,this.remainder);return advanced;
   }

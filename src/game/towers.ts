@@ -50,24 +50,29 @@ export function damageTower(e:Economy,id:string,amount:number,onFall:(id:string,
   for(const body of e.state.combat.units)if(body.deathTower===id){body.deathTower=undefined;body.deathElevation=0;}
 }
 /** Preview only: never interrupts orders or changes group membership. */
-export function garrisonCandidate(e:Economy,combat:Combat,towerId:string,selectedIds:readonly string[]=[]){
+export function garrisonAvailability(e:Economy,combat:Combat,towerId:string,selectedIds:readonly string[]=[]){
   const tower=e.state.towers.find(t=>t.id===towerId&&t.hp>0&&!t.unit),site=e.state.sites.find(s=>s.id===towerId);
-  if(!tower||!site)return;
+  if(!tower||!site)return {candidate:undefined,reason:'哨塔不可入驻'};
   const door=buildingDoor(site),selected=selectedIds.length===1?combat.controllable(selectedIds).find(u=>u.role==='archer'):undefined;
-  if(selected)return combat.canMoveTo(selected.id,door)?selected:undefined;
+  if(selected)return {candidate:combat.canMoveTo(selected.id,door,true)?selected:undefined,reason:'指定弓兵无法到达入口'};
   const grouped=new Set(e.state.groups.flat());
-  return combat.state.units.filter(u=>u.team==='home'&&u.role==='archer'&&u.life==='active'&&!u.departed
-    &&!assignedTower(e.state,u.id)&&!e.state.vitals[u.id].rest&&!u.attack&&!u.target&&!u.goal&&!u.route.length&&!e.active(u.id))
+  const archers=combat.state.units.filter(u=>u.team==='home'&&u.role==='archer'&&u.life==='active'&&!u.departed);
+  const idle=archers.filter(u=>!assignedTower(e.state,u.id)&&!e.state.vitals[u.id].rest&&!u.attack&&!u.target&&!u.goal&&!u.route.length&&!e.active(u.id))
     .sort((a,b)=>Number(grouped.has(a.id))-Number(grouped.has(b.id))
-      ||Math.hypot(a.position.x-door.x,a.position.z-door.z)-Math.hypot(b.position.x-door.x,b.position.z-door.z)||a.id.localeCompare(b.id))
-    .find(u=>combat.canMoveTo(u.id,door));
+      ||Math.hypot(a.position.x-door.x,a.position.z-door.z)-Math.hypot(b.position.x-door.x,b.position.z-door.z)||a.id.localeCompare(b.id));
+  const candidate=idle.find(u=>combat.canMoveTo(u.id,door,true));
+  const reason=!archers.length?'需要一名弓兵':idle.length?'入口无法到达'
+    :archers.every(u=>!!assignedTower(e.state,u.id))?'弓兵已驻守或预约'
+    :archers.every(u=>!!e.state.vitals[u.id].rest)?'弓兵正在休整':'弓兵正在执行其他指令';
+  return {candidate,reason};
 }
+export function garrisonCandidate(e:Economy,combat:Combat,towerId:string,selectedIds:readonly string[]=[]){return garrisonAvailability(e,combat,towerId,selectedIds).candidate;}
 export function requestGarrison(e:Economy,combat:Combat,towerId:string,unitId:string){
   const tower=e.state.towers.find(t=>t.id===towerId&&t.hp>0),unit=combat.unit(unitId);
   if(!tower||!unit||unit.team!=='home'||unit.role!=='archer'||unit.life!=='active')return {ok:false,message:'需要一名存活的我方弓兵'};
   if(tower.unit)return {ok:false,message:'哨塔已有驻守或预约单位'};
   const site=e.state.sites.find(s=>s.id===tower.id)!;
-  if(!combat.move([unitId],buildingDoor(site),false,false,false,true))return {ok:false,message:'无法到达哨塔入口'};
+  if(!combat.move([unitId],buildingDoor(site),false,false,false,true,undefined,true))return {ok:false,message:'无法到达哨塔入口'};
   tower.unit=unitId;tower.phase='approach';e.revision++;return {ok:true,message:'前往哨塔驻守'};
 }
 export function evictTower(e:Economy,combat:Combat,towerId:string){

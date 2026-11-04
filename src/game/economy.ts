@@ -12,7 +12,7 @@ import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } fro
 import { buildingAt, buildingDoor, placementReason, placementWarning, BUILDING_TYPES } from './construction.ts';
 import type { BuildingSite, BuildingKind } from './construction.ts';
 import { insidePolygon } from './polygon.ts';
-import { findPath } from './pathfinding.ts';
+import { planPaths } from './path-planner.ts';
 import { canResidentWork, canResidentSupply } from './resident-data.ts';
 import { initialRecruitment, decodeRecruitment, homeResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
 import type { RecruitmentState } from './recruitment.ts';
@@ -120,8 +120,10 @@ export class Economy {
     const reason = placementReason(site, this.state, occupants);
     if (reason) return { ok: false, message: reason };
     const obstacles = economyObstacles(this.state.depleted, farm ? this.state.sites : [...this.state.sites, site], this.state.buildings);
-    const warning = this.warehouseDoors().some(door => findPath(door, farm ? site : buildingDoor(site), .35, WORLD_BOUNDS, obstacles))
-      ? placementWarning(site, this.state) : '与仓库之间暂无通路，仍可建造';
+    const access=planPaths(farm?site:buildingDoor(site),this.warehouseDoors(),.35,WORLD_BOUNDS,obstacles);
+    // Unknown connectivity is not a failure and never blocks a manual build.
+    // The assigned worker resumes its own background plan once it is ready.
+    const warning = access===undefined ? '与仓库之间暂无通路，仍可建造' : placementWarning(site, this.state);
     if (farm) {
       this.state.plots.push({ id: site.id, x: site.x, z: site.z, tilled: false, growth: 0 });
       const result = this.request('till', site.id);
@@ -210,7 +212,7 @@ export class Economy {
   capacity(): Inventory {
     // Damage stops deliveries, not ownership of resources already stored.
     const count = 1+this.state.sites.filter(s=>s.kind==='warehouse'&&this.state.buildings.includes(s.id)).length;
-    const capacity = (key: Resource) => Math.max(C.capacity[key] * count, this.state.debug ? DEBUG_RESOURCES : 0);
+    const capacity = (key: Resource) => C.capacity[key] * count + (this.state.debug ? DEBUG_RESOURCES : 0);
     return { wood: capacity('wood'), stone: capacity('stone'), food: capacity('food'), iron: capacity('iron') };
   }
   taskFor(target: string) { return this.state.tasks.find(t => (t.target === target || t.cargo === target) && pending(t)); }
@@ -550,7 +552,7 @@ export function decodeEconomy(text: string): Economy {
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (typeof raw.debug !== 'boolean') throw new Error('调试存档无效');
   state.debug = raw.debug;
-  if (!raw.inventory || !resources.every(k => number(raw.inventory[k], Math.max(C.capacity[k] * 101, raw.debug ? DEBUG_RESOURCES : 0)) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
+  if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101 + (raw.debug ? DEBUG_RESOURCES : 0)) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12 + 10000) throw new Error('作业存档无效');
   // Explicitly taking over held work may briefly exceed the new-order limit.
   if (raw.tasks.filter(t => !pending(t)).length > 12) throw new Error('作业队列超出上限');

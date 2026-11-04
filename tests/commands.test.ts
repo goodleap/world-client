@@ -55,6 +55,15 @@ test('manual movement owns the farmer until arrival and resumes partial work wit
   assert.equal(build.status, 'done'); assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
   c.update(20); assert.deepEqual(e.state.buildings, ['site-0']);
 });
+test('a manual job waiting for its background path stays assigned and starts once the answer arrives',()=>{
+  const h=setup(),e=h.economy,plan=h.residents.planFarmerWork;
+  h.residents.planFarmerWork=()=>null;
+  const result=h.controller.command('farmer',{kind:'work',work:'harvest',target:'plot-0'});
+  assert(result.ok);const task=e.active()!;assert(task);assert.equal(task.origin,'manual');
+  h.controller.update(.5);assert.equal(e.active()?.id,task.id);assert.equal(task.retryAt,0);assert(!task.danger);assert.equal(h.starts(),0);
+  h.residents.planFarmerWork=plan;h.controller.update(.05);
+  assert.equal(h.residents.farmerWorkState()?.id,task.id);assert.equal(h.starts(),1);
+});
 
 test('direct work preempts automatic work, reuses queued tasks and preserves the interrupted progress', () => {
   const h = setup(), { economy: e, controller: c } = h;

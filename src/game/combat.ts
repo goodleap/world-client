@@ -41,6 +41,7 @@ export interface CampState { id: string; cleared: boolean; discovered: boolean; 
 export interface CombatState { camps: CampState[]; units: Fighter[]; projectiles: Projectile[]; nextAttack: number; discovered: boolean; cleared: boolean; rewardGranted: boolean; rewardGoods: string[] }
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const enemyDefinitions = new Map(ENEMIES.map(enemy => [enemy.id, enemy]));
+const campConfigs = new Map(ENCOUNTERS.map(c => [c.id,c]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
   return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : u.role === 'cavalry' ? C.enemyCavalry : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
@@ -82,11 +83,16 @@ export class Combat {
   private statCache = new Map<string, { level: number; rank: number; value: ReturnType<typeof fighterStats> }>();
   private motion = new Map<string, { position: Point; velocity: Point }>();
   private motionStep = .05;
+  private frameTargets?: { all:CombatTarget[]; home:CombatTarget[]; enemy:CombatTarget[]; byId:Map<string,CombatTarget>; cells:Map<string,CombatTarget[]>; padding:number };
+  private frameNeighbours = new Map<string,Neighbour[]>();
+  private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
+  private targetViews = new WeakMap<Fighter,CombatTarget>();
+  private neighbourViews = new WeakMap<Fighter,Map<string,Neighbour>>();
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
     this.units = new Map(state.units.map(unit => [unit.id, unit]));
   }
-  private camp(u: Fighter) { return ENCOUNTERS.find(c => c.id === enemyDefinitions.get(u.id)?.camp)
+  private camp(u: Fighter) { return campConfigs.get(enemyDefinitions.get(u.id)?.camp ?? '')
     ?? {...ENCOUNTERS[0],id:'raid',x:(u.defendFrom??u.position).x,z:(u.defendFrom??u.position).z,leash:C.chase,patrol:[]}; }
   private stats(u: Fighter) {
     const level = u.team === 'home' ? this.economy.state.upgrades.arms : 0, cached = this.statCache.get(u.id);
@@ -108,16 +114,53 @@ export class Combat {
   syncUnits() { this.units=new Map(this.state.units.map(u=>[u.id,u]));for(const u of this.threats)this.units.set(u.id,u); }
   unit(id: string) { return this.units.get(id) ?? this.state.units.find(u=>u.id===id); }
   setResidentPositions(read: (id: string) => Point) { this.residentPosition = read; }
-  private unitTarget(u:Fighter):CombatTarget { return {id:u.id,team:u.team,position:u.position,hp:u.hp,life:u.life,radius:fighterRadius(u),contactRadius:fighterContactRadius(u),canAttack:true,elevation:towerHeight(this.economy.state,u.id)}; }
-  targets(opponentsOf?:'home'|'enemy'): CombatTarget[] {
-    const neighbours = this.civilians();
-    return [...this.units.values()].filter(u=>!u.departed&&u.team!==opponentsOf).map(u=>this.unitTarget(u))
-      .concat(homeResidents(this.economy.state).filter(r => opponentsOf!=='home'&&!this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
-        position: this.residentPosition?.(r.id) ?? neighbours.find(n => n.id === r.id)?.position ?? this.economy.state.residents[r.id]?.position ?? r.spawn,
-        hp: this.economy.state.vitals[r.id].hp!, life: this.economy.state.vitals[r.id].hp! > 0 ? 'active' as const : 'defeated' as const,
-        radius: r.bodyRadius, canAttack: false, elevation:0 }))).concat(buildingList(this.economy.state).filter(b=>opponentsOf!=='home'&&b.built&&b.hp>0).map(b=>({id:b.id,team:'home' as const,position:{x:b.x,z:b.z},hp:b.hp,life:'active' as const,radius:Math.max(b.width,b.depth)/2,canAttack:this.economy.state.towers.some(t=>t.id===b.id&&t.phase==='occupied'),kind:'building' as const,elevation:0})));
+  private unitTarget(u:Fighter):CombatTarget {
+    let view=this.targetViews.get(u);
+    if(!view){
+      const state=this.economy.state;
+      view={id:u.id,get team(){return u.team;},get position(){return u.position;},get hp(){return u.hp;},get life(){return u.departed?'defeated':u.life;},
+        get radius(){return fighterRadius(u);},get contactRadius(){return fighterContactRadius(u);},canAttack:true,get elevation(){return towerHeight(state,u.id);}};
+      this.targetViews.set(u,view);
+    }
+    return view;
   }
-  target(id: string) { const unit=this.unit(id);return unit?(unit.departed?undefined:this.unitTarget(unit)):this.targets('enemy').find(t=>t.id===id); }
+  private collectTargets(): CombatTarget[] {
+    const state=this.economy.state, neighbours = this.residentPosition ? [] : this.civilians(), read=this.residentPosition;
+    return [...this.units.values()].filter(u=>!u.departed).map(u=>this.unitTarget(u))
+      .concat(homeResidents(state).filter(r => !this.unit(r.id)).map(r => ({ id: r.id, team: 'home' as const,
+        get position(){return read?.(r.id) ?? neighbours.find(n=>n.id===r.id)?.position ?? state.residents[r.id]?.position ?? r.spawn;},
+        get hp(){return state.vitals[r.id].hp!;}, get life(){return state.vitals[r.id].hp!>0?'active' as const:'defeated' as const;},
+        radius: r.bodyRadius, canAttack: false, elevation:0 })))
+      .concat(buildingList(state).filter(b=>b.built&&b.hp>0).map(b=>({id:b.id,team:'home' as const,position:{x:b.x,z:b.z},
+        get hp(){return buildingInfo(state,b.id)?.hp??0;}, get life(){return this.hp>0?'active' as const:'defeated' as const;},
+        radius:Math.max(b.width,b.depth)/2,canAttack:state.towers.some(t=>t.id===b.id&&t.phase==='occupied'),kind:'building' as const,elevation:0})));
+  }
+  targets(opponentsOf?:'home'|'enemy'): CombatTarget[] {
+    const frame=this.frameTargets;
+    if(frame)return opponentsOf==='home'?frame.enemy:opponentsOf==='enemy'?frame.home:frame.all;
+    return this.collectTargets().filter(t=>t.team!==opponentsOf);
+  }
+  private beginFrame(dt:number) {
+    const all=this.collectTargets(), cells=new Map<string,CombatTarget[]>();
+    let padding=0;
+    for(const t of all){
+      const key=`${Math.floor(t.position.x/8)},${Math.floor(t.position.z/8)}`;
+      const cell=cells.get(key);if(cell)cell.push(t);else cells.set(key,[t]);
+      const u=this.unit(t.id);if(u)padding=Math.max(padding,this.stats(u).speed*dt);
+    }
+    this.frameTargets={all,home:all.filter(t=>t.team==='home'),enemy:all.filter(t=>t.team==='enemy'),byId:new Map(all.map(t=>[t.id,t])),cells,padding};
+  }
+  nearbyTargets(u:Pick<Fighter,'position'|'team'>,radius:number) {
+    const frame=this.frameTargets;if(!frame)return this.targets(u.team);
+    // Earlier units may already have moved this step. Expand the cell query by
+    // the largest possible step; final targeting checks read live positions.
+    const range=radius+frame.padding, result:CombatTarget[]=[];
+    for(let z=Math.floor((u.position.z-range)/8);z<=Math.floor((u.position.z+range)/8);z++)
+      for(let x=Math.floor((u.position.x-range)/8);x<=Math.floor((u.position.x+range)/8);x++)
+        for(const t of frame.cells.get(`${x},${z}`)??[])if(t.team!==u.team)result.push(t);
+    return result;
+  }
+  target(id: string) { const cached=this.frameTargets?.byId.get(id);if(cached)return cached;const unit=this.unit(id);return unit?(unit.departed?undefined:this.unitTarget(unit)):this.targets('enemy').find(t=>t.id===id); }
   setThreats(threats: readonly Fighter[]) {
     this.threats = threats;
     this.units = new Map([...this.state.units, ...threats].map(u => [u.id, u]));
@@ -149,8 +192,21 @@ export class Combat {
   }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
   private neighbours(u: Fighter) {
-    return [...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units, ...this.threats].filter(n => n !== u && n.life !== 'defeated' && !n.departed && !occupiedTower(this.economy.state,n.id)).map(n => ({ id: n.id, position: n.position, radius: fighterRadius(n), heading:n.route.length?Math.atan2(n.route[0].x-n.position.x,n.route[0].z-n.position.z):n.facing,team:n.team,yield:n.team===u.team?(from:Point,toward:Point)=>this.yieldUnit(n,from,toward):undefined,
-      moving: n.speed > .08, purposeful: !!n.route.length, waiting: n.navigation.waiting }))];
+    let list=this.frameTargets?this.frameNeighbours.get(u.team):undefined;
+    if(!list){
+      list=[...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units,...this.threats].map(n=>{
+        let views=this.neighbourViews.get(n);if(!views){views=new Map();this.neighbourViews.set(n,views);}
+        let view=views.get(u.team);if(view)return view;
+        const team=u.team,yieldUnit=(from:Point,toward:Point)=>this.yieldUnit(n,from,toward);
+        view={id:n.id,get position(){return n.position;},get radius(){return fighterRadius(n);},
+          get heading(){return n.route.length?Math.atan2(n.route[0].x-n.position.x,n.route[0].z-n.position.z):n.facing;},get team(){return n.team;},
+          get yield(){return n.team===team?yieldUnit:undefined;},
+          get moving(){return n.speed>.08;},get purposeful(){return !!n.route.length;},get waiting(){return n.navigation.waiting;}};
+        views.set(team,view);return view;
+      })];
+      if(this.frameTargets)this.frameNeighbours.set(u.team,list);
+    }
+    return list.filter(n=>{const other=this.unit(n.id);return n.id!==u.id&&(!other||other.life!=='defeated'&&!other.departed&&!occupiedTower(this.economy.state,n.id));});
   }
   yieldUnit(u:Fighter,from:Point,toward:Point){
     if(u.life!=='active'||u.goal||u.route.length||u.attack||u.target||this.economy.active(u.id)||this.economy.state.vitals[u.id]?.rest||assignedTower(this.economy.state,u.id))return false;
@@ -162,9 +218,10 @@ export class Combat {
   }
 
   private reservations(u: Fighter) {
-    return this.neighbours(u).map(n => ({ ...n, destination: fighterDestination(this.unit(n.id)) ?? (n as {destination?:Point}).destination }));
+    return this.neighbours(u).map(n => ({ position:n.position, radius:n.radius,
+      destination: fighterDestination(this.unit(n.id)) ?? (n as {destination?:Point}).destination }));
   }
-  private stop(u: Fighter) { u.attackApproach = undefined; u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
+  private stop(u: Fighter) { this.planning.delete(u.id);u.attackApproach = undefined; u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
   movementInput(id:string,goal:Point){
     const u=this.controllable([id])[0];if(!u)return;
     const tower=occupiedTower(this.economy.state,u.id);
@@ -174,17 +231,18 @@ export class Combat {
     return {start:{x:start.x,z:start.z},goal:{x:goal.x,z:goal.z},radius:fighterRadius(u),bounds:WORLD_BOUNDS,solids:this.solids(),
       neighbours:this.reservations(u).map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined})),exit};
   }
-  private movePlan(u:Fighter,goal:Point,exact:boolean,prepared?:readonly Point[]){
+  private movePlan(u:Fighter,goal:Point,exact:boolean,prepared?:readonly Point[],waitForArrival=false){
     const p=this.movementInput(u.id,goal);if(!p)return;
+    if(waitForArrival)p.neighbours=[];
     const path=prepared?validateNavigation(p,prepared):exact?planWorkApproach(p.start,[goal],p.radius,p.bounds,p.solids,p.neighbours)
       :planMoveDestination(p.start,goal,p.radius,p.bounds,p.solids,p.neighbours);
-    return path?{path,exit:p.exit}:undefined;
+    return path!==undefined?{path,exit:p.exit}:undefined;
   }
-  canMoveTo(id:string,point:Point){
+  canMoveTo(id:string,point:Point,waitForArrival=false){
     const u=this.controllable([id])[0];
-    return !!u&&Number.isFinite(point.x)&&Number.isFinite(point.z)&&!!this.movePlan(u,point,true);
+    return !!u&&Number.isFinite(point.x)&&Number.isFinite(point.z)&&!!this.movePlan(u,point,true,undefined,waitForArrival);
   }
-  move(ids: readonly string[], point: Point, retreat = false, rest = false, preserveTower = false, exact = false,prepared?:readonly Point[]) {
+  move(ids: readonly string[], point: Point, retreat = false, rest = false, preserveTower = false, exact = false,prepared?:readonly Point[],waitForArrival=false) {
     let accepted = 0;
     for (const u of this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life !== 'defeated')) {
       const requested = retreat ? u.home : point;
@@ -193,9 +251,9 @@ export class Combat {
       // Copy coordinates explicitly before pathfinding: a direct path retains
       // its destination, and spreading a Vector3 loses x/z in live goals/saves.
       const goal: Point = { x: requested.x, z: requested.z };
-      const tower=assignedTower(this.economy.state,u.id),plan=this.movePlan(u,goal,rest||exact,prepared);
-      if(!plan)continue;
-      const {path,exit}=plan;
+      const tower=assignedTower(this.economy.state,u.id),plan=this.movePlan(u,goal,rest||exact,prepared,waitForArrival);
+      if(!plan||plan.path===null&&!exact&&!rest)continue;
+      const {exit}=plan,path=plan.path??[];
       if(exit)u.position={...exit};
       if(tower){if(rest){tower.phase='meal';}else if(!preserveTower)releaseTower(this.economy.state,u.id);this.economy.revision++;}
       // Cancelling the windup never refunds the committed cooldown.
@@ -240,12 +298,14 @@ export class Combat {
    * Keep an attackable opponent and finish a committed action before switching. */
   nearbyOpponent(u: Fighter, current: CombatTarget | undefined) {
     if (!current && !u.provoked || u.attack || current?.life === 'active' && ((u.targetSwitchIn ?? 0) > 0 || this.canStrike(u, current))) return;
-    return chooseTarget(u, this.targets(u.team), occupiedTower(this.economy.state, u.id) ? TOWER_CONFIG.range : C.acquire,
+    const radius=occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:C.acquire;
+    return chooseTarget(u, this.nearbyTargets(u,radius), radius,
       t => t.id !== current?.id && t.canAttack && t.kind !== 'building' && this.canTarget(u, t) && this.canStrike(u, t));
   }
   private damage(victim: CombatTarget, amount: number, sourceId: string, ignoreArmor = false) {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
+    const beforeHP=victim.hp;
     if(victim.kind==='building'){
       const building=buildingInfo(this.economy.state,victim.id)!,damage=hitDamage(amount,building.armor);
       if(building.kind==='tower')damageTower(this.economy,victim.id,damage,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});
@@ -263,7 +323,7 @@ export class Combat {
     const target = this.unit(victim.id);
     if (!target) {
       changeHealth(this.economy.state, victim.id, -hitDamage(amount));
-      this.awardDamage(sourceId, victim.hp - this.economy.state.vitals[victim.id].hp!);
+      this.awardDamage(sourceId, beforeHP - this.economy.state.vitals[victim.id].hp!);
       this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
       if (!this.economy.state.vitals[victim.id].hp) {
         this.economy.interrupt(victim.position, victim.id);
@@ -274,12 +334,12 @@ export class Combat {
       this.economy.revision++; return;
     }
     target.hp = Math.max(0, target.hp - hitDamage(amount, ignoreArmor ? 0 : this.stats(target).armor));
-    if (enemyDefinitions.has(target.id) && target.hp < victim.hp) target.pursuitQuiet = 0;
-    this.awardDamage(sourceId, victim.hp - target.hp);
+    if (enemyDefinitions.has(target.id) && target.hp < beforeHP) target.pursuitQuiet = 0;
+    this.awardDamage(sourceId, beforeHP - target.hp);
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
       const aggressor = source && this.retaliationTarget(target, source), current = target.target ? this.target(target.target) : undefined;
-      if (aggressor?.team === 'home' && aggressor.life === 'active' && target.hp < victim.hp
+      if (aggressor?.team === 'home' && aggressor.life === 'active' && target.hp < beforeHP
         && this.canRetaliate(target, current)) {
         if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
         target.target = aggressor.id;
@@ -295,7 +355,7 @@ export class Combat {
       // Damage is its own trigger. Home movement keeps player authority; enemy
       // automatic approaches/returns can respond even outside passive alert.
       const commanded = target.team === 'home' && (['move', 'retreat'].includes(target.order) || target.order === 'hold' && !!target.goal);
-      if (target.hp < victim.hp && aggressor?.life === 'active' && hostile(target, aggressor) && !commanded
+      if (target.hp < beforeHP && aggressor?.life === 'active' && hostile(target, aggressor) && !commanded
         && !(target.team === 'enemy' && target.order === 'retreat')
         && this.canRetaliate(target, current)) {
         if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
@@ -334,8 +394,18 @@ export class Combat {
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
   }
   private plan(u: Fighter, points: Point[]) {
-    u.planIn = .8; u.attackApproach = undefined;
-    u.route = planWorkApproach(u.position, points, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
+    const intent=`${u.order}/${u.target??''}/${u.goal?.x}/${u.goal?.z}`;
+    let pending=this.planning.get(u.id);
+    if(!pending||pending.intent!==intent)pending={intent,start:{...u.position},points};
+    // The tower already reserves its sole garrison. A transient person at the
+    // ladder is handled by the normal collision/yield follower, not a failed
+    // endpoint reservation. Static obstacles still participate in every sweep.
+    const solids=this.solids(),neighbours=assignedTower(this.economy.state,u.id)?.phase==='approach'?[]:this.reservations(u),radius=fighterRadius(u);
+    const path=planWorkApproach(pending.start,pending.points,radius,WORLD_BOUNDS,solids,neighbours);
+    if(path===null){this.planning.set(u.id,pending);u.planIn=.05;return false;}
+    this.planning.delete(u.id);u.planIn=.8;u.attackApproach=undefined;
+    u.route=path?validateNavigation({start:u.position,goal:path.at(-1)!,radius,bounds:WORLD_BOUNDS,solids,neighbours},path)??[]:[];
+    return true;
   }
   private sampleMotion(dt: number) {
     const next = new Map<string, { position: Point; velocity: Point }>();
@@ -392,14 +462,15 @@ export class Combat {
     const directClear=segmentIsClear(u.position,direct,fighterRadius(u),WORLD_BOUNDS,obstacles);
     if (u.attackApproach && !this.visible(u.attackApproach, target.position, u.id, target.id)) u.planIn = 0;
     if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours) && directClear) {
+      this.planning.delete(u.id);
       u.attackApproach = direct;
       u.route = [direct, { x: target.position.x, z: target.position.z }];
     } else if (u.planIn <= 0) {
       const points = Array.from({ length: 12 }, (_, i) => ({ x: target.position.x + Math.cos(i * Math.PI / 6) * radius,
         z: target.position.z + Math.sin(i * Math.PI / 6) * radius }))
         .filter(p => this.visible(p, target.position, u.id, target.id));
-      this.plan(u, points);
-      if (u.route.length) {
+      const completed=this.plan(u, points);
+      if (completed && u.route.length) {
         u.attackApproach = { ...u.route.at(-1)! };
         u.route.push({ x: target.position.x, z: target.position.z });
       }
@@ -415,7 +486,11 @@ export class Combat {
     this.syncUnits();
     // Bound catch-up. The game feeds the same active delta to every system.
     let remaining = Math.min(seconds, .25);
-    while (remaining > 1e-8) { const dt = Math.min(remaining, .05); this.tick(dt); remaining -= dt; }
+    while (remaining > 1e-8) {
+      const dt = Math.min(remaining, .05); this.beginFrame(dt);
+      try{this.tick(dt);}finally{this.frameTargets=undefined;this.frameNeighbours.clear();}
+      remaining -= dt;
+    }
   }
   private tick(dt: number) {
     this.sampleMotion(dt);
@@ -476,7 +551,7 @@ export class Combat {
         // Existing opponents were evaluated above using actual attack reach,
         // not just alert range. Acquire normally only when no target remains.
         if (!target) {
-          const candidate = chooseTarget(u, this.targets(u.team), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
+          const candidate = chooseTarget(u, this.nearbyTargets(u,stationary?TOWER_CONFIG.range:C.acquire), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
             && this.visible(u.position,t.position,u.id,t.id));
           if (candidate) target = candidate;
         }
@@ -493,7 +568,7 @@ export class Combat {
         const nearby = (t: CombatTarget) => this.canTarget(u, t)
           && distance(u.position, t.position) <= Math.min(C.campPursuit.returnAttackRange, this.reach(u, t))
           && this.visible(u.position, t.position, u.id, t.id);
-        target = opponent && nearby(opponent) ? opponent : chooseTarget(u, this.targets(u.team), C.campPursuit.returnAttackRange, nearby);
+        target = opponent && nearby(opponent) ? opponent : chooseTarget(u, this.nearbyTargets(u,C.campPursuit.returnAttackRange), C.campPursuit.returnAttackRange, nearby);
         u.target = target?.id;
       }
       // A returning guard may strike in place, but keeps its home destination
@@ -567,7 +642,7 @@ export class Combat {
     }
     for (const camp of this.state.camps) {
       const config = ENCOUNTERS.find(c => c.id === camp.id)!;
-      const units = this.state.units.filter(u => u.team === 'enemy' && this.camp(u).id === camp.id);
+      const units = this.state.units.filter(u => u.team === 'enemy' && enemyDefinitions.get(u.id)?.camp === camp.id);
       if (!camp.cleared && units.every(u => u.life === 'defeated')) {
         camp.cleared = camp.discovered = true;
         camp.respawnAt = config.repeat ? this.economy.state.seconds + config.repeat : 0;

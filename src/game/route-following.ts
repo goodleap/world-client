@@ -2,6 +2,7 @@ import { bodyObstacle } from './body-shape.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { isBlocked } from './movement.ts';
 import { findPath } from './pathfinding.ts';
+import { planPath } from './path-planner.ts';
 import { segmentIsClear } from './wander.ts';
 
 export interface Neighbour { id: string; position: Point; radius: number; moving: boolean; purposeful: boolean; waiting: boolean; heading?:number; team?:string; yield?:(from:Point,toward:Point)=>boolean }
@@ -26,6 +27,10 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
   if (!dt || !route.length || speed <= 0) return stopped();
   while(route.length&&distance(position,route[0])<1e-8)route.shift();
   if(!route.length)return stopped();
+  // Dynamic avoidance is local. Keep destination occupants as well, so a distant
+  // reserved endpoint cannot be mistaken for a free arrival position.
+  const destination=route.at(-1)!;
+  neighbours=neighbours.filter(n=>distance(position,n.position)<=Math.max(12,speed*dt)+radius+n.radius || distance(destination,n.position)<=radius+n.radius+.1);
   state.replanIn = Math.max(0, state.replanIn - dt);
   state.retryIn = Math.max(0, state.retryIn - dt);
   const wait = (duration = .35) => { state.waiting = true; state.waited += dt; state.retryIn = duration; return stopped(); };
@@ -164,7 +169,9 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
     if (!detour && idle?.yield?.(position,route[0])) return wait(.2);
     if (!detour && solidBlocked) {
       state.searches++;
-      detour = findPath(position, destination, radius, bounds, solids);
+      const planned=planPath(position,destination,radius,bounds,solids);
+      if(planned===null){state.replanIn=0;return wait(.05);}
+      detour = planned;
       if (!detour) return stopped(true);
     } else if (!detour && !occupiedGoal) {
       // At most 33 x 33 cells, instead of allocating/searching the 100-cell map

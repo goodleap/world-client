@@ -1,7 +1,8 @@
 import { bodyObstacle } from './body-shape.ts';
 import { isBlocked } from './movement.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
-import { findPath, findPathToGoals, PATH_CELL_SIZE } from './pathfinding.ts';
+import { PATH_CELL_SIZE } from './pathfinding.ts';
+import { planPaths, planMoveInBackground } from './path-planner.ts';
 import { inBounds, segmentIsClear } from './wander.ts';
 
 export interface WorkNeighbour { position: Point; radius: number; destination?: Point }
@@ -18,10 +19,7 @@ export function planWorkApproach(start: Point, points: readonly Point[], radius:
   solids: readonly Obstacle[], neighbours: readonly WorkNeighbour[]) {
   const ordered = points.filter(p => !occupiedApproach(p, radius, neighbours))
     .sort((a, b) => Math.hypot(a.x - start.x, a.z - start.z) - Math.hypot(b.x - start.x, b.z - start.z));
-  for (const point of ordered) {
-    const path = findPath(start, point, radius, bounds, solids);
-    if (path) return path;
-  }
+  return planPaths(start,ordered,radius,bounds,solids);
 }
 
 export const MOVE_DESTINATION_RADIUS = 6;
@@ -34,6 +32,8 @@ export function planMoveDestination(start: Point, point: Point, radius: number, 
   if (![start.x,start.z,point.x,point.z].every(Number.isFinite)) return;
   const valid = (p: Point) => inBounds(p, radius, bounds) && !isBlocked(p, radius, solids) && !occupiedApproach(p, radius, neighbours);
   if (valid(point) && segmentIsClear(start, point, radius, bounds, solids)) return [{x:point.x,z:point.z}];
+  const deferred=planMoveInBackground(start,point,radius,bounds,solids,neighbours);
+  if(deferred!==false)return deferred;
   const distance = (p: Point) => Math.hypot(p.x-point.x,p.z-point.z);
   const candidates: Point[] = [];
   const cell = PATH_CELL_SIZE, range = MOVE_DESTINATION_RADIUS;
@@ -46,8 +46,8 @@ export function planMoveDestination(start: Point, point: Point, radius: number, 
   candidates.sort((a,b)=>distance(a)-distance(b) || Math.hypot(a.x-start.x,a.z-start.z)-Math.hypot(b.x-start.x,b.z-start.z));
   // Copy explicitly: engine picking vectors expose x/z through accessors.
   if (valid(point)) candidates.unshift({x:point.x,z:point.z});
-  const path = findPathToGoals(start, candidates, radius, bounds, solids);
-  if (!path) return;
+  const path = planPaths(start, candidates, radius, bounds, solids);
+  if (!path) return path;
   const end = path.at(-1)!;
   if (distance(end)<1e-6) return path;
   // Refine the grid endpoint towards the click while keeping a clear swept

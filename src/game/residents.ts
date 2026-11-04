@@ -475,7 +475,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       resetRouteState(actor.navigation);
       return true;
     },
-    planFarmerWork(points: readonly Point[], unit = farmer.definition.id): Point[] | undefined {
+    planFarmerWork(points: readonly Point[], unit = farmer.definition.id): Point[] | undefined | null {
       const farmer = actors.find(a => a.definition.id === unit)!;
       return planWorkApproach(farmer.state.position, points, farmer.settings.bodyRadius, farmer.settings.bounds, worldObstacles(), workNeighbours(farmer));
     },
@@ -564,8 +564,10 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             if (!last || Math.hypot(last.x - goal.x, last.z - goal.z) > .001 || !safe) {
               // One bounded target attempt per stroll/retry. The same shared
               // areas guard planning and the follower's later crowd detours.
-              actor.wanderRoute = planWorkApproach(actor.state.position, [goal], actor.settings.bodyRadius,
-                actor.settings.bounds, solids, workNeighbours(actor)) ?? [];
+              const planned=planWorkApproach(actor.state.position,[goal],actor.settings.bodyRadius,
+                actor.settings.bounds,solids,workNeighbours(actor));
+              if(planned===null)return {position:actor.state.position,unreachable:false};
+              actor.wanderRoute = planned ?? [];
               resetRouteState(actor.wanderNavigation);
               if (!actor.wanderRoute.length) return { position: actor.state.position, unreachable: true };
             }

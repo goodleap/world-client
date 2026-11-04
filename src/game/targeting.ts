@@ -9,9 +9,16 @@ export interface CombatTarget {
 export const hostile = (a: Pick<CombatTarget, 'team'>, b: Pick<CombatTarget, 'team'>) => a.team !== b.team;
 export function chooseTarget(actor: Pick<CombatTarget, 'team' | 'position'>, candidates: readonly CombatTarget[],
   radius: number, eligible: (target: CombatTarget) => boolean = () => true) {
-  return candidates.filter(t => hostile(actor, t) && t.life === 'active' && t.hp > 0
-    && Math.hypot(t.position.x - actor.position.x, t.position.z - actor.position.z) <= radius && eligible(t))
-    .sort((a, b) => Number(b.canAttack) - Number(a.canAttack)
-      || Math.hypot(a.position.x - actor.position.x, a.position.z - actor.position.z) - Math.hypot(b.position.x - actor.position.x, b.position.z - actor.position.z)
-      || a.id.localeCompare(b.id))[0];
+  if(!(radius>=0))return;
+  let best: CombatTarget | undefined, bestDistance = Infinity;
+  for (const t of candidates) {
+    if (!hostile(actor,t) || t.life !== 'active' || t.hp <= 0) continue;
+    const d = (t.position.x-actor.position.x)**2 + (t.position.z-actor.position.z)**2;
+    if (d > radius*radius) continue;
+    // Check expensive LOS/attack eligibility only if this candidate could win.
+    if (best && (Number(t.canAttack) < Number(best.canAttack) || t.canAttack === best.canAttack
+      && (d > bestDistance || d === bestDistance && t.id.localeCompare(best.id) >= 0))) continue;
+    if (eligible(t)) { best=t; bestDistance=d; }
+  }
+  return best;
 }

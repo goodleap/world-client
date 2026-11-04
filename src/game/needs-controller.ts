@@ -19,7 +19,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
  * Movement still uses the existing crowd routes; manual orders always interrupt. */
 export function createNeedsController(e: Economy, residents: Residents, combat: Combat,
   storageUse: (from: Point) => void = () => {}, routes?: {
-    plan(id: string, goal: Point): Point[] | undefined;
+    plan(id: string, goal: Point): Point[] | undefined | null;
     current(id: string): readonly Point[];
   }) {
   const notes = new Map<string, string>();
@@ -41,16 +41,19 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
       && !u?.attack && !u?.target && u?.order !== 'move' && u?.order !== 'retreat';
   };
   function move(id: string, points: Point[]) {
+    let pending=false;
     for (const point of points) {
       const u = combat.unit(id);
       if (pathInDanger(e.state.dangerZones, [point])) continue;
       const path = routes?.plan(id, point);
+      if(path===null){pending=true;continue;}
       if ((routes && !path) || pathInDanger(e.state.dangerZones, [position(id), ...(path ?? [point])])) continue;
       if (u ? combat.move([id], point, false, true, false, true, path) > 0 : residents.command(point, id, true, path)) {
         const goal = u?.goal ?? status(id).goal ?? point;
         return { x: goal.x, z: goal.z };
       }
     }
+    return pending?null:undefined;
   }
   function finish(id: string, stop = true) {
     const v = e.state.vitals[id];
@@ -69,6 +72,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     return takeSeat(id,available(id).filter(f=>!preferred||f.id===preferred));
   }
   function takeSeat(id:string,fires:typeof e.state.campfires){
+    let pending=false;
     const candidates=[...fires].sort((a,b)=>Number(readyToServe(id,b))-Number(readyToServe(id,a))
       || distance(position(id), e.state.sites.find(s => s.id === a.id)!) - distance(position(id), e.state.sites.find(s => s.id === b.id)!));
     for (const fire of candidates) {
@@ -78,13 +82,13 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         const angle = (i + .5) * Math.PI * 2 / F.seats;
         const point = { x: site.x + Math.cos(angle) * F.seatRadius, z: site.z + Math.sin(angle) * F.seatRadius };
         if (Object.entries(e.state.vitals).some(([other, v]) => other !== id && v.rest && distance(v.rest.goal, point) < 2.4)) continue;
-        const goal = move(id, [point]); if (!goal) continue;
+        const goal = move(id, [point]); if(goal===null)pending=true;if (!goal) continue;
         e.state.vitals[id].rest = { camp: fire.id, goal };
         residents.setResting(id, true); notes.delete(id); e.revision++;
         return { ok: true, message: '前往火堆进食休整' };
       }
     }
-    return { ok: false, message: '需要可到达、已开启的供餐火堆' };
+    return { ok: false, pending, message: '需要可到达、已开启的供餐火堆' };
   }
   function supplyPoints(id: string, rest: Rest) {
     const task = e.state.tasks.find(t => t.id === rest.supply);
@@ -99,7 +103,9 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
   }
   function routeSupply(id: string, rest: Rest) {
     const points = supplyPoints(id, rest);
-    rest.supplyGoal = move(id, points);
+    const goal=move(id,points);
+    if(goal===null)return false;
+    rest.supplyGoal = goal;
     if (rest.supplyGoal) return true;
     const task = e.state.tasks.find(t => t.id === rest.supply)!;
     if (points.some(p => pathInDanger(e.state.dangerZones, [position(id), p]))) {
@@ -160,7 +166,8 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
         if (!vital.rest) {
           residents.setResting(r.id, false); notes.delete(r.id);
           if (free(r.id) && hungry(r.id)) {
-            if (!request(r.id).ok) vital.retryAt = e.state.seconds + V.retrySeconds;
+            const result=request(r.id);
+            if (!result.ok && !('pending' in result && result.pending)) vital.retryAt = e.state.seconds + V.retrySeconds;
           }
           continue;
         }

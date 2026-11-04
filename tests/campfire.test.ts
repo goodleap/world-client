@@ -201,9 +201,10 @@ test('fire seats fit the mounted horse and retain reachable approaches on the re
   const { economyObstacles } = await import('../src/game/economy-config.ts');
   const { planWorkApproach } = await import('../src/game/work-navigation.ts');
   const { WORLD_BOUNDS } = await import('../src/game/world-data.ts');
-  const e = new Economy(); assert(e.placeBuilding('campfire', { x: -10, z: -10 }).ok); const site = e.state.sites[0];
+  const e = new Economy(); e.state.inventory.stone=20;
+  assert(e.placeBuilding('campfire', { x: -10, z: -10 }).ok); const site = e.state.sites[0];
   const seats = Array.from({ length: F.seats }, (_, i) => ({ x: site.x + Math.cos((i + .5) * Math.PI * 2 / F.seats) * F.seatRadius, z: site.z + Math.sin((i + .5) * Math.PI * 2 / F.seats) * F.seatRadius }));
-  const path = planWorkApproach({ x: -3.5, z: -10 }, seats, 1.12, WORLD_BOUNDS, economyObstacles([], e.state.sites), []);
+  const path = planWorkApproach({ x: -3.5, z: -10 }, seats, .6, WORLD_BOUNDS, economyObstacles([], e.state.sites), []);
   assert(path, 'mounted rider must have a reachable feeding place'); assert(seats.some(s => Math.hypot(s.x - path.at(-1)!.x, s.z - path.at(-1)!.z) < .01));
 });
 
