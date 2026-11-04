@@ -69,7 +69,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     const saved = mode === 'continue' ? readSavedGame() : undefined;
     if (saved && saved.status !== 'ready') { menu(); return; }
     const economy = saved?.status === 'ready' ? saved.economy : new Economy();
-    launcher.beginGame();
+    launcher.beginGame(mode);
     await nextPaint();
     const { createGame } = await prepareGame();
     if (disposed) return;

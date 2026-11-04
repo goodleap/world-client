@@ -1,0 +1,88 @@
+{
+  "elapsed": 25494,
+  "phase": "playing",
+  "peakHeap": 332234240,
+  "peakBacking": 153242628,
+  "retained": {
+    "usedSize": 285881164,
+    "totalSize": 287797248,
+    "embedderHeapUsedSize": 2699328,
+    "backingStorageSize": 141015277
+  },
+  "peaksByProcess": [
+    {
+      "type": "renderer",
+      "rssKB": 712092,
+      "pssKB": 665713
+    },
+    {
+      "type": "GPU",
+      "rssKB": 502040,
+      "pssKB": 476187
+    }
+  ],
+  "gl": [
+    {
+      "capacity": 165264196,
+      "peak": 165264196,
+      "created": 15992,
+      "deleted": 9730,
+      "shaderCompiles": 80,
+      "programLinks": 40
+    }
+  ],
+  "largestTasks": [
+    {
+      "duration": 1775,
+      "percent": "94.1%",
+      "stage": "材质、纹理与着色器就绪",
+      "heap": 465883321
+    },
+    {
+      "duration": 1532,
+      "percent": "99%",
+      "stage": "首帧显示",
+      "heap": 470532805
+    },
+    {
+      "duration": 1024,
+      "percent": "24.7%",
+      "stage": "正在下载模型资源…",
+      "heap": 177632242
+    },
+    {
+      "duration": 630,
+      "percent": "25%",
+      "stage": "正在准备界面…",
+      "heap": 33302715
+    },
+    {
+      "duration": 549,
+      "percent": "63.1%",
+      "stage": "正在完成当前阶段…",
+      "heap": 333927037
+    },
+    {
+      "duration": 288,
+      "percent": "100%",
+      "stage": "家园已准备好",
+      "heap": 467771202
+    },
+    {
+      "duration": 268,
+      "percent": "100%",
+      "stage": "家园已准备好",
+      "heap": 504979480
+    },
+    {
+      "duration": 255,
+      "percent": "62.2%",
+      "stage": "正在完成当前阶段…",
+      "heap": 212908979
+    }
+  ],
+  "errors": [],
+  "navigations": 1,
+  "crashes": [],
+  "requests": []
+}

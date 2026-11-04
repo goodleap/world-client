@@ -27,12 +27,14 @@ test('pending engine code is named, can be diagnosed or reloaded, and is shared 
     expect(await page.locator('#game').count()).toBe(0);
     await page.getByRole('button', { name: '复制加载诊断' }).click();
     const pending = await page.evaluate(() => JSON.parse((window as unknown as { copied: string }).copied));
-    const request = pending.loading.find((item: { name: string }) => item.name.includes('engine-'));
+    const request = pending.loading.issues.find((item: { name: string }) => item.name.includes('engine-'));
     expect(request.state).toBe('working');
     expect(request.loaded).toBeUndefined();
-    expect(request.request.url).toMatch(/\/assets\/engine-.+\.js$/);
-    expect(pending.loading.find((item: { id: string }) => item.id === 'engine').state).toBe('working');
-    expect(pending.loading.some((item: { id: string }) => item.id.endsWith('.glb'))).toBe(false);
+    expect(request.id).toMatch(/\/assets\/engine-.+\.js$/);
+    expect(pending.loading.issues.find((item: { id: string }) => item.id === 'engine').state).toBe('working');
+    expect(pending.loading.issues.some((item: { id: string }) => item.id.endsWith('.glb'))).toBe(false);
+    expect(pending.startup.current.status).toBe('loading');
+    expect(pending.startup.current.build).toBe(pending.build);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath('wechat-size-engine-wait.png'), fullPage: true });
     release();
@@ -42,12 +44,14 @@ test('pending engine code is named, can be diagnosed or reloaded, and is shared 
     await page.locator('#loading-details summary').click();
     await page.getByRole('button', { name: '复制加载诊断', exact: true }).click();
     const ready = await page.evaluate(() => JSON.parse((window as unknown as { copied: string }).copied));
-    const finished = ready.loading.find((item: { name: string }) => item.name.includes('engine-'));
-    expect(finished.state).toBe('done');
-    expect(finished.loaded).toBeGreaterThan(0);
-    expect(finished.total).toBe(finished.loaded);
-    expect(finished.request.responseEndMs).toBeGreaterThan(finished.request.startMs);
-    expect(ready.loading.find((item: { id: string }) => item.id === 'engine').state).toBe('done');
+    // Completed individual requests are summarized in schema 2. Check this
+    // engine request in the retained detail row and the aggregate stage log.
+    expect(ready.loading.issues.some((item: { id: string; name: string }) => item.id === 'engine' || item.name.includes('engine-'))).toBe(false);
+    await expect(page.locator('#loading-items li').filter({ hasText: '代码文件 · engine-' })).toHaveAttribute('data-state', 'done');
+    expect(ready.loading.downloads.bodyBytes).toBeGreaterThan(0);
+    expect(ready.loading.downloads.codeSpanMs).toBeGreaterThan(0);
+    expect(ready.loading.stages.engine.count).toBe(1);
+    expect(ready.startup.current.status).toBe('ready');
     expect(engineRequests).toBe(1);
   } finally { release(); }
 });
@@ -61,7 +65,9 @@ test('engine HTTP errors identify the file and retain reload', async ({ page }) 
   await expect(page.getByRole('button', { name: '重新加载' })).toBeVisible();
   await page.getByRole('button', { name: '复制加载诊断' }).click();
   const data = await page.evaluate(() => JSON.parse((window as unknown as { copied: string }).copied));
-  expect(data.loading.find((item: { name: string }) => item.name.includes('engine-')).state).toBe('failed');
+  expect(data.loading.issues.find((item: { name: string }) => item.name.includes('engine-')).state).toBe('failed');
+  expect(data.startup.current.status).toBe('error');
+  expect(data.startup.current.error).toBeTruthy();
 });
 
 test('completed WebKit-style zero-size module timings do not remain downloading', async ({ page }) => {

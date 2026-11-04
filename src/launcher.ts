@@ -1,6 +1,8 @@
 import { loadingProgress, byteLabel } from './loading-progress.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
 import { compactLoadingLog } from './loading-log.ts';
+import { loadingHistory } from './loading-history.ts';
+import { readJSHeapMB } from './game/heap-memory.ts';
 export type ReportProgress = (percent: number, description: string) => void;
 export type StartMode = 'new' | 'continue';
 type SaveStatus = 'ready' | 'empty' | 'invalid' | 'unavailable';
@@ -24,6 +26,16 @@ export function createLauncher() {
   screen.querySelector('.launch-content')!.append(details);
   const status = document.createElement('p'); status.id = 'loading-status'; status.setAttribute('role', 'status');
   details.querySelector('summary')!.after(status);
+  const previous = loadingHistory.snapshot().previous;
+  if (previous && previous.status !== 'ready') {
+    const note = document.createElement('p'); note.id = 'previous-loading';
+    note.textContent = `上次加载${previous.status === 'error' ? '失败' : '未完成'}：${previous.percent}% · ${previous.stage}。复制诊断可一并保留这条记录。`;
+    status.after(note);
+  }
+  document.addEventListener('webglcontextlost', () => loadingHistory.event('context-lost'), { capture: true, signal: abort.signal });
+  document.addEventListener('webglcontextrestored', () => loadingHistory.event('context-restored'), { capture: true, signal: abort.signal });
+  window.addEventListener('pagehide', () => loadingHistory.event('pagehide'), { signal: abort.signal });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) loadingHistory.event('hidden'); }, { signal: abort.signal });
   const rows = new Map<string, HTMLLIElement>();
   const renderDetails = () => {
     if (screen.dataset.phase === 'playing' || screen.dataset.phase === 'exited') return;
@@ -60,6 +72,7 @@ export function createLauncher() {
     progress.textContent = `${percent}%`;
     get('loading-percent').textContent = `${percent}%`;
     get('loading-description').textContent = description;
+    if (screen.dataset.phase === 'game-loading') loadingHistory.checkpoint(percent, description, readJSHeapMB());
   };
   const unsubscribe = loadingProgress.subscribe(() => {
     if (screen.dataset.phase !== 'game-loading') return;
@@ -70,7 +83,7 @@ export function createLauncher() {
   });
   for (const [id, name, weight] of [['engine', '游戏引擎与代码准备', 8], ['map', '地图与基础材质构建', 12],
     ['shaders', '材质、纹理与着色器就绪', 5], ['first-frame', '首帧显示', 1]] as const) loadingProgress.plan(id, name, weight);
-  get('retry-loading').addEventListener('click', () => location.reload(), { signal: abort.signal });
+  get('retry-loading').addEventListener('click', () => { loadingHistory.event('manual-retry'); location.reload(); }, { signal: abort.signal });
   const enter = (mode: StartMode) => {
     if (start.disabled || mode === 'continue' && resume.disabled) return;
     start.disabled = true; resume.disabled = true; onStart(mode);
@@ -105,7 +118,8 @@ export function createLauncher() {
       button.addEventListener('click', onMenu, { once: true, signal: abort.signal });
       button.focus({ preventScroll: true });
     },
-    beginGame() {
+    beginGame(mode: StartMode = 'new') {
+      loadingHistory.begin(diagnosticContext().build, mode);
       details.open = false;
       percent = 0; loadingProgress.resetGame();
       screen.className = 'loading game-loading'; screen.dataset.phase = 'game-loading';
@@ -118,9 +132,11 @@ export function createLauncher() {
     },
     ready() {
       report(100, '家园已准备好');
+      loadingHistory.ready();
       screen.dataset.phase = 'playing'; screen.classList.add('loaded');
     },
     error(error: unknown) {
+      loadingHistory.fail(error);
       for (const item of loadingProgress.items.values()) if (item.kind === 'stage' && item.state === 'working') loadingProgress.fail(item.id, error);
       screen.dataset.phase = 'error'; panel.hidden = false; menu.hidden = true;
       get('loading-title').textContent = '暂时无法打开家园';

@@ -1,0 +1,17 @@
+[
+  {
+    "role": "infantry",
+    "view": "game",
+    "completed": 2
+  },
+  {
+    "role": "archer",
+    "view": "game",
+    "completed": 2
+  },
+  {
+    "role": "cavalry",
+    "view": "game",
+    "completed": 2
+  }
+]

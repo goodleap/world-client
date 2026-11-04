@@ -1,3 +1,5 @@
+import { loadingHistory } from './loading-history.ts';
+
 /** Called directly from a user gesture; the fallback also works inside a modal. */
 export async function copyDiagnostics(text: string, host: HTMLElement): Promise<boolean> {
   try {
@@ -18,6 +20,7 @@ export async function copyDiagnostics(text: string, host: HTMLElement): Promise<
 declare const __BUILD_ID__: string;
 export function diagnosticContext() {
   return { build: __BUILD_ID__, time: new Date().toISOString(), browser: navigator.userAgent,
+    startup: loadingHistory.snapshot(),
     page: location.origin + location.pathname, online: navigator.onLine, visibility: document.visibilityState,
     modulePreloadSupported: document.createElement('link').relList.supports?.('modulepreload') ?? false,
     viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio } };

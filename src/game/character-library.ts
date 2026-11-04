@@ -4,7 +4,6 @@ import { createBowString } from './bow-string.ts';
 import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
 import '@babylonjs/loaders/glTF';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Geometry } from '@babylonjs/core/Meshes/geometry';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -22,6 +21,8 @@ import type { CharacterLOD } from './character-lod.ts';
 import catalog from '../../studies/characters/roles.json';
 import { batchCharacterMaterials } from './character-material-batching.ts';
 import { prepareRenderTemplates } from './render-mesh-memory.ts';
+import { characterActions } from './character-actions.ts';
+import { extractMergeData } from './merge-data.ts';
 
 export type CharacterRole = keyof typeof catalog.roles;
 const parts: Record<string, { name: string; horse: boolean }> = catalog.parts;
@@ -83,9 +84,11 @@ export function createCharacterLibrary(scene: Scene) {
       const { high } = await load();
       const config = catalog.roles[role];
       const selectedParts = new Set<string>(config.parts);
+      const actions = characterActions(role);
       const instance = high.instantiateModelsToScene(name => parts[name]?.name ?? name, false, {
         doNotInstantiate: true,
-        predicate: entity => parts[entity.name] ? selectedParts.has(entity.name)
+        predicate: entity => entity instanceof AnimationGroup ? actions.has(entity.name)
+          : parts[entity.name] ? selectedParts.has(entity.name)
           : config.mounted || !entity.name.startsWith('Horse'),
       });
       for (const root of instance.rootNodes) root.parent = parent;
@@ -156,7 +159,7 @@ export function createCharacterLibrary(scene: Scene) {
         for (const { node, rotation } of roots) node.rotationQuaternion = Quaternion.RotationYawPitchRoll(-bowYaw * turn, 0, 0).multiply(rotation);
         for (const mesh of heldArrow) mesh.setEnabled(phase === undefined);
         originalString.setEnabled(!bow.update(phase));
-      }, walk: clip(config.walk), run: clip(config.run), work: clip('Hammer'),
+      }, walk: clip(config.walk), run: clip(config.run), work: role === 'farmer' ? clip('Hammer') : undefined,
         idle: config.mounted ? clip('RideIdle') : undefined };
     },
     async attachLOD(sources: readonly AbstractMesh[]): Promise<CharacterLOD[]> {
@@ -178,10 +181,10 @@ export function createCharacterLibrary(scene: Scene) {
                 mesh.skeleton?.bones.map(bone => bone.name).join('|') !== source.skeleton!.bones.map(bone => bone.name).join('|')) {
                 throw new Error(`LOD 蒙皮或材质不匹配：${id}`);
               }
-              return VertexData.ExtractFromMesh(mesh, true, true);
+              return extractMergeData(mesh);
             });
             const [first, ...rest] = parts;
-            if (rest.length) first.merge(rest, true);
+            if (rest.length) first.merge(rest, true, true);
             return first;
           });
           const pair = attachMeshLOD(source, data[0], data[1]);

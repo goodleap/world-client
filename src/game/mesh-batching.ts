@@ -1,5 +1,5 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
+import { extractMergeData } from './merge-data.ts';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import type { Geometry } from '@babylonjs/core/Meshes/geometry';
 
@@ -34,9 +34,12 @@ export function batchSkinnedMeshes(meshes: readonly AbstractMesh[], sharedGeomet
       shared.applyToMesh(first);
     }
     else {
-      const data = VertexData.ExtractFromMesh(first, true, true);
-      data.merge(rest.map(mesh => VertexData.ExtractFromMesh(mesh, true, true)), true);
-      first.makeGeometryUnique();
+      const data = extractMergeData(first);
+      data.merge(rest.map(extractMergeData), true, true);
+      // Detach the clone from its template without first copying all template
+      // buffers only to overwrite them with the merged geometry immediately.
+      first.geometry!.releaseForMesh(first, true);
+      first.releaseSubMeshes();
       data.applyToMesh(first);
       sharedGeometry?.set(geometryKey, first.geometry!);
     }

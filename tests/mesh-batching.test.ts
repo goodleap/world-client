@@ -50,7 +50,9 @@ test('batched parts retain deformed positions across a full skeletal motion cycl
     assert.equal(merged.subMeshes[0].indexCount, indexCount);
     for (let i = 0; i < before.length; i++) {
       pose(i * Math.PI / 12);
-      assert.deepEqual(Array.from(merged.getPositionData(true)!), before[i]);
+      const actual=merged.getPositionData(true)!;
+      assert.equal(actual.length,before[i].length);
+      for(let n=0;n<actual.length;n++)assert(Math.abs(actual[n]-before[i][n])<1e-6, 'pose retains GPU float precision');
     }
   } finally { scene.dispose(); engine.dispose(); }
 });

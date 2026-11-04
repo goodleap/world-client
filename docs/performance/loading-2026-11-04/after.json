@@ -1,0 +1,88 @@
+{
+  "elapsed": 25511,
+  "phase": "playing",
+  "peakHeap": 316044036,
+  "peakBacking": 174433420,
+  "retained": {
+    "usedSize": 237004740,
+    "totalSize": 239194112,
+    "embedderHeapUsedSize": 2952744,
+    "backingStorageSize": 163918700
+  },
+  "peaksByProcess": [
+    {
+      "type": "renderer",
+      "rssKB": 711936,
+      "pssKB": 665735
+    },
+    {
+      "type": "GPU",
+      "rssKB": 510616,
+      "pssKB": 484726
+    }
+  ],
+  "gl": [
+    {
+      "capacity": 165264196,
+      "peak": 165264196,
+      "created": 16693,
+      "deleted": 10431,
+      "shaderCompiles": 74,
+      "programLinks": 37
+    }
+  ],
+  "largestTasks": [
+    {
+      "duration": 893,
+      "percent": "15.3%",
+      "stage": "地图与基础材质构建",
+      "heap": 216790185
+    },
+    {
+      "duration": 606,
+      "percent": "63.1%",
+      "stage": "正在完成当前阶段…",
+      "heap": 302617710
+    },
+    {
+      "duration": 576,
+      "percent": "25%",
+      "stage": "正在准备界面…",
+      "heap": 35790959
+    },
+    {
+      "duration": 403,
+      "percent": "99%",
+      "stage": "首帧显示",
+      "heap": 497908429
+    },
+    {
+      "duration": 325,
+      "percent": "94%",
+      "stage": "材质、纹理与着色器就绪",
+      "heap": 435201044
+    },
+    {
+      "duration": 226,
+      "percent": "94%",
+      "stage": "正在完成当前阶段…",
+      "heap": 446175508
+    },
+    {
+      "duration": 223,
+      "percent": "49%",
+      "stage": "正在完成当前阶段…",
+      "heap": 197307724
+    },
+    {
+      "duration": 221,
+      "percent": "63.1%",
+      "stage": "骑兵：退场接地曲线准备",
+      "heap": 252349082
+    }
+  ],
+  "errors": [],
+  "navigations": 1,
+  "crashes": [],
+  "requests": []
+}

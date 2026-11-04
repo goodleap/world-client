@@ -255,6 +255,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           meshes: result.meshes.map(mesh => mesh.name), animations: result.animationGroups.map(group => group.name),
         });
         const farmerWalk = result.walk, farmerRun = result.run, farmerHammer = result.work;
+        if (!farmerHammer) throw new Error('农民缺少共享作业动作');
         // Blending flags are actor-local. Key arrays remain shared and immutable.
         for (const clip of [farmerWalk, farmerRun, farmerHammer]) {
           for (const target of clip.targetedAnimations) target.animation = target.animation.clone();

@@ -55,6 +55,8 @@ import { createMoveFeedback } from './move-feedback.ts';
 import { createPathGuidance } from './path-guidance.ts';
 import { createPerformanceDiagnostics } from './performance-diagnostics.ts';
 import { readJSHeapMB } from './heap-memory.ts';
+import { prepareScene } from './scene-loading.ts';
+import { packGeometry } from './geometry-memory.ts';
 import { createMinimap } from './minimap.ts';
 import { Plane } from '@babylonjs/core/Maths/math.plane.js';
 import { compactPerformanceLog, roundLog } from '../performance-log.ts';
@@ -99,6 +101,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let definitionKey=definitions().map(r=>r.id).join(',');
   let saveWarning = false;
   let canSave = false;
+  let renderReady = false;
   const autosave = new Autosave();
   const frameWork = { logicMs: 0, worldMs: 0, saveMs: 0, sceneMs: 0 };
   const saves = { count: 0, failures: 0, lastMs: 0, maxMs: 0, totalMs: 0, chars: 0 };
@@ -117,7 +120,17 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   try {
 
     await nextPaint();
-    world = await loadingProgress.run('map', '地图与基础材质构建', () => buildWorld(scene, palette, shadows, economy));
+    world = await loadingProgress.run('map', '地图与基础材质构建', async () => {
+      const world = buildWorld(scene, palette, shadows, economy);
+      // Release oversized procedural arrays before cloning the actor library.
+      // Work in small batches so the loading screen continues to paint.
+      let started = performance.now();
+      for (const geometry of scene.getGeometries()) {
+        packGeometry(geometry);
+        if (performance.now() - started >= 8) { await nextPaint(); started = performance.now(); }
+      }
+      return world;
+    });
     residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions(),id=>towerHeight(economy.state,id));
 
     await residents.loadFarmerModel();
@@ -544,7 +557,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   // to clear a building preview), then no animation, culling or GPU submissions.
   // Resizes/context restoration invalidate that retained image once.
   function requestRender() {
-    if (!disposed && !suspended) engine.runRenderLoop(render);
+    if (renderReady && !disposed && !suspended) engine.runRenderLoop(render);
   }
   function render() {
     if (disposed || suspended) return;
@@ -568,8 +581,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     // Do not send update(0) on resume: that would reset an interrupted Run to
     // idle for one frame. Keep the exact frozen pose until normal time resumes.
     const logicStart = performance.now();
-    if(!resuming&&!ui.paused)navigation.flush();
-    if(!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
+    if(canSave&&!resuming&&!ui.paused)navigation.flush();
+    if(canSave&&!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
         residents.beginStep(); wolves.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
         controller.update(dt);
@@ -743,21 +756,13 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   document.addEventListener('freeze', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
   document.addEventListener('resume', () => { pageHidden = false; reconcileVisibility(); }, lifecycleOptions);
   if (suspended) ui.pauseForBackground();
-  else engine.runRenderLoop(render);
   try {
-    await loadingProgress.run('shaders', '材质、纹理与着色器就绪', async () => {
-      const meshes = scene.meshes.filter(m => m.isEnabled() && m.getTotalVertices()), textures = scene.textures;
-      while (!scene.isReady()) {
-        const ready = meshes.filter(m => m.isReady(true)).length + textures.filter(t => t.isReady()).length;
-        loadingProgress.work('shaders', ready, meshes.length + textures.length);
-        await nextPaint();
-      }
-      await scene.whenReadyAsync();
-    });
+    await loadingProgress.run('shaders', '材质、纹理与着色器就绪', () =>
+      prepareScene(scene, (ready, total) => loadingProgress.work('shaders', ready, total)));
     const failed = loadingProgress.snapshot().find(item => item.state === 'failed' && item.kind === 'download');
     if (failed) throw new Error(`${failed.name}：${failed.error}`);
     loadingProgress.begin('first-frame', '首帧显示');
-
+    renderReady = true; requestRender();
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
     minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
@@ -765,6 +770,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   await nextPaint();
   loadingProgress.done('first-frame');
   canSave = true;
+  freshFrame = true;
   const cameraState = () => ({ alpha: camera.alpha, beta: camera.beta, zoom: currentZoom, overview, previewRole, x: mapCenter.x, z: mapCenter.z,
     target: { x: camera.target.x, y: camera.target.y, z: camera.target.z } });
   return {

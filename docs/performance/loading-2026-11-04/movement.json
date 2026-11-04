@@ -1,0 +1,72 @@
+{
+  "method": "Consecutive real Babylon render frames at controlled 1/60 game seconds; full frame sequences and 60 fps videos, not a hardware FPS benchmark",
+  "reports": [
+    {
+      "scenario": "farmer",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "Run"
+      ],
+      "errors": []
+    },
+    {
+      "scenario": "infantry",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "ShieldRun"
+      ],
+      "errors": []
+    },
+    {
+      "scenario": "archer",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "CarryRun"
+      ],
+      "errors": []
+    },
+    {
+      "scenario": "cavalry",
+      "frames": 165,
+      "commands": [
+        45,
+        90,
+        120
+      ],
+      "idleFrames": 0,
+      "clipStarts": [
+        "RideRun"
+      ],
+      "errors": []
+    },
+    {
+      "scenario": "haul",
+      "frames": 156,
+      "commands": [],
+      "idleFrames": 1,
+      "clipStarts": [
+        "Run",
+        "Farmer rest pose"
+      ],
+      "errors": []
+    }
+  ]
+}

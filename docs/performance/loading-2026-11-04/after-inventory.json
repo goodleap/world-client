@@ -1,0 +1,236 @@
+{
+  "meshes": 6577,
+  "materials": 160,
+  "geometries": 1256,
+  "skeletons": 255,
+  "animationGroups": 435,
+  "targetedAnimations": 28099,
+  "animationNames": {
+    "cottage-door-use": 1,
+    "warehouse-door-use": 1,
+    "home-center-door-use": 1,
+    "Walk": 19,
+    "Run": 16,
+    "Hammer": 3,
+    "Farmer rest pose": 3,
+    "ShieldWalk": 56,
+    "ShieldRun": 56,
+    "SwordSlash": 56,
+    "CarryWalk": 32,
+    "CarryRun": 32,
+    "BowShot": 32,
+    "RideIdle": 15,
+    "RideWalk": 15,
+    "RideRun": 15,
+    "LanceThrust": 15,
+    "RiderFallPosture": 15,
+    "Idle": 13,
+    "Feed": 13,
+    "Bite": 12,
+    "Hurt": 12,
+    "move-destination-feedback": 1,
+    "attack-target-feedback": 1
+  },
+  "plainGeometryBytesEstimate": 14372184,
+  "uniqueTypedBackingBytes": 158831256,
+  "largestGeometry": [
+    {
+      "id": "19375242-371a-4866-b343-22d2e97c2c8d",
+      "bytes": 9142272,
+      "users": 15,
+      "names": [
+        "Hoof.FL",
+        "Hoof.FL",
+        "Hoof.FL"
+      ]
+    },
+    {
+      "id": "40420c6f-2d7e-474d-9505-4251e92fa4d2",
+      "bytes": 7009440,
+      "users": 32,
+      "names": [
+        "Belt • wrapped waist",
+        "Belt • wrapped waist",
+        "Belt • wrapped waist"
+      ]
+    },
+    {
+      "id": "d5971cb6-caa1-45ee-9955-fbbac55b2935",
+      "bytes": 6851520,
+      "users": 3,
+      "names": [
+        "Apron • curved skirt",
+        "Apron • curved skirt",
+        "Apron • curved skirt"
+      ]
+    },
+    {
+      "id": "2b373588-c974-43a5-8ed3-80973d566bbd",
+      "bytes": 6759504,
+      "users": 15,
+      "names": [
+        "Belt • wrapped waist",
+        "Belt • wrapped waist",
+        "Belt • wrapped waist"
+      ]
+    },
+    {
+      "id": "4a71add8-d2b3-4c61-a083-468dc39955b1",
+      "bytes": 6221760,
+      "users": 56,
+      "names": [
+        "Belt • wrapped waist",
+        "Belt • wrapped waist",
+        "Belt • wrapped waist"
+      ]
+    },
+    {
+      "id": "11e83df0-5b5a-4e97-b4f0-3c155f7313e7",
+      "bytes": 4448352,
+      "users": 106,
+      "names": [
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.L",
+        "Continuous arm and fist.L"
+      ]
+    },
+    {
+      "id": "part-158",
+      "bytes": 3243432,
+      "users": 1,
+      "names": [
+        "part-158"
+      ]
+    },
+    {
+      "id": "b4ed53bb-0bc6-4188-a67c-8f2bf17bdc10",
+      "bytes": 3001448,
+      "users": 32,
+      "names": [
+        "Neck binding",
+        "Neck binding",
+        "Neck binding"
+      ]
+    },
+    {
+      "id": "86357ec0-c228-4435-8e99-75b9a2972ddf",
+      "bytes": 2448712,
+      "users": 3,
+      "names": [
+        "Hammer • wooden handle",
+        "Hammer • wooden handle",
+        "Hammer • wooden handle"
+      ]
+    },
+    {
+      "id": "940b5a8a-d133-436f-b482-28a56a818b89",
+      "bytes": 2240872,
+      "users": 15,
+      "names": [
+        "Neck binding",
+        "Neck binding",
+        "Neck binding"
+      ]
+    },
+    {
+      "id": "e9eae0be-eb87-41cf-a68b-6ad5e65b7016",
+      "bytes": 2227432,
+      "users": 56,
+      "names": [
+        "Neck binding",
+        "Neck binding",
+        "Neck binding"
+      ]
+    },
+    {
+      "id": "eb0d51b4-72ca-4ac9-ba11-2593b3631bf0",
+      "bytes": 2126400,
+      "users": 15,
+      "names": [
+        "Hoof.FL-map-lod",
+        "Hoof.FL-map-lod",
+        "Hoof.FL-map-lod"
+      ]
+    },
+    {
+      "id": "598ad5d3-1a8c-4dab-96f0-90bb58715cd8",
+      "bytes": 2108160,
+      "users": 1,
+      "names": [
+        "world-terracotta"
+      ]
+    },
+    {
+      "id": "5e6c18f9-103d-45ff-8d32-9ed75ab0b03e",
+      "bytes": 1676064,
+      "users": 32,
+      "names": [
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod"
+      ]
+    },
+    {
+      "id": "Wolf LOD 0",
+      "bytes": 1664136,
+      "users": 13,
+      "names": [
+        "Wolf LOD 0",
+        "Wolf LOD 0",
+        "Wolf LOD 0"
+      ]
+    },
+    {
+      "id": "7ead305b-cfed-4c7d-bbe2-90312439e976",
+      "bytes": 1638576,
+      "users": 3,
+      "names": [
+        "Headwrap • complete folded crown",
+        "Headwrap • complete folded crown",
+        "Headwrap • complete folded crown"
+      ]
+    },
+    {
+      "id": "07fa9bee-2a2b-41cb-8d8e-b18fb5be96b9",
+      "bytes": 1585104,
+      "users": 15,
+      "names": [
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod"
+      ]
+    },
+    {
+      "id": "26049c66-6946-4be5-9443-44e815d5ba96",
+      "bytes": 1563744,
+      "users": 3,
+      "names": [
+        "Apron • curved skirt-map-lod",
+        "Apron • curved skirt-map-lod",
+        "Apron • curved skirt-map-lod"
+      ]
+    },
+    {
+      "id": "56164142-7ee2-4a7a-bbd8-bb108fbec5cd",
+      "bytes": 1466688,
+      "users": 56,
+      "names": [
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod",
+        "Belt • wrapped waist-map-lod"
+      ]
+    },
+    {
+      "id": "e2ba2c79-54fc-49b2-a65a-812bebd585fe",
+      "bytes": 1449360,
+      "users": 1,
+      "names": [
+        "world-terracotta"
+      ]
+    }
+  ],
+  "canvas": {
+    "width": 589,
+    "height": 1278
+  }
+}

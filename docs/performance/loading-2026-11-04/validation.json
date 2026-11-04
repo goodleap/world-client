@@ -1,0 +1,29 @@
+{
+  "logicTests": 27,
+  "browserCases": [
+    "加载中途刷新保留上次阶段、首帧前游戏时间为零、原生 WebGL 丢失和恢复",
+    "引擎请求停滞诊断、进入复用、返回菜单后的完成状态",
+    "引擎 HTTP 503 保留文件错误和失败加载记录",
+    "WebKit 风格零大小 Resource Timing 的已完成状态",
+    "士兵、骑兵、敌人及狼死亡，暂停、存档续玩、下沉消失且奖励不重复"
+  ],
+  "movement": [
+    "farmer",
+    "infantry",
+    "archer",
+    "cavalry",
+    "haul"
+  ],
+  "actions": [
+    "Hammer",
+    "SwordSlash",
+    "BowShot",
+    "LanceThrust"
+  ],
+  "checks": [
+    "TypeScript typecheck",
+    "Vite production build",
+    "git diff --check"
+  ],
+  "note": "云端 Chromium/SwiftShader；原生连续动作和恢复路径验证。尚未捕获用户手机自动重载或进程终止报告。"
+}
