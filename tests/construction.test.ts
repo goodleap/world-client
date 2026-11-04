@@ -22,8 +22,9 @@ test('free placement snaps footprint edges, reserves funded work, rejects overla
   assert.notEqual(resumed.state.sites[0].id, site.id);
 });
 
-test('placement reserves farm, water, resources, residents, loose goods and entrances', () => {
+test('funded placement still rejects physical overlap, water, residents and loose goods', () => {
   const e = new Economy();
+  e.state.inventory = { wood: 200, stone: 200, food: 0, iron: 0 };
   for (const point of [HOME, LANDSCAPE.lake, FARM_PLOTS[0], RESOURCE_NODES[0], WAREHOUSE_DOOR, { x: 1000, z: 0 }]) {
     assert.equal(e.placeBuilding('house', point).ok, false, JSON.stringify(point));
   }

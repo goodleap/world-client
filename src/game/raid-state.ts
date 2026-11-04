@@ -62,6 +62,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
       || !n(w.cooldown, 2) || !n(w.fear, 10) || !n(w.feeding, 2) || !n(w.gait, 1) || ![0, 1].includes(w.carried)
       || w.diedAt !== undefined && (!n(w.diedAt) || w.life !== 'defeated')
       || w.provoked && (!point(w.provoked.from) || !n(w.provoked.leash,400))
+      || w.targetSwitchIn !== undefined && !n(w.targetSwitchIn, COMBAT_CONFIG.targetSwitchSeconds)
       || w.defendFrom && !point(w.defendFrom)
       || w.settled && w.life !== 'defeated'
       || typeof w.settled !== 'boolean' || !Number.isFinite(w.facing) || w.hurtAt !== undefined && !n(w.hurtAt)

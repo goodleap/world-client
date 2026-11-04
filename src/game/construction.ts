@@ -1,6 +1,6 @@
 import type { Point, Obstacle } from './movement.ts';
 import { isBlocked } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE, WATER_OBSTACLE } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
@@ -22,11 +22,11 @@ export function buildingAt(kind: BuildingKind, point: Point, id = ''): BuildingS
 }
 export const buildingDoor = (site: Pick<BuildingSite, 'x' | 'z' | 'depth'>): Point => ({ x: site.x, z: site.z - site.depth / 2 - .75 });
 export function placementReason(site: BuildingSite, state: { depleted: string[]; sites: BuildingSite[]; plots: Point[]; goods: (Point & { state: string })[] }, occupants: readonly Obstacle[] = []): string {
-  if (!Number.isFinite(site.x) || !Number.isFinite(site.z) || site.x - site.width / 2 < WORLD_BOUNDS.minX + 1
-    || site.x + site.width / 2 > WORLD_BOUNDS.maxX - 1 || site.z - site.depth / 2 < WORLD_BOUNDS.minZ + 1 || site.z + site.depth / 2 > WORLD_BOUNDS.maxZ - 1) return '请放在地图范围内';
-  const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * (site.width / 2 + .35), z: site.z + z * (site.depth / 2 + .35) }));
-  if (!LANDSCAPE.regions.some(r => r.build && corners.every(p => insidePolygon(p, r.area)))) return '请在区域内的平坦空地建设';
-  const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2 + .35, halfDepth: site.depth / 2 + .35 };
+  if (!Number.isFinite(site.x) || !Number.isFinite(site.z) || site.x - site.width / 2 < WORLD_BOUNDS.minX
+    || site.x + site.width / 2 > WORLD_BOUNDS.maxX || site.z - site.depth / 2 < WORLD_BOUNDS.minZ || site.z + site.depth / 2 > WORLD_BOUNDS.maxZ) return '请放在地图范围内';
+  // Check the real footprint against terrain/solids, including all edges.
+  // Clearing labels and connectivity are planning advice, not physical limits.
+  const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2, halfDepth: site.depth / 2 };
   const overlaps = (o: Obstacle) => {
     if (o.kind === 'circle') return isBlocked(o, o.radius, [footprint]);
     if (o.kind === 'polygon') {
@@ -38,14 +38,25 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   };
   // Placement reserves grid footprints, independently of built-model collision.
   const obstacles = economyObstacles(state.depleted, state.sites, []);
-  if (obstacles.some(overlaps)) return '此处有建筑、资源或水域';
+  if (overlaps(WATER_OBSTACLE)) return '建筑占地不能进入水域';
+  if (obstacles.some(o => o.kind === 'polygon' && overlaps(o))) return '建筑占地超出可建设地面';
+  if (obstacles.some(o => o.kind !== 'polygon' && overlaps(o))) return '此处有建筑或资源';
   // Farmland may share cell edges so players can extend an existing field.
-  const fieldMargin = site.kind === 'farm' ? -1e-6 : .35;
+  const fieldMargin = -1e-6;
   if (state.plots.some(p => Math.abs(site.x - p.x) < (site.width + GRID_SIZE) / 2 + fieldMargin
     && Math.abs(site.z - p.z) < (site.depth + GRID_SIZE) / 2 + fieldMargin)) return '此处已有耕地';
   if (state.goods.some(g => g.state === 'ground' && overlaps({ ...g, kind: 'circle', radius: .4 }))) return '请先搬走地面的资源';
   if (occupants.some(overlaps)) return '请避开人物和动物';
-  if ([...BUILDINGS, ...state.sites].some(b => (!('kind' in b) || b.kind !== 'campfire') && isBlocked(buildingDoor(b), .5, [footprint]))) return '请留出建筑入口';
-  if (site.kind !== 'farm' && site.kind !== 'campfire' && isBlocked(buildingDoor(site), .5, obstacles)) return '门前需要留出通行空间';
   return '';
+}
+
+/** Cheap placement advice; never gates a command or runs pathfinding per frame. */
+export function placementWarning(site: BuildingSite, state: { depleted: string[]; sites: BuildingSite[] }) {
+  const footprint: Obstacle = { kind: 'box', x: site.x, z: site.z, halfWidth: site.width / 2, halfDepth: site.depth / 2 };
+  if ([...BUILDINGS, ...state.sites].some(b => (!('kind' in b) || b.kind !== 'campfire') && isBlocked(buildingDoor(b), .5, [footprint]))
+    || site.kind !== 'farm' && site.kind !== 'campfire' && isBlocked(buildingDoor(site), .5, economyObstacles(state.depleted, state.sites, []))) {
+    return '可能影响建筑出入，仍可建造';
+  }
+  const corners = [[-1, -1], [-1, 1], [1, 1], [1, -1]].map(([x, z]) => ({ x: site.x + x * site.width / 2, z: site.z + z * site.depth / 2 }));
+  return LANDSCAPE.regions.some(r => corners.every(p => insidePolygon(p, r.area))) ? '' : '此处可能影响通行，仍可建造';
 }

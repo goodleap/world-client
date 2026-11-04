@@ -6,7 +6,7 @@ import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { GameUI } from '../ui.ts';
 import type { Economy } from './economy.ts';
 import type { Obstacle } from './movement.ts';
-import { buildingAt, placementReason, BUILDING_TYPES } from './construction.ts';
+import { buildingAt, placementReason, placementWarning, BUILDING_TYPES } from './construction.ts';
 import type { BuildingSite, BuildingKind } from './construction.ts';
 
 /** Both pointer workflows share the same snap, validation and commit operation. */
@@ -58,8 +58,9 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (!Number.isFinite(distance) || distance <= 0) { hidePreview(); return; }
     const point = ray.origin.add(ray.direction.scale(distance));
     candidate = buildingAt(kind, point);
-    reason = economy.buildingShortage(kind) || economy.regionLocked(candidate) || placementReason(candidate, economy.state, occupants());
-    const color = Color3.FromHexString(reason ? '#ff826f' : '#62e4ff');
+    reason = economy.buildingShortage(kind) || placementReason(candidate, economy.state, occupants());
+    const warning = reason ? '' : placementWarning(candidate, economy.state);
+    const color = Color3.FromHexString(reason ? '#ff826f' : warning ? '#f2c46d' : '#62e4ff');
     fillMaterial.emissiveColor.copyFrom(color); edgeMaterial.emissiveColor.copyFrom(color);
     const { width, depth } = candidate;
     fill.scaling.set(width, 1, depth); fill.position.set(candidate.x, .14, candidate.z);
@@ -78,7 +79,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     for (; index < edges.length; index++) edges[index].setEnabled(false);
     fill.setEnabled(true);
     ui.setPlacement(true, `${type.name} · 点击或松手放置`);
-    if (reason) ui.targetHint(reason, { x: candidate.x, y: .2, z: candidate.z }, true);
+    if (reason || warning) ui.targetHint(reason || warning, { x: candidate.x, y: .2, z: candidate.z }, true);
     else ui.clearTargetHint(true);
   }
   function place(x: number, y: number) {
@@ -87,7 +88,11 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (!candidate) return;
     if (reason) return;
     const result = economy.placeBuilding(kind, candidate, occupants());
-    if (result.ok) { cancel(); onPlaced(result.task!.target); }
+    if (result.ok) {
+      const at = { x: candidate.x, y: .2, z: candidate.z };
+      cancel(); onPlaced(result.task!.target);
+      if (result.warning) ui.targetHint(result.warning, at);
+    }
     else ui.targetHint(result.message, { x: candidate.x, y: .2, z: candidate.z });
   }
   toggle.addEventListener('click', () => {

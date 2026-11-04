@@ -9,7 +9,7 @@ import type { CombatState } from './combat.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { WAREHOUSE_DOOR, WORLD_BOUNDS, GRID_SIZE, LANDSCAPE } from './world-data.ts';
 import { ECONOMY_CONFIG as C, FARM_PLOTS, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { buildingAt, buildingDoor, placementReason, BUILDING_TYPES } from './construction.ts';
+import { buildingAt, buildingDoor, placementReason, placementWarning, BUILDING_TYPES } from './construction.ts';
 import type { BuildingSite, BuildingKind } from './construction.ts';
 import { insidePolygon } from './polygon.ts';
 import { findPath } from './pathfinding.ts';
@@ -110,29 +110,30 @@ export class Economy {
       ?? this.state.goods.find(g=>g.id===task.target) ?? this.state.sites.find(s=>s.id===task.target)
       ?? BUILDINGS.find(b=>b.id===task.target);
   }
-  placeBuilding(kind: BuildingKind, point: Point, occupants: readonly Obstacle[] = []): { ok: boolean; message: string; task?: WorkTask } {
+  placeBuilding(kind: BuildingKind, point: Point, occupants: readonly Obstacle[] = []): { ok: boolean; message: string; warning?: string; task?: WorkTask } {
     if (!Object.hasOwn(BUILDING_TYPES, kind)) return { ok: false, message: '未知建筑类型' };
     const shortage = this.buildingShortage(kind);
     if (shortage) return { ok: false, message: shortage };
     const farm = kind === 'farm';
     if (farm ? this.state.plots.length >= 10000 : this.state.sites.length >= 100) return { ok: false, message: '已达到家园用地上限' };
     const site = buildingAt(kind, point, farm ? `plot-${this.state.nextPlotId}` : `site-${this.state.nextSiteId}`);
-    const reason = this.regionLocked(site) || placementReason(site, this.state, occupants);
+    const reason = placementReason(site, this.state, occupants);
     if (reason) return { ok: false, message: reason };
     const obstacles = economyObstacles(this.state.depleted, farm ? this.state.sites : [...this.state.sites, site], this.state.buildings);
-    if (!this.warehouseDoors().some(door => findPath(door, farm ? site : buildingDoor(site), .35, WORLD_BOUNDS, obstacles))) return { ok: false, message: '此处无法到达，请换一处空地' };
+    const warning = this.warehouseDoors().some(door => findPath(door, farm ? site : buildingDoor(site), .35, WORLD_BOUNDS, obstacles))
+      ? placementWarning(site, this.state) : '与仓库之间暂无通路，仍可建造';
     if (farm) {
       this.state.plots.push({ id: site.id, x: site.x, z: site.z, tilled: false, growth: 0 });
       const result = this.request('till', site.id);
       if (result.ok) this.state.nextPlotId++;
       else this.state.plots.pop();
-      return result;
+      return result.ok ? { ...result, warning } : result;
     }
     this.state.sites.push(site);
     const result = this.request('build', site.id);
     if (result.ok) this.state.nextSiteId++;
     else this.state.sites.pop();
-    return result;
+    return result.ok ? { ...result, warning } : result;
   }
   demolition(id:string) {
     const site=this.state.sites.find(s=>s.id===id),plot=this.plot(id);

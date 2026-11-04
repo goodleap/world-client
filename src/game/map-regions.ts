@@ -7,15 +7,15 @@ import type { Point } from './movement.ts';
 /** This map is a trial composition, not a permanent size or region count. */
 export const MAP_CONFIG = { columns: 100, rows: 100, seed: 20261102 } as const;
 export const REGION_LAYOUT = [
-  { id: 'home', name: '家园空地', x: 0, z: 0, rx: 13.5, rz: 12, build: true },
-  { id: 'woodland', name: '林间营地', x: -28, z: 15, rx: 10, rz: 9, build: true },
-  { id: 'orchard', name: '北林果丛', x: -22, z: 35, rx: 10, rz: 8, build: false },
-  { id: 'quarry', name: '西南矿谷', x: -22, z: -25, rx: 10, rz: 9, build: true, camp: 'quarry' },
-  { id: 'meadow', name: '东岸草甸', x: 27, z: -6, rx: 11, rz: 9, build: true },
-  { id: 'lowland', name: '南部沃地', x: 13, z: -33, rx: 12, rz: 7.5, build: true },
-  { id: 'pass', name: '北部山口', x: 15, z: 37, rx: 10, rz: 7, build: true, camp: 'pass' },
-  { id: 'stone-hollow', name: '西林石坳', x: -40, z: -6, rx: 7, rz: 6, build: false },
-  { id: 'east-grove', name: '东南林地', x: 39, z: -32, rx: 7, rz: 6, build: true },
+  { id: 'home', name: '家园空地', x: 0, z: 0, rx: 13.5, rz: 12 },
+  { id: 'woodland', name: '林间营地', x: -28, z: 15, rx: 10, rz: 9 },
+  { id: 'orchard', name: '北林果丛', x: -22, z: 35, rx: 10, rz: 8 },
+  { id: 'quarry', name: '西南矿谷', x: -22, z: -25, rx: 10, rz: 9, camp: 'quarry' },
+  { id: 'meadow', name: '东岸草甸', x: 27, z: -6, rx: 11, rz: 9 },
+  { id: 'lowland', name: '南部沃地', x: 13, z: -33, rx: 12, rz: 7.5 },
+  { id: 'pass', name: '北部山口', x: 15, z: 37, rx: 10, rz: 7, camp: 'pass' },
+  { id: 'stone-hollow', name: '西林石坳', x: -40, z: -6, rx: 7, rz: 6 },
+  { id: 'east-grove', name: '东南林地', x: 39, z: -32, rx: 7, rz: 6 },
 ] as const;
 export const ROUTE_LAYOUT = [
   [[0, 0], [-10, 4], [-18, 5], [-23, 13], [-28, 15]],
@@ -41,7 +41,7 @@ export function createRegions(grid: number, paths: readonly (readonly Point[])[]
   const shapes = REGION_LAYOUT.map((r, i) => ellipse(r.x * grid, r.z * grid, r.rx * grid, r.rz * grid, i));
   const regions = REGION_LAYOUT.map((r, i) => ({ ...r, x: r.x * grid, z: r.z * grid, area: areas(clipping.union(shapes[i]))[0] }));
   const strips: Polygon[] = [];
-  const half = 2 * grid; // Two cavalry can pass; all structures reserve this corridor.
+  const half = 2 * grid; // Four-cell terrain corridor; players decide where to build.
   for (const path of paths) {
     for (let i = 1; i < path.length; i++) {
       const a = path[i - 1], b = path[i], d = Math.hypot(b.x - a.x, b.z - a.z);

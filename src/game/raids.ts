@@ -240,6 +240,7 @@ export class Raids {
     if (w.mode === 'gone') return;
     const now = this.economy.state.seconds, stats = COMBAT_CONFIG.wolf, wild = this.state.wildWolves.includes(w);
     w.cooldown = Math.max(0, w.cooldown - dt); w.planIn = Math.max(0, w.planIn - dt);
+    if (w.targetSwitchIn) w.targetSwitchIn = Math.max(0, w.targetSwitchIn - dt);
     const fireNear = this.economy.state.campfires.some(f => fireIsLit(f) && this.economy.state.sites.some(s => s.id === f.id && distance(s, w.position) < C.fearRadius && this.fireClear(w.position, s)));
     w.fear = Math.max(0, Math.min(10, w.fear + (fireNear ? dt : -dt * .5)));
     const lost = this.state.wolves.filter(n => n.life === 'defeated').length;
@@ -268,16 +269,21 @@ export class Raids {
       return;
     }
     const anchor = w.provoked?.from ?? (wild ? w.home : w.defendFrom ?? w.position), chase = w.provoked?.leash ?? C.chase;
+    const nearby = this.combat.nearbyOpponent(w, w.target ? this.combat.target(w.target) : undefined);
+    if (nearby && distance(anchor, nearby.position) <= chase) {
+      w.target = nearby.id; w.targetSwitchIn = COMBAT_CONFIG.targetSwitchSeconds;
+      w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = []; w.planIn = 0;
+    }
     if (w.target && (!this.combat.target(w.target)||!this.combat.canTarget(w,this.combat.target(w.target)!)||this.combat.target(w.target)!.hp<=0 || distance(w.position, this.position(w.target)) > chase
       || distance(anchor, this.position(w.target)) > chase)) {
       w.target = undefined; w.route = []; w.defendFrom = undefined; w.provoked = undefined;
       if (wild) { w.mode = 'flee'; w.planIn = 0; return; }
     }
-    if ((!w.target || !this.combat.target(w.target)?.canAttack) && w.planIn <= 0) {
+    if (!w.target && w.planIn <= 0) {
       const candidate = chooseTarget(w, this.combat.targets(), C.acquire,
         t => this.combat.canTarget(w,t)&&this.combat.visible(w.position,t.position,w.id,t.id) && distance(anchor, t.position) <= C.chase
           && !(t.kind==='building'&&!t.canAttack&&this.economy.state.campfires.some(f=>f.meals>0&&this.economy.state.sites.some(s=>s.id===f.id&&distance(s,w.position)<12))));
-      if (candidate && (!w.target || candidate.canAttack)) {
+      if (candidate) {
         w.target = candidate.id; w.defendFrom ??= { ...anchor };
         w.mode = 'hunt'; w.foodTarget = undefined; w.feeding = 0; w.route = [];
       }

@@ -36,17 +36,18 @@ test('every clearing has a swept route for infantry and cavalry; most terrain st
   assert.equal(findPath(start, { x: 0, z: 40 }, .4, WORLD_BOUNDS, solids), undefined);
 });
 
-test('roads and wildland cannot be built on; clearing a camp opens its construction region only', () => {
+test('passages and uncleared camps allow construction while physical wildland and guarded gathering remain restricted', () => {
   const e = new Economy(); e.setLeadership(false);
-  assert.match(e.placeBuilding('house', { x: -28, z: 8 }).message, /通道|平坦/);
-  assert.match(e.placeBuilding('house', { x: 0, z: 40 }).message, /平坦/);
+  e.state.inventory = { wood: 200, stone: 200, food: 0, iron: 0 };
+  assert.ok(e.placeBuilding('house', { x: -28, z: 8 }).ok);
+  assert.match(e.placeBuilding('house', { x: 0, z: 40 }).message, /地面/);
   const mine = LANDSCAPE.regions.find(r => r.id === 'quarry')!;
-  assert.match(e.placeBuilding('campfire', { x: mine.x - 6, z: mine.z }).message, /守卫/);
+  const placed = e.placeBuilding('campfire', { x: mine.x - 6, z: mine.z });
+  assert.ok(placed.ok, placed.message);
   clearCamp(e, 'quarry');
   assert.equal(e.regionLocked(mine), '');
   assert.match(e.regionLocked(LANDSCAPE.regions.find(r => r.id === 'pass')!), /守卫/);
-  assert.ok(e.placeBuilding('campfire', { x: mine.x - 6, z: mine.z }).ok);
-  assert.equal(e.state.goods.length, 3); assert.equal(e.state.inventory.wood, 8);
+  assert.equal(e.state.goods.length, 3); assert.equal(e.state.inventory.wood, 200);
 });
 
 test('iron requires cleared mine, physical hauling and reserved processing; upgrades settle once', () => {
@@ -136,6 +137,7 @@ test('patrols visit both ends of the actual forest passage without crossing soli
 
 test('renewable resources never grow through completed buildings', () => {
   const e = new Economy(); e.setLeadership(false);
+  e.state.inventory = { wood: 12, stone: 8, food: 0, iron: 0 };
   const node = RESOURCE_NODES.find(n => n.id === 'tree-0')!;
   e.state.depleted.push(node.id); e.state.regrowth[node.id] = 1;
   e.state.sites.push({ ...node, id: 'site-0', kind: 'campfire', width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 1.2 });

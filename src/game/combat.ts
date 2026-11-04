@@ -30,6 +30,7 @@ export interface Fighter {
   diedAt?: number; departed?:boolean; deathElevation?:number; deathTower?:string;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   pursuitQuiet?: number;
+  targetSwitchIn?: number;
   provoked?: { from: Point; leash: number };
   attackApproach?: Point;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
@@ -230,6 +231,18 @@ export class Combat {
     const tower = occupiedTower(this.economy.state, source.id);
     return tower ? this.target(tower.id) : undefined;
   }
+  private canRetaliate(u: Fighter, current: CombatTarget | undefined) {
+    if (u.attack || u.team === 'home' && u.order === 'attack' && current?.life === 'active') return false;
+    return !current || current.life !== 'active' || !this.canTarget(u, current)
+      || !current.canAttack && !this.canStrike(u, current) && !(u.targetSwitchIn ?? 0);
+  }
+  /** Both soldiers and wolves can stop a chase to engage a reachable fighter.
+   * Keep an attackable opponent and finish a committed action before switching. */
+  nearbyOpponent(u: Fighter, current: CombatTarget | undefined) {
+    if (!current && !u.provoked || u.attack || current?.life === 'active' && ((u.targetSwitchIn ?? 0) > 0 || this.canStrike(u, current))) return;
+    return chooseTarget(u, this.targets(u.team), occupiedTower(this.economy.state, u.id) ? TOWER_CONFIG.range : C.acquire,
+      t => t.id !== current?.id && t.canAttack && t.kind !== 'building' && this.canTarget(u, t) && this.canStrike(u, t));
+  }
   private damage(victim: CombatTarget, amount: number, sourceId: string, ignoreArmor = false) {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
@@ -265,9 +278,10 @@ export class Combat {
     this.awardDamage(sourceId, victim.hp - target.hp);
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
-      const aggressor = source && this.retaliationTarget(target, source), current = target.target && this.target(target.target);
+      const aggressor = source && this.retaliationTarget(target, source), current = target.target ? this.target(target.target) : undefined;
       if (aggressor?.team === 'home' && aggressor.life === 'active' && target.hp < victim.hp
-        && (!current || current.life !== 'active' || !current.canAttack || !this.canTarget(target, current))) {
+        && this.canRetaliate(target, current)) {
+        if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
         target.target = aggressor.id;
         target.provoked ??= { from: { ...target.position }, leash: Math.max(RAID_CONFIG.chase, distance(target.position, aggressor.position)) + C.campPursuit.buffer };
         this.stop(target); target.planIn = 0;
@@ -277,13 +291,14 @@ export class Combat {
     }
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) {
-      const aggressor = source && this.retaliationTarget(target, source), current = target.target && this.target(target.target);
+      const aggressor = source && this.retaliationTarget(target, source), current = target.target ? this.target(target.target) : undefined;
       // Damage is its own trigger. Home movement keeps player authority; enemy
       // automatic approaches/returns can respond even outside passive alert.
       const commanded = target.team === 'home' && (['move', 'retreat'].includes(target.order) || target.order === 'hold' && !!target.goal);
       if (target.hp < victim.hp && aggressor?.life === 'active' && hostile(target, aggressor) && !commanded
         && !(target.team === 'enemy' && target.order === 'retreat')
-        && (!current || current.life !== 'active' || !current.canAttack || !this.canTarget(target, current))) {
+        && this.canRetaliate(target, current)) {
+        if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
         if (target.team === 'enemy') target.provoked ??= { from: { ...target.position },
@@ -415,6 +430,7 @@ export class Combat {
     for (const u of this.state.units) {
       const stats = this.stats(u);
       u.speed = 0; u.cooldown = u.cooldown <= dt + 1e-8 ? 0 : u.cooldown - dt; u.planIn = Math.max(0, u.planIn - dt);
+      if (u.targetSwitchIn) u.targetSwitchIn = Math.max(0, u.targetSwitchIn - dt);
       if (u.life === 'defeated'||u.departed) continue;
       if (u.team === 'home') for (const camp of this.state.camps) { const definition = ENCOUNTERS.find(c => c.id === camp.id)!; if (distance(u.position, definition) < definition.discover) camp.discovered = true; }
       // Commands to move and a return to the engagement anchor take priority.
@@ -425,6 +441,13 @@ export class Combat {
       if(target&&(!this.canTarget(u,target)||stationary&&(distance(u.position,target.position)>TOWER_CONFIG.range||!this.visible(u.position,target.position,u.id,target.id)))){target=undefined;u.target=undefined;u.attack=undefined;this.stop(u);}
       if(stationary){u.route=[];u.attackApproach=undefined;u.goal=undefined;}
       const explicit = u.order === 'attack' && target?.life === 'active';
+      if (!explicit && !returning && !['move', 'retreat', 'rest'].includes(u.order)) {
+        const nearby = this.nearbyOpponent(u, target);
+        if (nearby) {
+          target = nearby; u.target = nearby.id; u.targetSwitchIn = C.targetSwitchSeconds;
+          this.stop(u); u.planIn = 0;
+        }
+      }
       const anchor = u.team === 'enemy' ? u.provoked?.from ?? this.camp(u) : u.defendFrom ?? u.position;
       const leash = u.team === 'enemy' ? u.provoked?.leash ?? Math.max(C.chase, this.camp(u).leash) : C.chase;
       const campGuard = u.team === 'enemy' && enemyDefinitions.has(u.id);
@@ -450,12 +473,12 @@ export class Combat {
       }
       if (!['move', 'retreat'].includes(u.order) && !returning && !explicit) {
         if (!target || target.life !== 'active' || !hostile(u, target)) target = undefined;
-        // Keep combat opponents stable; promote a civilian target when a fighter
-        // enters alert range. Both factions use exactly the same selection rule.
-        if (!target || !target.canAttack) {
+        // Existing opponents were evaluated above using actual attack reach,
+        // not just alert range. Acquire normally only when no target remains.
+        if (!target) {
           const candidate = chooseTarget(u, this.targets(u.team), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
             && this.visible(u.position,t.position,u.id,t.id));
-          if (candidate && (!target || candidate.canAttack)) target = candidate;
+          if (candidate) target = candidate;
         }
         if (target) {
           if (u.target !== target.id || this.economy.state.vitals[u.id].rest) {
@@ -601,6 +624,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
       || u.provoked && (u.team !== 'enemy' || !point(u.provoked.from) || !num(u.provoked.leash, 400))
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
       || u.pursuitQuiet !== undefined && (!enemyDefinitions.has(u.id) || !num(u.pursuitQuiet, C.campPursuit.quietSeconds))
+      || u.targetSwitchIn !== undefined && !num(u.targetSwitchIn, C.targetSwitchSeconds)
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
       || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');

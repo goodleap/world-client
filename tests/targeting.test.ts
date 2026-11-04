@@ -75,12 +75,12 @@ test('enemy soldiers acquire every civilian role; lethal damage stops work/food 
   }
 });
 
-test('priority promotes an automatic civilian target but preserves an explicit player target', () => {
+test('an attackable current target stays stable and explicit player attacks keep priority', () => {
   const e = new Economy(), c = new Combat(e.state.combat, e, () => []), foe = c.unit('enemy-guard')!, ally = c.unit('infantry')!;
   for (const u of c.state.units) { u.position = { x: 60, z: 60 }; u.cooldown = 8; }
   foe.position = { ...OUTPOST }; c.setResidentPositions(id => id === 'farmer' ? { x: OUTPOST.x + 1, z: OUTPOST.z } : { x: 60, z: 60 });
   c.update(.05); assert.equal(foe.target, 'farmer');
-  ally.position = { x: OUTPOST.x + 6, z: OUTPOST.z }; c.update(.05); assert.equal(foe.target, ally.id);
+  ally.position = { x: OUTPOST.x + 6, z: OUTPOST.z }; c.update(.05); assert.equal(foe.target, 'farmer');
   const other = c.unit('enemy-sentry')!; other.position = { x: OUTPOST.x + 5, z: OUTPOST.z + 1 };
   assert.equal(c.attack([ally.id], foe.id), 1); c.update(.05); assert.equal(ally.target, foe.id);
   assert.equal(c.move([ally.id], { x: OUTPOST.x + 20, z: OUTPOST.z }), 1); c.update(.05); assert.equal(ally.target, undefined);

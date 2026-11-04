@@ -84,14 +84,16 @@ test('cancelling warehouse construction releases materials and never adds capaci
   assert.equal(decodeEconomy(encodeEconomy(e)).state.sites.length, 0);
 });
 
-test('a larger farm cannot starve a requested warehouse of construction materials', () => {
-  const e = new Economy(), warehouse = e.placeBuilding('warehouse', gridPoint(55.5, 57)).task!;
-  assert.equal(warehouse.reserved, false);
+test('funded warehouse materials remain reserved while the steward schedules crop work', () => {
+  const e = new Economy(); e.state.inventory = { ...C.warehouseCost };
+  const warehouse = e.placeBuilding('warehouse', gridPoint(55.5, 57)).task!;
+  assert.equal(warehouse.reserved, true); assert.equal(e.available().wood, 0);
   createSteward(e).requestWork();
   assert.equal(e.state.tasks.filter(t => t.origin === 'steward').length, 1);
-  const material = e.claim('farmer')!;
-  assert(['chop', 'mine'].includes(material.kind), 'required materials precede repeated automatic crop jobs');
+  assert.deepEqual(e.reserved(), C.warehouseCost);
+  assert.equal(e.claim('farmer')!.id, warehouse.id);
   e.cancel(warehouse.id);
+  assert.equal(e.available().wood, C.warehouseCost.wood);
   createSteward(e).requestWork();
   assert.equal(e.claim('farmer-2')?.kind, 'harvest', 'ordinary crop priority resumes after construction is cancelled');
 });
