@@ -75,15 +75,17 @@ test('enemy soldiers acquire every civilian role; lethal damage stops work/food 
   }
 });
 
-test('an attackable current target stays stable and explicit player attacks keep priority', () => {
+test('an attackable current target stays stable; explicit attacks engage close threats and retain their destination', () => {
   const e = new Economy(), c = new Combat(e.state.combat, e, () => []), foe = c.unit('enemy-guard')!, ally = c.unit('infantry')!;
   for (const u of c.state.units) { u.position = { x: 60, z: 60 }; u.cooldown = 8; }
   foe.position = { ...OUTPOST }; c.setResidentPositions(id => id === 'farmer' ? { x: OUTPOST.x + 1, z: OUTPOST.z } : { x: 60, z: 60 });
   c.update(.05); assert.equal(foe.target, 'farmer');
   ally.position = { x: OUTPOST.x + 6, z: OUTPOST.z }; c.update(.05); assert.equal(foe.target, 'farmer');
   const other = c.unit('enemy-sentry')!; other.position = { x: OUTPOST.x + 5, z: OUTPOST.z + 1 };
-  assert.equal(c.attack([ally.id], foe.id), 1); c.update(.05); assert.equal(ally.target, foe.id);
-  assert.equal(c.move([ally.id], { x: OUTPOST.x + 20, z: OUTPOST.z }), 1); c.update(.05); assert.equal(ally.target, undefined);
+  assert.equal(c.attack([ally.id], foe.id), 1); c.update(.05); assert.equal(ally.target, other.id);assert.equal(ally.commandTarget,foe.id);
+  assert.equal(decodeEconomy(encodeEconomy(e)).state.combat.units.find(u=>u.id===ally.id)!.commandTarget,foe.id);
+  other.position={x:70,z:70};ally.targetSwitchIn=0;c.update(.05);assert.equal(ally.target,foe.id);
+  assert.equal(c.move([ally.id], { x: OUTPOST.x + 20, z: OUTPOST.z }), 1); c.update(.05); assert.equal(ally.target, undefined);assert.equal(ally.commandTarget,undefined);
 });
 
 test('six extra enemies and six fixed wolves occupy legal sites away from the starting residents', () => {
@@ -96,4 +98,16 @@ test('six extra enemies and six fixed wolves occupy legal sites away from the st
   }
   const e = new Economy(); assert.equal(allWolves(e.state.raids).length, 6);
   assert.deepEqual(decodeEconomy(encodeEconomy(e)).state.raids.wildWolves, e.state.raids.wildWolves.map(w => ({ ...w, planIn: .2 })));
+});
+
+
+test('finishing an attack on a defeated nearby opponent resumes the original attack intent',()=>{
+  const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]),actor=c.unit('infantry')!,original=c.unit('enemy-guard')!,near=c.unit('enemy-sentry')!;
+  for(const u of c.state.units){u.position={x:70,z:70};u.cooldown=8;}
+  actor.position={x:0,z:0};actor.cooldown=0;original.position={x:5,z:0};near.position={x:1.2,z:0};
+  assert.equal(c.attack([actor.id],original.id),1);c.update(.05);assert.equal(actor.target,near.id);assert(actor.attack);
+  c.hurt(near.id,1000,actor.id);
+  for(let i=0;i<30;i++){original.order='hold';original.goal={...original.position};original.route=[];e.state.seconds+=.05;c.update(.05);}
+  assert.equal(actor.commandTarget,original.id);assert.equal(actor.target,original.id);assert.equal(actor.order,'attack');
+  assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
 });

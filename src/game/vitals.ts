@@ -8,6 +8,7 @@ export const VITAL_CONFIG = { maxStamina: 100, eatAt: 30, foodRadiusCells: 30, s
   idleDrain: .04, movingDrain: .12, workDrain: .22, combatDrain: .45, manualGrace: 8, retrySeconds: 5 };
 export interface Vital {
   stamina: number; hp?: number; diedAt?: number; manualUntil: number; retryAt: number; hurtUntil: number;
+  lastAttack?: { source:string; at:number };
   rest?: { camp: string; goal: Point; supply?: number; supplyGoal?: Point };
   meal?: { remaining: number };
 }

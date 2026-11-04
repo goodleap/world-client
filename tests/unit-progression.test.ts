@@ -11,6 +11,7 @@ import { economyObstacles } from '../src/game/economy-config.ts';
 
 test('actual fractional damage grants both teams XP, excludes overkill and friendly fire, and preserves wounds on upgrade',()=>{
   const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]),a=c.unit('infantry')!,b=c.unit('enemy-guard')!;
+  const levels:{id:string;level:number}[]=[];c.setLevelFeedback((id,level)=>levels.push({id,level}));
   a.experience=199;a.hp=70;e.state.upgrades.arms=2;
   const before=b.hp;c.hurt(b.id,15,a.id);const dealt=before-b.hp;
   assert(Math.abs(a.experience-(199+dealt))<1e-9);assert.equal(soldierLevel(a.experience),2);
@@ -21,6 +22,9 @@ test('actual fractional damage grants both teams XP, excludes overkill and frien
   const unchanged=a.experience;c.hurt('archer',99,a.id);assert.equal(a.experience,unchanged);
   changeHealth(e.state,a.id,1000);assert.equal(a.hp,132);
   assert.equal(populationInfo(e.state).find(r=>r.id===a.id)!.progression!.level,2);
+  assert.deepEqual(levels,[{id:a.id,level:2},{id:b.id,level:2}]);
+  const restored=decodeEconomy(encodeEconomy(e)),next=new Combat(restored.state.combat,restored,()=>[]);
+  next.setLevelFeedback(()=>assert.fail('loading an existing level must not replay the effect'));next.update(0);
 });
 
 test('maximum rank, fractional saves and effective-health validation apply to enemy cavalry too',()=>{
@@ -41,7 +45,7 @@ test('arrows award XP exactly once across reload, including a fallen shooter wit
   archer.experience=199.5;archer.hp=0;archer.life='defeated';archer.diedAt=0;archer.order='hold';
   target.position={x:5,z:5};target.order='hold';
   c.state.projectiles.push({id:c.state.nextAttack++,source:archer.id,target:target.id,from:{x:5,z:3},to:{...target.position},elapsed:0,duration:.05,damage:14});
-  e=decodeEconomy(encodeEconomy(e));c=new Combat(e.state.combat,e,()=>[]);c.update(.05);
+  e=decodeEconomy(encodeEconomy(e));c=new Combat(e.state.combat,e,()=>[]);c.setLevelFeedback(()=>assert.fail('a dead shooter must not play an upgrade effect'));c.update(.05);
   const xp=c.unit('archer')!.experience;assert(xp>200);assert.equal(c.unit('archer')!.hp,0);assert.equal(c.unit('archer')!.life,'defeated');
   e=decodeEconomy(encodeEconomy(e));c=new Combat(e.state.combat,e,()=>[]);c.update(.05);assert.equal(c.unit('archer')!.experience,xp);
 });

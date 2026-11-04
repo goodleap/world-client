@@ -14,7 +14,7 @@ import { BUILDINGS, LANDSCAPE, WORLD_BOUNDS } from './world-data.ts';
 import { isBlocked } from './movement.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { planMoveDestination, planWorkApproach } from './work-navigation.ts';
-import { validateNavigation } from './navigation-plan.ts';
+import { planNavigation, validateNavigation, type NavigationInput } from './navigation-plan.ts';
 import { resetRouteState, stepRoute } from './route-following.ts';
 import type { Neighbour } from './route-following.ts';
 import { segmentIsClear } from './wander.ts';
@@ -22,7 +22,8 @@ import { chooseTarget } from './targeting.ts';
 
 export interface RaidResidents {
   status(id: string): { position: Point; moving: boolean };
-  command(point: Point, id: string): boolean;
+  command(point: Point, id: string, prepared?:readonly Point[]): boolean;
+  movementInput?(id:string,point:Point):NavigationInput|undefined;
   release(id: string): void;
   resting(id: string, value: boolean): void;
   neighbours(): Neighbour[];
@@ -47,6 +48,7 @@ export class Raids {
   private areaAt = -Infinity;
   private areaSolids: Obstacle[] = [];
   private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
+  private escapePlans = new Map<string,NavigationInput>();
   private warningCandidate?:{origin:Point;count:number};
   constructor(economy: Economy, combat: Combat, people: RaidResidents, solids: () => readonly Obstacle[], visible: (point: Point) => boolean) {
     this.economy = economy; this.combat = combat; this.people = people; this.solids = solids; this.visible = visible;
@@ -82,8 +84,8 @@ export class Raids {
     return pathInDanger(this.economy.state.dangerZones,points);
   }
   workObstacles(){this.updateAreas();return this.areaSolids;}
-  canWork(id: string) { return !this.state.evading[id] && health(this.economy.state, id) > 0; }
-  manual(id: string) { delete this.state.evading[id]; }
+  canWork(id: string,manual=false) { const escape=this.state.evading[id];return (!escape||manual&&!escape.attacker) && health(this.economy.state, id) > 0; }
+  manual(id: string) { delete this.state.evading[id];this.escapePlans.delete(id);this.economy.state.vitals[id].lastAttack=undefined; }
   private neighboursFor(w: Wolf) {
     return [...this.people.neighbours().map(n=>({...n,yield:undefined})), ...this.combat.state.units.filter(u => u.life !== 'defeated').map(u => ({ id: u.id, position: u.position,
       radius: fighterRadius(u),heading:u.facing, moving: u.speed > .08, purposeful: !!u.route.length, waiting: u.navigation.waiting })), ...this.neighbours().filter(n => n.id !== w.id)];
@@ -181,8 +183,15 @@ export class Raids {
     const now = this.economy.state.seconds;
     const threats = this.combat.targets().filter(t => t.team === 'enemy' && t.life === 'active'
       && !this.wolves.some(w => w.id === t.id && ['gone', 'flee'].includes(w.mode)));
+    for(const task of this.economy.state.tasks)if(task.threat&&task.status==='waiting'){
+      const foe=threats.find(t=>t.id===task.threat!.source),point=this.economy.taskPoint(task);
+      const range=foe&&this.combat.unit(foe.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire;
+      if(foe&&(distance(foe.position,task.threat.point)<=range+1||point&&distance(foe.position,point)<=range+1))task.threat.safeSince=undefined;
+      else if(task.threat.safeSince===undefined)task.threat.safeSince=now;
+      else if(now-task.threat.safeSince>=3){task.threat=undefined;task.retryAt=0;task.reason='';this.economy.revision++;}
+    }
     for (const r of homeResidents(this.economy.state)) {
-      if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id]; continue; }
+      if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id];this.escapePlans.delete(r.id); continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
       const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire));
       if (this.combat.unit(r.id)) {
@@ -192,25 +201,39 @@ export class Raids {
         }
         continue;
       }
-      const evasion = this.state.evading[r.id];
+      const evasion = this.state.evading[r.id],hit=vital.lastAttack;
+      const source=threats.find(t=>t.id===(hit?.source??evasion?.attacker));
+      const attacked=!!source&&!!hit&&now-hit.at<=3;
+      const reacting=attacked||!!evasion?.attacker;
+      const active=this.economy.active(r.id);
       // Task origin, not a short grace timer, owns the entire player order:
       // approach, work and its follow-up delivery, including after reload.
-      if (this.economy.active(r.id)?.origin==='manual') { delete this.state.evading[r.id]; continue; }
+      if (active?.origin==='manual'&&!reacting) { delete this.state.evading[r.id];this.escapePlans.delete(r.id); continue; }
       // Leave enough room for the same body-sized clearance used when planning
       // safe work/wander routes, rather than stopping with feet on the border.
       const zone=this.economy.state.dangerZones.find(z=>distance(position,z)<=z.radius+r.bodyRadius+.05);
-      const hazard=nearby.length?nearby.reduce((a,b)=>distance(position,a.position)<distance(position,b.position)?a:b).position:zone;
+      const attacking=nearby.filter(t=>{const u=this.combat.unit(t.id);return u?.target===r.id||u?.attack?.target===r.id;});
+      const threatsNow=reacting?attacking:nearby;
+      const hazard=reacting&&source&&(attacked&&!evasion||distance(position,source.position)<C.acquire+2)?source.position
+        :threatsNow.length?threatsNow.reduce((a,b)=>distance(position,a.position)<distance(position,b.position)?a:b).position:reacting?undefined:zone;
       if (!hazard) {
         // Shared areas own the ten-second clearance wait. Once outside every
         // hazard, safe work may resume without a second personal countdown.
-        if (evasion) { this.people.release(r.id); delete this.state.evading[r.id]; }
+        if (evasion) { this.people.release(r.id); delete this.state.evading[r.id];this.escapePlans.delete(r.id);vital.lastAttack=undefined; }
         continue;
       }
       // An accepted player movement stays in charge, even beyond its grace time.
-      if (vital.manualUntil > now || !evasion && this.people.status(r.id).moving && !this.economy.active(r.id) && !vital.rest) continue;
+      if (!reacting&&(vital.manualUntil > now || !evasion && this.people.status(r.id).moving && !active && !vital.rest)) continue;
       const e = evasion ?? (this.state.evading[r.id] = { planAt: 0 });
+      if(attacked&&source){if(!e.attacker)e.planAt=0;e.attacker=source.id;}
+      if((!evasion||reacting&&active)&&active){
+        if(reacting&&source)this.economy.pauseUnderAttack(active,source.id,position);
+        else{active.watchPath??=[{...position}];this.economy.holdDanger(active,position);}
+        this.people.release(r.id);
+      }
+      if(!evasion){this.people.release(r.id);vital.rest=undefined;this.people.resting(r.id,false);}
       vital.hurtUntil = Math.max(vital.hurtUntil, now + 1);
-      if (e.planAt > now) continue;
+      if (e.planAt > now&&!this.escapePlans.has(r.id)) continue;
       e.planAt = now + 2;
       const dx = position.x - hazard.x || .01, dz = position.z - hazard.z, length = Math.hypot(dx, dz) || 1;
       const escapeDistance = C.acquire+DANGER_CONFIG.buffer+4;
@@ -218,11 +241,23 @@ export class Raids {
         ...(zone ? circle(zone, zone.radius+2) : []),
         ...this.economy.state.campfires.filter(fireIsLit).flatMap(f => circle(this.economy.state.sites.find(s => s.id === f.id)!, 3)),
         ...this.economy.warehouseDoors()]
-        .filter(p => distance(p, hazard) > distance(position, hazard) + 2 && !this.unsafePath([p]))
+        .filter(p => distance(p, hazard) > distance(position, hazard) + 2 && (reacting?!nearby.some(t=>distance(p,t.position)<COMBAT_CONFIG.acquire):!this.unsafePath([p])))
         .sort((a, b) => distance(position, a) - distance(position, b));
-      // Interrupt once: carried resources are preserved by the economy, never refunded.
-      if (!evasion) { const task=this.economy.active(r.id);if(task){task.watchPath??=[{...position}];this.economy.holdDanger(task,position);}else this.economy.interrupt(position, r.id); this.people.release(r.id); vital.rest = undefined; this.people.resting(r.id, false); }
-      for (const point of points) if (this.people.command(point, r.id)) break;
+      const pending=this.escapePlans.get(r.id);
+      for (const point of pending?[pending.goal,...points]:points) {
+        if(!this.people.movementInput){if(this.people.command(point,r.id))break;continue;}
+        const live=this.people.movementInput(r.id,point);if(!live)break;
+        // Keep an outstanding worker query stable while surrounding bodies move.
+        // Once it replies, validate the route against live geometry/reservations.
+        const input=pending?.goal===point?pending:live,path=planNavigation(input);
+        if(path===null){this.escapePlans.set(r.id,input);e.planAt=now+.35;break;}
+        this.escapePlans.delete(r.id);
+        if(!path)continue;
+        const route=validateNavigation(live,path),end=route?.at(-1);
+        if(end&&distance(end,hazard)>distance(position,hazard)+2
+          &&(reacting?!nearby.some(t=>distance(end,t.position)<COMBAT_CONFIG.acquire):!this.unsafePath([end]))
+          &&this.people.command(end,r.id,route))break;
+      }
     }
   }
   update(seconds: number) {

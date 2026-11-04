@@ -41,7 +41,7 @@ export function damageTower(e:Economy,id:string,amount:number,onFall:(id:string,
       // The former platform's center is now free ground if the door is occupied.
       const candidates=[buildingDoor(site),{x:tower.x,z:tower.z}];
       unit.position={...(candidates.find(p=>!isBlocked(p,.4,[...solids,...crowd]))??candidates[1])};
-      unit.route=[];unit.goal=undefined;unit.attack=undefined;unit.target=undefined;unit.order='guard';unit.speed=0;
+      unit.route=[];unit.goal=undefined;unit.attack=undefined;unit.target=undefined;unit.order='guard';unit.commandTarget=undefined;unit.speed=0;
       e.state.vitals[unit.id].rest=undefined;unit.deathElevation=undefined;unit.deathTower=undefined;
       tower.unit=undefined;tower.phase='empty';
       onFall(unit.id,maxHealth(unit.id, e.state)*TOWER_CONFIG.fallDamage);
@@ -90,7 +90,7 @@ export function updateTowers(e:Economy,combat:Combat){
     if(tower.phase==='approach'){
       const door=buildingDoor(site);
       if(Math.hypot(u.position.x-door.x,u.position.z-door.z)<.25&&!u.route.length){
-        u.position=towerPlatform(tower);u.goal=undefined;u.route=[];u.order='guard';u.attack=undefined;u.target=undefined;u.speed=0;
+        u.position=towerPlatform(tower);u.goal=undefined;u.route=[];u.order='guard';u.commandTarget=undefined;u.attack=undefined;u.target=undefined;u.speed=0;
         tower.phase='occupied';e.revision++;
       }
     }else if(tower.phase==='meal'&&!e.state.vitals[u.id].rest&&!needsFood(e.state,u.id)&&!u.goal&&!u.target&&!u.attack){

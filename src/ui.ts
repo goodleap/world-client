@@ -79,10 +79,9 @@ export function createUI(app: HTMLElement) {
           <div class="resident-card-heading"><strong id="resident-name"></strong><small id="resident-level" hidden></small><span id="resident-activity"></span></div>
           <div id="resident-vitals" class="resident-vitals"></div>
         </summary><div id="unit-attributes" class="unit-attributes"></div></details>
-        <label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label>
         <span id="resident-hint" class="sr-only"></span>
       </section>
-      <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><strong id="selection-name"></strong><small id="selection-kind"></small><p id="selection-hint" role="status"></p><div id="selection-actions" class="selection-actions"></div></section>
+      <section id="selection-card" class="selection-card" aria-label="对象信息" hidden><strong id="selection-name"></strong><small id="selection-kind"></small><p id="selection-hint" role="status"></p></section>
     </section>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
     <div class="bottom-dock">
@@ -109,6 +108,8 @@ export function createUI(app: HTMLElement) {
     </div>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <section id="selection-actions-panel" class="selection-actions-panel" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
+    <section id="unit-actions-panel" class="unit-actions-panel" aria-label="单位操作" hidden><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></section>
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
 
     <nav id="group-shortcuts" class="group-shortcuts" aria-label="快速选择编队"></nav>
@@ -146,7 +147,7 @@ export function createUI(app: HTMLElement) {
     </dialog>
     <dialog id="map-dialog" class="map-dialog" aria-label="全屏地图"><button class="dialog-close" aria-label="关闭全屏地图">${icon('close')}</button><div id="map-viewport" class="map-viewport" aria-label="拖动浏览，双指或滚轮缩放"></div></dialog>
     <dialog id="demolish-dialog" class="paper-dialog demolish-dialog" aria-labelledby="demolish-title"><button class="dialog-close" aria-label="取消拆除">${icon('close')}</button><h2 id="demolish-title">拆除建筑</h2><p id="demolish-description"></p><div class="home-actions"><button id="demolish-confirm">确认拆除</button></div></dialog>
-    <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status"></p></dialog>
+    <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><div class="recruit-queue-heading"><h3>招募队列 <small>最多 20 名 · 依次招募</small></h3><button id="set-rally">设置集合点</button></div><ol id="recruit-queue"></ol><p id="recruit-notice" class="dialog-note" role="status"></p><footer class="panel-footer"><button id="continue-recruit" class="primary-button">继续游戏</button></footer></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="settings-scroll"><div class="system-actions"><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></div><footer class="panel-footer"><button id="continue-game" class="primary-button">继续游戏</button></footer></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="performance-setting" for="performance-mode">性能模式<select id="performance-mode"><option value="standard">标准 · 60 帧</option><option value="saving">省电 · 30 帧</option><option value="minimum">强省电 · 20 帧</option></select><small>省电模式降低画面分辨率与阴影，游戏速度保持不变。</small></label><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
       <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>
@@ -202,7 +203,8 @@ export function createUI(app: HTMLElement) {
   const options = { signal: abort.signal };
   const minimapPanel = get('minimap-panel'), mapToggle = get<HTMLButtonElement>('map-toggle');
   const mapCanvas=get<HTMLCanvasElement>('minimap'),mapViewport=get('map-viewport');
-  const mapGestures=createMapGestures(mapViewport,mapCanvas,options);
+  let onMapPick=(x:number,y:number)=>{void x;void y;},onMapClose=()=>{};
+  const mapGestures=createMapGestures(mapViewport,mapCanvas,options,(x,y)=>onMapPick(x,y));
   mapToggle.addEventListener('click', () => {
     minimapPanel.hidden = !minimapPanel.hidden;
     mapToggle.setAttribute('aria-expanded', String(!minimapPanel.hidden));
@@ -226,7 +228,7 @@ export function createUI(app: HTMLElement) {
   const openMap=()=>{if(fullMap.open)return;mapViewport.append(mapCanvas);mapCanvas.setAttribute('role','img');mapCanvas.tabIndex=-1;mapCanvas.setAttribute('aria-label','全屏地图，上方为北，浅色框为当前视野');showDialog(fullMap);mapGestures.reset();};
   mapCanvas.addEventListener('click',openMap,options);
   mapCanvas.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openMap();}},options);
-  fullMap.addEventListener('close',()=>{mapGestures.reset();minimapPanel.append(mapCanvas);mapCanvas.setAttribute('role','button');mapCanvas.tabIndex=0;mapCanvas.setAttribute('aria-label','全屏查看地图');},options);
+  fullMap.addEventListener('close',()=>{mapGestures.reset();minimapPanel.append(mapCanvas);mapCanvas.setAttribute('role','button');mapCanvas.tabIndex=0;mapCanvas.setAttribute('aria-label','全屏查看地图');onMapClose();},options);
   get('demolish-confirm').addEventListener('click',()=>{const action=confirmDemolition;confirmDemolition=undefined;demolition.close();action?.();},options);
   const closeDialog = (dialog: HTMLDialogElement) => {
     if (dialog === graphics) switchDialog(graphics, settings);
@@ -272,6 +274,7 @@ export function createUI(app: HTMLElement) {
   get('settings-graphics').addEventListener('click', () => switchDialog(settings, graphics), options);
   get('settings-help').addEventListener('click', () => showDialog(help), options);
   get('continue-game').addEventListener('click', () => closeDialog(settings), options);
+  get('continue-recruit').addEventListener('click', () => closeDialog(recruitment), options);
   get('continue-home').addEventListener('click', () => closeDialog(resources), options);
   get('return-menu').addEventListener('click', () => onLeave('menu'), options);
   get('exit-game').addEventListener('click', () => onLeave('exit'), options);
@@ -300,11 +303,12 @@ export function createUI(app: HTMLElement) {
   }, options);
 
   // World overlays keep their offset from the projected target, even at edges.
-  const card = get('selection-card');
+  const card = get('selection-card'),actionsPanel=get('selection-actions-panel'),unitActions=get('unit-actions-panel');
+  residentSizeObserver.observe(actionsPanel);
   const hint = get('target-hint');
   const infoCard=get('selection-info'),unitCard=get('resident-selection');
   let residentName='',residentInfo:UnitInfo|undefined;
-  const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;};
+  const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;unitActions.hidden=unitCard.hidden||get('leader-command-control').hidden;};
   const infoObserver=new ResizeObserver(entries=>{for(const entry of entries)app.style.setProperty('--selection-height',`${Math.ceil(entry.borderBoxSize?.[0]?.blockSize??entry.contentRect.height)}px`);});
   infoObserver.observe(infoCard);
   const objectLabel=document.createElement('span');objectLabel.className='resident-label selected-object-label';objectLabel.hidden=true;
@@ -412,6 +416,7 @@ export function createUI(app: HTMLElement) {
       const transform = `translate(${x.toFixed(2)}px, ${(y - nameHeight - gap).toFixed(2)}px) translate(-50%, -100%)`;
       if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
+    bindMap(pick:(x:number,y:number)=>void,close:()=>void){onMapPick=pick;onMapClose=close;},
     minimapCanvas: get<HTMLCanvasElement>('minimap'),
     get minimapOpen() { return !minimapPanel.hidden||fullMap.open; },
     get fullMapOpen() { return fullMap.open; },
@@ -514,9 +519,9 @@ export function createUI(app: HTMLElement) {
       }
     },
     setSelection(details?: SelectionDetails) {
-      card.hidden=!details;objectLabel.hidden=!details;syncSelection();
+      card.hidden=!details;objectLabel.hidden=!details;actionsPanel.hidden=!details?.actions?.length;syncSelection();
       if(!details)return;
-      card.setAttribute('aria-label', `${details.name}的操作`);
+      card.setAttribute('aria-label', `${details.name}的信息`);
       setText(get('selection-name'),details.name);setText(get('selection-kind'),details.kind);setText(objectName,details.name);
       objectBar.hidden=!details.health;
       if(details.health){const {value,maximum}=details.health;objectFill.style.transform=`scaleX(${Math.max(0,Math.min(1,value/maximum))})`;objectBar.setAttribute('aria-valuenow',String(Math.ceil(value)));objectBar.setAttribute('aria-valuemax',String(maximum));}
@@ -525,14 +530,16 @@ export function createUI(app: HTMLElement) {
       if (!message.hidden && message.textContent !== details.hint) message.textContent = details.hint;
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {
-        actionsKey = key;
+        actionsKey = key;residentSizes.delete(actionsPanel);
         get('selection-actions').replaceChildren(...actions.map(action => {
           const button = document.createElement('button'); button.dataset.action = action.id; button.textContent = action.label; button.disabled = !!action.disabled; return button;
         }));
       }
-      residentSizes.delete(card);
+
     },
     positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(objectLabel, x, y, visible),
+    positionObjectActions:(x:number,y:number,visible:boolean)=>positionOverlay(actionsPanel,x,y,visible),
+    positionUnitActions:(x:number,y:number,visible:boolean)=>positionOverlay(unitActions,x,y,visible),
     setResident(name?: string, canWork = false, leadership?: boolean) {
       residentName=name??'';if(!name)residentInfo=undefined;syncSelection();
       get('resident-name').textContent = name === '农民·领头' ? '领头' : name ?? '';
@@ -540,7 +547,7 @@ export function createUI(app: HTMLElement) {
       get('resident-selection').classList.toggle('has-command', leadership !== undefined);
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       get('leader-command-control').hidden = leadership === undefined;
-      get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
+      get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;syncSelection();
     },
     setResidentInfo(info?: UnitInfo) {
       if(info?.id!==residentInfo?.id)get<HTMLDetailsElement>('unit-details').open=false;
@@ -589,7 +596,7 @@ export function createUI(app: HTMLElement) {
       clearTimeout(hintTimer); hint.hidden = true; hintAnchor = undefined;
     },
     get hintAnchor() { return hintAnchor; },
-    positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y, visible),
+    positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y-(actionsPanel.hidden?0:residentSize(actionsPanel).height+8), visible),
     dispose() { abort.abort(); infoObserver.disconnect();residentSizeObserver.disconnect();mapGestures.dispose(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }

@@ -17,7 +17,7 @@ export const RECRUIT_CONFIG = {
   cavalry: { name: '骑兵', seconds: 25, cost: { food: 12, iron: 4 } },
   dog: { name: '田园犬', seconds: 8, cost: { food: 4 } },
 } satisfies Record<ResidentRole, { name: string; seconds: number; cost: Partial<Inventory> }>;
-export const POPULATION_LIMIT = 200, DOG_LIMIT = 4, RECRUIT_QUEUE_LIMIT = 5;
+export const POPULATION_LIMIT = 200, DOG_LIMIT = 4, RECRUIT_QUEUE_LIMIT = 20;
 export interface RecruitOrder { serial: number; role: ResidentRole; elapsed: number }
 export interface RecruitmentState { nextId: number; roster: ResidentDefinition[]; queue: RecruitOrder[]; rally: Point }
 export const initialRecruitment = (): RecruitmentState => ({ nextId: 1, roster: [], queue: [],

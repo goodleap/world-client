@@ -42,9 +42,10 @@ test('new cavalry and dog have independent needs; death persists and releases on
   assert.equal(homeResidents(restored.state).length,11);
 });
 test('queue and human cap include pending recruits and reject unknown saved workers',()=>{
-  const e=funded();for(let i=0;i<5;i++)assert(recruit(e,'farmer').ok);assert.equal(recruit(e,'farmer').ok,false);
+  const e=funded();e.state.inventory.food=200;for(let i=0;i<20;i++)assert(recruit(e,'farmer').ok);
+  assert.equal(recruit(e,'farmer').ok,false);assert.equal(decodeEconomy(encodeEconomy(e)).state.recruitment.queue.length,20);
   while(e.state.recruitment.queue.length)advanceRecruitment(e,10);
-  for(let i=0;i<188;i++){e.state.inventory.food=60;assert(recruit(e,'farmer').ok);advanceRecruitment(e,10);}
+  for(let i=0;i<173;i++){e.state.inventory.food=60;assert(recruit(e,'farmer').ok);advanceRecruitment(e,10);}
   assert.equal(livingPopulation(e.state),199);e.state.inventory.food=60;assert(recruit(e,'farmer').ok);
   assert.equal(recruit(e,'farmer').ok,false,'queued recruit reserves the 200th slot');
   advanceRecruitment(e,10);assert.equal(livingPopulation(decodeEconomy(encodeEconomy(e)).state),200);

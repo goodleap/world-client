@@ -14,6 +14,7 @@ import { validateNavigation } from './navigation-plan.ts';
 import type { Point } from './movement.ts';
 import { selectedUnitInfo, enemyUnitInfo } from './unit-info.ts';
 import { createDamageNumbers } from './damage-numbers.ts';
+import { createLevelFeedback } from './level-feedback.ts';
 import { livingPopulation, formatGameTime } from './home-status.ts';
 import { Raids } from './raids.ts';
 import { createWolfView } from './wolf-view.ts';
@@ -168,11 +169,17 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if(anchor)hit={...hit,point:{...anchor}};
     damageNumbers.add(hit,economy.state.seconds,projectDamage(hit.point).visible);
   });
+  const levelFeedback=createLevelFeedback(scene,damageHost);
+  const levelPosition=(id:string)=>{
+    const u=combat.unit(id),p=residents.displayPosition(id)??u?.position;
+    return u?.life==='active'&&p?{x:p.x,z:p.z,y:towerHeight(economy.state,id)}:undefined;
+  };
+  combat.setLevelFeedback((id,level)=>{const p=levelPosition(id);if(p&&projectDamage({...p,y:p.y+1}).visible)levelFeedback.show(id,level,economy.state.seconds,p);});
   residents.syncCombat(combat.state.units);
   const visibilityPoint = new Vector3(), visibilityScreen = new Vector3(), visibilityIdentity = Matrix.Identity();
   residents.setCombatYield((id,from,toward)=>{const u=combat.unit(id);return !!u&&combat.yieldUnit(u,from,toward);});
   const raids = new Raids(economy, combat, {
-    status: residents.needsStatus, command: (p, id) => residents.command(p, id), release: residents.releaseFarmerWork,
+    status: residents.needsStatus, command: (p, id, path) => residents.command(p, id,false,path), movementInput:residents.movementInput, release: residents.releaseFarmerWork,
     resting: residents.setResting, neighbours: residents.combatNeighbours,
   }, () => world.obstacles(true), point => {
     visibilityPoint.set(point.x, 1, point.z);
@@ -200,7 +207,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
-  }, point => world.doors.useWarehouse(point), (id,task) => needs.canTakeWork(id) && (task?.origin==='manual'||raids.canWork(id)),points=>raids.unsafePath(points),()=>raids.workObstacles(),id=>!!raids.state.evading[id]);
+  }, point => world.doors.useWarehouse(point), (id,task) => needs.canTakeWork(id) && raids.canWork(id,task?.origin==='manual'),points=>raids.unsafePath(points),()=>raids.workObstacles(),id=>!!raids.state.evading[id]);
   const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
   const backgroundPaths=createBackgroundPaths(new Worker(new URL('./pathfinding.worker.ts',import.meta.url),{type:'module'}));
   const releasePathPlanner=usePathPlanner(backgroundPaths.plan);
@@ -382,6 +389,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const lifecycle = new AbortController();
   const target = new Vector3();
   const mapCenter = homeCenter.clone();
+  let mapDestination:Point|undefined;
   camera.target.copyFrom(homeCenter);
   const zoomBy = (delta: number) => {
     if (suspended || ui.paused) return;
@@ -390,6 +398,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     currentZoom = zoom; applyProjection();
   };
   const clampCenter = () => { mapCenter.x = Math.max(WORLD_BOUNDS.minX, Math.min(WORLD_BOUNDS.maxX, mapCenter.x)); mapCenter.z = Math.max(WORLD_BOUNDS.minZ, Math.min(WORLD_BOUNDS.maxZ, mapCenter.z)); };
+  ui.bindMap((x,y)=>{
+    mapDestination={x:WORLD_BOUNDS.minX+x*(WORLD_BOUNDS.maxX-WORLD_BOUNDS.minX),z:WORLD_BOUNDS.maxZ-y*(WORLD_BOUNDS.maxZ-WORLD_BOUNDS.minZ)};requestRender();
+  },()=>{
+    if(mapDestination&&!suspended&&!disposed){setPreview();overview=false;mapCenter.set(mapDestination.x,.5,mapDestination.z);clampCenter();camera.target.copyFrom(mapCenter);requestRender();}
+    mapDestination=undefined;
+  });
   const placement = createBuildingPlacement(scene, camera, ui, economy, occupancy, () => ui.paused || suspended,
     () => { clearWorld(); setPreview(); }, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
   const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
@@ -707,6 +721,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(residents.displayPosition(target.id)??wolves.displayPosition(target.id)??target.position);
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
+    levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,levelPosition,projectDamage);
     const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
     residents.updateLabels(camera); wolves.updateLabels(camera);
     ui.setInspectedUnits([...residents.selectedIds(),...(selectedEnemy?[selectedEnemy]:[])]);
@@ -717,7 +732,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
         scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
       ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
+      const action=projectDamage(selectedWorld.anchor);ui.positionObjectActions(action.x,action.y,action.visible);
     }
+    const leader=residents.selectedId()===farmerLeader?.id&&residents.displayPosition(farmerLeader!.id);
+    if(leader){const p=projectDamage({x:leader.x,z:leader.z,y:2.8});ui.positionUnitActions(p.x,p.y,p.visible);}
     if (ui.hintAnchor) {
       const anchor = ui.hintAnchor;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
@@ -747,7 +765,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         if (distance === null) return [];
         const p = ray.origin.add(ray.direction.scale(distance)); return [{ x: p.x, z: p.z }];
       });
-      return view;
+      return mapDestination?view.map(p=>({x:p.x+mapDestination!.x-camera.target.x,z:p.z+mapDestination!.z-camera.target.z})):view;
     },ui.fullMapOpen);
     const sample = !ui.paused && !resuming ? metrics.record(cpuStart-cpuSinceFrame, performance.now()) : undefined;
     cpuSinceFrame=0;
@@ -803,7 +821,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     renderReady = true; requestRender();
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
-    damageNumbers.dispose();damageHost.remove();releasePathPlanner();backgroundPaths.dispose();navigation.dispose();minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
+    levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();releasePathPlanner();backgroundPaths.dispose();navigation.dispose();minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   await nextPaint();
   loadingProgress.done('first-frame');
@@ -832,7 +850,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     markPerformance: performanceDiagnostics.mark,
     // Per-frame checks must not clone the entire simulation or sample every
     // skeleton; keep camera/minimap timing observable without skewing it.
-    frameSnapshot:()=>({frames:renderedFrames,camera:cameraState(),minimap:minimap.snapshot(),damage:damageNumbers.snapshot()}),
+    frameSnapshot:()=>({frames:renderedFrames,camera:cameraState(),minimap:minimap.snapshot(),damage:damageNumbers.snapshot(),levels:levelFeedback.snapshot()}),
     /** Read-only diagnostics are exposed only in development or an explicit E2E build. */
     snapshot: () => ({
       lighting: { ...lighting },
@@ -898,7 +916,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       save();
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       engine.onContextRestoredObservable.remove(contextRestored);
-      damageNumbers.dispose();damageHost.remove();releasePathPlanner();backgroundPaths.dispose();navigation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); minimap.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();releasePathPlanner();backgroundPaths.dispose();navigation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); minimap.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

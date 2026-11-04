@@ -6,7 +6,9 @@ import { Combat } from '../src/game/combat.ts';
 import { Raids } from '../src/game/raids.ts';
 import { dangerObstacles, pathInDanger } from '../src/game/danger-zones.ts';
 import { ECONOMY_CONFIG } from '../src/game/economy-config.ts';
-import { gridPoint } from '../src/game/world-data.ts';
+import { gridPoint, WORLD_BOUNDS } from '../src/game/world-data.ts';
+import { usePathPlanner, type PathQuery } from '../src/game/path-planner.ts';
+import { findPath } from '../src/game/pathfinding.ts';
 
 function setup(e=new Economy()) {
   e.setLeadership(false);e.state.raids.nextAt=1000;
@@ -28,10 +30,10 @@ function setup(e=new Economy()) {
   },()=>[],()=>false);
   const controller=createEconomyController(e,{
     sync:()=>false,workPoints:()=>({points:[{...position}],target:{...position}}),
-  },residents,false,()=>{},()=>{},(id,task)=>task?.origin==='manual'||raids.canWork(id),
+  },residents,false,()=>{},()=>{},(id,task)=>raids.canWork(id,task?.origin==='manual'),
   points=>pathInDanger(e.state.dangerZones,points),()=>dangerObstacles(e.state.dangerZones),id=>!!raids.state.evading[id]);
   const tick=(seconds=.05)=>{controller.update(seconds);raids.update(.05);};
-  return {e,raids,controller,residents,tick,
+  return {e,combat,position,raids,controller,residents,tick,
     arrive:()=>{if(work)work.status='arrived';tick();},
     blocked:()=>{reachable=false;},
     hazard:()=>e.state.dangerZones.push({id:'area:0:-3',...position,radius:30}),
@@ -103,4 +105,62 @@ test('danger follows actual guard alert range instead of adding camp size and a 
   assert(h.raids.unsafePath([{x:16.5,z:-2}]));
   assert(!h.raids.unsafePath([{x:14,z:-2}]));
   assert(!e.state.dangerZones.some(z=>z.id.startsWith('camp:')));
+});
+
+
+test('actual damage interrupts manual work, preserves progress and waits for the attacker to leave before resuming',()=>{
+  const h=setup(),{e,combat,position}=h;
+  const foe=combat.unit('enemy-guard')!;foe.position={x:position.x+1,z:position.z};
+  const task=e.request('sow','plot-2','wheat').task!;h.tick();h.arrive();task.progress=.4;
+  assert.equal(task.status,'working');assert(!e.state.raids.evading.farmer,'manual work ignores preventive danger');
+  e.state.vitals.farmer.manualUntil=1000;
+  combat.hurt('farmer',2,foe.id);
+  for(let i=0;i<12;i++)h.tick();
+  assert.equal(task.status,'waiting');const progress=task.progress;assert(progress>=.4&&progress<1);assert.equal(task.threat?.source,foe.id);
+  assert.equal(h.raids.state.evading.farmer?.attacker,foe.id);assert(h.residents.hasMoveCommand('farmer'));
+  assert(!h.raids.canWork('farmer',true));assert(!e.claim('farmer-2'));
+  const loaded=decodeEconomy(encodeEconomy(e));assert.equal(loaded.state.tasks.find(t=>t.id===task.id)!.threat!.source,foe.id);
+  const resumed=setup(loaded),saved=resumed.e.state.tasks.find(t=>t.id===task.id)!;
+  resumed.combat.unit(foe.id)!.position={x:80,z:80};
+  for(let i=0;i<85;i++)resumed.tick();
+  assert(!saved.threat);assert.equal(saved.origin,'manual');assert.equal(resumed.e.active('farmer')?.id,saved.id);
+  assert.equal(saved.progress,progress);
+});
+
+test('attack escape preserves hauled goods and a newer player command overrides the escape',()=>{
+  const h=setup(),{e,combat,position}=h;
+  const foe=combat.unit('enemy-guard')!;foe.position={x:position.x+1,z:position.z};
+  const cargo=e.dropReward(position,{wood:3})[0],task=e.request('haul',cargo).task!;
+  assert(e.assign(task.id,'farmer').ok);e.arrive(task.id);assert.equal(e.state.goods[0].state,'transit');
+  combat.hurt('farmer',2,foe.id);h.raids.update(.6);
+  assert.equal(task.status,'waiting');assert(task.threat);assert.equal(e.state.goods[0].state,'ground');
+  assert.equal(e.state.goods[0].amount,3);assert.equal(decodeEconomy(encodeEconomy(e)).state.goods[0].amount,3);
+  h.raids.manual('farmer');assert(!e.state.raids.evading.farmer);assert(!e.state.vitals.farmer.lastAttack);
+  // Explicit reissuing is permitted even while that same hostile remains nearby.
+  assert(e.assign(task.id,'farmer').ok);assert(!task.threat);
+  h.raids.update(.6);assert.equal(e.active('farmer')?.id,task.id);assert(!e.state.raids.evading.farmer);
+});
+
+
+test('escape keeps a pending worker query stable and validates the answer against moved neighbours',()=>{
+  const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]);e.setLeadership(false);e.state.raids.nextAt=1000;
+  const position={x:0,z:-3},foe=c.unit('enemy-guard')!;foe.position={x:1,z:-3};
+  let bystander={x:40,z:40},first:PathQuery|undefined,adopted=false,requests=0;
+  const restore=usePathPlanner(query=>{
+    if(query.radius===.29){requests++;if(!first){first=structuredClone(query);return null;}assert.deepEqual(query,first);}
+    return findPath(query.start,query.goals[0],query.radius,query.bounds,query.obstacles);
+  });
+  try{
+    const raids=new Raids(e,c,{
+      status:id=>({position:id==='farmer'?position:{x:90,z:90},moving:false}),release:()=>{},resting:()=>{},neighbours:()=>[],
+      movementInput:(_id,goal)=>({start:position,goal,radius:.29,bounds:WORLD_BOUNDS,
+        solids:[{kind:'box',x:(goal.x+position.x)/2,z:(goal.z+position.z)/2,halfWidth:.3,halfDepth:.3}],
+        neighbours:[{position:{...bystander},radius:.4}]}),
+      command:(_point,id,path)=>{if(id==='farmer'&&path?.length)adopted=true;return true;},
+    },()=>[],()=>false);
+    e.state.vitals.farmer.manualUntil=1000;c.hurt('farmer',2,foe.id);
+    raids.update(.05);assert(first);assert(!adopted);bystander={x:45,z:44};
+    for(let i=0;i<8&&!adopted;i++){e.state.seconds+=.1;raids.update(.1);}
+    assert(adopted,'a changing crowd must not restart the pending route forever');assert.equal(requests,2);
+  }finally{restore();}
 });

@@ -1,3 +1,4 @@
+import {effectiveFighterStats} from './combat.ts';
 import type { GameUI } from '../ui.ts';
 import type { Economy } from './economy.ts';
 import { RESOURCE_NAMES } from './economy.ts';
@@ -113,15 +114,21 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     const alive=livingResidents(e.state),queue=e.state.recruitment.queue;
     const humans=alive.filter(r=>r.role!=='dog').length,dogs=alive.length-humans;
     const centerOpen=buildingOperational(e.state,'home-center');
-    const nextKey=JSON.stringify([e.available(),humans,dogs,centerOpen,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
+    const nextKey=JSON.stringify([e.available(),e.state.upgrades.arms,humans,dogs,centerOpen,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
     if(nextKey===recruitKey)return;recruitKey=nextKey;
     get('recruit-capacity').textContent=`人口 ${humans} / ${POPULATION_LIMIT} · 田园犬 ${dogs} / ${DOG_LIMIT} · 排队 ${queue.length}`;
     get('recruit-options').replaceChildren(...Object.entries(RECRUIT_CONFIG).map(([role,config])=>{
       const cost=Object.entries(config.cost).map(([kind,amount])=>`${RESOURCE_NAMES[kind as keyof typeof RESOURCE_NAMES]} ${amount}`).join(' · ');
-      const b=button('',()=>{const result=recruit(e,role as ResidentRole);get('recruit-notice').textContent=result.message;callbacks.save();refresh(selected);});
-      b.disabled=!centerOpen;
-      const title=document.createElement('strong'),detail=document.createElement('small');title.textContent=`招募${config.name}`;detail.textContent=`${cost} · ${config.seconds} 秒`;b.append(title,detail);
-      return b;
+      const row=document.createElement('div');row.className='recruit-row';row.dataset.recruit=role;
+      const name=document.createElement('div');name.className='recruit-unit';
+      const title=document.createElement('strong'),stats=document.createElement('small');title.textContent=config.name;
+      const combat=role==='infantry'||role==='archer'||role==='cavalry'?effectiveFighterStats({role,team:'home',experience:0},e.state.upgrades.arms):undefined;
+      stats.textContent=`生命 ${combat?.hp??(role==='dog'?80:100)} · 攻 ${combat?.attack??'—'} · 防 ${combat?.armor??0}`;name.append(title,stats);
+      const detail=document.createElement('small');detail.className='recruit-cost';detail.textContent=`${cost} · ${config.seconds} 秒`;
+      const count=document.createElement('span');count.className='recruit-count';count.textContent=`排队 ${queue.filter(q=>q.role===role).length}`;
+      const b=button('招募',()=>{const result=recruit(e,role as ResidentRole);get('recruit-notice').textContent=result.message;callbacks.save();refresh(selected);});
+      b.setAttribute('aria-label',`招募${config.name}`);b.disabled=!centerOpen;
+      name.append(detail);row.append(name,count,b);return row;
     }));
     get('recruit-queue').replaceChildren(...queue.map((q,i)=>{
       const row=document.createElement('li'),text=document.createElement('span'),progress=document.createElement('progress'),config=RECRUIT_CONFIG[q.role];

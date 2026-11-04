@@ -1254,8 +1254,18 @@ kbd {
 .group-shortcuts button[aria-pressed=true] { background:#c9f4ef; border-color:#62e4ff; }
 .group-shortcuts small { position:absolute; bottom:3px; right:5px; font-size:10px; }
 .recruit-dialog { width:min(460px,calc(100vw - 32px)); }
-.recruit-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-.recruit-options button { display:grid; gap:5px; text-align:left; padding:10px; border:1px solid #c6cdb8; border-radius:10px; background:#eef0e4; color:var(--ink); }
+.recruit-options { display:grid; gap:6px; }
+.recruit-options button { min-width:44px; min-height:44px; padding:6px 9px; font-size:13px; border:1px solid #c6cdb8; border-radius:9px; background:#617f4c; color:#fffbed; }
+.recruit-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
+.recruit-unit { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 6px; }
+.recruit-cost { flex-basis:100%; }
+.recruit-unit strong { font-size:14px; }
+.recruit-unit small { line-height:1.5; color:#64735d; }
+.recruit-count { font-size:11px; white-space:nowrap; color:#64735d; }
+.recruit-queue-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:12px 0 8px; }
+.recruit-dialog .recruit-queue-heading h3 { margin:0; line-height:1.4; }
+.recruit-queue-heading h3 small { display:block; }
+#set-rally { min-height:36px; padding:5px 8px; font-size:11px; border:1px solid #c6cdb8; border-radius:8px; background:#e8ebdc; white-space:nowrap; }
 .recruit-options small, .recruit-dialog h3 small { font-size:11px; font-weight:normal; }
 #recruit-capacity, #group-notice { font-size:13px; }
 #recruit-queue { padding-left:0; list-style:none; display:grid; gap:8px; }
@@ -1307,7 +1317,9 @@ kbd {
   .recruit-dialog .eyebrow { display:none; }
   .recruit-dialog h2 { font-size:20px; margin:0 40px 4px 0; line-height:24px; }
   #recruit-capacity { margin:0 0 6px; font-size:11px; }
-  .recruit-options { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+  .recruit-row { padding:5px 0; }
+  .recruit-queue-heading { margin:6px 0 4px; }
+  .recruit-dialog .panel-footer { margin-top:6px; padding-top:6px; }
   .recruit-options button { padding:5px; gap:2px; font-size:12px; }
   .recruit-options small { font-size:10px; }
   .recruit-dialog h3 { margin:6px 0 4px; font-size:12px; }
@@ -1360,15 +1372,16 @@ kbd {
 .selection-info #resident-level { display:inline; margin-left:6px; font-size:10px; color:#71836b; white-space:nowrap; }
 .selection-info .resident-vitals { flex:1; min-width:78px; gap:5px; }
 .selection-info #resident-activity { font-size:11px; line-height:17px; }
-.selection-info .leader-command { flex:0 0 30px; margin:0; align-self:center; }
+
 .unit-attributes { padding-top:8px; margin-top:4px; border-top:1px solid var(--line); font-size:12px; line-height:1.7; }
 .enemy-info .unit-meter > span { background:#df785d; }
 .selection-info .selection-card { display:block; padding:10px 12px; }
 #selection-name { font-size:14px; }
 #selection-kind { margin-left:8px; color:#71836b; font-size:10px; }
 #selection-hint { margin:5px 0 8px; font-size:12px; line-height:1.5; }
-.selection-info .selection-actions { gap:5px; }
-.selection-info .selection-actions button { padding:7px 10px; font-size:12px; }
+.selection-actions-panel, .unit-actions-panel { position:absolute; left:0; top:0; z-index:var(--layer-actions); width:max-content; max-width:calc(100vw - 24px); visibility:hidden; }
+.unit-actions-panel { padding:5px 9px; border:1px solid #fff; border-radius:10px; background:var(--paper); }
+.unit-actions-panel .leader-command { margin:0; flex-direction:row; gap:7px; }
 .bottom-controls .cancel-selection { grid-column:2; justify-self:center; display:flex; align-items:center; gap:5px; min-height:44px; padding:0 12px; border:1px solid #fff; border-radius:12px; background:var(--paper); font-size:12px; pointer-events:auto; }
 #clear-selection svg { width:20px; height:20px; }
 #game-page:has(.selection-info:not([hidden])) .status-stack,
@@ -1406,3 +1419,18 @@ kbd {
 .map-viewport:active { cursor:grabbing; }
 .map-viewport #minimap { flex:none; height:auto; max-width:none; transform-origin:center; touch-action:none; }
 .minimap-panel #minimap { cursor:zoom-in; }
+
+@media(min-width:1000px) {
+  .selection-info { top:var(--top); }
+  #game-page:has(.selection-info:not([hidden])) .status-stack,
+  #game-page:has(.selection-info:not([hidden])) .minimap-panel { top:calc(var(--top) + var(--corner-size) + 8px); }
+}
+.level-number { position:absolute; left:0; top:0; color:#fff1a0; font-size:17px; font-weight:800; white-space:nowrap; text-shadow:0 1px 3px #664520,1px 0 2px #664520; pointer-events:none; }
+
+@media(min-height:481px) and (max-height:650px) {
+  .recruit-dialog { padding:16px; }
+  .recruit-dialog .eyebrow { display:none; }
+  .recruit-dialog h2 { font-size:22px; margin-top:0; }
+  .recruit-dialog #recruit-queue { height:76px; }
+  .recruit-dialog #recruit-notice { height:auto; max-height:28px; }
+}

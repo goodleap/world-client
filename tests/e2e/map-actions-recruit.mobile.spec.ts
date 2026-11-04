@@ -1,0 +1,55 @@
+import {test,expect} from '@playwright/test';
+import {Economy,encodeEconomy} from '../../src/game/economy.ts';
+import {HOME_CENTER,WORLD_BOUNDS} from '../../src/game/world-data.ts';
+import {openGame,snapshot,selectUnit,panTo,clickGround} from './helpers.ts';
+
+test('map tap previews and commits on close; information and world actions stay separate; recruitment uses rows and a footer',async({page},info)=>{
+  test.setTimeout(180000);
+  const e=new Economy();e.setLeadership(false);e.state.raids.nextAt=1000;e.state.inventory.food=200;
+  for(const v of Object.values(e.state.vitals))v.manualUntil=1000;
+  await page.addInitScript(save=>{localStorage.setItem('world-basic-economy-v1',save);localStorage.setItem('world-shadows-enabled','false');},encodeEconomy(e));
+  const errors=await openGame(page);
+  await page.setViewportSize({width:1280,height:900});await selectUnit(page,'cavalry',true);
+  const card=(await page.locator('#selection-info').boundingBox())!,settings=(await page.locator('#settings').boundingBox())!;
+  expect(Math.abs(card.y-settings.y)).toBeLessThan(2);expect(Math.abs(card.x+card.width/2-640)).toBeLessThan(1);
+  await expect(page.locator('#selection-info #selection-actions')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('desktop-top-information.png')});await page.locator('#clear-selection').click();
+  await selectUnit(page,'farmer-leader',true);await expect(page.locator('#unit-actions-panel')).toBeVisible();
+  expect(await page.locator('#selection-info #leader-command-control').count()).toBe(0);await page.locator('#clear-selection').click();
+  await page.setViewportSize({width:412,height:915});await panTo(page,HOME_CENTER,true);await clickGround(page,HOME_CENTER,true,2);
+  await expect(page.locator('#selection-actions-panel')).toBeVisible();await expect(page.locator('.selected-object-label')).toBeVisible();
+  const action=(await page.locator('#selection-actions-panel').boundingBox())!,top=(await page.locator('#selection-info').boundingBox())!;
+  expect(action.y).toBeGreaterThan(top.y+top.height+30);await page.screenshot({path:info.outputPath('world-object-actions.png')});
+  await page.locator('#selection-actions').getByRole('button',{name:'招募',exact:true}).click();
+  await expect(page.locator('.recruit-row')).toHaveCount(5);await expect(page.locator('[data-recruit="infantry"]')).toContainText('生命 120');
+  for(let i=0;i<20;i++)await page.getByRole('button',{name:'招募农民',exact:true}).click();
+  await expect(page.locator('[data-recruit="farmer"] .recruit-count')).toHaveText('排队 20');await expect(page.locator('#recruit-queue li')).toHaveCount(20);
+  await page.getByRole('button',{name:'招募农民',exact:true}).click();await expect(page.locator('#recruit-notice')).toHaveText('招募队列已满');
+  for(const [width,height] of [[320,568],[844,390],[412,915]]){
+    await page.setViewportSize({width,height});await expect(page.locator('#continue-recruit')).toBeInViewport();await expect(page.locator('#set-rally')).toBeInViewport();
+    expect(await page.locator('#recruit-dialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+    const footer=(await page.locator('#recruit-dialog .panel-footer').boundingBox())!,queue=(await page.locator('#recruit-queue').boundingBox())!;
+    expect(footer.y).toBeGreaterThan(queue.y+queue.height);await page.screenshot({path:info.outputPath(`recruit-${width}.png`)});
+  }
+  await page.locator('#continue-recruit').click();await page.locator('#clear-selection').click();
+  await page.locator('#map-toggle').click();await page.locator('#minimap').tap();
+  const original=(await page.evaluate(()=>window.__DEMO__!.frameSnapshot())).camera;
+  const touch=await page.context().newCDPSession(page);
+  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:156,y:450,id:1},{x:256,y:450,id:2}]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:106,y:450,id:1},{x:306,y:450,id:2}]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:230,y:450}]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:200,y:470}]});
+  await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();
+  await page.getByRole('button',{name:'关闭全屏地图'}).click();expect((await snapshot(page)).camera).toEqual(original);
+  await page.locator('#minimap').tap();await page.mouse.move(206,457);await page.mouse.wheel(0,-300);
+  await expect.poll(()=>page.locator('#map-viewport').getAttribute('data-zoom').then(Number)).toBeGreaterThan(1);
+  const before=(await page.evaluate(()=>window.__DEMO__!.frameSnapshot())).minimap.view!,rect=(await page.locator('#minimap').boundingBox())!,tap={x:230,y:480};
+  const target={x:WORLD_BOUNDS.minX+(tap.x-rect.x)/rect.width*(WORLD_BOUNDS.maxX-WORLD_BOUNDS.minX),z:WORLD_BOUNDS.maxZ-(tap.y-rect.y)/rect.height*(WORLD_BOUNDS.maxZ-WORLD_BOUNDS.minZ)};
+  await page.touchscreen.tap(tap.x,tap.y);
+  await expect.poll(async()=>(await page.evaluate(()=>window.__DEMO__!.frameSnapshot())).minimap.view).not.toEqual(before);
+  expect((await snapshot(page)).camera).toEqual(original);await page.screenshot({path:info.outputPath('map-destination-preview.png')});
+  await page.getByRole('button',{name:'关闭全屏地图'}).click();
+  await expect.poll(async()=>(await snapshot(page)).camera.target.x).toBeCloseTo(target.x,2);
+  expect((await snapshot(page)).camera.target.z).toBeCloseTo(target.z,2);expect(errors).toEqual([]);
+});

@@ -101,8 +101,8 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
     const cancel=(await page.locator('#clear-selection').boundingBox())!;
     expect(Math.abs(leader.x+leader.width/2-width/2)).toBeLessThan(1);
     expect(leader.y+leader.height).toBeLessThan(cancel.y);
-    expect(command.y).toBeGreaterThanOrEqual(leader.y);
-    expect(command.y+command.height).toBeLessThanOrEqual(leader.y+leader.height);
+    expect(await page.locator('#resident-selection #leader-command-control').count()).toBe(0);
+    expect(command.width).toBeGreaterThanOrEqual(44);
     expect(await page.locator('#resident-selection').evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(false);
     await page.screenshot({path:info.outputPath(`leader-card-${width}.png`),scale:'css'});
   }

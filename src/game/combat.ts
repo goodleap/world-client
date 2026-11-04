@@ -26,7 +26,7 @@ export type CombatOrder = 'guard' | 'move' | 'attack' | 'retreat' | 'hold' | 're
 export type CombatLife = 'active' | 'defeated';
 export interface Fighter {
   id: string; role: CombatRole; team: 'home' | 'enemy'; position: Point; home: Point;
-  hp: number; experience: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string;
+  hp: number; experience: number; life: CombatLife; order: CombatOrder; goal?: Point; target?: string; commandTarget?:string;
   diedAt?: number; departed?:boolean; deathElevation?:number; deathTower?:string;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   pursuitQuiet?: number;
@@ -85,9 +85,11 @@ export class Combat {
   private motionStep = .05;
   private frameTargets?: { all:CombatTarget[]; home:CombatTarget[]; enemy:CombatTarget[]; byId:Map<string,CombatTarget>; cells:Map<string,CombatTarget[]>; padding:number };
   private frameNeighbours = new Map<string,Neighbour[]>();
-  private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
+  private planning = new Map<string,{intent:string;start:Point;points:Point[];nearby?:Point;solids:readonly Obstacle[];neighbours:ReturnType<Combat['reservations']>}>();
   private targetViews = new WeakMap<Fighter,CombatTarget>();
   private neighbourViews = new WeakMap<Fighter,Map<string,Neighbour>>();
+  private levelFeedback?: (id:string,level:number)=>void;
+  setLevelFeedback(callback:(id:string,level:number)=>void){this.levelFeedback=callback;}
   private damageFeedback?: (hit:import('./damage-numbers.ts').DamageNumber)=>void;
   setDamageFeedback(callback:(hit:import('./damage-numbers.ts').DamageNumber)=>void){this.damageFeedback=callback;}
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
@@ -178,10 +180,11 @@ export class Combat {
     const u = this.unit(sourceId);
     if (u && damage > 0 && enemyDefinitions.has(u.id)) u.pursuitQuiet = 0;
     if (!u || u.role === 'wolf' || damage <= 0 || u.experience >= MAX_EXPERIENCE) return;
-    const maximum = this.stats(u).hp;
+    const maximum = this.stats(u).hp,previousLevel=soldierLevel(u.experience);
     u.experience = Math.min(MAX_EXPERIENCE, u.experience + damage);
     // Keep the amount of existing injury; a projectile cannot revive its owner.
     if (u.life === 'active') u.hp += this.stats(u).hp - maximum;
+    if(u.life==='active'&&soldierLevel(u.experience)>previousLevel)this.levelFeedback?.(u.id,soldierLevel(u.experience));
     this.economy.revision++;
   }
   assist(id: string, target: string) {
@@ -259,7 +262,7 @@ export class Combat {
       if(exit)u.position={...exit};
       if(tower){if(rest){tower.phase='meal';}else if(!preserveTower)releaseTower(this.economy.state,u.id);this.economy.revision++;}
       // Cancelling the windup never refunds the committed cooldown.
-      u.attack = undefined; u.target = undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
+      u.attack = undefined; u.target = undefined; u.commandTarget=undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
       if (!rest) this.manual(u.id,preserveTower);
       const destination = path.at(-1) ?? goal;
       u.attackApproach = undefined; u.goal = { x: destination.x, z: destination.z }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
@@ -268,7 +271,7 @@ export class Combat {
   }
   private manual(id: string,preserveTower=false) {
     if(!preserveTower&&assignedTower(this.economy.state,id)?.phase!=='occupied')releaseTower(this.economy.state,id);
-    this.unit(id)!.defendFrom = undefined;
+    this.unit(id)!.defendFrom = undefined;this.unit(id)!.commandTarget=undefined;
     if (this.economy.active(id)?.kind === 'supply') this.economy.interrupt(this.unit(id)!.position, id);
     const v = this.economy.state.vitals[id]; v.rest = undefined; v.manualUntil = this.economy.state.seconds + VITAL_CONFIG.manualGrace;
   }
@@ -279,7 +282,7 @@ export class Combat {
       if (!hostile(u, foe)) continue;
       // Repeated attack clicks do not restart or accelerate an attack.
       this.manual(u.id); if (u.target !== foe.id) { u.attack = undefined; this.stop(u); }
-      u.order = 'attack'; u.target = foe.id; u.goal = undefined; accepted++;
+      u.order = 'attack'; u.commandTarget=foe.id; u.target = foe.id; u.goal = undefined; accepted++;
     }
     return accepted;
   }
@@ -291,9 +294,9 @@ export class Combat {
     const tower = occupiedTower(this.economy.state, source.id);
     return tower ? this.target(tower.id) : undefined;
   }
-  private canRetaliate(u: Fighter, current: CombatTarget | undefined) {
-    if (u.attack || u.team === 'home' && u.order === 'attack' && current?.life === 'active') return false;
-    return !current || current.life !== 'active' || !this.canTarget(u, current)
+  private canRetaliate(u: Fighter, current: CombatTarget | undefined, aggressor:CombatTarget) {
+    if (u.attack || u.team === 'home' && u.order === 'attack' && current?.life === 'active' && this.canStrike(u,current)) return false;
+    return !current || current.life !== 'active' || !this.canTarget(u, current) || u.team==='home'&&u.order==='attack'&&!this.canStrike(u,current)&&!u.targetSwitchIn&&this.canStrike(u,aggressor)
       || !current.canAttack && !this.canStrike(u, current) && !(u.targetSwitchIn ?? 0);
   }
   /** Both soldiers and wolves can stop a chase to engage a reachable fighter.
@@ -331,6 +334,7 @@ export class Combat {
       report(this.economy.state.vitals[victim.id].hp!);
       this.awardDamage(sourceId, beforeHP - this.economy.state.vitals[victim.id].hp!);
       this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
+      this.economy.state.vitals[victim.id].lastAttack={source:sourceId,at:this.economy.state.seconds};
       if (!this.economy.state.vitals[victim.id].hp) {
         this.economy.interrupt(victim.position, victim.id);
         if (RESIDENTS.find(r => r.id === victim.id)?.effects?.includes('leader')) this.economy.setLeadership(false);
@@ -347,7 +351,7 @@ export class Combat {
     if (target.role === 'wolf') {
       const aggressor = source && this.retaliationTarget(target, source), current = target.target ? this.target(target.target) : undefined;
       if (aggressor?.team === 'home' && aggressor.life === 'active' && target.hp < beforeHP
-        && this.canRetaliate(target, current)) {
+        && this.canRetaliate(target, current, aggressor)) {
         if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
         target.target = aggressor.id;
         target.provoked ??= { from: { ...target.position }, leash: Math.max(RAID_CONFIG.chase, distance(target.position, aggressor.position)) + C.campPursuit.buffer };
@@ -364,14 +368,14 @@ export class Combat {
       const commanded = target.team === 'home' && (['move', 'retreat'].includes(target.order) || target.order === 'hold' && !!target.goal);
       if (target.hp < beforeHP && aggressor?.life === 'active' && hostile(target, aggressor) && !commanded
         && !(target.team === 'enemy' && target.order === 'retreat')
-        && this.canRetaliate(target, current)) {
+        && this.canRetaliate(target, current, aggressor)) {
         if (current && current.id !== aggressor.id) target.targetSwitchIn = C.targetSwitchSeconds;
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
         if (target.team === 'enemy') target.provoked ??= { from: { ...target.position },
           leash: Math.max(C.chase, distance(target.position, aggressor.position)) + C.campPursuit.buffer };
         target.defendFrom ??= { ...target.position };
-        target.order = 'guard'; target.target = aggressor.id; target.goal = undefined;
+        target.order = target.commandTarget?'attack':'guard'; target.targetSwitchIn=C.targetSwitchSeconds; target.target = aggressor.id; target.goal = undefined;
         this.stop(target); target.planIn = 0;
       }
       return;
@@ -379,7 +383,7 @@ export class Combat {
     this.economy.interrupt(target.position, target.id);
     this.economy.state.vitals[target.id].rest = undefined;
     this.stop(target); target.provoked = undefined; target.attack = undefined; target.target = undefined; target.goal = undefined;
-    target.life = 'defeated'; target.diedAt = this.economy.state.seconds;
+    target.commandTarget=undefined;target.life = 'defeated'; target.diedAt = this.economy.state.seconds;
     const tower=occupiedTower(this.economy.state,target.id);
     if(tower){target.deathElevation=TOWER_CONFIG.height;target.deathTower=tower.id;}
     releaseTower(this.economy.state,target.id);this.economy.revision++;
@@ -399,19 +403,30 @@ export class Combat {
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
+    // A newly occupied formation slot must not wait forever for an immovable
+    // unit. Keep the movement intent and let the planner choose a nearby stop.
+    if(u.order==='move'&&u.goal&&!assignedTower(this.economy.state,u.id)&&u.navigation.waited>=.6
+      &&this.neighbours(u).some(n=>!n.moving&&distance(u.goal!,n.position)<fighterRadius(u)+n.radius+.08)){
+      this.stop(u);u.planIn=0;
+    }
   }
-  private plan(u: Fighter, points: Point[]) {
+  private plan(u: Fighter, points: Point[],nearby?:Point) {
     const intent=`${u.order}/${u.target??''}/${u.goal?.x}/${u.goal?.z}`;
-    let pending=this.planning.get(u.id);
-    if(!pending||pending.intent!==intent)pending={intent,start:{...u.position},points};
     // The tower already reserves its sole garrison. A transient person at the
     // ladder is handled by the normal collision/yield follower, not a failed
     // endpoint reservation. Static obstacles still participate in every sweep.
     const solids=this.solids(),neighbours=assignedTower(this.economy.state,u.id)?.phase==='approach'?[]:this.reservations(u),radius=fighterRadius(u);
-    const path=planWorkApproach(pending.start,pending.points,radius,WORLD_BOUNDS,solids,neighbours);
+    let pending=this.planning.get(u.id);
+    if(!pending||pending.intent!==intent)pending={intent,start:{...u.position},points,nearby:nearby&&{...nearby},solids,
+      neighbours:neighbours.map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination&&{...n.destination}}))};
+    // Keep the outstanding crowd snapshot stable; validate the reply against
+    // live occupancy. Moving front ranks must not invalidate every request.
+    let path=planWorkApproach(pending.start,pending.points,radius,WORLD_BOUNDS,pending.solids,pending.neighbours);
+    if(path===undefined&&pending.nearby)path=planMoveDestination(pending.start,pending.nearby,radius,WORLD_BOUNDS,pending.solids,pending.neighbours);
     if(path===null){this.planning.set(u.id,pending);u.planIn=.05;return false;}
     this.planning.delete(u.id);u.planIn=.8;u.attackApproach=undefined;
     u.route=path?validateNavigation({start:u.position,goal:path.at(-1)!,radius,bounds:WORLD_BOUNDS,solids,neighbours},path)??[]:[];
+    if(u.order==='move'&&u.route.length)u.goal={...u.route.at(-1)!};
     return true;
   }
   private sampleMotion(dt: number) {
@@ -467,7 +482,7 @@ export class Combat {
     // crowds or solids obstruct it, and retain the shared swept collision check.
     const obstacles=[...this.solids(),...neighbours.map(n=>bodyObstacle(n.position,n.radius))];
     const directClear=segmentIsClear(u.position,direct,fighterRadius(u),WORLD_BOUNDS,obstacles);
-    if (u.attackApproach && !this.visible(u.attackApproach, target.position, u.id, target.id)) u.planIn = 0;
+    if (u.attackApproach && distance(u.attackApproach,target.position)<=range && !this.visible(u.attackApproach, target.position, u.id, target.id)) u.planIn = 0;
     if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours) && directClear) {
       this.planning.delete(u.id);
       u.attackApproach = direct;
@@ -476,7 +491,7 @@ export class Combat {
       const points = Array.from({ length: 12 }, (_, i) => ({ x: target.position.x + Math.cos(i * Math.PI / 6) * radius,
         z: target.position.z + Math.sin(i * Math.PI / 6) * radius }))
         .filter(p => this.visible(p, target.position, u.id, target.id));
-      const completed=this.plan(u, points);
+      const completed=this.plan(u, points,target.position);
       if (completed && u.route.length) {
         u.attackApproach = { ...u.route.at(-1)! };
         u.route.push({ x: target.position.x, z: target.position.z });
@@ -522,7 +537,16 @@ export class Combat {
       if (u.target && (!target || target.life !== 'active')) { target = undefined; u.target = undefined; this.stop(u); }
       if(target&&(!this.canTarget(u,target)||stationary&&(distance(u.position,target.position)>TOWER_CONFIG.range||!this.visible(u.position,target.position,u.id,target.id)))){target=undefined;u.target=undefined;u.attack=undefined;this.stop(u);}
       if(stationary){u.route=[];u.attackApproach=undefined;u.goal=undefined;}
-      const explicit = u.order === 'attack' && target?.life === 'active';
+      if(u.team==='home'&&u.order==='attack'){
+        const requested=u.commandTarget?this.target(u.commandTarget):undefined;
+        if(!requested||requested.life!=='active')u.commandTarget=undefined;
+        if(!u.attack&&(!target||!(u.targetSwitchIn??0))){
+          const next=requested?.life==='active'&&this.canStrike(u,requested)?requested
+            :(!target||!this.canStrike(u,target))?(this.nearbyOpponent(u,target??requested)??(requested?.life==='active'?requested:undefined)):undefined;
+          if(next&&next.id!==target?.id){target=next;u.target=next.id;u.targetSwitchIn=C.targetSwitchSeconds;this.stop(u);u.planIn=0;}
+        }
+      }
+      const explicit = u.order === 'attack' && (target?.life === 'active'||!!u.commandTarget);
       if (!explicit && !returning && !['move', 'retreat', 'rest'].includes(u.order)) {
         const nearby = this.nearbyOpponent(u, target);
         if (nearby) {
@@ -584,7 +608,7 @@ export class Combat {
         || !!target && !u.cooldown && distance(u.position, u.goal!) > .15 && this.canStrike(u, target));
       if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning && !returnStrike) {
         if (u.goal && distance(u.position, u.goal) > .15) {
-          if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
+          if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal],u.order==='move'?u.goal:undefined);
           this.travel(u, dt, stats.speed);
         } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) { u.defendFrom = undefined; u.target = undefined; u.pursuitQuiet = undefined; u.provoked = undefined; } }
         continue;
@@ -630,7 +654,7 @@ export class Combat {
           if (distance(u.position, goal) > .5 && u.planIn <= 0 && !u.route.length) { this.plan(u, [goal]); u.planIn = 3; }
           this.travel(u, dt, stats.speed * .65);
         } else this.stop(u);
-        if (u.order === 'attack') u.order = 'guard'; continue;
+        if (u.order === 'attack'&&!u.commandTarget) u.order = 'guard'; continue;
       }
       // Plant the feet only when the target is expected to remain within reach
       // at contact, including only the bounded committed-swing allowance.
@@ -707,12 +731,13 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
       || u.pursuitQuiet !== undefined && (!enemyDefinitions.has(u.id) || !num(u.pursuitQuiet, C.campPursuit.quietSeconds))
       || u.targetSwitchIn !== undefined && !num(u.targetSwitchIn, C.targetSwitchSeconds)
+      || u.commandTarget && (u.team!=='home'||u.order!=='attack'||!opponents.some(t=>t.id===u.commandTarget&&t.team!==u.team))
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)
       || (u.life === 'active') !== (u.hp > 0) || u.team === 'enemy' && !['active', 'defeated'].includes(u.life)
       || !Array.isArray(u.route) || u.route.length > 1000 || !u.route.every(point)) throw new Error('战斗人物存档无效');
     if (u.attack && (!Number.isSafeInteger(u.attack.id) || u.attack.id < 1 || u.attack.id >= raw.nextAttack
       || !num(u.attack.elapsed, 3) || typeof u.attack.released !== 'boolean' || !opponents.some(t => t.id === u.attack!.target && t.team !== u.team))) throw new Error('攻击存档无效');
-    if (u.life === 'defeated') { u.order = 'hold'; u.goal = undefined; u.target = undefined; u.attack = undefined; u.route = []; }
+    if (u.life === 'defeated') { u.commandTarget=undefined; u.order = 'hold'; u.goal = undefined; u.target = undefined; u.attack = undefined; u.route = []; }
     u.navigation = createRouteState(); u.planIn = 0; u.speed = 0;
   }
   if (raw.cleared !== raw.camps.every(c => c.cleared) || raw.camps.some(c => c.cleared !== raw.units.filter(u => ENEMIES.find(r => r.id === u.id)?.camp === c.id).every(u => u.life === 'defeated'))) throw new Error('据点存档不一致');

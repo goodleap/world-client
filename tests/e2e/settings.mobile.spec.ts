@@ -4,7 +4,7 @@ import { initialEconomy } from '../../src/game/economy.ts';
 
 test.use({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
 
-test('top object actions remain accessible while settings isolate input through nested dialogs', async ({ page }, info) => {
+test('world object actions remain accessible while settings isolate input through nested dialogs', async ({ page }, info) => {
   test.setTimeout(180_000);
   const state = initialEconomy(); state.steward.enabled = false;
   await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
@@ -13,7 +13,7 @@ test('top object actions remain accessible while settings isolate input through 
   await page.touchscreen.tap(plot.screen.x, plot.screen.y);
   const action = page.getByRole('button', { name: '收获', exact: true });
   await expect(action).toBeVisible();
-  await expect(page.locator('#selection-card button')).toHaveCount(2);
+  await expect(page.locator('#selection-actions-panel button')).toHaveCount(2);
   expect(await page.locator('#selection-card').evaluate(element => {
     const style = getComputedStyle(element);
     return { background: style.backgroundColor, border: style.borderWidth, shadow: style.boxShadow };
@@ -59,8 +59,12 @@ test('top object actions remain accessible while settings isolate input through 
   await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();
   await expect.poll(async()=>(await snapshot(page)).camera.target.x).not.toBe(camera.target.x);
   expect(await page.locator('#selection-info').boundingBox()).toEqual(cardBefore);
+  const returnTouch=await page.context().newCDPSession(page);
+  await returnTouch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:90,y:420}]});
+  await returnTouch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:220,y:400}]});
+  await returnTouch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await returnTouch.detach();
   await expect(action).toBeInViewport();await action.tap();
   await expect.poll(async()=>(await snapshot(page)).economy.tasks.some(t=>t.kind==='harvest')).toBe(true);
-  await page.screenshot({path:info.outputPath('small-phone-top-actions.png'),scale:'css'});
+  await page.screenshot({path:info.outputPath('small-phone-world-actions.png'),scale:'css'});
   expect(errors).toEqual([]);
 });

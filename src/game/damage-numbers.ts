@@ -16,8 +16,8 @@ export function createDamageNumbers(host:HTMLElement) {
       }
       slot??=slots.reduce((a,b)=>a.start<b.start?a:b);
       slot.hit=hit;slot.start=time;slot.lift=0;slot.placed=false;shown++;
-      const rounded=Math.round(hit.amount*10)/10;
-      slot.node.textContent=rounded?String(rounded):'<0.1';slot.width=slot.node.textContent.length*11+4;
+      const rounded=Math.round(hit.amount);
+      slot.node.textContent=String(rounded);slot.width=slot.node.textContent.length*11+4;
       slot.node.classList.toggle('home-damage',hit.team==='home');slot.node.hidden=false;
     },
     update(time:number,project:(point:DamageNumber['point'])=>{x:number;y:number;visible:boolean}){
