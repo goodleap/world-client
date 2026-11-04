@@ -6,6 +6,9 @@ import { Combat } from '../src/game/combat.ts';
 import { eat, maxHealth } from '../src/game/vitals.ts';
 import { selectedUnitInfo, populationInfo, enemyUnitInfo } from '../src/game/unit-info.ts';
 import { newWolf } from '../src/game/raid-state.ts';
+import { buildingAt } from '../src/game/construction.ts';
+import { newTower, releaseTower } from '../src/game/towers.ts';
+import { saveGroup } from '../src/game/groups.ts';
 
 test('unit inspection reads current health/stamina without changing orders or saved state', () => {
   const e = new Economy(); e.setLeadership(false);
@@ -69,7 +72,7 @@ test('population rows show living units, authoritative vitals and upgraded comba
   assert.equal(rows.length, 6);
   assert(!rows.some(r => r.id === 'farmer-2' || r.id.startsWith('enemy-') || r.id === 'horse'));
   assert.deepEqual(rows.find(r => r.id === 'infantry'), { id:'infantry', name:'步兵', role:'infantry',
-    health:91, maxHealth:120, stamina:42.25, maxStamina:100, attack:21, armor:12, group:1, progression:{level:1,experience:0,progress:0,required:200} });
+    health:91, maxHealth:120, stamina:42.25, maxStamina:100, attack:21, armor:12, group:1, progression:{level:1,experience:0,progress:0,required:200},assignment:'待命' });
   assert.equal(rows.find(r => r.id === 'dog')!.attack, undefined);
   assert.equal(rows.find(r => r.id === 'dog')!.armor, 0);
   assert.equal(encodeEconomy(e), saved, 'inspection never changes orders, groups or the simulation');
@@ -94,4 +97,24 @@ test('both armies show soldier levels; enemy inspection exposes real stats witho
   assert.equal(selectedUnitInfo(e,'infantry')!.progression?.level,1);
   assert.equal(selectedUnitInfo(e,'farmer')!.progression,undefined);assert.equal(selectedUnitInfo(e,'dog')!.progression,undefined);
   const wolf=newWolf('wolf-1-0',{x:0,z:0});assert.equal(enemyUnitInfo(wolf)!.progression,undefined);
+});
+
+test('population assignments retain tower duty through regrouping and meals, and follow new orders',()=>{
+  const e=new Economy(),archer=e.state.combat.units.find(u=>u.id==='archer')!;
+  const site=buildingAt('tower',{x:-16,z:-10},'site-0'),tower=newTower(site);
+  e.state.sites.push(site);e.state.buildings.push(site.id);e.state.towers.push(tower);e.state.nextSiteId=1;
+  tower.unit=archer.id;tower.phase='approach';
+  const read=()=>populationInfo(e.state).find(r=>r.id===archer.id)!;
+  assert.equal(read().assignment,'前往哨塔');
+  tower.phase='occupied';archer.position={x:tower.x,z:tower.z};
+  assert(saveGroup(e,0,[archer.id]));assert(saveGroup(e,1,[archer.id]));
+  assert.equal(read().assignment,'驻守哨塔');assert.equal(read().group,1);
+  const saved=encodeEconomy(e);assert.equal(populationInfo(decodeEconomy(saved).state).find(r=>r.id===archer.id)!.assignment,'驻守哨塔');
+  assert.equal(encodeEconomy(e),saved,'inspection keeps the order, tower and clock intact');
+  tower.phase='meal';assert.equal(read().assignment,'哨塔驻守·进食');
+  releaseTower(e.state,archer.id);archer.order='move';archer.goal={x:-10,z:-8};
+  assert.equal(read().assignment,'前往指定位置');
+  archer.order='attack';archer.commandTarget='enemy-guard';assert.match(read().assignment,/^攻击·/);
+  archer.commandTarget=undefined;archer.target=e.state.raids.wildWolves[0].id;assert.equal(read().assignment,'攻击·灰狼');
+  archer.target=undefined;archer.order='guard';archer.goal=undefined;assert.equal(read().assignment,'待命');
 });

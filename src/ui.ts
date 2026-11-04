@@ -132,16 +132,16 @@ export function createUI(app: HTMLElement) {
       </section>
       <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
         <p id="population-summary"></p>
-        <div class="population-tools"><div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div><div class="group-edit-actions"><button id="save-group" class="primary-button">保存编队</button><button id="clear-group">清空本队</button></div></div>
+        <div class="population-tools"><div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div><div class="group-edit-actions"><button id="clear-group">清空本队</button></div></div>
         <nav id="population-filters" class="population-filters" aria-label="按人物类型筛选"></nav>
         <div class="population-scroll">
           <table class="population-table" aria-label="存活我方单位">
-            <colgroup><col class="population-check"><col><col class="population-health"><col class="population-stamina"><col class="population-stats"></colgroup>
-            <thead><tr><th scope="col" aria-label="编入队伍"></th><th scope="col">名称</th><th scope="col">生命</th><th scope="col">体力</th><th scope="col" aria-label="攻击与护甲">攻 / 防</th></tr></thead>
+            <colgroup><col class="population-check"><col class="population-name"><col class="population-level"><col class="population-group"><col class="population-assignment"><col class="population-health"><col class="population-stamina"><col class="population-stats"></colgroup>
+            <thead><tr><th scope="col" aria-label="编入队伍"></th><th scope="col">名称</th><th scope="col">等级</th><th scope="col">编队</th><th scope="col">安排</th><th scope="col">生命</th><th scope="col">体力</th><th scope="col" aria-label="攻击与护甲">攻 / 防</th></tr></thead>
             <tbody id="group-candidates"></tbody>
           </table>
         </div>
-        <p id="group-notice" role="status"></p>
+        <p id="group-notice" role="status">已选 0 / 6</p>
       </section>
       <footer class="panel-footer"><button id="continue-home" class="primary-button">继续游戏</button></footer>
     </dialog>

@@ -4,9 +4,10 @@ import type { Economy, EconomyState } from './economy.ts';
 import { effectiveFighterStats } from './combat.ts';
 import type { Fighter } from './combat.ts';
 import { experienceProgress } from './unit-progression.ts';
-import { unitRole } from './resident-data.ts';
+import { ENEMIES, unitRole } from './resident-data.ts';
 import { homeResidents } from './recruitment.ts';
 import { bodiesFor, health, maxHealth, VITAL_CONFIG } from './vitals.ts';
+import { allWolves } from './raid-state.ts';
 
 export interface UnitMeter { id: string; label: string; value: number; maximum: number; kind: 'health' | 'stamina' }
 export interface UnitInfo { id: string; activity: string; meters: UnitMeter[]; progression?:ReturnType<typeof experienceProgress>; attack?:number; armor?:number; enemy?:boolean }
@@ -53,6 +54,28 @@ export function enemyUnitInfo(fighter:Fighter):UnitInfo|undefined {
     ...(soldier?{progression:experienceProgress(fighter.experience)}:{})};
 }
 
+/** Persistent assignments take precedence over a temporary activity (for
+ * example, a tower archer still owns that post while going for a meal). */
+function populationAssignment(state:EconomyState,id:string,fighter:Fighter|undefined) {
+  const tower=assignedTower(state,id);
+  if(tower)return tower.phase==='approach'?'前往哨塔':tower.phase==='meal'?'哨塔驻守·进食':'驻守哨塔';
+  if(state.raids.evading[id])return '避险中';
+  const targetId=fighter?.commandTarget??fighter?.target;
+  if(targetId){
+    const target=state.combat.units.find(u=>u.id===targetId);
+    const name=ENEMIES.find(r=>r.id===targetId)?.name??(target?{infantry:'敌方步兵',archer:'敌方弓兵',cavalry:'敌方骑兵',wolf:'灰狼'}[target.role]:allWolves(state.raids).some(w=>w.id===targetId)?'灰狼':'敌军');
+    return `攻击·${name}`;
+  }
+  const task=state.tasks.find(t=>(t.worker??'farmer')===id&&['travelling','working','delivering'].includes(t.status));
+  if(task)return task.status==='delivering'?(task.kind==='supply'?'补给火堆':'搬运入库'):`${task.status==='travelling'?'前往':''}${WORK_NAMES[task.kind]}`;
+  if(state.vitals[id].rest)return '火堆休整';
+  if(fighter?.order==='retreat')return '撤退中';
+  if(fighter?.order==='move'&&fighter.goal)return '前往指定位置';
+  if(fighter?.order==='hold')return '原地驻守';
+  if(fighter?.order==='rest')return '休整中';
+  return fighter?'待命':'空闲';
+}
+
 /** Living home units, including dogs; mounts and hostile units have no rows. */
 export function populationInfo(state: EconomyState) {
   return homeResidents(state).filter(r => health(state, r.id) > 0).map(r => {
@@ -62,6 +85,7 @@ export function populationInfo(state: EconomyState) {
     return { id: r.id, name: r.name, role: r.role, health: health(state, r.id), maxHealth: maxHealth(r.id, state),
       stamina: state.vitals[r.id].stamina, maxStamina: VITAL_CONFIG.maxStamina,
       ...(fighter ? { progression: experienceProgress(fighter.experience) } : {}),
-      attack: stats?.attack, armor: stats?.armor ?? 0, group: group < 0 ? undefined : group };
+      attack: stats?.attack, armor: stats?.armor ?? 0, group: group < 0 ? undefined : group,
+      assignment: populationAssignment(state,r.id,fighter) };
   });
 }

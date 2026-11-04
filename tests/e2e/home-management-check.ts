@@ -32,12 +32,12 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
     const original=page.viewportSize()!;
     for(const [width,height]of [[320,568],[844,390]]){
       await page.setViewportSize({width,height});
-      expect(await page.locator('.population-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+      expect(await page.locator('#population-panel').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
       for(const cell of await infantry.locator('td').all())expect(await cell.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
       const bounds=(await page.locator('#resources-dialog').boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
       expect(bounds.y).toBeGreaterThanOrEqual(0);expect(bounds.y+bounds.height).toBeLessThanOrEqual(height);
-      await expect(page.locator('#save-group')).toBeInViewport();
+      await expect(page.locator('#clear-group')).toBeInViewport();
       await page.screenshot({path:info.outputPath(`population-${width}.png`),scale:'css'});
     }
     await page.setViewportSize(original);
@@ -47,7 +47,6 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
   await expect(page.locator('#inventory')).toBeVisible();
   await page.getByRole('tab',{name:'人口',exact:true}).click();
   for(const id of ['infantry','archer','farmer'])await page.locator(`input[value="${id}"]`).check();
-  await page.locator('#save-group').click();
   await expect(page.locator('[data-group="0"]')).toHaveAttribute('aria-label','1 队，3 名');
   await page.screenshot({path:info.outputPath('group-editor.png'),scale:'css'});
   await page.getByRole('button',{name:'关闭家园面板'}).click();await page.locator('[data-group="0"]').click();

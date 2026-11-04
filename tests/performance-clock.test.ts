@@ -39,3 +39,26 @@ test('paused time is excluded and substep remainder survives graphics changes',(
   clock.advance(.03,dt=>time+=dt);clock.advance(0,dt=>time+=dt);clock.advance(.02,dt=>time+=dt);
   assert.equal(time,.05);clock.advance(-1,dt=>time+=dt);clock.advance(NaN,dt=>time+=dt);assert.equal(time,.05);
 });
+
+test('small refresh jitter cannot repeatedly discard healthy 60 Hz presentations',()=>{
+  for(const cycle of [[.0165,1/30-.0165],[.016,.017,.017]]){
+    const cadence=new RenderCadence(),drawn:number[]=[];let now=0;
+    for(let i=0;i<600;i++){now+=cycle[i%cycle.length];if(cadence.ready(cycle[i%cycle.length],60))drawn.push(now);}
+    assert(drawn.length>=599,`${cycle}: ${drawn.length} frames`);
+    assert(drawn.slice(1).every((time,i)=>time-drawn[i]<.018),'no recurring doubled frame intervals');
+  }
+});
+
+test('60/90/120 Hz displays retain the selected cap through jitter, slow frames and resume',()=>{
+  for(const hz of [60,90,120])for(const fps of [60,30,20]){
+    const cadence=new RenderCadence();let drawn=0;
+    for(let i=0;i<hz*10;i++)if(cadence.ready(1/hz+(i%2?.0004:-.0004),fps))drawn++;
+    assert(Math.abs(drawn-fps*10)<=1,`${hz} Hz / ${fps} FPS: ${drawn}`);
+    cadence.ready(2,fps);let catchup=0;
+    for(let i=0;i<hz;i++)if(cadence.ready(1/hz,fps))catchup++;
+    assert(catchup<=fps+1,'a stall retains at most one presentation of credit');
+    assert(cadence.ready(0,fps,true));
+    assert.equal(cadence.ready(.25/fps,fps),false,'resume clears old presentation credit');
+    assert(cadence.ready(.75/fps,fps));
+  }
+});

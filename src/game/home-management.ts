@@ -13,11 +13,12 @@ import { ECONOMY_CONFIG } from './economy-config.ts';
 export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
-  let editing=0,draft:string[]=[],filter='all',shortcutKey='',recruitKey='',populationKey='',buildingKey='';
+  let editing=0,filter='all',shortcutKey='',recruitKey='',populationKey='',buildingKey='';
+  let selectedGroup:number|undefined;
   const button=(label:string,click:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.addEventListener('click',click,options);return b;};
-  const notice=(message:string)=>{get('group-notice').textContent=message;};
+  const notice=(message='')=>{get('group-notice').textContent=`已选 ${groupMembers(e.state,editing).length} / ${GROUP_SIZE}${message?` · ${message}`:''}`;};
   function edit(index=editing) {
-    editing=index;draft=[...e.state.groups[index]];notice('');
+    editing=index;notice();
     get('group-editor-tabs').replaceChildren(...Array.from({length:GROUP_COUNT},(_,i)=>{
       const b=button(`${i+1} 队`,()=>edit(i));b.setAttribute('aria-pressed',String(i===editing));return b;
     }));
@@ -26,34 +27,38 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
   function renderPopulation() {
     const rows=populationInfo(e.state), key=JSON.stringify([rows,editing,filter]);
     if(key===populationKey)return;populationKey=key;
-    // Keep unsaved membership choices while refreshing displayed vitals.
-    draft=draft.filter(id=>rows.some(r=>r.id===id));
+    notice();
+    const focused=document.activeElement instanceof HTMLInputElement?document.activeElement.id:undefined;
     const humans=rows.filter(r=>r.role!=='dog').length;
     get('population-summary').textContent=`人口 ${humans} · 田园犬 ${rows.length-humans}`;
     get('group-candidates').replaceChildren(...rows.filter(r=>filter==='all'||r.role===filter).map(r=>{
       const row=document.createElement('tr'),check=document.createElement('td'),input=document.createElement('input');
       const name=document.createElement('th'),label=document.createElement('label');
       row.dataset.resident=r.id;name.scope='row';
-      input.type='checkbox';input.value=r.id;input.id=`group-member-${r.id}`;input.checked=draft.includes(r.id);
+      input.type='checkbox';input.value=r.id;input.id=`group-member-${r.id}`;input.checked=r.group===editing;
       input.setAttribute('aria-label',`将${r.name}编入 ${editing+1} 队`);
       label.htmlFor=input.id;label.textContent=r.name;label.title=r.name;
-      if(r.progression){
-        const rank=document.createElement('small'),{level,progress,required}=r.progression;
-        rank.dataset.stat='level';rank.textContent=`${level}级 · ${required?`${Math.floor(progress)}/${required}`:'满级'}`;
-        rank.title=required?`经验 ${Math.floor(progress)} / ${required}，造成实际伤害获得经验`:'已达最高等级';
-        label.append(rank);
-      }
-      if(r.group!==undefined){const other=document.createElement('small');other.className='group-badge';other.dataset.stat='group';other.textContent=`${r.group+1}队`;label.append(other);}
       input.addEventListener('change',()=>{
-        if(input.checked&&draft.length>=GROUP_SIZE){input.checked=false;notice('每队最多 6 名');return;}
-        draft=input.checked?[...draft,r.id]:draft.filter(id=>id!==r.id);notice(`已选 ${draft.length} / ${GROUP_SIZE}`);
+        const members=groupMembers(e.state,editing);
+        if(input.checked&&members.length>=GROUP_SIZE){input.checked=false;notice('已达人数上限');return;}
+        const next=input.checked?[...members,r.id]:members.filter(id=>id!==r.id);
+        if(!saveGroup(e,editing,next)){input.checked=members.includes(r.id);notice('成员状态已变化');return;}
+        callbacks.save();refresh(selectedGroup);
       },options);check.append(input);name.append(label);row.append(check,name);
       const value=(kind:string,text:string,low=false)=>{const cell=document.createElement('td');cell.dataset.stat=kind;cell.textContent=text;cell.classList.toggle('low',low);return cell;};
+      const rank=value('level',r.progression?`${r.progression.level}级`:'—');
+      if(r.progression){
+        const {progress,required}=r.progression,experience=document.createElement('small');
+        experience.dataset.stat='experience';experience.textContent=required?`${Math.floor(progress)}/${required}`:'满级';rank.append(experience);
+        rank.title=required?`经验 ${Math.floor(progress)} / ${required}，造成实际伤害获得经验`:'已达最高等级';
+      }
+      row.append(rank,value('group',r.group===undefined?'—':`${r.group+1}队`),value('assignment',r.assignment));
       row.append(value('health',`${Math.ceil(r.health)}/${r.maxHealth}`,r.health/r.maxHealth<.3),
         value('stamina',`${Math.floor(r.stamina)}/${r.maxStamina}`,r.stamina/r.maxStamina<.3),
         value('combat',`${r.attack??'—'} / ${r.armor}`));
       return row;
     }));
+    if(focused)document.getElementById(focused)?.focus({preventScroll:true});
   }
   function renderBuildings(){
     (get('auto-repair') as HTMLInputElement).checked=e.state.autoRepair;
@@ -96,12 +101,10 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     if(tab==='buildings')renderBuildings();
   },options);
   get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();if(!get('buildings-panel').hidden)renderBuildings();},options);
-  get('save-group').addEventListener('click',()=>{
-    if(saveGroup(e,editing,draft)){callbacks.save();edit();notice('编队已保存');refresh();}else notice('成员状态已变化，请重新选择');
-  },options);
-  get('clear-group').addEventListener('click',()=>{saveGroup(e,editing,[]);callbacks.save();edit();notice('本队已清空');refresh();},options);
+  get('clear-group').addEventListener('click',()=>{saveGroup(e,editing,[]);callbacks.save();edit();refresh(selectedGroup);},options);
   get('set-rally').addEventListener('click',()=>{ui.closeRecruitment();callbacks.rally();},options);
   function refresh(selected?:number) {
+    selectedGroup=selected;
     if(!get('population-panel').hidden && get('resources-dialog').hasAttribute('open'))renderPopulation();
     if(!get('buildings-panel').hidden && get('resources-dialog').hasAttribute('open'))renderBuildings();
     const groups=e.state.groups.map((_,i)=>groupMembers(e.state,i));

@@ -28,14 +28,15 @@ export async function checkVillageUpgrade(page: Page, info: TestInfo, touch: boo
   await page.screenshot({path:info.outputPath('four-bed-farms.png'),scale:'css'});
   await page.locator('#home-resources').click();await page.getByRole('tab',{name:'人口',exact:true}).click();
   const soldier=page.locator('#group-candidates [data-resident="infantry"]');
-  await expect(soldier.locator('[data-stat="level"]')).toHaveText('2级 · 50/400');
+  await expect(soldier.locator('[data-stat="level"]')).toContainText('2级');
+  await expect(soldier.locator('[data-stat="experience"]')).toHaveText('50/400');
   await expect(soldier.locator('[data-stat="health"]')).toHaveText('100/132');
   await expect(soldier.locator('[data-stat="combat"]')).toHaveText('22.5 / 13');
-  await expect(page.locator('#group-candidates [data-resident="farmer"] [data-stat="level"]')).toHaveCount(0);
+  await expect(page.locator('#group-candidates [data-resident="farmer"] [data-stat="level"]')).toHaveText('—');
   const original=page.viewportSize()!;
   for(const size of touch?[{width:320,height:568},{width:844,height:390}]:[original]){
     await page.setViewportSize(size);
-    expect(await page.locator('.population-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+    expect(await page.locator('#population-panel').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
     for(const cell of await soldier.locator('td,th').all())expect(await cell.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
     await page.screenshot({path:info.outputPath(`levels-${size.width}.png`),scale:'css'});
     await page.getByRole('tab',{name:'建筑',exact:true}).click();

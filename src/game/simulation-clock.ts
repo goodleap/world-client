@@ -30,6 +30,10 @@ export class RenderCadence {
     if(force){this.elapsed=0;return true;}
     const period=1/fps;
     if(this.elapsed+1e-8<period)return false;
-    this.elapsed%=period;return true;
+    // Match Babylon's bounded accumulator: consume one presentation, retaining
+    // up to one frame of credit. Modulo loses that credit when slightly uneven
+    // 60 Hz callbacks cross two boundaries, repeatedly skipping healthy frames.
+    // Keep this gate inside the loop so simulation/worker polling are uncapped.
+    this.elapsed=Math.min(this.elapsed-period,period);return true;
   }
 }

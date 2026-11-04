@@ -23,13 +23,13 @@ test('top selection, population filters, panel footers and full map touch gestur
   await page.locator('#population-filters [data-role="farmer"]').click();await page.locator('#group-member-farmer').check();
   await page.locator('#population-filters [data-role="archer"]').click();await page.locator('#group-member-archer').check();
   await page.locator('#population-filters [data-role="infantry"]').click();await expect(page.locator('#group-member-infantry')).toBeChecked();
-  await page.locator('#save-group').click();expect((await snapshot(page)).economy.groups[0].sort()).toEqual(['archer','farmer','infantry']);
+  expect((await snapshot(page)).economy.groups[0].sort()).toEqual(['archer','farmer','infantry']);
   await page.locator('#group-editor-tabs button').nth(1).click();await expect(infantry.locator('[data-stat="group"]')).toHaveText('1队');
   await page.locator('#population-filters [data-role="all"]').click();
   for(const [width,height] of [[320,568],[844,390],[412,915]]){
     await page.setViewportSize({width,height});await expect(page.locator('#continue-home')).toBeInViewport();
-    const tabs=(await page.locator('#group-editor-tabs').boundingBox())!,save=(await page.locator('#save-group').boundingBox())!;
-    expect(save.x).toBeGreaterThan(tabs.x+tabs.width);expect(Math.abs(save.y-tabs.y)).toBeLessThan(3);
+    const tabs=(await page.locator('#group-editor-tabs').boundingBox())!,clear=(await page.locator('#clear-group').boundingBox())!;
+    expect(clear.x).toBeGreaterThan(tabs.x+tabs.width);expect(Math.abs(clear.y-tabs.y)).toBeLessThan(3);
     expect(await page.locator('#population-panel').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
     await page.screenshot({path:info.outputPath(`population-${width}.png`)});
   }
