@@ -116,7 +116,7 @@ export function createNeedsController(e: Economy, residents: Residents, combat: 
     const task = e.requestFireSupply(rest.camp);
     if (!task) { notes.set(id, '等待仓库补料'); e.state.vitals[id].retryAt = e.state.seconds + V.retrySeconds; return; }
     if (task.status !== 'waiting' || task.danger || task.retryAt > e.state.seconds) { notes.set(id, task.danger ? '危险区域，等待补给' : '等待补给'); return; }
-    if (!e.assign(task.id, id).ok) {
+    if (!e.assign(task.id, id, task.origin).ok) {
       notes.set(id, task.reason || '等待补给'); e.state.vitals[id].retryAt = e.state.seconds + V.retrySeconds; return;
     }
     rest.supply = task.id; routeSupply(id, rest);

@@ -1,9 +1,9 @@
 import { Combat, fighterRadius, createFighter } from './combat.ts';
-import { COMBAT_CONFIG, ENCOUNTERS } from './combat-config.ts';
+import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
 import type { Economy } from './economy.ts';
-import { newResident, ENEMIES } from './resident-data.ts';
+import { newResident } from './resident-data.ts';
 import { DANGER_CONFIG, updateDangerZones, pathInDanger, dangerObstacles } from './danger-zones.ts';
 import type { AreaThreat } from './danger-zones.ts';
 import { homeResidents } from './recruitment.ts';
@@ -62,11 +62,9 @@ export class Raids {
     if(now<this.areaAt)return;
     this.areaAt=now+DANGER_CONFIG.interval;
     const units=this.combat.state.units.filter(u=>u.team==='enemy'&&u.life==='active'&&!u.departed);
-    const camps=new Set(units.map(u=>ENEMIES.find(r=>r.id===u.id)?.camp).filter(Boolean));
-    const threats:AreaThreat[]=ENCOUNTERS.filter(c=>camps.has(c.id)).map(c=>({id:`camp:${c.id}`,x:c.x,z:c.z,
-      radius:c.radius+COMBAT_CONFIG.acquire+DANGER_CONFIG.buffer,fixed:true}));
+    const threats:AreaThreat[]=[];
     for(const u of [...units,...this.wolves.filter(w=>w.life==='active'&&w.mode!=='gone')]) {
-      threats.push({id:u.id,x:u.position.x,z:u.position.z,radius:(u.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire)+DANGER_CONFIG.buffer});
+      threats.push({id:u.id,x:u.position.x,z:u.position.z,radius:u.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire});
     }
     // Do not add another protection polling interval after an area clears.
     if (updateDangerZones(this.economy.state.dangerZones,threats,now)) this.decisions = 0;
@@ -156,7 +154,7 @@ export class Raids {
     for (const r of homeResidents(this.economy.state)) {
       if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id]; continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
-      const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire)+DANGER_CONFIG.buffer);
+      const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire));
       if (this.combat.unit(r.id)) {
         for (const w of threats) if (distance(position, w.position) <= C.aidRadius
           && homeResidents(this.economy.state).some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
@@ -165,6 +163,9 @@ export class Raids {
         continue;
       }
       const evasion = this.state.evading[r.id];
+      // Task origin, not a short grace timer, owns the entire player order:
+      // approach, work and its follow-up delivery, including after reload.
+      if (this.economy.active(r.id)?.origin==='manual') { delete this.state.evading[r.id]; continue; }
       // Leave enough room for the same body-sized clearance used when planning
       // safe work/wander routes, rather than stopping with feet on the border.
       const zone=this.economy.state.dangerZones.find(z=>distance(position,z)<=z.radius+r.bodyRadius+.05);

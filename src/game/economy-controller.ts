@@ -14,11 +14,11 @@ type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' 
   'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork' | 'farmerIds'> & { farmerPosition: (id?: string) => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 
-export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}, onStorageUse: (from?: Point) => void = () => {}, canTakeWork: (id: string) => boolean = () => true, unsafePath?:(points:readonly Point[])=>boolean, workObstacles:()=>readonly Obstacle[]=()=>[]) {
+export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}, onStorageUse: (from?: Point) => void = () => {}, canTakeWork: (id: string, task?: WorkTask) => boolean = () => true, unsafePath?:(points:readonly Point[])=>boolean, workObstacles:()=>readonly Obstacle[]=()=>[], isEvading:(id:string)=>boolean=()=>false) {
   const steward = createSteward(economy,p=>!unsafePath?.([p]));
   let safetyAt=0;
   function safeTask(task:WorkTask,from:Point,path:Point[]){
-    if(!unsafePath)return true;
+    if(task.origin==='manual'||!unsafePath)return true;
     const zones=workObstacles(),target=economy.taskPoint(task),end=path.at(-1)??from;
     const solids=economyObstacles(economy.state.depleted,economy.state.sites,economy.state.buildings);
     task.watchPath=[{x:from.x,z:from.z},...path].map(p=>({x:p.x,z:p.z}));
@@ -68,7 +68,10 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (!result.ok) return result;
       task = result.task!;
     }
-    if (residents.farmerWorkState(id)?.id === task.id && economy.active(id)?.id === task.id) return { ok: true, message: '正在执行该作业' };
+    if (residents.farmerWorkState(id)?.id === task.id && economy.active(id)?.id === task.id) {
+      const result=economy.assign(task.id,id);
+      return result.ok?{ok:true,message:'正在执行该作业'}:result;
+    }
     if (task.status === 'storage') return { ok: false, message: '作业已完成，正在等待入库' };
     if (task.worker && task.worker !== id && task.status !== 'waiting') return { ok: false, message: '其他农民正在执行该任务' };
     const place = destination(task, residents.farmerPosition(id));
@@ -77,7 +80,6 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (!task.worker) economy.defer(task.id, '暂时无法到达，稍后重试');
       return { ok: false, message: '暂时无法到达，作业已保留' };
     }
-    if(!safeTask(task,residents.farmerPosition(id),path))return {ok:false,message:'危险，等待清场'};
     economy.updateCargo(residents.farmerPosition(id), id);
     const result = economy.assign(task.id, id);
     if (result.ok) residents.startFarmerWork(task.id, path, place.target, id);
@@ -91,7 +93,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       economy.arrangeRepairs();
       if(unsafePath){
         economy.checkDanger(unsafePath);
-        for(const task of economy.state.tasks)if(task.worker&&task.watchPath?.length&&!task.danger&&['travelling','working','delivering'].includes(task.status)&&unsafePath(task.watchPath)){
+        for(const task of economy.state.tasks)if(task.origin!=='manual'&&task.worker&&task.watchPath?.length&&!task.danger&&['travelling','working','delivering'].includes(task.status)&&unsafePath(task.watchPath)){
           const worker=task.worker,from=residents.farmerPosition(worker),assigned=residents.farmerWorkState(worker);
           const place=destination(task,from),path=assigned?.path?[...assigned.path]:place&&residents.planFarmerWork(place.points,worker);
           if(path&&place&&safeTask(task,from,path)){
@@ -157,13 +159,16 @@ export function createEconomyController(economy: Economy, world: World, resident
         else residents.releaseFarmerWork(id);
       }
       world.sync();
-      if (residents.hasMoveCommand(id) || !canTakeWork(id)) continue;
+      // An automatic escape route may yield to queued player work. A player
+      // movement remains in charge; automatic work still needs a safe worker.
+      if (residents.hasMoveCommand(id) && !isEvading(id)) continue;
+      const eligible=(task:WorkTask)=>canTakeWork(id,task);
       let requested = false;
       if (!economy.active(id)) for (let attempts = 0; attempts <= ECONOMY_CONFIG.queueLimit; attempts++) {
-        let task = economy.claim(id, residents.farmerPosition(id));
-        if (!task && canDispatch && !requested) {
+        let task = economy.claim(id, residents.farmerPosition(id),eligible);
+        if (!task && canDispatch && !requested && canTakeWork(id)) {
           requested = true;
-          if (steward.requestWork(residents.farmerPosition(id))) task = economy.claim(id, residents.farmerPosition(id));
+          if (steward.requestWork(residents.farmerPosition(id))) task = economy.claim(id, residents.farmerPosition(id),eligible);
         }
         if (!task) break;
         const place = destination(task, residents.farmerPosition(id));

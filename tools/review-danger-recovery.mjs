@@ -18,7 +18,7 @@ try {
     updateDangerZones(e.state.dangerZones,[{id:'past-grove-guard',x:4,z:-4,radius:10}],0);
     const plots=['plot-2','plot-3','plot-4'];
     if(scenario==='farmers')for(const id of plots){
-      const task=e.request('sow',id,'wheat').task;assert(task);
+      const task=e.request('sow',id,'wheat','steward').task;assert(task);
       task.watchPath=[{x:e.plot(id).x,z:e.plot(id).z}];e.holdDanger(task);
     }
     else {
@@ -67,7 +67,7 @@ try {
     try {
       await open();
       await page.evaluate(()=>window.__dangerReview.to(9.5));
-      const waiting=await read();assert(waiting.oldZone);assert.equal(waiting.version,20);
+      const waiting=await read();assert(waiting.oldZone);assert.equal(waiting.version,21);
       if(scenario==='farmers')assert(waiting.tasks.filter(t=>plots.includes(t.target)).every(t=>t.danger));
       else assert.equal(waiting.people.find(p=>p.id==='dog').travelled,0,'dog does not wander back into the cooling area');
       await page.evaluate(()=>window.__dangerReview.save());

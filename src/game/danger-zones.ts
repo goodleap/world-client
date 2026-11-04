@@ -1,12 +1,13 @@
 import type { Obstacle, Point } from './movement.ts';
 import { WORLD_BOUNDS } from './world-data.ts';
 
-export const DANGER_CONFIG = { interval: .5, safeSeconds: 10, buffer: 2, cellSize: 4 } as const;
+// The buffer only renews old area memory; it does not enlarge alert radii.
+export const DANGER_CONFIG = { interval: .5, safeSeconds: 10, buffer: 2, cellSize: 1 } as const;
 export interface DangerZone extends Point { id: string; radius: number; safeSince?: number }
 export interface AreaThreat extends Point { id: string; radius: number; fixed?: boolean }
 
-/** Shared spatial memory, independent of worker/task identity and line of sight.
- * Fixed camps keep their territory. Moving threats leave short-lived area marks,
+/** Shared spatial memory for automatic behaviour, independent of worker/task
+ * identity and line of sight. Threats leave short-lived area marks,
  * so switching jobs, walking behind a tree or fleeing briefly cannot clear it. */
 export function updateDangerZones(zones: DangerZone[], threats: readonly AreaThreat[], seconds: number) {
   let cleared = false;

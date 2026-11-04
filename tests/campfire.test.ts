@@ -237,6 +237,7 @@ test('every human can supply an empty fire and eat; animals never carry and rese
   const { advance } = needsHarness(e); advance(.3);
   const tasks = e.state.tasks.filter(t => t.kind === 'supply');
   assert.equal(tasks.length, 1); assert.notEqual(tasks[0].worker, 'dog');
+  assert.equal(tasks[0].origin, 'continuation', 'automatic meals must not promote supply to a player command');
   assert.equal(e.assign(tasks[0].id, 'dog').ok, false);
 });
 
@@ -332,8 +333,8 @@ test('personal meals and paid supplies share dangerous areas and do not send far
   assert.equal(currentRest(),undefined,'temporary quiet must not invite the worker back');
   e.advance(V.retrySeconds+.1);updateDangerZones(e.state.dangerZones,[],e.state.seconds);n.update(.05);
   const rest=currentRest();assert(rest,'a safe fire can be used again');
-  const supply=e.request('supply',f.id,undefined,'manual',{resource:'wood',amount:2}).task!;
-  assert(e.assign(supply.id).ok);e.arrive(supply.id);rest.supply=supply.id;
+  const supply=e.request('supply',f.id,undefined,'continuation',{resource:'wood',amount:2}).task!;
+  assert(e.assign(supply.id,'farmer',supply.origin).ok);e.arrive(supply.id);rest.supply=supply.id;
   const stock=e.state.inventory.wood;
   updateDangerZones(e.state.dangerZones,[threat],e.state.seconds);n.update(.05);
   assert(!e.state.vitals.farmer.rest);assert(supply.danger);

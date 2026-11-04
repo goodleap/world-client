@@ -51,7 +51,7 @@ test('saving between gathering and pickup keeps the delivery with its producer',
   const e = gather(), producer = e.active()!.worker;
   const resumed = decodeEconomy(encodeEconomy(e));
   const pickup = resumed.active(producer)!;
-  assert.equal(pickup.kind, 'haul'); assert.equal(pickup.origin, 'continuation');
+  assert.equal(pickup.kind, 'haul'); assert.equal(pickup.origin, 'manual');
   assert.equal(pickup.status, 'travelling');
   assert.equal(resumed.state.goods[0].state, 'ground');
   assert.equal(resumed.claim('farmer-2'), undefined);

@@ -33,7 +33,7 @@ test('occupied tower blocks demolition until a safe exit is available, then remo
 });
 test('danger is shared by all farmers, pauses without a timer escape, persists and resumes only after its shared area stays safe for ten game seconds',()=>{
   let e=new Economy();e.setLeadership(false);e.state.goods.push({id:'goods-1',x:8,z:-3,resource:'wood',amount:8,state:'ground'});e.state.nextId=2;
-  let t=e.request('haul','goods-1').task!;e.assign(t.id);e.arrive(t.id);e.updateCargo({x:4,z:-3});
+  let t=e.request('haul','goods-1',undefined,'continuation').task!;e.claim();e.arrive(t.id);e.updateCargo({x:4,z:-3});
   t.watchPath=[{x:0,z:-3},{x:8,z:-3},{...WAREHOUSE_DOOR}];e.holdDanger(t,{x:4,z:-3});
   assert.equal(e.state.goods[0].state,'ground');assert.equal(e.claim('farmer-2'),undefined);
   for(let i=0;i<20;i++){e.advance(.5);e.checkDanger(()=>true);}assert(t.danger);assert.equal(e.claim(),undefined);
@@ -47,7 +47,7 @@ test('danger is shared by all farmers, pauses without a timer escape, persists a
 });
 test('dispatch checks a dangerous route before moving and gives another farmer safe work',()=>{
   const e=new Economy();e.setLeadership(false);e.state.goods.push({id:'goods-1',x:8,z:-3,resource:'wood',amount:8,state:'ground'});e.state.nextId=2;
-  const bad=e.request('haul','goods-1').task!,safe=e.request('sow','plot-2','wheat').task!;
+  const bad=e.request('haul','goods-1',undefined,'continuation').task!,safe=e.request('sow','plot-2','wheat','steward').task!;
   type R=Parameters<typeof createEconomyController>[2];let moving:number[]=[];
   const r:R={farmerIds:()=>['farmer','farmer-2'],farmerPosition:()=>({x:1,z:-3}),canWork:()=>true,hasMoveCommand:()=>false,command:()=>false,farmerWorkState:()=>undefined,releaseFarmerWork:()=>{},beginFarmerWork:()=>{},planFarmerWork:p=>[...p],startFarmerWork:id=>{moving.push(id);}};
   const controller=createEconomyController(e,{sync:()=>false,workPoints:id=>({points:id==='goods-1'?[{x:8,z:-3}]:[{x:1,z:-4}],target:{x:0,z:0}})},r,false,()=>{},()=>{},()=>true,path=>path.some(p=>p.x>6));

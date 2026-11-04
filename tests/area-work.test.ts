@@ -13,11 +13,11 @@ test('nearby new jobs and different farmers share area exclusion without probing
   const e=new Economy();e.setLeadership(false);
   const p=e.plot('plot-0')!;
   updateDangerZones(e.state.dangerZones,[{id:'foe',x:p.x,z:p.z,radius:2}],0);
-  const task=e.request('harvest',p.id).task!;
+  const task=e.request('harvest',p.id,undefined,'steward').task!;
   assert.equal(e.claim('farmer'),undefined);assert(task.danger);
   assert.equal(e.claim('farmer-2'),undefined);
   e.state.goods.push({id:'goods-100',x:p.x+.5,z:p.z,resource:'wood',amount:3,state:'ground'});e.state.nextId=101;
-  const other=e.request('haul','goods-100').task!;assert.equal(e.claim('farmer-2'),undefined);assert(other.danger);
+  const other=e.request('haul','goods-100',undefined,'continuation').task!;assert.equal(e.claim('farmer-2'),undefined);assert(other.danger);
   e.setLeadership(true);
   const steward=createSteward(e,p=>!pathInDanger(e.state.dangerZones,[p]));
   const job=steward.requestWork();if(job)assert(!pathInDanger(e.state.dangerZones,[e.taskPoint(job)!]));
@@ -36,7 +36,7 @@ test('area memory survives moving enemies, return visits and save/reload; only t
   assert(pathInDanger(trail,[threat]));assert(pathInDanger(trail,[{x:20,z:4}]));
 });
 
-test('camp territory stays forbidden while guards move off the old route or behind cover',()=>{
+test('guard area memory persists behind cover and clears after guards leave and ten safe seconds pass',()=>{
   const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]);
   const r=new Raids(e,c,{status:()=>({position:{x:0,z:0},moving:false}),command:()=>false,release:()=>{},resting:()=>{},neighbours:()=>[]},
     ()=>[{kind:'box',x:-25,z:4,halfWidth:10,halfDepth:.5}],()=>false);
@@ -45,6 +45,9 @@ test('camp territory stays forbidden while guards move off the old route or behi
   for(const u of c.state.units.filter(u=>u.id.startsWith('enemy-road-')))u.position={x:-35,z:9};
   e.state.seconds=15;assert(r.unsafePath([point]));
   assert(r.unsafePath([{x:-45,z:9},{x:-5,z:9}]));
+  for(const u of c.state.units.filter(u=>u.id.startsWith('enemy-road-')))u.position={x:-50,z:9};
+  e.state.seconds=16;r.unsafePath([]);
+  e.state.seconds=26;assert(!r.unsafePath([point]));
 });
 
 test('automatic repairs queue all damaged buildings once, reserve resources, pause by area and persist the switch',()=>{
@@ -68,7 +71,7 @@ test('outbound work detours around areas and a dangerous return warehouse preven
   for (const blockedReturn of [false,true]) {
     const e=new Economy();e.setLeadership(false);const from={x:-10,z:-18},goal={x:-2,z:-18};
     e.state.goods.push({id:'goods-1',...goal,resource:'wood',amount:4,state:'ground'});e.state.nextId=2;
-    const task=e.request('haul','goods-1').task!;
+    const task=e.request('haul','goods-1',undefined,'continuation').task!;
     e.state.dangerZones.push({id:'camp:review',...(blockedReturn?e.warehouseDoors()[0]:{x:-6,z:-18}),radius:1.2});
     let dispatched:Point[]|undefined;
     const residents:Parameters<typeof createEconomyController>[2]={

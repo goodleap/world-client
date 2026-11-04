@@ -62,7 +62,7 @@ test('farmers and dog resume when the shared region clears, including save/reloa
   assert(released.filter(id=>id==='farmer').length>=2);
   assert(!e.state.dangerZones.some(z=>z.id==='area:0:0'));
   assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
-  const old=JSON.parse(encodeEconomy(e));old.version=19;
+  const old=JSON.parse(encodeEconomy(e));old.version=20;
   assert.throws(()=>decodeEconomy(JSON.stringify(old)),/存档版本/);
 });
 

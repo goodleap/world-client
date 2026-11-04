@@ -167,7 +167,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const target = index >= 0 ? `${index + 1}号地` : task.kind === 'haul' ? '这批资源，送到仓库' : task.kind === 'build' ? '建筑' : task.kind === 'chop' ? '这棵树' : '这处石材';
     const work = task.kind === 'sow' && task.crop ? `种${ECONOMY_CONFIG.crops[task.crop].name}` : WORK_NAMES[task.kind];
     ui.sayResident(farmerLeader.id, `${worker === farmerLeader.id ? '我去' : `${name}，去`}${work}${target}。`);
-  }, point => world.doors.useWarehouse(point), id => needs.canTakeWork(id) && raids.canWork(id),points=>raids.unsafePath(points),()=>raids.workObstacles());
+  }, point => world.doors.useWarehouse(point), (id,task) => needs.canTakeWork(id) && (task?.origin==='manual'||raids.canWork(id)),points=>raids.unsafePath(points),()=>raids.workObstacles(),id=>!!raids.state.evading[id]);
   const navigation=createNavigationQueue(new Worker(new URL('./navigation.worker.ts',import.meta.url),{type:'module'}));
   const commandVersions=new Map<string,number>();
   const clearGroupMove=(id:string)=>{for(const [key,order]of Object.entries(economy.state.groupMoves))if(order.members.includes(id))delete economy.state.groupMoves[key];};
