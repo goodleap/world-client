@@ -7,12 +7,13 @@ import { ECONOMY_CONFIG } from './game/economy-config.ts';
 import { CAMPFIRE_CONFIG } from './game/campfire.ts';
 import { ResidentSpeech } from './game/resident-speech.ts';
 import { HealthIndicator } from './game/health-indicator.ts';
+import { createMapGestures } from './game/map-gestures.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
 
 export interface SelectionAction { id: string; label: string; disabled?: boolean }
-export interface SelectionDetails { showHint?: boolean; name: string; kind: string; hint: string; actions?: SelectionAction[] }
+export interface SelectionDetails { showHint?: boolean; name: string; kind: string; hint: string; actions?: SelectionAction[]; health?:{value:number;maximum:number} }
 export interface QueueRow { id: number; title: string; status: string; progress: number; reason: string; cancellable: boolean }
 
 const icons = {
@@ -47,7 +48,7 @@ export function createUI(app: HTMLElement) {
     <button id="map-toggle" class="map-button icon-button" aria-label="展开小地图" title="展开小地图" aria-expanded="false" aria-controls="minimap-panel">${icon('map')}</button>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
     <section id="minimap-panel" class="minimap-panel" aria-label="小地图" hidden>
-      <canvas id="minimap" width="320" height="320" role="img" aria-label="上方为北。地形、道路、建筑与单位位置，浅色框为当前视野，蓝点为我方，红点为敌方"></canvas>
+      <canvas id="minimap" width="320" height="320" role="button" tabindex="0" aria-label="全屏查看地图"></canvas>
     </section>
     <div class="status-stack">
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="约每半秒更新。FPS 与 CPU 为这段时间的平均值；CPU 包含游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。三角形为采样帧实际提交总量，包含主画面、阴影等渲染通道。">
@@ -72,6 +73,17 @@ export function createUI(app: HTMLElement) {
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
     <div class="north" aria-hidden="true"><span>N</span><i></i></div>
+    <section id="selection-info" class="selection-info" aria-label="选中信息" hidden>
+      <section id="resident-selection" class="resident-selection" aria-label="当前单位信息" aria-describedby="resident-hint" hidden>
+        <details id="unit-details"><summary aria-label="展开或收起单位详情">
+          <div class="resident-card-heading"><strong id="resident-name"></strong><small id="resident-level" hidden></small><span id="resident-activity"></span></div>
+          <div id="resident-vitals" class="resident-vitals"></div>
+        </summary><div id="unit-attributes" class="unit-attributes"></div></details>
+        <label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label>
+        <span id="resident-hint" class="sr-only"></span>
+      </section>
+      <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><strong id="selection-name"></strong><small id="selection-kind"></small><p id="selection-hint" role="status"></p><div id="selection-actions" class="selection-actions"></div></section>
+    </section>
     <div id="landmark-prompt" class="landmark-prompt" hidden><button id="inspect"><span class="prompt-icon">${icon('leaf')}</span><span><small>发现一处小风景</small><strong id="nearby-name"></strong></span><span class="prompt-key">E</span>${icon('arrow')}</button></div>
     <div class="bottom-dock">
       <nav class="construction-controls" aria-label="建筑选项">
@@ -89,13 +101,7 @@ export function createUI(app: HTMLElement) {
       </nav>
       <div class="bottom-controls">
         <button id="building-toggle" aria-expanded="false" aria-controls="building-palette">${icon('hammer')}建造</button>
-        <section id="resident-selection" class="resident-selection" aria-label="当前单位信息" aria-describedby="resident-hint" hidden>
-          <div class="resident-card-heading"><strong id="resident-name"></strong><span id="resident-activity"></span></div>
-          <div id="resident-vitals" class="resident-vitals"></div>
-          <label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label>
-          <button id="clear-selection" aria-label="取消选中">${icon('close', '5 5 14 14')}</button>
-          <span id="resident-hint" class="sr-only"></span>
-        </section>
+        <button id="clear-selection" class="cancel-selection" aria-label="取消选中" hidden>${icon('close')}<span>取消选中</span></button>
         <nav class="view-controls" aria-label="视角控制">
           <button id="reset" class="icon-button" aria-label="恢复视角" title="恢复视角">${icon('reset')}</button>
         </nav>
@@ -103,7 +109,6 @@ export function createUI(app: HTMLElement) {
     </div>
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <section id="selection-card" class="selection-card" aria-label="对象操作" hidden><p id="selection-hint" class="target-hint" role="status" hidden></p><div id="selection-actions" class="selection-actions"></div></section>
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
 
     <nav id="group-shortcuts" class="group-shortcuts" aria-label="快速选择编队"></nav>
@@ -125,10 +130,9 @@ export function createUI(app: HTMLElement) {
         <p id="building-notice" class="dialog-note" role="status"></p>
       </section>
       <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
-        <div class="population-tools"><p id="population-summary"></p>
-          <div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div>
-        </div>
-        <p class="dialog-note population-hint">勾选成员后保存编队，每队最多 6 名。</p>
+        <p id="population-summary"></p>
+        <div class="population-tools"><div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div><div class="group-edit-actions"><button id="save-group" class="primary-button">保存编队</button><button id="clear-group">清空本队</button></div></div>
+        <nav id="population-filters" class="population-filters" aria-label="按人物类型筛选"></nav>
         <div class="population-scroll">
           <table class="population-table" aria-label="存活我方单位">
             <colgroup><col class="population-check"><col><col class="population-health"><col class="population-stamina"><col class="population-stats"></colgroup>
@@ -136,20 +140,21 @@ export function createUI(app: HTMLElement) {
             <tbody id="group-candidates"></tbody>
           </table>
         </div>
-        <div class="home-actions"><button id="save-group" class="primary-button">保存编队</button><button id="clear-group">清空本队</button></div>
         <p id="group-notice" role="status"></p>
       </section>
+      <footer class="panel-footer"><button id="continue-home" class="primary-button">继续游戏</button></footer>
     </dialog>
+    <dialog id="map-dialog" class="map-dialog" aria-label="全屏地图"><button class="dialog-close" aria-label="关闭全屏地图">${icon('close')}</button><div id="map-viewport" class="map-viewport" aria-label="拖动浏览，双指或滚轮缩放"></div></dialog>
     <dialog id="demolish-dialog" class="paper-dialog demolish-dialog" aria-labelledby="demolish-title"><button class="dialog-close" aria-label="取消拆除">${icon('close')}</button><h2 id="demolish-title">拆除建筑</h2><p id="demolish-description"></p><div class="home-actions"><button id="demolish-confirm">确认拆除</button></div></dialog>
     <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status"></p></dialog>
-    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
+    <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="settings-scroll"><div class="system-actions"><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></div><footer class="panel-footer"><button id="continue-game" class="primary-button">继续游戏</button></footer></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="performance-setting" for="performance-mode">性能模式<select id="performance-mode"><option value="standard">标准 · 60 帧</option><option value="saving">省电 · 30 帧</option><option value="minimum">强省电 · 20 帧</option></select><small>省电模式降低画面分辨率与阴影，游戏速度保持不变。</small></label><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
       <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>
       <label for="sunlight">太阳光强度 <output id="sunlight-value"></output><input id="sunlight" type="range" min="0" max="2" step="0.01"></label>
       <label for="sun-color" class="light-color">太阳光颜色<input id="sun-color" type="color"></label>
       <button id="reset-lighting">恢复默认光照</button>
     </div><p id="graphics-notice" class="dialog-note" role="status" hidden></p></dialog>
-    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房、哨塔和火堆；手机可横向滑动选项，轻点选择或向上拖出放置。<br>选中单位后，底部卡片显示生命、体力与当前状态。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得战利品并开放资源采集，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林和湖泊不可建设，道路与通道空地允许建造；通行影响仅作提醒，施工仍需农民实际到场。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
+    <dialog id="help-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭操作说明">${icon('close')}</button><div class="dialog-symbol">${icon('compass')}</div><p class="eyebrow">经营家园</p><h2>操作说明</h2><p class="dialog-intro">建造菜单可开垦耕地、建造仓库、民房、哨塔和火堆；手机可横向滑动选项，轻点选择或向上拖出放置。<br>选中后，头顶显示名称和生命条，顶部信息卡显示状态、体力和等级，点击展开详情。底部可取消选中。<br>点击耕地或资源，选择按钮安排作业。<br>选中任意单位（包括狗），再点空地指挥移动；选中农民后点作业目标可直接指派，多种作物需先选择。<br>再次点击同一人物取消选择；移动与攻击保留选择，安排作业后释放选择。<br>依次点击步兵、弓兵或骑兵，单独下达指令；点敌人攻击，点空地移动。切换士兵不会取消上一名士兵的命令。敌我受击自动反击；点空地离开战斗，移动优先。我方士兵生命归零后死亡，停止全部任务，不能再指挥或通过进食复活。存活单位可到火堆进食补体力并缓慢回血。人物与动物在已开启火堆 30 格内、体力低于 30% 或受伤时，空闲后自行进食；缺料时所有人物均可从仓库分批补给，动物等待供餐。熄火停止消耗；关闭烹饪只照明。清理矿谷和山口后获得战利品并开放资源采集，物资需要农民搬运入库。林间果丛可采集粮食；铁矿送入仓库后，可在仓库加工工具和装备。密林和湖泊不可建设，道路与通道空地允许建造；通行影响仅作提醒，施工仍需农民实际到场。<br>新指令优先；中断作业会保留进度。</p><div class="instruction-row"><b>电脑</b><p>拖动地图或使用 WASD / 方向键移动视角<br>触控板双指滑动平移、捏合缩放；鼠标滚轮缩放</p></div><div class="instruction-row"><b>手机</b><p>滑动屏幕移动地图<br>双指捏合缩放</p></div><p class="dialog-note">离开页面或打开系统面板会暂停作业和作物生长；从后台返回后需点击继续游戏。进度保存在当前浏览器中。<br><a href="./credits.html" target="_blank" rel="noopener">资源署名</a></p><button class="primary-button" id="start-walking">继续 ${icon('arrow')}</button></dialog>
     <dialog id="landmark-dialog" class="paper-dialog"><button class="dialog-close" aria-label="关闭地标详情">${icon('close')}</button><div class="dialog-symbol">${icon('leaf')}</div><p class="eyebrow" id="landmark-label"></p><h2 id="landmark-title"></h2><p class="dialog-intro" id="landmark-description"></p><button class="primary-button" id="keep-walking">继续逛逛 ${icon('arrow')}</button></dialog>
   `;
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -174,13 +179,14 @@ export function createUI(app: HTMLElement) {
   const resources = get<HTMLDialogElement>('resources-dialog');
   const recruitment = get<HTMLDialogElement>('recruit-dialog');
   const demolition=get<HTMLDialogElement>('demolish-dialog');
-  const dialogs = [settings, graphics, help, detail, resources, recruitment, demolition];
+  const fullMap=get<HTMLDialogElement>('map-dialog');
+  const dialogs = [settings, graphics, help, detail, resources, recruitment, demolition, fullMap];
   let confirmDemolition: (()=>void)|undefined;
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
   const residentLabels = new Map<string, HTMLElement>();
   const healthIndicators = new Map<string, { state: HealthIndicator; bar: HTMLElement; fill: HTMLElement }>();
-  let inspectedEnemy: string | undefined;
+  let inspectedUnits=new Set<string>(),inspectionKey='';
   const residentSizes = new Map<HTMLElement, { width: number; height: number }>();
   const residentSizeObserver = new ResizeObserver(entries => {
     for (const entry of entries) residentSizes.delete(entry.target as HTMLElement);
@@ -195,6 +201,8 @@ export function createUI(app: HTMLElement) {
   const abort = new AbortController();
   const options = { signal: abort.signal };
   const minimapPanel = get('minimap-panel'), mapToggle = get<HTMLButtonElement>('map-toggle');
+  const mapCanvas=get<HTMLCanvasElement>('minimap'),mapViewport=get('map-viewport');
+  const mapGestures=createMapGestures(mapViewport,mapCanvas,options);
   mapToggle.addEventListener('click', () => {
     minimapPanel.hidden = !minimapPanel.hidden;
     mapToggle.setAttribute('aria-expanded', String(!minimapPanel.hidden));
@@ -215,12 +223,14 @@ export function createUI(app: HTMLElement) {
   // Open the destination first so the game stays paused throughout the swap.
   // Closing the source also removes its native backdrop from the top layer.
   const switchDialog = (from: HTMLDialogElement, to: HTMLDialogElement) => { showDialog(to); from.close(); };
-  // Settings is the explicit pause screen. Only its Continue action resumes.
-  settings.querySelector<HTMLButtonElement>('.dialog-close')!.hidden = true;
+  const openMap=()=>{if(fullMap.open)return;mapViewport.append(mapCanvas);mapCanvas.setAttribute('role','img');mapCanvas.tabIndex=-1;mapCanvas.setAttribute('aria-label','全屏地图，上方为北，浅色框为当前视野');showDialog(fullMap);mapGestures.reset();};
+  mapCanvas.addEventListener('click',openMap,options);
+  mapCanvas.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openMap();}},options);
+  fullMap.addEventListener('close',()=>{mapGestures.reset();minimapPanel.append(mapCanvas);mapCanvas.setAttribute('role','button');mapCanvas.tabIndex=0;mapCanvas.setAttribute('aria-label','全屏查看地图');},options);
   get('demolish-confirm').addEventListener('click',()=>{const action=confirmDemolition;confirmDemolition=undefined;demolition.close();action?.();},options);
   const closeDialog = (dialog: HTMLDialogElement) => {
     if (dialog === graphics) switchDialog(graphics, settings);
-    else if (dialog !== settings) dialog.close();
+    else {if(dialog===settings){backgroundPaused=false;get('settings-notice').textContent='离开前会保存当前进度。';}dialog.close();}
   };
   function showBackgroundPause() {
     for (const dialog of dialogs) if (dialog !== settings && dialog.open) dialog.close();
@@ -248,12 +258,11 @@ export function createUI(app: HTMLElement) {
   for (const dialog of dialogs) {
     dialog.querySelector('button')!.addEventListener('click', () => closeDialog(dialog), options);
     dialog.addEventListener('cancel', event => {
-      if (dialog === settings || dialog === graphics) event.preventDefault();
-      if (dialog === graphics) closeDialog(graphics);
+      if (dialog === settings || dialog === graphics) {event.preventDefault();closeDialog(dialog);}
     }, options);
     dialog.addEventListener('close', () => { onPauseChange(); focusGame(); }, options);
     dialog.addEventListener('click', (event) => {
-      if (event.target !== dialog || dialog === graphics) return;
+      if (event.target !== dialog || dialog === graphics || dialog === settings) return;
       const bounds = dialog.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog(dialog);
     }, options);
@@ -262,11 +271,8 @@ export function createUI(app: HTMLElement) {
   get('settings').addEventListener('click', () => showDialog(settings), options);
   get('settings-graphics').addEventListener('click', () => switchDialog(settings, graphics), options);
   get('settings-help').addEventListener('click', () => showDialog(help), options);
-  get('continue-game').addEventListener('click', () => {
-    backgroundPaused = false;
-    get('settings-notice').textContent = '离开前会保存当前进度。';
-    settings.close();
-  }, options);
+  get('continue-game').addEventListener('click', () => closeDialog(settings), options);
+  get('continue-home').addEventListener('click', () => closeDialog(resources), options);
   get('return-menu').addEventListener('click', () => onLeave('menu'), options);
   get('exit-game').addEventListener('click', () => onLeave('exit'), options);
   get('start-walking').addEventListener('click', () => help.close(), options);
@@ -296,19 +302,21 @@ export function createUI(app: HTMLElement) {
   // World overlays keep their offset from the projected target, even at edges.
   const card = get('selection-card');
   const hint = get('target-hint');
-  residentSizeObserver.observe(card);
-  let cardX = 0, cardY = 0;
+  const infoCard=get('selection-info'),unitCard=get('resident-selection');
+  let residentName='',residentInfo:UnitInfo|undefined;
+  const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;};
+  const infoObserver=new ResizeObserver(entries=>{for(const entry of entries)app.style.setProperty('--selection-height',`${Math.ceil(entry.borderBoxSize?.[0]?.blockSize??entry.contentRect.height)}px`);});
+  infoObserver.observe(infoCard);
+  const objectLabel=document.createElement('span');objectLabel.className='resident-label selected-object-label';objectLabel.hidden=true;
+  const objectName=document.createElement('span'),objectBars=document.createElement('span'),objectBar=document.createElement('span'),objectFill=document.createElement('span');
+  objectBars.className='resident-health-bars';objectBar.className='resident-health';objectBar.setAttribute('role','meter');objectBar.setAttribute('aria-label','选中建筑生命');
+  objectBar.append(objectFill);objectBars.append(objectBar);objectLabel.append(objectName,objectBars);get('resident-labels').append(objectLabel);
   const positionOverlay = (element: HTMLElement, x: number, y: number, visible: boolean) => {
     if (element.hidden) return;
     const visibility = visible && get('queue-panel').hidden ? 'visible' : 'hidden';
     if (element.style.visibility !== visibility) element.style.visibility = visibility;
     if (visibility === 'hidden') return;
-    if (element === card) { cardX = x; cardY = y; }
-    // Stack feedback above actions for the same target without moving either
-    // overlay toward the viewport or unrelated HUD controls.
-    const stack = element === hint && !card.hidden && card.style.visibility === 'visible'
-      && Math.abs(cardX - x) < 1 && Math.abs(cardY - y) < 1 ? residentSize(card).height + 8 : 0;
-    const transform = `translate(${x.toFixed(2)}px, ${(y - 18 - stack).toFixed(2)}px) translate(-50%, -100%)`;
+    const transform = `translate(${x.toFixed(2)}px, ${(y - 18).toFixed(2)}px) translate(-50%, -100%)`;
     if (element.style.transform !== transform) element.style.transform = transform;
   };
 
@@ -360,9 +368,9 @@ export function createUI(app: HTMLElement) {
       attackMarker.style.opacity = String(pulse > 0 ? .7 + .3 * Math.cos(pulse * Math.PI * 4) : 1);
     },
     setCombatHint(active: boolean) { if (active) get('resident-hint').textContent = '点敌人攻击 · 点空地移动'; },
-    setInspectedEnemy(id?: string) {
-      inspectedEnemy = id;
-      for (const [key, { state, bar }] of healthIndicators) bar.hidden = !(state.visible || key === id);
+    setInspectedUnits(ids:readonly string[]) {
+      const key=ids.join(',');if(key===inspectionKey)return;inspectionKey=key;inspectedUnits=new Set(ids);
+      for (const [id, { state, bar }] of healthIndicators) bar.hidden = !(state.visible || inspectedUnits.has(id));
     },
     setUnitHealth(id: string, hp: number, maximum: number, seconds: number, labelId = id) {
       const label = residentLabels.get(labelId); if (!label) return;
@@ -378,7 +386,7 @@ export function createUI(app: HTMLElement) {
       }
       const { state, bar, fill } = indicator;
       state.update(hp, maximum, seconds);
-      const visible = state.visible || id === inspectedEnemy;
+      const visible = state.visible || inspectedUnits.has(id) || inspectedUnits.has(labelId);
       if (bar.hidden === visible) bar.hidden = !visible;
       const scale = `scaleX(${state.fraction.toFixed(4)})`;
       if (fill.style.transform !== scale) fill.style.transform = scale;
@@ -405,7 +413,8 @@ export function createUI(app: HTMLElement) {
       if (bubble.style.transform !== transform) bubble.style.transform = transform;
     },
     minimapCanvas: get<HTMLCanvasElement>('minimap'),
-    get minimapOpen() { return !minimapPanel.hidden; },
+    get minimapOpen() { return !minimapPanel.hidden||fullMap.open; },
+    get fullMapOpen() { return fullMap.open; },
     get paused() { return loading || backgroundPaused || dialogs.some(dialog => dialog.open); },
     pauseForBackground() { backgroundPaused = true; if (!loading) showBackgroundPause(); },
     bindPause(callback: () => void) { onPauseChange = callback; },
@@ -505,13 +514,14 @@ export function createUI(app: HTMLElement) {
       }
     },
     setSelection(details?: SelectionDetails) {
-      const visible = !!details && (!!details.actions?.length || details.hint !== '暂无可用操作');
-      if (card.hidden && visible) card.style.visibility = 'hidden';
-      card.hidden = !visible;
-      if (!details || !visible) return;
+      card.hidden=!details;objectLabel.hidden=!details;syncSelection();
+      if(!details)return;
       card.setAttribute('aria-label', `${details.name}的操作`);
+      setText(get('selection-name'),details.name);setText(get('selection-kind'),details.kind);setText(objectName,details.name);
+      objectBar.hidden=!details.health;
+      if(details.health){const {value,maximum}=details.health;objectFill.style.transform=`scaleX(${Math.max(0,Math.min(1,value/maximum))})`;objectBar.setAttribute('aria-valuenow',String(Math.ceil(value)));objectBar.setAttribute('aria-valuemax',String(maximum));}
       const message = get('selection-hint');
-      message.hidden = !!details.actions?.length && !details.showHint;
+      message.hidden = details.hint==='暂无可用操作';
       if (!message.hidden && message.textContent !== details.hint) message.textContent = details.hint;
       const actions = details.actions ?? [], key = JSON.stringify(actions);
       if (key !== actionsKey) {
@@ -522,9 +532,9 @@ export function createUI(app: HTMLElement) {
       }
       residentSizes.delete(card);
     },
-    positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(card, x, y, visible),
+    positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(objectLabel, x, y, visible),
     setResident(name?: string, canWork = false, leadership?: boolean) {
-      get('resident-selection').hidden = !name;
+      residentName=name??'';if(!name)residentInfo=undefined;syncSelection();
       get('resident-name').textContent = name === '农民·领头' ? '领头' : name ?? '';
       get('resident-name').title = name ?? '';
       get('resident-selection').classList.toggle('has-command', leadership !== undefined);
@@ -533,9 +543,14 @@ export function createUI(app: HTMLElement) {
       get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;
     },
     setResidentInfo(info?: UnitInfo) {
-      if (!info) { get('resident-selection').hidden = true; return; }
+      if(info?.id!==residentInfo?.id)get<HTMLDetailsElement>('unit-details').open=false;
+      residentInfo=info;syncSelection();if(!info)return;
       get('resident-selection').dataset.unit = info.id;
+      get('resident-selection').classList.toggle('enemy-info',!!info.enemy);
       setText(get('resident-activity'), info.activity);
+      const rank=get('resident-level');rank.hidden=!info.progression;setText(rank,info.progression?`${info.progression.level}级`:'');
+      const progression=info.progression;
+      setText(get('unit-attributes'),`攻击 ${info.attack??'—'} · 防御 ${info.armor??'—'}${progression?` · ${progression.required?`经验 ${Math.floor(progression.progress)} / ${progression.required}`:'已满级'}`:''}`);
       for (const [index, elements] of vitalRows.entries()) {
         const data = info.meters[index]; elements.row.hidden = !data; if (!data) continue;
         const value = Math.max(0, Math.min(data.maximum, data.value)), fraction = value / data.maximum;
@@ -575,7 +590,7 @@ export function createUI(app: HTMLElement) {
     },
     get hintAnchor() { return hintAnchor; },
     positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y, visible),
-    dispose() { abort.abort(); residentSizeObserver.disconnect(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
+    dispose() { abort.abort(); infoObserver.disconnect();residentSizeObserver.disconnect();mapGestures.dispose(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }
 

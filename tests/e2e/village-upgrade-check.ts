@@ -5,7 +5,7 @@ import { openGame, snapshot, panTo, selectUnit } from './helpers.ts';
 
 export async function checkVillageUpgrade(page: Page, info: TestInfo, touch: boolean) {
   info.setTimeout(180000);
-  const e=new Economy();e.setLeadership(false);e.state.raids.nextAt=1000;
+  const e=new Economy();e.setLeadership(false);e.setAutoRepair(false);e.state.raids.nextAt=1000;
   e.state.inventory={wood:80,stone:80,food:80,iron:20};
   for(const v of Object.values(e.state.vitals))v.manualUntil=1000;
   const infantry=e.state.combat.units.find(u=>u.id==='infantry')!;

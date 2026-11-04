@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { Combat } from '../src/game/combat.ts';
 import { eat, maxHealth } from '../src/game/vitals.ts';
-import { selectedUnitInfo, populationInfo } from '../src/game/unit-info.ts';
+import { selectedUnitInfo, populationInfo, enemyUnitInfo } from '../src/game/unit-info.ts';
+import { newWolf } from '../src/game/raid-state.ts';
 
 test('unit inspection reads current health/stamina without changing orders or saved state', () => {
   const e = new Economy(); e.setLeadership(false);
@@ -84,4 +85,13 @@ test('new recruits appear once in population and dead soldiers disappear permane
   const c = new Combat(e.state.combat, e, () => []); c.hurt('infantry',9999,'enemy-guard');
   assert(!populationInfo(e.state).some(r => r.id === 'infantry'));
   assert.deepEqual(populationInfo(decodeEconomy(encodeEconomy(e)).state), populationInfo(e.state));
+});
+test('both armies show soldier levels; enemy inspection exposes real stats without inventing stamina',()=>{
+  const e=new Economy(),enemy=e.state.combat.units.find(u=>u.id==='enemy-guard')!;
+  enemy.experience=200;const before=encodeEconomy(e),info=enemyUnitInfo(enemy)!;
+  assert.equal(info.progression?.level,2);assert.equal(info.enemy,true);
+  assert.deepEqual(info.meters.map(m=>m.kind),['health']);assert(info.attack!>0);assert.equal(encodeEconomy(e),before);
+  assert.equal(selectedUnitInfo(e,'infantry')!.progression?.level,1);
+  assert.equal(selectedUnitInfo(e,'farmer')!.progression,undefined);assert.equal(selectedUnitInfo(e,'dog')!.progression,undefined);
+  const wolf=newWolf('wolf-1-0',{x:0,z:0});assert.equal(enemyUnitInfo(wolf)!.progression,undefined);
 });

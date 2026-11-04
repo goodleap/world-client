@@ -9,7 +9,7 @@ import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 export const ECONOMY_CONFIG = {
   initialInventory: { wood: 8, stone: 4, food: 24, iron: 4 },
   capacity: { wood: 2000, stone: 2000, food: 4000, iron: 800 },
-  workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8, repair:8, haul: .25, supply: .25, gather: 3, tools: 12, arms: 16 },
+  workSeconds: { till: 3, sow: 3, harvest: 3, chop: 5, mine: 5, build: 8, repair:8, demolish:4, haul: .25, supply: .25, gather: 3, tools: 12, arms: 16 },
   crops: {
     carrot: { name: '胡萝卜', growthSeconds: 75, yield: 8 },
     wheat: { name: '小麦', growthSeconds: 120, yield: 12 },

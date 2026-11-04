@@ -22,7 +22,7 @@ export async function checkSelection(page: Page, info: TestInfo, touch: boolean)
     await expect.poll(async () => (await snapshot(page)).selection.object?.id).toBe(id);
     expect((await snapshot(page)).selection.object?.name).toBe(object.name);
     expect((await snapshot(page)).selection.resident).toBeUndefined();
-    if (['building', 'scenery'].includes(object.kind)) await expect(page.locator('#selection-card')).toBeHidden();
+    if (['building', 'scenery'].includes(object.kind)) await expect(page.locator('#selection-card')).toContainText(object.name);
     else await expect(page.locator('#selection-actions button').first()).toBeVisible();
     if (id === 'plot-0' || id.startsWith('tree')) await page.screenshot({ path: info.outputPath(id + '.png') });
   }

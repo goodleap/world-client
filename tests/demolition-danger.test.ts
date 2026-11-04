@@ -6,13 +6,16 @@ import {newTower,evictTower,towerPlatform} from '../src/game/towers.ts';import {
 import {createEconomyController} from '../src/game/economy-controller.ts';import {Raids} from '../src/game/raids.ts';
 import {WAREHOUSE_DOOR} from '../src/game/world-data.ts';import {ECONOMY_CONFIG} from '../src/game/economy-config.ts';
 function site(e:Economy,kind:'warehouse'|'tower'|'campfire'|'house',built=true){const s=buildingAt(kind,{x:-10,z:-10},`site-${e.state.nextSiteId++}`);e.state.sites.push(s);if(built)e.state.buildings.push(s.id);return s;}
+function finishRemoval(e:Economy,id:string){const task=e.taskFor(id)!;assert(e.assign(task.id).ok);e.arrive(task.id);e.advance(ECONOMY_CONFIG.workSeconds.demolish);}
 test('demolition releases unfinished reservations, spills excess warehouse stock and never refunds twice',()=>{
   const e=new Economy();e.state.inventory={wood:80,stone:80,food:80,iron:20};
   const unbuilt=site(e,'house',false);const task=e.request('build',unbuilt.id).task!;assert(task.reserved);const before={...e.state.inventory};
   assert(e.demolish(unbuilt.id).ok);assert.deepEqual(e.state.inventory,before);assert.equal(e.reserved().wood,0);assert(!e.demolish('home-center').ok);
+  const queued=decodeEconomy(encodeEconomy(e));assert(queued.cancel(queued.taskFor(unbuilt.id)!.id));assert(queued.state.sites.some(s=>s.id===unbuilt.id));assert(queued.request('build',unbuilt.id).ok);
+  assert(e.state.sites.some(s=>s.id===unbuilt.id));finishRemoval(e,unbuilt.id);assert(!e.state.sites.some(s=>s.id===unbuilt.id));
   const store=site(e,'warehouse');e.state.inventory.wood=ECONOMY_CONFIG.capacity.wood+70;const quote=e.demolition(store.id)!;
   e.damageBuilding(store.id,100);e.request('repair',store.id);
-  assert(e.demolish(store.id).ok);assert.equal(e.state.inventory.wood,ECONOMY_CONFIG.capacity.wood);
+  assert(e.demolish(store.id).ok);assert.equal(e.state.inventory.wood,ECONOMY_CONFIG.capacity.wood+70);finishRemoval(e,store.id);assert.equal(e.state.inventory.wood,ECONOMY_CONFIG.capacity.wood);
   assert.equal(e.state.goods.filter(g=>g.resource==='wood').reduce((n,g)=>n+g.amount,0),70+quote.refund.wood);
   const loaded=decodeEconomy(encodeEconomy(e)),count=loaded.state.goods.length;assert(!loaded.demolish(store.id).ok);assert.equal(loaded.state.goods.length,count);
 });
@@ -20,16 +23,34 @@ test('removing fire clears its personal supply and preserves incoming goods, mea
   const e=new Economy();const s=site(e,'campfire');e.state.campfires.push({...newCampfire(s.id),enabled:true,wood:3,food:2,meals:1,cook:2});
   const t=e.request('supply',s.id,undefined,'manual',{resource:'wood',amount:2}).task!;assert(e.assign(t.id).ok);e.arrive(t.id);
   e.state.vitals.farmer.rest={camp:s.id,goal:{x:0,z:0},supply:t.id};e.updateCargo({x:2,z:-3});
-  assert(e.demolish(s.id).ok);assert.equal(e.state.vitals.farmer.rest,undefined);assert(!e.state.goods.some(g=>g.destination===s.id||g.carrier));
+  assert(e.demolish(s.id).ok);e.setFire(s.id,false);finishRemoval(e,s.id);assert.equal(e.state.vitals.farmer.rest,undefined);assert(!e.state.goods.some(g=>g.destination===s.id||g.carrier));
   assert.equal(e.state.goods.filter(g=>g.resource==='food').reduce((n,g)=>n+g.amount,0),4);
   assert.equal(e.state.goods.filter(g=>g.resource==='wood').reduce((n,g)=>n+g.amount,0),5);
+  assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
+});
+test('removing an unfinished field can be cancelled and saved without losing the plot',()=>{
+  let e=new Economy();e.setLeadership(false);const p=e.state.plots[2];p.tilled=false;
+  assert(e.request('till',p.id).ok);assert(e.demolish(p.id).ok);
+  e=decodeEconomy(encodeEconomy(e));assert(e.cancel(e.taskFor(p.id)!.id));assert(e.plot(p.id));
+  assert(e.demolish(p.id).ok);finishRemoval(e,p.id);assert(!e.plot(p.id));assert.equal(e.state.goods.length,0);
   assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
 });
 test('occupied tower blocks demolition until a safe exit is available, then removes without falling damage',()=>{
   const e=new Economy(),s=site(e,'tower'),tower=newTower(s);tower.unit='archer';tower.phase='occupied';e.state.towers.push(tower);
   const c=new Combat(e.state.combat,e,()=>[]),u=c.unit('archer')!;u.position=towerPlatform(tower);const hp=u.hp;
-  assert(!e.demolish(s.id).ok);assert.equal(e.state.sites.length,1);
-  assert(e.demolish(s.id,id=>evictTower(e,c,id)).ok);assert.equal(u.hp,hp);assert.equal(e.state.towers.length,0);assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
+  assert(e.demolish(s.id).ok);finishRemoval(e,s.id);assert.equal(e.state.sites.length,1);assert.match(e.taskFor(s.id)!.reason,/入口/);
+  e.setDemolitionPreparation(id=>evictTower(e,c,id));e.advance(.05);
+  assert.equal(u.hp,hp);assert.equal(e.state.towers.length,0);assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
+});
+test('demolition waits for a farmer, persists partial progress, cancels intact and ignores automatic danger',()=>{
+  let e=new Economy();e.setLeadership(false);const s=site(e,'house');
+  assert(e.demolish(s.id).ok);e.advance(30);assert(e.state.sites.some(v=>v.id===s.id));assert.equal(e.state.goods.length,0);
+  let task=e.taskFor(s.id)!;e.holdDanger(task);assert.equal(task.danger,undefined);
+  assert(e.assign(task.id).ok);e.arrive(task.id);e.advance(1.5);
+  e=decodeEconomy(encodeEconomy(e));task=e.taskFor(s.id)!;assert.equal(task.progress,1.5);
+  assert(e.cancel(task.id));e.advance(5);assert(e.state.sites.some(v=>v.id===s.id));assert.equal(e.state.goods.length,0);
+  assert(e.demolish(s.id).ok);finishRemoval(e,s.id);assert(!e.state.sites.some(v=>v.id===s.id));
+  assert.doesNotThrow(()=>decodeEconomy(encodeEconomy(e)));
 });
 test('danger is shared by all farmers, pauses without a timer escape, persists and resumes only after its shared area stays safe for ten game seconds',()=>{
   let e=new Economy();e.setLeadership(false);e.state.goods.push({id:'goods-1',x:8,z:-3,resource:'wood',amount:8,state:'ground'});e.state.nextId=2;

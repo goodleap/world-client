@@ -7,6 +7,7 @@ export interface WorldObject {
   x: number; z: number; radius: number;
   width?: number; depth?: number; markerY?: number;
   anchor: { x: number; y: number; z: number };
+  labelAnchor?: { x: number; y: number; z: number };
 }
 export interface FaceRange { start: number; end: number; id: string }
 

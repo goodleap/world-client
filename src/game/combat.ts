@@ -88,6 +88,8 @@ export class Combat {
   private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
   private targetViews = new WeakMap<Fighter,CombatTarget>();
   private neighbourViews = new WeakMap<Fighter,Map<string,Neighbour>>();
+  private damageFeedback?: (hit:import('./damage-numbers.ts').DamageNumber)=>void;
+  setDamageFeedback(callback:(hit:import('./damage-numbers.ts').DamageNumber)=>void){this.damageFeedback=callback;}
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
     this.units = new Map(state.units.map(unit => [unit.id, unit]));
@@ -306,10 +308,13 @@ export class Combat {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
     const beforeHP=victim.hp;
+    const hitPoint={x:victim.position.x,y:(victim.elevation??0)+(victim.kind==='building'?3:this.unit(victim.id)?.role==='cavalry'?3:2.2),z:victim.position.z};
+    const report=(remaining:number)=>{const amount=beforeHP-Math.max(0,remaining);if(amount>0)this.damageFeedback?.({target:victim.id,amount,team:victim.team,point:hitPoint});};
     if(victim.kind==='building'){
       const building=buildingInfo(this.economy.state,victim.id)!,damage=hitDamage(amount,building.armor);
       if(building.kind==='tower')damageTower(this.economy,victim.id,damage,(id,fall)=>{const target=this.target(id)!;this.damage(target,fall,'tower-collapse',true);});
       else this.economy.damageBuilding(victim.id,damage);
+      report(buildingInfo(this.economy.state,victim.id)?.hp??0);
       this.awardDamage(sourceId, building.hp - (buildingInfo(this.economy.state, victim.id)?.hp ?? 0));
       if(!buildingInfo(this.economy.state,victim.id)?.hp){
         for(const u of [...this.state.units,...this.threats]){
@@ -323,6 +328,7 @@ export class Combat {
     const target = this.unit(victim.id);
     if (!target) {
       changeHealth(this.economy.state, victim.id, -hitDamage(amount));
+      report(this.economy.state.vitals[victim.id].hp!);
       this.awardDamage(sourceId, beforeHP - this.economy.state.vitals[victim.id].hp!);
       this.economy.state.vitals[victim.id].hurtUntil = this.economy.state.seconds + 3;
       if (!this.economy.state.vitals[victim.id].hp) {
@@ -334,6 +340,7 @@ export class Combat {
       this.economy.revision++; return;
     }
     target.hp = Math.max(0, target.hp - hitDamage(amount, ignoreArmor ? 0 : this.stats(target).armor));
+    report(target.hp);
     if (enemyDefinitions.has(target.id) && target.hp < beforeHP) target.pursuitQuiet = 0;
     this.awardDamage(sourceId, beforeHP - target.hp);
     target.hurtAt = this.economy.state.seconds;

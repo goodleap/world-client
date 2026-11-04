@@ -26,12 +26,11 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
     const settings=(await page.locator('#settings').boundingBox())!;
     expect(build.height).toBe(settings.height); expect(reset.height).toBe(settings.height);
     expect(build.y).toBe(reset.y); expect(reset.x).toBe(settings.x);
-    expect(card.x).toBeGreaterThanOrEqual(build.x+build.width+4);
-    expect(card.x+card.width).toBeLessThanOrEqual(reset.x-4);
-    expect(card.y+card.height).toBeLessThanOrEqual(height-7);
-    expect(card.height).toBe(settings.height);
-    expect(card.y).toBe(build.y);
-    expect(palette.y+palette.height).toBeLessThanOrEqual(card.y-7);
+    expect(Math.abs(card.x+card.width/2-width/2)).toBeLessThan(1);
+    expect(card.y).toBeGreaterThanOrEqual(settings.y+settings.height);
+    expect(card.y+card.height).toBeLessThan(palette.y);
+    expect(palette.y+palette.height).toBeLessThanOrEqual(build.y-7);
+    await expect(page.locator('#clear-selection')).toBeInViewport();
     expect(palette.x+palette.width).toBeLessThanOrEqual(width-7);
     const rows=await page.locator('[data-building]').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().y));
     expect(new Set(rows).size).toBe(1);
@@ -91,7 +90,7 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
   expect(await page.locator('#resident-vitals').textContent()).not.toMatch(/生命|体力|HP/);
   await page.locator('#building-toggle').click();
   const mounted=(await page.locator('#resident-selection').boundingBox())!, choices=(await page.locator('#building-palette').boundingBox())!;
-  expect(choices.y+choices.height).toBeLessThanOrEqual(mounted.y-7);
+  expect(mounted.y+mounted.height).toBeLessThan(choices.y);
   await page.screenshot({path:info.outputPath('mounted-card.png'),scale:'css'});
   await page.locator('#building-toggle').click();
   await selectUnit(page,'farmer-leader',touch);
@@ -99,15 +98,12 @@ export async function checkUnitCard(page: Page, info: TestInfo, touch: boolean) 
   for (const [width,height] of touch ? [[393,852],[320,568],[844,390]] : [[1280,900]]) {
     await page.setViewportSize({width,height});
     const leader=(await page.locator('#resident-selection').boundingBox())!, command=(await page.locator('#leader-command-control').boundingBox())!;
-    const cancel=(await page.locator('#clear-selection').boundingBox())!, vitals=(await page.locator('#resident-vitals').boundingBox())!;
-    const build=(await page.locator('#building-toggle').boundingBox())!, reset=(await page.locator('#reset').boundingBox())!;
-    expect(leader.height).toBe(build.height); expect(leader.y).toBe(build.y);
-    expect(leader.x).toBeGreaterThanOrEqual(build.x+build.width+4);
-    expect(leader.x+leader.width).toBeLessThanOrEqual(reset.x-4);
-    expect(command.x).toBeGreaterThan(vitals.x+vitals.width);
-    expect(command.x+command.width).toBeLessThan(cancel.x);
+    const cancel=(await page.locator('#clear-selection').boundingBox())!;
+    expect(Math.abs(leader.x+leader.width/2-width/2)).toBeLessThan(1);
+    expect(leader.y+leader.height).toBeLessThan(cancel.y);
+    expect(command.y).toBeGreaterThanOrEqual(leader.y);
+    expect(command.y+command.height).toBeLessThanOrEqual(leader.y+leader.height);
     expect(await page.locator('#resident-selection').evaluate(el=>el.scrollWidth>el.clientWidth)).toBe(false);
-    if (!touch) expect(leader.width).toBeGreaterThan(mounted.width);
     await page.screenshot({path:info.outputPath(`leader-card-${width}.png`),scale:'css'});
   }
   if (touch) await page.setViewportSize({width:393,height:852});

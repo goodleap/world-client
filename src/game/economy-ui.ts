@@ -7,6 +7,11 @@ import { BUILDING_TYPES } from './construction.ts';
 import { buildingInfo, repairQuote } from './building-state.ts';
 
 export function buildingSelection(e:Economy,id:string,details:SelectionDetails):SelectionDetails{
+  const demolition=e.taskFor(id);
+  if(demolition?.kind==='demolish'){
+    const b=buildingInfo(e.state,id);
+    return {...details,health:b?.built?{value:b.hp,maximum:b.maxHealth}:undefined,showHint:true,hint:`拆除 · ${STATUS_NAMES[demolition.status]} · ${Math.floor(demolition.progress/C.workSeconds.demolish*100)}%${demolition.reason?' · '+demolition.reason:''}`,actions:[{id:'cancel',label:'取消拆除'}]};
+  }
   if(e.demolition(id))details={...details,actions:[...(details.actions??[]),{id:'demolish',label:'拆除'}]};
   const b=buildingInfo(e.state,id);if(!b?.built)return details;
   const task=e.taskFor(id),quote=repairQuote(e.state,id);
@@ -15,7 +20,7 @@ export function buildingSelection(e:Economy,id:string,details:SelectionDetails):
   else if(task?.kind==='repair'&&!actions.some(a=>a.id==='cancel'))actions.push({id:'cancel',label:'取消维修'});
   const repairing=task?.kind==='repair';
   const state=repairing?`维修 · ${STATUS_NAMES[task.status]}${task.status==='working'?` ${Math.floor(task.progress/C.workSeconds.repair*100)}%`:''}${task.reason?' · '+task.reason:''}`:b.hp<=0?'损毁，等待维修':'';
-  return {...details,showHint:true,hint:`生命 ${Math.ceil(b.hp)}/${b.maxHealth} · 防御 ${b.armor}${state?' · '+state:''}${!repairing&&details.hint&&details.hint!=='暂无可用操作'?' · '+details.hint:''}`,actions};
+  return {...details,health:{value:b.hp,maximum:b.maxHealth},showHint:true,hint:`防御 ${b.armor}${state?' · '+state:''}${!repairing&&details.hint&&details.hint!=='暂无可用操作'?' · '+details.hint:''}`,actions};
 }
 
 export function economySelection(economy: Economy, object: WorldObject): SelectionDetails {

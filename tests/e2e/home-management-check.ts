@@ -88,8 +88,8 @@ export async function checkHomeManagement(page:Page,info:TestInfo,touch:boolean)
   await page.locator('[data-group="0"]').click();await page.locator('#building-toggle').click();
   if(touch)for(const [width,height]of [[320,568],[412,915],[844,390]]){
     await page.setViewportSize({width,height});
-    const card=(await page.locator('#resident-selection').boundingBox())!,build=(await page.locator('#building-toggle').boundingBox())!,reset=(await page.locator('#reset').boundingBox())!;
-    expect(Math.abs(card.x+card.width/2-width/2)).toBeLessThan(1);expect(card.x).toBeGreaterThan(build.x+build.width+3);expect(card.x+card.width).toBeLessThan(reset.x-3);
+    const card=(await page.locator('#resident-selection').boundingBox())!,cancel=(await page.locator('#clear-selection').boundingBox())!;
+    expect(Math.abs(card.x+card.width/2-width/2)).toBeLessThan(1);expect(card.y+card.height).toBeLessThan(cancel.y);expect(card.x).toBeGreaterThanOrEqual(0);expect(card.x+card.width).toBeLessThanOrEqual(width);
     await page.screenshot({path:info.outputPath(`compact-${width}.png`),scale:'css'});
   }
   expect(errors).toEqual([]);

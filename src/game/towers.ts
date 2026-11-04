@@ -51,6 +51,7 @@ export function damageTower(e:Economy,id:string,amount:number,onFall:(id:string,
 }
 /** Preview only: never interrupts orders or changes group membership. */
 export function garrisonAvailability(e:Economy,combat:Combat,towerId:string,selectedIds:readonly string[]=[]){
+  if(e.taskFor(towerId)?.kind==='demolish')return {candidate:undefined,reason:'正在拆除'};
   const tower=e.state.towers.find(t=>t.id===towerId&&t.hp>0&&!t.unit),site=e.state.sites.find(s=>s.id===towerId);
   if(!tower||!site)return {candidate:undefined,reason:'哨塔不可入驻'};
   const door=buildingDoor(site),selected=selectedIds.length===1?combat.controllable(selectedIds).find(u=>u.role==='archer'):undefined;
@@ -68,6 +69,7 @@ export function garrisonAvailability(e:Economy,combat:Combat,towerId:string,sele
 }
 export function garrisonCandidate(e:Economy,combat:Combat,towerId:string,selectedIds:readonly string[]=[]){return garrisonAvailability(e,combat,towerId,selectedIds).candidate;}
 export function requestGarrison(e:Economy,combat:Combat,towerId:string,unitId:string){
+  if(e.taskFor(towerId)?.kind==='demolish')return {ok:false,message:'哨塔正在拆除'};
   const tower=e.state.towers.find(t=>t.id===towerId&&t.hp>0),unit=combat.unit(unitId);
   if(!tower||!unit||unit.team!=='home'||unit.role!=='archer'||unit.life!=='active')return {ok:false,message:'需要一名存活的我方弓兵'};
   if(tower.unit)return {ok:false,message:'哨塔已有驻守或预约单位'};

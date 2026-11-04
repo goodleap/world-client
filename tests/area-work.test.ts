@@ -52,14 +52,15 @@ test('guard area memory persists behind cover and clears after guards leave and 
 
 test('automatic repairs queue all damaged buildings once, reserve resources, pause by area and persist the switch',()=>{
   let e=new Economy();e.setLeadership(false);e.state.inventory={wood:80,stone:80,food:0,iron:0};
-  e.damageBuilding('warehouse',100);e.damageBuilding('cottage',60);e.setAutoRepair(true);
+  assert.equal(e.state.autoRepair,true,'new games enable repairs by default');
+  e.damageBuilding('warehouse',100);e.damageBuilding('cottage',60);e.arrangeRepairs();
   assert.equal(e.state.tasks.filter(t=>t.kind==='repair').length,2);const reserved=e.reserved();
   e.arrangeRepairs();assert.deepEqual(e.reserved(),reserved);assert.equal(e.state.inventory.wood,80);
   e=decodeEconomy(encodeEconomy(e));assert.equal(e.state.autoRepair,true);
   const task=e.taskFor('warehouse')!,point=e.taskPoint(task)!;
   updateDangerZones(e.state.dangerZones,[{id:'foe',...point,radius:2}],e.state.seconds);
   e.claim('farmer');e.claim('farmer-2');assert(task.danger);assert.equal(task.worker,undefined);
-  e.setAutoRepair(false);e.cancel(task.id);e.arrangeRepairs();assert.equal(e.taskFor('warehouse'),undefined);
+  e.setAutoRepair(false);e.cancel(task.id);e.arrangeRepairs();assert.equal(e.taskFor('warehouse'),undefined);assert.equal(decodeEconomy(encodeEconomy(e)).state.autoRepair,false);
   e.state.dangerZones=[];e.setAutoRepair(true);assert(e.taskFor('warehouse'));
   for(const t of e.state.tasks.filter(t=>t.kind==='repair'&&['waiting','travelling'].includes(t.status))){
     t.danger=undefined;assert(e.assign(t.id,'farmer').ok);e.arrive(t.id);e.advance(9);

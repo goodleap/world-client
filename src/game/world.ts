@@ -99,7 +99,8 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
       if (b.id === 'home-center') homeCenter(scene, p, b, detail);
       else referenceHouse(scene, p, b, false, detail);
     });
-    createBuildingPicking(scene,b.id,scene.meshes.filter(m=>m.metadata?.worldObjectId===b.id&&!m.metadata?.buildingLOD));
+    const hit=createBuildingPicking(scene,b.id,scene.meshes.filter(m=>m.metadata?.worldObjectId===b.id&&!m.metadata?.buildingLOD));
+    if(hit){const box=hit.getBoundingInfo().boundingBox;objects.get(b.id)!.labelAnchor={x:b.x,y:box.maximumWorld.y+.15,z:box.maximumWorld.z};}
   }
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires);
   fires.update(economy.state.campfires, 0, { x: 0, z: 0 });

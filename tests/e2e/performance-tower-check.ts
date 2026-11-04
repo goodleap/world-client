@@ -29,7 +29,7 @@ export async function checkPerformanceTower(page:Page,info:TestInfo,touch:boolea
   // Pick the front stone footing through the real native mesh hit test, also at 65% rendering resolution.
   await clickGround(page,{x:site.x+TOWER_SHAPE.baseHalf,z:site.z-TOWER_SHAPE.baseHalf},touch,.2);
   await expect(page.locator('[data-action="tower-garrison"]')).toBeVisible();
-  await expect(page.locator('#selection-card')).toContainText(`${TOWER_CONFIG.hp}/${TOWER_CONFIG.hp}`);
+  await expect(page.locator('.selected-object-label [role=meter]')).toHaveAttribute('aria-valuenow',String(TOWER_CONFIG.hp));
   await page.locator('[data-action="tower-garrison"]').click();
   await expect.poll(async()=>(await snapshot(page)).economy.towers[0].phase,{timeout:30000}).toBe('occupied');
   let s=await snapshot(page);expect(s.residents.find(r=>r.id==='archer')!.elevation).toBe(TOWER_CONFIG.height);

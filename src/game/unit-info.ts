@@ -2,13 +2,14 @@ import { assignedTower } from './towers.ts';
 import { WORK_NAMES } from './economy.ts';
 import type { Economy, EconomyState } from './economy.ts';
 import { effectiveFighterStats } from './combat.ts';
+import type { Fighter } from './combat.ts';
 import { experienceProgress } from './unit-progression.ts';
 import { unitRole } from './resident-data.ts';
 import { homeResidents } from './recruitment.ts';
 import { bodiesFor, health, maxHealth, VITAL_CONFIG } from './vitals.ts';
 
 export interface UnitMeter { id: string; label: string; value: number; maximum: number; kind: 'health' | 'stamina' }
-export interface UnitInfo { id: string; activity: string; meters: UnitMeter[] }
+export interface UnitInfo { id: string; activity: string; meters: UnitMeter[]; progression?:ReturnType<typeof experienceProgress>; attack?:number; armor?:number; enemy?:boolean }
 export interface UnitMovement { moving: boolean; speed: number; working: boolean }
 
 /** Read authoritative gameplay state. Selecting/inspecting never creates a task,
@@ -40,7 +41,16 @@ export function selectedUnitInfo(economy: Economy, id: string | undefined, movem
     { id: id + '-health', label: prefix + '生命', value: health(state, id), maximum: maxHealth(id, state), kind: 'health' },
     { id: id + '-stamina', label: prefix + '体力', value: vital.stamina, maximum: VITAL_CONFIG.maxStamina, kind: 'stamina' },
   ];
-  return { id, activity, meters };
+  const stats=fighter&&effectiveFighterStats(fighter,state.upgrades.arms);
+  return { id, activity, meters, ...(fighter?{progression:experienceProgress(fighter.experience)}:{}), attack:stats?.attack,armor:stats?.armor??0 };
+}
+
+export function enemyUnitInfo(fighter:Fighter):UnitInfo|undefined {
+  if(fighter.life!=='active'||fighter.departed||fighter.hp<=0)return;
+  const stats=effectiveFighterStats(fighter,0),soldier=fighter.role!=='wolf';
+  return {id:fighter.id,enemy:true,activity:fighter.attack||fighter.target?'正在战斗':fighter.order==='hold'&&!!fighter.goal?'返回据点':fighter.speed>.08?'正在移动':'警戒',
+    meters:[{id:fighter.id+'-health',label:'生命',value:fighter.hp,maximum:stats.hp,kind:'health'}],attack:stats.attack,armor:stats.armor,
+    ...(soldier?{progression:experienceProgress(fighter.experience)}:{})};
 }
 
 /** Living home units, including dogs; mounts and hostile units have no rows. */

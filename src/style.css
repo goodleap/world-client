@@ -1345,3 +1345,64 @@ kbd {
 @media(max-height:500px) { .minimap-panel { width:min(172px,44dvh); } }
 
 #building-notice:empty, #recruit-notice:empty { display:none; }
+
+/* Selection has one information home. Only dismissal remains in the bottom dock. */
+.selection-info { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); left:50%; transform:translateX(-50%); width:min(310px,calc(100% - max(16px,var(--safe-left),var(--safe-right)) - max(16px,var(--safe-left),var(--safe-right)))); max-height:36dvh; overflow:auto; z-index:var(--layer-actions); border:1px solid #fff; border-radius:14px; background:var(--paper); box-shadow:0 4px 16px #354f2920; }
+.selection-info .resident-selection, .selection-info .selection-card { position:static; left:auto; top:auto; bottom:auto; transform:none; width:auto; max-width:none; height:auto; margin:0; border:0; border-radius:0; box-shadow:none; background:transparent; visibility:visible; }
+.selection-info .resident-selection { display:flex; align-items:flex-start; gap:7px; padding:8px 10px; }
+#unit-details { flex:1; min-width:0; }
+#unit-details summary { display:flex; align-items:center; gap:10px; min-height:44px; cursor:pointer; list-style:none; }
+#unit-details summary::-webkit-details-marker { display:none; }
+#unit-details summary::after { content:'⌄'; font-size:15px; color:#71836b; }
+#unit-details[open] summary::after { content:'⌃'; }
+.selection-info .resident-card-heading { flex:1; min-width:0; text-align:left; }
+.selection-info .resident-card-heading strong { display:inline; font-size:13px; line-height:18px; white-space:normal; }
+.selection-info #resident-level { display:inline; margin-left:6px; font-size:10px; color:#71836b; white-space:nowrap; }
+.selection-info .resident-vitals { flex:1; min-width:78px; gap:5px; }
+.selection-info #resident-activity { font-size:11px; line-height:17px; }
+.selection-info .leader-command { flex:0 0 30px; margin:0; align-self:center; }
+.unit-attributes { padding-top:8px; margin-top:4px; border-top:1px solid var(--line); font-size:12px; line-height:1.7; }
+.enemy-info .unit-meter > span { background:#df785d; }
+.selection-info .selection-card { display:block; padding:10px 12px; }
+#selection-name { font-size:14px; }
+#selection-kind { margin-left:8px; color:#71836b; font-size:10px; }
+#selection-hint { margin:5px 0 8px; font-size:12px; line-height:1.5; }
+.selection-info .selection-actions { gap:5px; }
+.selection-info .selection-actions button { padding:7px 10px; font-size:12px; }
+.bottom-controls .cancel-selection { grid-column:2; justify-self:center; display:flex; align-items:center; gap:5px; min-height:44px; padding:0 12px; border:1px solid #fff; border-radius:12px; background:var(--paper); font-size:12px; pointer-events:auto; }
+#clear-selection svg { width:20px; height:20px; }
+#game-page:has(.selection-info:not([hidden])) .status-stack,
+#game-page:has(.selection-info:not([hidden])) .minimap-panel { top:calc(var(--top) + var(--corner-size) + 16px + var(--selection-height,80px)); }
+.damage-numbers { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:2; }
+.damage-number { position:absolute; left:0; top:0; font-size:18px; line-height:1; font-weight:800; color:#fff0a0; text-shadow:0 1px 2px #483522,1px 0 2px #483522,-1px 0 2px #483522; pointer-events:none; will-change:transform,opacity; }
+.damage-number.home-damage { color:#ff7b68; }
+
+/* A separate footer remains reachable while panel contents scroll. */
+.panel-footer { flex-shrink:0; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+.panel-footer .primary-button { width:100%; min-height:44px; margin:0; justify-content:center; }
+.settings-dialog { overflow:hidden; max-height:calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom)); }
+.settings-dialog[open] { display:flex; flex-direction:column; }
+.settings-dialog > * { flex-shrink:0; }
+.settings-dialog .settings-scroll { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
+.settings-dialog .dialog-close { display:grid; }
+.settings-dialog h2 { margin-right:42px; }
+.resources-dialog .population-tools { display:flex; gap:8px; align-items:center; margin:4px 0; }
+#group-editor-tabs { flex:1; min-width:0; display:flex; gap:3px; margin:0; }
+#group-editor-tabs button { flex:1; min-width:0; min-height:40px; padding:5px 2px; font-size:12px; white-space:nowrap; }
+.group-edit-actions { display:flex; flex-shrink:0; gap:4px; }
+.group-edit-actions button { min-height:40px; margin:0; padding:5px 6px; border:1px solid #cbd5c2; border-radius:9px; background:#e9eddf; font-size:11px; white-space:nowrap; }
+.group-edit-actions .primary-button { background:#617f4c; color:#fffbed; }
+.population-filters { display:flex; gap:4px; padding:3px 0 7px; overflow-x:auto; flex-shrink:0; }
+.population-filters button { flex:1 0 auto; min-height:36px; padding:5px 7px; font-size:11px; border:1px solid #d5ddca; border-radius:9px; background:transparent; }
+.population-filters button[aria-pressed=true] { background:#d7eadb; border-color:#7c9b77; }
+.population-table .group-badge { display:inline-block; align-self:flex-start; padding:0 4px; border-radius:4px; background:#deead5; color:#4d6d45; font-size:9px; line-height:14px; }
+#group-notice:empty { display:none; }
+
+/* Fullscreen inspection uses the existing cached 2D map and native dialog. */
+.map-dialog { position:fixed; inset:0; width:100vw; height:100dvh; max-width:none; max-height:none; margin:0; padding:0; border:0; background:#455e42; overflow:hidden; touch-action:none; }
+.map-dialog::backdrop { background:#455e42; }
+.map-dialog .dialog-close { position:absolute; top:max(12px,var(--safe-top)); right:max(12px,var(--safe-right)); z-index:2; background:var(--paper); border:1px solid #fff; color:var(--ink); }
+.map-viewport { width:100%; height:100%; display:grid; place-items:center; overflow:hidden; touch-action:none; cursor:grab; }
+.map-viewport:active { cursor:grabbing; }
+.map-viewport #minimap { flex:none; height:auto; max-width:none; transform-origin:center; touch-action:none; }
+.minimap-panel #minimap { cursor:zoom-in; }

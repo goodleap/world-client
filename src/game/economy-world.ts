@@ -80,6 +80,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     instances.delete(id); objects.delete(id);
   }
   function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1, rotation = 0, elevation = 0) {
+    object.labelAnchor=objects.get(object.id)?.labelAnchor;
     objects.set(object.id, object);
     if (instances.get(object.id)?.state === state) return;
     remove(object.id); objects.set(object.id, object);
@@ -94,7 +95,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       mesh.freezeWorldMatrix(); return mesh;
     });
     if(object.kind==='building'||object.kind==='site'){
-      const hit=createBuildingPicking(scene,object.id,meshes);if(hit)meshes.push(hit);
+      const hit=createBuildingPicking(scene,object.id,meshes);
+      if(hit){const box=hit.getBoundingInfo().boundingBox;object.labelAnchor={x:object.x,y:box.maximumWorld.y+.15,z:box.maximumWorld.z};meshes.push(hit);}
     }
     instances.set(object.id, { state, meshes });
   }

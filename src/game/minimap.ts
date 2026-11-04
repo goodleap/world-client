@@ -14,7 +14,8 @@ export interface MinimapFrame {
  * The camera footprint follows each rendered frame, independently of markers.
  * No second Babylon camera, render pass, picking, or autonomous animation loop. */
 export function createMinimap(canvas: HTMLCanvasElement) {
-  const width = 320, height = Math.round(width * MAP_DEPTH / MAP_WIDTH), pad = 0;
+  let width = 320, height = Math.round(width * MAP_DEPTH / MAP_WIDTH);
+  const pad = 0;
   let background: HTMLCanvasElement | undefined, map: HTMLCanvasElement | undefined, markers: HTMLCanvasElement | undefined;
   let context: CanvasRenderingContext2D | null = null;
   let visible = false, nextAt = 0, draws = 0, terrainBuilds = 0, markerDraws = 0, mapBuilds = 0, mapKey = '';
@@ -48,7 +49,12 @@ export function createMinimap(canvas: HTMLCanvasElement) {
     markers = document.createElement('canvas'); markers.width = width; markers.height = height;
   }
   return {
-    update(time: number, open: boolean, read: () => Omit<MinimapFrame,'view'>, readView: () => Point[]) {
+    update(time: number, open: boolean, read: () => Omit<MinimapFrame,'view'>, readView: () => Point[],full=false) {
+      const resolution=full?768:320;
+      if(width!==resolution){
+        for(const layer of [background,map,markers])if(layer)layer.width=layer.height=0;
+        width=resolution;height=Math.round(width*MAP_DEPTH/MAP_WIDTH);background=map=markers=undefined;context=null;mapKey='';visible=false;
+      }
       if (!open) { visible = false; return; }
       const started=performance.now();
       const refresh = !visible || time >= nextAt;
@@ -75,7 +81,7 @@ export function createMinimap(canvas: HTMLCanvasElement) {
         }
         const ctx = markers.getContext('2d')!; ctx.clearRect(0,0,width,height);
         for (const unit of state.units) {
-          const q = point(unit); ctx.beginPath(); ctx.arc(q.x, q.y, unit.selected ? 3.8 : 2.3, 0, Math.PI * 2);
+          const q = point(unit); ctx.beginPath(); ctx.arc(q.x, q.y, (unit.selected ? 3.8 : 2.3)*width/320, 0, Math.PI * 2);
           ctx.fillStyle = unit.enemy ? '#e46b51' : '#63def0'; ctx.fill();
           ctx.strokeStyle = unit.selected ? '#ffffff' : '#344c3c'; ctx.lineWidth = unit.selected ? 1.8 : .65; ctx.stroke();
         }

@@ -48,17 +48,18 @@ export interface EconomyState {
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
   buildingHealth:Record<string,number>; autoRepair: boolean; dangerZones: DangerZone[];
-  version: 22; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 23; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
-export const WORK_NAMES: Record<WorkKind, string> = { till: '开垦', sow: '播种', harvest: '收获', chop: '伐木', mine: '采矿', build: '建造', repair:'维修', haul: '搬运', supply: '补给火堆', gather: '采集食物', tools: '加工工具', arms: '锻制装备' };
+export const WORK_NAMES: Record<WorkKind, string> = { till: '开垦', sow: '播种', harvest: '收获', chop: '伐木', mine: '采矿', build: '建造', repair:'维修', demolish:'拆除', haul: '搬运', supply: '补给火堆', gather: '采集食物', tools: '加工工具', arms: '锻制装备' };
 export const STATUS_NAMES: Record<TaskStatus, string> = { waiting: '等待', travelling: '前往', working: '作业中', delivering: '运送仓库', storage: '等待入库', done: '完成', cancelled: '已取消', invalid: '已失效' };
 export const resources: Resource[] = ['wood', 'stone', 'food', 'iron'];
 export const pending = (task: WorkTask) => !['done', 'cancelled', 'invalid'].includes(task.status);
 export const queued = (task: WorkTask) => pending(task) && !(task.origin !== 'manual' && task.danger);
 const emptyCost = (): Inventory => ({ wood: 0, stone: 0, food: 0, iron: 0 });
 function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], plots: FarmPlot[], terminal: boolean) {
+  if(kind==='demolish')return sites.some(s=>s.id===target)||plots.some(p=>p.id===target)||terminal&&/^(site|plot)-\d+$/.test(target);
   if(kind==='repair')return BUILDINGS.some(b=>b.id===target)||sites.some(s=>s.id===target)||terminal&&/^site-\d+$/.test(target);
   if (kind === 'till' || kind === 'sow' || kind === 'harvest') return plots.some(p => p.id === target) || terminal && /^plot-\d+$/.test(target);
   if (kind === 'tools' || kind === 'arms') return target === 'warehouse' || sites.some(s => s.id === target && s.kind === 'warehouse') || terminal && /^site-\d+$/.test(target);
@@ -71,7 +72,7 @@ export const DEBUG_RESOURCES = 100_000;
 export const debugRequested = (search: string) => new URLSearchParams(search).has('debug');
 export function initialEconomy(seed?: number, debug = false): EconomyState {
   return {
-    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:false, dangerZones:[], version: 22, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : { ...C.initialInventory },
+    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 23, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -83,6 +84,8 @@ export class Economy {
   readonly state: EconomyState;
   revision = 0;
   private liveOccupants?: () => readonly Point[];
+  private prepareDemolition:(id:string)=>boolean=id=>!this.state.towers.find(t=>t.id===id)?.unit;
+  setDemolitionPreparation(prepare:(id:string)=>boolean){this.prepareDemolition=prepare;}
   setOccupancy(read: () => readonly Point[]) { this.liveOccupants = read; }
   constructor(state = initialEconomy(Math.floor(Math.random() * 0xffffffff) + 1)) { this.state = state; }
   setLeadership(enabled: boolean) {
@@ -143,20 +146,33 @@ export class Economy {
     const built=!!site&&this.state.buildings.includes(id),cost=site?this.cost('build',id):emptyCost();
     return {name:site?BUILDING_TYPES[site.kind].name:'耕地',built,refund:{wood:built?Math.floor(cost.wood/2):0,stone:built?Math.floor(cost.stone/2):0}};
   }
-  demolish(id:string,evacuate:(id:string)=>boolean=()=>false) {
+  demolish(id:string) {
+    if(!this.demolition(id))return {ok:false,message:'此建筑不可拆除'};
+    const existing=this.taskFor(id);
+    if(existing?.kind==='demolish')return {ok:false,message:'已安排拆除'};
+    if(this.state.tasks.filter(t=>queued(t)&&t.target!==id).length>=C.queueLimit)return {ok:false,message:'作业队列已满，请等待农民完成任务'};
+    // Supersede the old work without removing an unfinished site/field. It must
+    // remain solid until a farmer completes demolition, including after reload.
+    for(const task of this.state.tasks)if(task.target===id&&pending(task)){
+      this.dropCargo(task);this.releasePersonalSupply(task);
+      task.status='cancelled';task.reserved=false;task.danger=undefined;task.reason='已改为拆除';
+    }
+    return this.request('demolish',id);
+  }
+  private removeBuilding(id:string,task:WorkTask) {
     const quote=this.demolition(id);if(!quote)return {ok:false,message:'此建筑不可拆除'};
     const site=this.state.sites.find(s=>s.id===id),point=site??this.plot(id)!;
-    const tower=this.state.towers.find(t=>t.id===id);
-    if(tower?.unit&&!evacuate(id))return {ok:false,message:'请先腾出哨塔入口，弓兵无法安全撤出'};
+    if(!this.prepareDemolition(id))return {ok:false,message:'入口被占用，等待弓兵安全撤出'};
     const fire=this.campfire(id);
     const refund:Partial<Inventory>={...quote.refund,food:fire?fire.food+fire.meals+(fire.cook>0?1:0):0};
     refund.wood!+=fire?.wood??0;
+    task.status='done';task.reserved=false;task.reason='';
     for(const task of [...this.state.tasks])if(task.target===id&&pending(task)){
       // Completed production is already represented by independent ground goods.
       if(task.status==='storage'){task.status='cancelled';task.reserved=false;}
       else this.cancel(task.id);
     }
-    this.state.tasks=this.state.tasks.filter(t=>t.target!==id);
+    this.state.tasks=this.state.tasks.filter(t=>t.target!==id||t===task);
     for(const v of Object.values(this.state.vitals))if(v.rest?.camp===id)v.rest=undefined;
     for(const g of this.state.goods)if(g.destination===id){g.destination=undefined;if(g.state==='transit'){g.state='ground';g.carrier=undefined;}}
     this.state.sites=this.state.sites.filter(s=>s.id!==id);this.state.plots=this.state.plots.filter(p=>p.id!==id);
@@ -203,7 +219,7 @@ export class Economy {
     const b=buildingInfo(this.state,id);if(!b?.built||b.hp<=0)return;
     setBuildingHealth(this.state,id,b.hp-damage);
     if(b.hp<=damage){
-      for(const task of [...this.state.tasks])if(task.target===id&&task.kind!=='repair'&&pending(task))this.cancel(task.id);
+      for(const task of [...this.state.tasks])if(task.target===id&&task.kind!=='repair'&&task.kind!=='demolish'&&pending(task))this.cancel(task.id);
       this.setFire(id,false);
     }
     this.changed();
@@ -250,6 +266,7 @@ export class Economy {
     return { wood: this.state.inventory.wood - reserved.wood, stone: this.state.inventory.stone - reserved.stone, food: this.state.inventory.food - reserved.food, iron: this.state.inventory.iron - reserved.iron };
   }
   private invalidReason(kind: WorkKind, target: string, crop?: CropKind): string {
+    if(kind==='demolish')return this.demolition(target)?'':'此建筑已不存在';
     if(kind==='repair'){const b=buildingInfo(this.state,target);return !b?.built?'建筑尚未建成或已倒塌':b.hp>=b.maxHealth?'建筑完好，无需维修':'';}
     if((kind==='tools'||kind==='arms'||kind==='supply')&&!buildingOperational(this.state,target))return '建筑已损毁，请先维修';
     if (kind === 'tools' || kind === 'arms') return target !== 'warehouse' && !this.state.sites.some(s => s.id === target && s.kind === 'warehouse' && this.state.buildings.includes(s.id)) ? '请在仓库加工' : this.state.upgrades[kind] >= C.upgradeLimit ? '本轮强化已完成' : '';
@@ -291,7 +308,7 @@ export class Economy {
   claim(worker = 'farmer', position?: Point, eligible: (task: WorkTask) => boolean = () => true): WorkTask | undefined {
     if (!this.state.vitals[worker] || !alive(this.state, worker)) return;
     if (this.active(worker)) return;
-    const rank: Record<WorkKind, number> = { haul: 0, supply: 0, repair:0, harvest: 1, sow: 2, chop: 4, mine: 4, till: 3, build: 5, gather: 2, tools: 5, arms: 5 };
+    const rank: Record<WorkKind, number> = { haul: 0, supply: 0, repair:0, demolish:0, harvest: 1, sow: 2, chop: 4, mine: 4, till: 3, build: 5, gather: 2, tools: 5, arms: 5 };
     // Expanding the fields must not leave requested construction permanently
     // unfunded while every farmer repeatedly harvests and replants food.
     const available = this.available(), needed = emptyCost();
@@ -464,6 +481,11 @@ export class Economy {
     if (!task.reserved && !this.reserve(task)) { task.status = 'waiting'; this.changed(); return; }
     const invalid = this.invalidReason(task.kind, task.target, task.crop);
     if (invalid) { task.status = 'invalid'; task.reason = invalid; task.reserved = false; this.changed(); return; }
+    if(task.kind==='demolish'){
+      const result=this.removeBuilding(task.target,task);
+      if(!result.ok&&task.reason!==result.message){task.reason=result.message;this.changed();}
+      return;
+    }
     const output = emptyCost(), plot = this.plot(task.target);
     if (task.kind === 'harvest' && plot?.crop) output.food = C.crops[plot.crop].yield;
     if (task.kind === 'chop' || task.kind === 'mine' || task.kind === 'gather') {
@@ -547,7 +569,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 22) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 23) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (typeof raw.debug !== 'boolean') throw new Error('调试存档无效');

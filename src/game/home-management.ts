@@ -12,7 +12,7 @@ import { ECONOMY_CONFIG } from './economy-config.ts';
 export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
-  let editing=0,draft:string[]=[],shortcutKey='',recruitKey='',populationKey='',buildingKey='';
+  let editing=0,draft:string[]=[],filter='all',shortcutKey='',recruitKey='',populationKey='',buildingKey='';
   const button=(label:string,click:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.addEventListener('click',click,options);return b;};
   const notice=(message:string)=>{get('group-notice').textContent=message;};
   function edit(index=editing) {
@@ -23,13 +23,13 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     populationKey='';renderPopulation();
   }
   function renderPopulation() {
-    const rows=populationInfo(e.state), key=JSON.stringify([rows,editing]);
+    const rows=populationInfo(e.state), key=JSON.stringify([rows,editing,filter]);
     if(key===populationKey)return;populationKey=key;
     // Keep unsaved membership choices while refreshing displayed vitals.
     draft=draft.filter(id=>rows.some(r=>r.id===id));
     const humans=rows.filter(r=>r.role!=='dog').length;
     get('population-summary').textContent=`人口 ${humans} · 田园犬 ${rows.length-humans}`;
-    get('group-candidates').replaceChildren(...rows.map(r=>{
+    get('group-candidates').replaceChildren(...rows.filter(r=>filter==='all'||r.role===filter).map(r=>{
       const row=document.createElement('tr'),check=document.createElement('td'),input=document.createElement('input');
       const name=document.createElement('th'),label=document.createElement('label');
       row.dataset.resident=r.id;name.scope='row';
@@ -42,7 +42,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
         rank.title=required?`经验 ${Math.floor(progress)} / ${required}，造成实际伤害获得经验`:'已达最高等级';
         label.append(rank);
       }
-      if(r.group!==undefined&&r.group!==editing){const other=document.createElement('small');other.textContent=`${r.group+1} 队`;label.append(other);}
+      if(r.group!==undefined){const other=document.createElement('small');other.className='group-badge';other.dataset.stat='group';other.textContent=`${r.group+1}队`;label.append(other);}
       input.addEventListener('change',()=>{
         if(input.checked&&draft.length>=GROUP_SIZE){input.checked=false;notice('每队最多 6 名');return;}
         draft=input.checked?[...draft,r.id]:draft.filter(id=>id!==r.id);notice(`已选 ${draft.length} / ${GROUP_SIZE}`);
@@ -65,7 +65,8 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       const q=repairQuote(e.state,b.id),task=e.taskFor(b.id),repair=task?.kind==='repair';
       if(q&&!task){const cost=document.createElement('small');cost.textContent=`木${q.cost.wood} 石${q.cost.stone}`;name.append(cost);}
       const cell=(stat:string,value:string)=>{const td=document.createElement('td');td.dataset.stat=stat;td.textContent=value;return td;};
-      const status=!b.maxHealth?(e.plot(b.id)?.crop?'种植中':'空地'):!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
+      const removing=task?.kind==='demolish';
+      const status=removing?task.status==='working'?`拆除${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.demolish*100)}%`:'待拆除':!b.maxHealth?(e.plot(b.id)?.crop?'种植中':'空地'):!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
       tr.append(name,cell('health',b.maxHealth?b.built?`${Math.ceil(b.hp)}/${b.maxHealth}`:'—':'—'),cell('armor',b.maxHealth?String(b.armor):'—'),cell('status',status));
       tr.classList.toggle('damaged',b.built&&b.hp<b.maxHealth);
       const action=cell('action',''),control=button(repair?'取消':'维修',()=>{
@@ -73,8 +74,9 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
         else{const result=e.request('repair',b.id);get('building-notice').textContent=result.message;}
         callbacks.save();renderBuildings();
       });
-      control.disabled=!repair&&!!task;control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(repair||q)action.append(control);
-      if(e.demolition(b.id)){const remove=button('拆除',()=>callbacks.demolish(b.id));remove.setAttribute('aria-label',`拆除${b.name}`);action.append(remove);}
+      control.disabled=!repair&&!!task;control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(!removing&&(repair||q))action.append(control);
+      if(removing){const cancel=button('取消拆除',()=>{e.cancel(task.id);callbacks.save();renderBuildings();});action.append(cancel);}
+      else if(e.demolition(b.id)){const remove=button('拆除',()=>callbacks.demolish(b.id));remove.setAttribute('aria-label',`拆除${b.name}`);action.append(remove);}
       tr.append(action);return tr;
     }));
   }
@@ -83,6 +85,10 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     get('building-notice').textContent=e.state.autoRepair?'自动维修已开启，材料不足或区域危险时等待':'自动维修已关闭，已安排的任务可单独取消';
     callbacks.save();renderBuildings();
   },options);
+  get('population-filters').replaceChildren(...Object.entries({all:'全部',farmer:'农民',infantry:'步兵',archer:'弓兵',cavalry:'骑兵',dog:'狗'}).map(([role,name])=>{
+    const b=button(name,()=>{filter=role;for(const child of get('population-filters').children)child.setAttribute('aria-pressed',String((child as HTMLElement).dataset.role===role));renderPopulation();});
+    b.dataset.role=role;b.setAttribute('aria-pressed',String(role===filter));return b;
+  }));
   for(const tab of ['resources','population','buildings'])get(`${tab}-tab`).addEventListener('click',()=>{
     for(const kind of ['resources','population','buildings']){get(`${kind}-panel`).hidden=kind!==tab;get(`${kind}-tab`).setAttribute('aria-selected',String(kind===tab));}
     if(tab==='population')edit();
