@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
@@ -53,7 +54,7 @@ export function createPathGuidance(scene: Scene) {
         const positions: number[] = [], indices: number[] = [], tint: number[] = [];
         const vertices = (corners: Point[], color: Color3) => {
           const base = positions.length / 3;
-          for (const p of corners) { positions.push(p.x, .095, p.z); tint.push(color.r, color.g, color.b, 1); }
+          for (const p of corners) { positions.push(p.x, surfaceHeight(p.x,p.z)+.095, p.z); tint.push(color.r, color.g, color.b, 1); }
           return base;
         };
         const strip = (a: Point, b: Point, width: number) => {

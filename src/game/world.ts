@@ -18,7 +18,12 @@ import { createBuildingDoors } from './building-doors.ts';
 import { attachBuildingLOD } from './building-lod.ts';
 import { createBuildingPicking } from './picking-shapes.ts';
 
-export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
+import { loadEnvironment } from './environment-library.ts';
+import { createLandscapeProps } from './landscape-props.ts';
+import { createLandscapeScenery } from './landscape-scenery.ts';
+
+export async function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy) {
+  const environment=await loadEnvironment(scene);
   const before = new Set(scene.meshes), land = createLandGrid();
   const objects = new Map<string, WorldObject>();
   const doors = createBuildingDoors(scene, p, shadows);
@@ -39,6 +44,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
   // Water is terrain, like the ground and roads: no selectable object metadata.
   // Its shoreline remains in the movement and construction obstacle data.
   createLandscapeWater(scene);
+  createLandscapeProps(scene);
   for (const [index, { x, z }] of FENCES.entries()) {
     const firstFenceMesh = scene.meshes.length;
     roundedBox(scene, 'fence-post', [.23, .85, .24], [x, .44, z], p.timberLight, .06);
@@ -69,7 +75,7 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
       for (const mesh of batch) mesh.computeWorldMatrix(true);
       // Preserve the original caster membership when splitting a batch. A
       // short piece must keep its shadow if the old material batch cast one.
-      const castsShadow = material.name !== 'earth' && material.name !== 'forest-bank' && batch.some(mesh => mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24);
+      const castsShadow = !['earth','forest-bank','meadow','woodland-water'].includes(material.name) && !material.name.startsWith('woodland-road-') && batch.some(mesh => mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24);
       const triangles = batch.reduce((sum, mesh) => sum + mesh.getTotalIndices() / 3, 0);
       // Small batches already cost little vertex work; splitting them would
       // add draw calls without a useful reduction in submitted geometry.
@@ -102,9 +108,10 @@ export function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, e
     const hit=createBuildingPicking(scene,b.id,scene.meshes.filter(m=>m.metadata?.worldObjectId===b.id&&!m.metadata?.buildingLOD));
     if(hit){const box=hit.getBoundingInfo().boundingBox;objects.get(b.id)!.labelAnchor={x:b.x,y:box.maximumWorld.y+.15,z:box.maximumWorld.z};}
   }
-  const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires);
+  const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires, environment);
   fires.update(economy.state.campfires, 0, { x: 0, z: 0 });
-  const cover = createGroundCover(scene);
+  createLandscapeScenery(scene,shadows,environment);
+  const cover = createGroundCover(scene,environment);
   const syncCover = () => cover.sync([...economy.state.sites, ...economy.state.plots.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))]);
   syncCover();
   return { land, objects, doors, fires, ...economyWorld,

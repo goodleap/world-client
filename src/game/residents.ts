@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import {bodyObstacle,turnTowards} from './body-shape.ts';
 import { createResidentPicking } from './picking-shapes.ts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -82,7 +83,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     if (definition.role === 'cavalry' && human) {
       human.root.parent = root; human.root.position.set(0, 0.88, -0.1);
     }
-    root.position.set(state.position.x, 0, state.position.z);
+    root.position.set(state.position.x, surfaceHeight(state.position.x,state.position.z), state.position.z);
     const hit = createResidentPicking(scene, root, definition.id, definition.role);
     const marker = MeshBuilder.CreateTorus(`${definition.id}-selection`, { diameter: 1.3, thickness: 0.055, tessellation: 32 }, scene);
     marker.parent = root; marker.position.y = 0.08; marker.material = selectionMaterial; marker.isPickable = false; marker.setEnabled(false);
@@ -349,7 +350,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         actor.elevationRoot.position.y=elevation(u.id);
         actor.state.position.x = u.position.x; actor.state.position.z = u.position.z;
         actor.route.length = 0; actor.state.target = undefined;
-        if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, 0, u.position.z);
+        if (actor.root.position.x !== u.position.x || actor.root.position.z !== u.position.z) actor.root.position.set(u.position.x, surfaceHeight(u.position.x,u.position.z), u.position.z);
 
         actor.hit.isPickable = u.life !== 'defeated';
         if(u.departed){actor.root.setEnabled(false);actor.label.hidden=true;continue;}
@@ -399,7 +400,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const actor of actors) {
         const data = saved[actor.definition.id]; if (!data) continue;
         if (!isBlocked(data.position, actor.settings.bodyRadius, obstaclesFor(actor.definition.role))) {
-          actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, 0, data.position.z); actor.renderMotion.reset();
+          actor.state.position = { ...data.position }; actor.root.position.set(data.position.x, surfaceHeight(data.position.x,data.position.z), data.position.z); actor.renderMotion.reset();
           actor.state.target = undefined;
         }
       }
@@ -521,7 +522,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           actor.movementSpeed = workSeconds > 0 ? moved / workSeconds : 0;
           if (moved > .001 && actor.stepFacing !== undefined) actor.facing = turnTowards(actor.facing, actor.stepFacing, seconds);
           else if (work.status === 'arrived' || work.status === 'working') actor.facing = Math.atan2(work.target.x - actor.state.position.x, work.target.z - actor.state.position.z) + .35;
-          actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
+          actor.root.position.set(actor.state.position.x, surfaceHeight(actor.state.position.x,actor.state.position.z), actor.state.position.z);
           actor.root.rotationQuaternion ??= Quaternion.Identity();
           Quaternion.RotationYawPitchRollToRef(actor.facing, 0, 0, actor.root.rotationQuaternion);
           setMotion(actor.definition.id, work.status === 'working' ? 'work' : moved > .001 ? 'run' : 'idle',
@@ -548,7 +549,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           while (remaining > 1e-8 && actor.route.length) {
             const step = Math.min(remaining, .05);
             const result = advanceRoute(actor, step); travelled += result.distance;
-            if (result.unreachable) { actor.route = []; ui.targetHint('目标暂时无法到达', { x: actor.root.position.x, y: 2, z: actor.root.position.z }); break; }
+            if (result.unreachable) { actor.route = []; ui.targetHint('目标暂时无法到达', { x: actor.root.position.x, y: actor.root.position.y+2, z: actor.root.position.z }); break; }
             remaining -= step;
           }
           velocity = { x: (actor.state.position.x - before.x) / seconds, z: (actor.state.position.z - before.z) / seconds };
@@ -577,7 +578,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const speed = travelSpeed ?? Math.hypot(velocity.x, velocity.z);
         actor.movementSpeed = speed;
         setMotion(actor.definition.id, speed > 0.08 ? commanded ? 'run' : 'walk' : 'idle', speed);
-        actor.root.position.set(actor.state.position.x, 0, actor.state.position.z);
+        actor.root.position.set(actor.state.position.x, surfaceHeight(actor.state.position.x,actor.state.position.z), actor.state.position.z);
         if (actor.definition.role === 'farmer' || characterModels.has(actor.definition.id)) {
           // Dressed GLBs own their visible animation. Preserve the farmer's
           // working heading on release instead of resetting the hidden legacy rig.
@@ -611,7 +612,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
             setMotion(id,'idle');bowPoses.get(id)?.();const clips=locomotion.get(id)!;
             for(const group of [clips.walk,clips.run,clips.idle,clips.work,combatClips.get(id)])group?.stop();
             const rest=clips.idle??clips.walk;rest.enableBlending=false;rest.start(false).pause();rest.goToFrame(rest.from);
-          },fallPostures.get(id));
+          },fallPostures.get(id),surfaceHeight(actor.state.position.x,actor.state.position.z));
           actor.renderMotion.reset();continue;
         }
         const changed = actor.renderMotion.sample(alpha);
@@ -641,7 +642,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const viewport = camera.viewport.toGlobal(width, height);
       for (const actor of actors) {
         const position = actor.renderMotion.position;
-        labelPoint.set(position.x, actor.definition.labelHeight+actor.elevationRoot.position.y, position.z);
+        labelPoint.set(position.x, position.y+actor.definition.labelHeight+actor.elevationRoot.position.y, position.z);
         Vector3.ProjectToRef(labelPoint, identity, scene.getTransformMatrix(), viewport, labelProjected);
         const projected = labelProjected;
         const closeEnough = actor === selected || (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50;

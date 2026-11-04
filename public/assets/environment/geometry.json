@@ -1,0 +1,57 @@
+{
+  "oak": {
+    "near": 88800,
+    "medium": 11090,
+    "far": 1980
+  },
+  "sapling": {
+    "near": 35000,
+    "medium": 4374,
+    "far": 780
+  },
+  "fruit": {
+    "near": 40496,
+    "medium": 5144,
+    "far": 918
+  },
+  "blossom": {
+    "near": 36012,
+    "medium": 4516,
+    "far": 806
+  },
+  "pine": {
+    "near": 76120,
+    "medium": 9439,
+    "far": 1684
+  },
+  "bush": {
+    "near": 10764,
+    "medium": 1310,
+    "far": 234
+  },
+  "reeds": {
+    "near": 18976,
+    "medium": 2600,
+    "far": 464
+  },
+  "grass": {
+    "near": 1196,
+    "medium": 1040,
+    "far": 1040
+  },
+  "flowers": {
+    "near": 5880,
+    "medium": 752,
+    "far": 134
+  },
+  "stone": {
+    "near": 338,
+    "medium": 338,
+    "far": 338
+  },
+  "cliff": {
+    "near": 2686,
+    "medium": 1610,
+    "far": 858
+  }
+}

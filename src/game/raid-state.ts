@@ -10,9 +10,9 @@ import type { Point } from './movement.ts';
 export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, maxWolves: 6, maxSoldiers: 12, warning: 8,
   duration: 120, fearRadius: 6, fearSeconds: 3, acquire: 11, chase: 17, aidRadius: 10, loot: 2, feedSeconds: 1.1 };
 export const WILD_WOLF_SPAWNS: readonly Point[] = [
-  { x: -46, z: 24 }, { x: -43, z: 25 },
-  { x: 44, z: -12 }, { x: 47, z: -12 },
-  { x: 20, z: -54 }, { x: 23, z: -54 },
+  { x: -48, z: -1 }, { x: -48, z: 2 },
+  { x: -53, z: 40 }, { x: -53, z: 43 },
+  { x: -33, z: -46 }, { x: -33, z: -43 },
 ];
 export interface Wolf extends Fighter {
   role: 'wolf'; mode: 'approach' | 'hunt' | 'feed' | 'flee' | 'gone';

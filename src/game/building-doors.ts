@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { Animation } from '@babylonjs/core/Animations/animation.js';
 import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
@@ -19,7 +20,7 @@ export function createBuildingDoors(scene: Scene, p: Palette, shadows?: ShadowGe
     add(b: Building, warehouse = false) {
       if (doors.has(b.id)) return;
       const hinge = new TransformNode(`${b.id}-door-hinge`, scene);
-      hinge.position.set(b.x - .85, 0, b.z - b.depth / 2 - .13);
+      hinge.position.set(b.x - .85, surfaceHeight(b.x,b.z), b.z - b.depth / 2 - .13);
       const leaf = roundedBox(scene, `${b.id}-door-leaf`, [1, 1.96, .12], [.5, 1.19, 0], p.sage, .035);
       const knob = ellipsoid(scene, `${b.id}-door-knob`, [.13, .13, .12], [.82, 1.1, -.11], p.golden);
       for (const mesh of [leaf, knob]) {

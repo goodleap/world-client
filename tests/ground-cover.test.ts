@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera.js';
 import { Camera } from '@babylonjs/core/Cameras/camera.js';
@@ -14,7 +15,8 @@ import { FARM_PLOTS } from '../src/game/economy-config.ts';
 test('native ground patches keep separate GPU instance buffers and clear roads, farm plots and building footprints', () => {
   const engine = new NullEngine(), scene = new Scene(engine);
   try {
-    const cover = createGroundCover(scene);
+    const template=MeshBuilder.CreateBox('plant-test-template',{size:.25},scene);template.setEnabled(false);
+    const cover = createGroundCover(scene,{source:()=>template});
     cover.sync([]);
     const patches = scene.meshes.filter((m): m is Mesh => m instanceof Mesh && m.name.startsWith('meadow-cover-'));
     const positions = () => patches.filter(m => m.isEnabled()).flatMap(m => m.thinInstanceGetWorldMatrices()

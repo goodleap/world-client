@@ -16,7 +16,7 @@ function funded() {
 }
 
 test('corridors and former gathering-only regions accept buildings with the real footprint', () => {
-  for (const p of [{ x: -28, z: 8 }, ...['orchard', 'stone-hollow'].map(id => LANDSCAPE.regions.find(r => r.id === id)!)]) {
+  for (const p of [{ x: -28, z: 0 }, ...['orchard', 'stone-hollow'].map(id => LANDSCAPE.regions.find(r => r.id === id)!)]) {
     const e = funded(), result = e.placeBuilding(p.x === -28 ? 'house' : 'farm', p);
     assert.ok(result.ok, result.message);
     assert.equal(result.task?.origin, 'manual');

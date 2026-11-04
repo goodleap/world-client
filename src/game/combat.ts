@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { RAID_CONFIG } from './raid-state.ts';
 import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
 import { assignedTower, occupiedTower, towerHeight, towerExit, releaseTower, damageTower, TOWER_CONFIG } from './towers.ts';
@@ -311,7 +312,7 @@ export class Combat {
     const source = this.target(sourceId);
     if (victim.life !== 'active' || source && !hostile(victim, source)) return;
     const beforeHP=victim.hp;
-    const hitPoint={x:victim.position.x,y:(victim.elevation??0)+(victim.kind==='building'?3:this.unit(victim.id)?.role==='cavalry'?3:2.2),z:victim.position.z};
+    const hitPoint={x:victim.position.x,y:surfaceHeight(victim.position.x,victim.position.z)+(victim.elevation??0)+(victim.kind==='building'?3:this.unit(victim.id)?.role==='cavalry'?3:2.2),z:victim.position.z};
     const report=(remaining:number)=>{const amount=beforeHP-Math.max(0,remaining);if(amount>0)this.damageFeedback?.({target:victim.id,amount,team:victim.team,point:hitPoint});};
     if(victim.kind==='building'){
       const building=buildingInfo(this.economy.state,victim.id)!,damage=hitDamage(amount,building.armor);
@@ -627,7 +628,7 @@ export class Combat {
               const { velocity, stop } = this.targetMotion(victim);
               let aim = leadShot(u.position, victim.position, velocity, C.projectileSpeed, stop);
               if (!this.visible(u.position, aim.point, u.id, victim.id)) aim = leadShot(u.position, victim.position, { x: 0, z: 0 }, C.projectileSpeed);
-              this.state.projectiles.push({ id: action.id, source: u.id, target: victim.id, from: { ...u.position,y:towerHeight(this.economy.state,u.id)+1.25 }, to: { ...aim.point,y:(victim.elevation??0)+1.25 },
+              this.state.projectiles.push({ id: action.id, source: u.id, target: victim.id, from: { ...u.position,y:surfaceHeight(u.position.x,u.position.z)+towerHeight(this.economy.state,u.id)+1.25 }, to: { ...aim.point,y:surfaceHeight(victim.position.x,victim.position.z)+(victim.elevation??0)+1.25 },
                 elapsed: 0, duration: aim.duration, damage: stats.attack });
             }
           }

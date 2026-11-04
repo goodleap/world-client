@@ -86,3 +86,13 @@ test('human falls forward in its own facing and ends face down with ground conta
   scene.dispose(); engine.dispose();
  }
 });
+
+test('falling on a raised terrace preserves the ground offset through hold and sinking',()=>{
+ const engine=new NullEngine(),scene=new Scene(engine),root=new TransformNode('highland-unit',scene);
+ try{
+  const mesh=MeshBuilder.CreateBox('body',{height:2,width:1,depth:.6},scene);mesh.parent=root;mesh.position.y=1;root.position.y=2.5;
+  const view=new DeathView(root);
+  for(const age of [0,.2,.6,1,2.6]){view.sample(age,.4,[mesh],()=>{},undefined,2.5);mesh.computeWorldMatrix(true);assert(Math.abs(mesh.getBoundingInfo().boundingBox.minimumWorld.y-2.515)<.01);}
+  const held=root.position.y;view.sample(4,.4,[mesh],()=>{},undefined,2.5);assert(root.position.y<held);
+ }finally{scene.dispose();engine.dispose();}
+});

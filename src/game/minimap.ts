@@ -1,4 +1,5 @@
 import { LANDSCAPE, MAP_WIDTH, MAP_DEPTH, WORLD_BOUNDS, GRID_SIZE } from './world-data.ts';
+import { BIOME_COLORS } from './biomes.ts';
 import { ROAD_PATHS } from './road-layout.ts';
 import type { Point } from './movement.ts';
 import type { PolygonArea } from './polygon.ts';
@@ -41,9 +42,11 @@ export function createMinimap(canvas: HTMLCanvasElement) {
     if (!ctx) { background = undefined; return; }
     ctx.fillStyle = '#455e42'; ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = '#a5b879'; for (const a of LANDSCAPE.playable) area(ctx, a);
+    for(const r of LANDSCAPE.regions){ctx.fillStyle=BIOME_COLORS[r.biome];area(ctx,r.area);}
     ctx.strokeStyle = '#e3cf99'; ctx.lineWidth = 2.8 / MAP_WIDTH * (width - pad * 2); ctx.lineCap = ctx.lineJoin = 'round';
     for (const path of ROAD_PATHS) { ctx.beginPath(); line(ctx, path); ctx.stroke(); }
-    ctx.fillStyle = '#6faeb0'; area(ctx, LANDSCAPE.lake);
+    ctx.fillStyle = '#62a8aa'; for(const a of LANDSCAPE.waterAreas)area(ctx,a);
+    ctx.fillStyle='#bd9059';for(const bridge of LANDSCAPE.bridges)area(ctx,bridge.area);
     terrainBuilds++;
     map = document.createElement('canvas'); map.width = width; map.height = height;
     markers = document.createElement('canvas'); markers.width = width; markers.height = height;

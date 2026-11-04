@@ -1,10 +1,10 @@
 import { chromium } from '@playwright/test';
 import { writeFile, mkdir } from 'node:fs/promises';
-const out = '/workspace/artifacts/texture-verification'; await mkdir(out, { recursive: true });
+const out = process.env.TEXTURE_REVIEW_OUTPUT || '/tmp/world-texture-verification'; await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
 try {
   const page = await browser.newPage({ viewport: { width: 512, height: 512 } });
-  await page.goto('http://127.0.0.1:4174');
+  await page.goto(process.env.TEXTURE_REVIEW_URL || 'http://127.0.0.1:5176');
   const report = await page.evaluate(async () => {
     const { Engine, Scene, ArcRotateCamera, Vector3, MeshBuilder, StandardMaterial, Texture, Color3 } = await import('/node_modules/.vite/deps/@babylonjs_core.js');
     const { landscapeTexture } = await import('/src/game/landscape-textures.ts');
@@ -15,7 +15,7 @@ try {
     const plane = MeshBuilder.CreatePlane('paint', { size: 2, sideOrientation: 2 }, scene);
     const material = new StandardMaterial('paint', scene); material.disableLighting = true; material.emissiveColor = Color3.White(); plane.material = material;
     const results = [];
-    for (const name of ['woodland-ground-colors', 'woodland-meadow-strokes', 'woodland-road-grain', 'woodland-canopy-leaves', 'woodland-water-ripples']) {
+    for (const name of ['woodland-ground-colors', 'woodland-meadow-strokes', 'woodland-road-grain', 'woodland-water-ripples']) {
       const original = new Texture(`/terrain/${name}.png`, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE), compressed = landscapeTexture(name, scene);
       const frames = [];
       for (const texture of [original, compressed]) {

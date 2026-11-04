@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
@@ -71,7 +72,7 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
     spit.push(ellipsoid(scene, 'roasting-food', [.82, .42, .42], [0, 1.25, .05], meat, 12));
     for (const x of [-.22, .1]) spit.push(roundedBox(scene, 'roast-score', [.035, .13, .035], [x, 1.4, -.08], p.golden, .012));
     merge(spit, roast);
-    flame.parent = root; roast.parent = root; root.position.set(site.x, 0, site.z);
+    flame.parent = root; roast.parent = root; root.position.set(site.x, surfaceHeight(site.x,site.z), site.z);
     createFirePicking(scene,root,site.id,SHAPE.radius);
     flame.setEnabled(false); roast.setEnabled(false); items.set(site.id, { root, flame, roast, state: 'off' });
   }
@@ -100,7 +101,7 @@ export function createCampfireView(scene: Scene, p: Palette, shadows?: ShadowGen
         const item = burning[i];
         if (light.isEnabled() !== !!item) { light.setEnabled(!!item); lightMembershipChanged = true; }
         light.intensity = item ? .85 : 0;
-        if (item) light.position.set(item.root.position.x, 1.7, item.root.position.z);
+        if (item) light.position.set(item.root.position.x, item.root.position.y+1.7, item.root.position.z);
       });
       if (lightMembershipChanged) refreshFrozenMaterials(scene);
     },

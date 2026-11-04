@@ -1,10 +1,9 @@
+import { terrainRayDistance } from './terrain-height.ts';
 import '@babylonjs/core/Culling/ray.js';
-import { Plane } from '@babylonjs/core/Maths/math.plane.js';
 import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { PinchGesture } from './input.ts';
 
-const ground = new Plane(0, 1, 0, 0);
 
 /** Babylon's natural pinch changes camera.radius, which cannot magnify an
  * orthographic map. Apply its distance-ratio rule to the ortho extents instead,
@@ -15,7 +14,7 @@ export function pinchMapCamera(scene: Scene, camera: ArcRotateCamera, gesture: P
   if (!Number.isFinite(gesture.scale) || gesture.scale <= 0) return oldZoom;
   const pointAt = (point: { x: number; y: number }) => {
     const ray = scene.createPickingRay(point.x - canvas.left, point.y - canvas.top, null, camera);
-    const distance = ray.intersectsPlane(ground);
+    const distance = terrainRayDistance(ray);
     return distance === null ? undefined : ray.origin.add(ray.direction.scale(distance));
   };
   const anchor = pointAt(gesture.previousCenter);

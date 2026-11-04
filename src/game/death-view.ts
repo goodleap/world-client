@@ -21,7 +21,7 @@ export class DeathView {
   private profile?: GroundProfile;
   constructor(root: TransformNode, options: FallOptions = {}, profile?: GroundProfile) { this.root = root; this.options = options; this.profile=profile; }
   get groundProfile(){return this.profile;}
-  sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup) {
+  sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup, ground=0) {
     if (age >= DEATH_END) {
       if (this.age < DEATH_END) this.clip?.goToFrame(DEATH_END * 60);
       this.root.setEnabled(false); this.age = age; return;
@@ -81,7 +81,7 @@ export class DeathView {
       this.profile??={grounded:heights.map(k=>k.value),height:this.height};
       rotations.push({ frame: DEATH_END * 60, value: rotations.at(-1)!.value.clone() });
       heights.push({ frame: (DEATH.fall + DEATH.hold) * 60, value: grounded }, { frame: DEATH_END * 60, value: grounded - this.height - .2 });
-      turn.setKeys(rotations); lift.setKeys(heights);
+      turn.setKeys(rotations); lift.setKeys(heights.map(k=>({...k,value:k.value+ground})));
       this.clip = new AnimationGroup(`${this.root.name}-death`, this.root.getScene());
       this.clip.addTargetedAnimation(turn, this.root); this.clip.addTargetedAnimation(lift, this.root);
       if (this.options.offset) for (const [property, keys] of [['position.x', x], ['position.z', z]] as const) {
@@ -120,11 +120,11 @@ export class MountedDeathView {
     this.sample(0,facing,meshes,pose,posture);this.reset();
     this.root.position.copyFrom(position);this.root.rotation.copyFrom(rotation);this.root.rotationQuaternion=quaternion;
   }
-  sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup) {
+  sample(age: number, facing: number, meshes: readonly AbstractMesh[], pose: () => void, posture?: AnimationGroup, ground=0) {
     this.age = age;
     if (age >= DEATH_END) { this.root.setEnabled(false); return; }
     if (!this.rider) {
-      pose(); this.root.position.y = 0; this.root.rotationQuaternion = Quaternion.RotationYawPitchRoll(facing, 0, 0);
+      pose(); this.root.position.y = ground; this.root.rotationQuaternion = Quaternion.RotationYawPitchRoll(facing, 0, 0);
       const rider = new TransformNode('fallen-rider', this.root.getScene()), mount = new TransformNode('fallen-mount', this.root.getScene());
       rider.parent = mount.parent = this.root; this.groups = [rider, mount];
       this.originals = meshes.map(mesh => ({ mesh, parent: mesh.parent, position: mesh.position.clone(), rotation: mesh.rotation.clone(),

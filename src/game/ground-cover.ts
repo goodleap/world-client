@@ -1,14 +1,13 @@
 import '@babylonjs/core/Meshes/thinInstanceMesh.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
-import { Color3 } from '@babylonjs/core/Maths/math.color.js';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { BuildingSite } from './construction.ts';
 import type { Point } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, MAP_WIDTH, MAP_DEPTH, LANDSCAPE } from './world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
-import { ellipsoid, tintHeight } from './environment-shapes.ts';
+import type { EnvironmentLibrary } from './environment-library.ts';
+import { surfaceHeight } from './terrain-height.ts';
 import { polygonDistance } from './polygon.ts';
 import { nearRoad } from './road-layout.ts';
 
@@ -18,32 +17,8 @@ const CHUNK_SIZE = 12, SPACING = 1.8, MARGIN = .42;
 const inFootprint = (p: Point, b: Footprint) => Math.abs(p.x - b.x) < b.width / 2 + MARGIN && Math.abs(p.z - b.z) < b.depth / 2 + MARGIN;
 /** Shared native thin instances: rounded silhouettes, one draw per visible
  * patch/type, no individual meshes, animation callbacks or shadow-map draws. */
-export function createGroundCover(scene: Scene) {
-  const material = new StandardMaterial('meadow-plants', scene);
-  material.diffuseColor = Color3.White(); material.specularColor = Color3.Black();
-  function template(flower: boolean) {
-    const parts: Mesh[] = [];
-    if (flower) {
-      for (let i = 0; i < 5; i++) {
-        const angle = i * Math.PI * 2 / 5;
-        const petal = ellipsoid(scene, 'meadow-petal', [.18, .085, .26], [Math.sin(angle) * .14, .13, Math.cos(angle) * .14], material, 4);
-        petal.rotation.y = angle; tintHeight(petal, '#e8dfb3', '#fff9e6'); parts.push(petal);
-      }
-      const center = ellipsoid(scene, 'meadow-pollen', [.16, .10, .16], [0, .18, 0], material, 4);
-      tintHeight(center, '#d18a28', '#ffd75c'); parts.push(center);
-    } else {
-      for (let i = 0; i < 4; i++) {
-        const blade = ellipsoid(scene, 'meadow-blade', [.14, .34 + i % 2 * .16, .08], [(i - 1.5) * .07, .16, Math.sin(i * 2) * .06], material, 2);
-        blade.rotation.z = (i - 1.5) * -.30;
-        tintHeight(blade, '#4b8638', i % 2 ? '#bad764' : '#95bd49'); parts.push(blade);
-      }
-    }
-    const mesh = Mesh.MergeMeshes(parts, true, true)!;
-    mesh.name = flower ? 'meadow-flower-template' : 'meadow-grass-template';
-    mesh.isPickable = false; mesh.setEnabled(false);
-    return mesh;
-  }
-  const templates = [template(false), template(true)];
+export function createGroundCover(scene: Scene, environment:EnvironmentLibrary) {
+  const templates=[environment.source('grass','far'),environment.source('flowers','medium')];
   const chunks = new Map<string, { mesh: Mesh; plants: Plant[]; visible?: Plant[] }>();
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
   let seed = 19331;
@@ -51,10 +26,10 @@ export function createGroundCover(scene: Scene) {
   for (let z = -MAP_DEPTH / 2 + SPACING; z < MAP_DEPTH / 2 - SPACING; z += SPACING) {
     for (let x = -MAP_WIDTH / 2 + SPACING; x < MAP_WIDTH / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
-        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < .08 };
+        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < (z < -20 && x < 15 ? .30 : .07) };
       if (random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27))) continue;
       if (!LANDSCAPE.contains(plant) || random() < .22 || footprints.some(b => inFootprint(plant, b))
-        || polygonDistance(plant, LANDSCAPE.lake) < 1.8
+        || LANDSCAPE.waterAreas.some(a=>polygonDistance(plant,a)<.8)
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
         || nearRoad(plant, MARGIN)) continue;
       const cx = Math.floor(plant.x / CHUNK_SIZE), cz = Math.floor(plant.z / CHUNK_SIZE);
@@ -65,7 +40,7 @@ export function createGroundCover(scene: Scene) {
         // Babylon attaches instance attributes to Geometry. Patches need their
         // own native geometry copy or the last patch's matrices replace all
         // earlier buffers; every plant inside a patch still shares one mesh.
-        templates[Number(plant.flower)].geometry!.copy(mesh.name).applyToMesh(mesh); mesh.material = material;
+        templates[Number(plant.flower)].geometry!.copy(mesh.name).applyToMesh(mesh); mesh.material = templates[Number(plant.flower)].material;
         mesh.position.set(cx * CHUNK_SIZE, .025, cz * CHUNK_SIZE);
         mesh.isPickable = false; mesh.receiveShadows = true;
         mesh.freezeWorldMatrix();
@@ -84,7 +59,7 @@ export function createGroundCover(scene: Scene) {
       if (chunk.visible?.length === visible.length && visible.every((p, i) => p === chunk.visible![i])) continue;
       const matrices = new Float32Array(visible.length * 16);
       for (const [i, p] of visible.entries()) Matrix.Compose(new Vector3(p.size, p.size, p.size),
-        Quaternion.RotationAxis(Vector3.Up(), p.rotation), new Vector3(p.x - chunk.mesh.position.x, 0, p.z - chunk.mesh.position.z)).copyToArray(matrices, i * 16);
+        Quaternion.RotationAxis(Vector3.Up(), p.rotation), new Vector3(p.x - chunk.mesh.position.x, surfaceHeight(p.x,p.z), p.z - chunk.mesh.position.z)).copyToArray(matrices, i * 16);
       chunk.mesh.setEnabled(visible.length > 0);
       if (visible.length) {
         chunk.mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);

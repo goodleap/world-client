@@ -1,3 +1,4 @@
+import { createMapLandmarks } from './map-landmarks.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { createLandscapeLayout } from './landscape-layout.ts';
 import { MAP_CONFIG } from './map-regions.ts';
@@ -26,8 +27,9 @@ export const WAREHOUSE = BUILDINGS[1];
 export const HOME = BUILDINGS[0];
 export const HOME_CENTER = BUILDINGS[2];
 export const WAREHOUSE_DOOR = { x: WAREHOUSE.x, z: WAREHOUSE.z - WAREHOUSE.depth / 2 - .75 };
+export const MAP_LANDMARKS = createMapLandmarks(GRID_SIZE);
 export const LANDSCAPE = createLandscapeLayout(gridPoint, GRID_SIZE);
-export const WATER_OBSTACLE: Obstacle = { kind: 'polygon', ...LANDSCAPE.lake };
+export const WATER_OBSTACLES: Obstacle[] = LANDSCAPE.waterSolids.map(area => ({kind:'polygon',...area}));
 export const ROADS = LANDSCAPE.roadControls;
 export const TREES = LANDSCAPE.trees;
 export const FENCES: readonly Point[] = [];
@@ -37,7 +39,8 @@ export const OBSTACLES: readonly Obstacle[] = [
   ...BUILDINGS.map((b): Obstacle => ({ kind: 'box', x: b.x, z: b.z, halfWidth: b.width / 2 + .08, halfDepth: b.depth / 2 + .08 })),
   ...TREES.map((t): Obstacle => ({ kind: 'circle', x: t.x, z: t.z, radius: .5 * t.scale })),
   ...LANDSCAPE.obstacles.map((area): Obstacle => ({ kind: 'polygon', ...area })),
-  WATER_OBSTACLE,
+  ...WATER_OBSTACLES,
+  ...MAP_LANDMARKS.obstacles,
 ];
 export type LandType = 'grass' | 'path' | 'garden' | 'water' | 'building' | 'wildland';
 export interface LandCell extends Point { type: LandType }
@@ -47,7 +50,7 @@ export function createLandGrid(): LandCell[] {
     const p = gridPoint(column + .5, row + .5);
     let type: LandType = LANDSCAPE.contains(p) ? 'grass' : 'wildland';
     if (column >= MAP_CELLS / 2 + 1 && column < MAP_CELLS / 2 + 5 && row >= MAP_ROWS / 2 + 2 && row < MAP_ROWS / 2 + 5) type = 'garden';
-    if (insidePolygon(p, LANDSCAPE.lake)) type = 'water';
+    if (LANDSCAPE.waterSolids.some(a => insidePolygon(p, a))) type = 'water';
     if (BUILDINGS.some(b => Math.abs(p.x - b.x) < b.width / 2 && Math.abs(p.z - b.z) < b.depth / 2)) type = 'building';
     cells.push({ ...p, type });
   }

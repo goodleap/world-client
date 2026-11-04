@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { surfaceHeight } from '../../src/game/terrain-height.ts';
 export async function openGame(page: Page, url = '/') {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -16,7 +17,7 @@ export async function openGame(page: Page, url = '/') {
 }
 export async function snapshot(page: Page) { return page.evaluate(() => window.__DEMO__!.snapshot()); }
 
-export async function clickGround(page: Page, point: { x: number; z: number }, touch = false, y = 0) {
+export async function clickGround(page: Page, point: { x: number; z: number }, touch = false, y = surfaceHeight(point.x,point.z)) {
   const { camera } = await snapshot(page), viewport = page.viewportSize()!;
   const scale = viewport.height / (2 * camera.zoom);
   const x = viewport.width / 2 + (point.x - camera.target.x) * scale;
@@ -30,7 +31,7 @@ export async function selectUnit(page: Page, id: string, touch = false) {
   await expect(async () => {
     const state = await snapshot(page); if (state.selection.resident === id) return;
     const unit = state.residents.find(r => r.id === id)!;
-    await clickGround(page, unit.position, touch, id === 'dog' ? .65 : id === 'cavalry' ? 1.6 : 1);
+    await clickGround(page, unit.position, touch, surfaceHeight(unit.position.x,unit.position.z)+(id === 'dog' ? .65 : id === 'cavalry' ? 1.6 : 1));
     expect((await snapshot(page)).selection.resident).toBe(id);
   }).toPass({ timeout: 15_000 });
 }

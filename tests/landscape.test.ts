@@ -40,12 +40,17 @@ test('landscape seeds are reproducible, mixed resources have clearance and start
   for (const point of [gridPoint(50, 50), gridPoint(51.5, 55.5), gridPoint(55.5, 57)]) assert.ok(polygonDistance(point, layout.lake) > 5);
 });
 
-test('native water rings stay within the shared shoreline and preserve its bays', () => {
-  const { lake } = createLandscapeLayout(gridPoint, GRID_SIZE);
-  const center = { x: lake.x + 1.5, z: lake.z };
-  assert.equal(insidePolygon(center, lake), true);
-  for (const p of lake.points) for (const t of [.01, .25, .57, .86, .965, .999]) {
-    assert.equal(insidePolygon({ x: center.x + (p.x - center.x) * t, z: center.z + (p.z - center.z) * t }, lake), true);
+test('bridges cut traversable decks from the same visible stream without opening the banks', () => {
+  const map=createLandscapeLayout(gridPoint,GRID_SIZE);
+  const solids:Obstacle[]=map.waterSolids.map(a=>({kind:'polygon',...a}));
+  assert.equal(map.waterAreas.length,4);assert.equal(map.bridges.length,2);
+  for(const bridge of map.bridges){
+    assert.ok(map.waterAreas.some(a=>insidePolygon(bridge,a)));
+    const c=Math.cos(bridge.angle),s=Math.sin(bridge.angle);
+    const start={x:bridge.x-c*bridge.length/2,z:bridge.z+s*bridge.length/2};
+    const end={x:bridge.x+c*bridge.length/2,z:bridge.z-s*bridge.length/2};
+    for(const radius of [.4,.6])assert.equal(sweepIsBlocked(start,end,radius,solids),false);
+    assert.equal(isBlocked({x:bridge.x+s*(bridge.width/2+.7),z:bridge.z+c*(bridge.width/2+.7)},.1,solids),true);
   }
 });
 

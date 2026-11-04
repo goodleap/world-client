@@ -1,3 +1,4 @@
+import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
 import { towerHeight, assignedTower, garrisonAvailability, garrisonCandidate, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
 import { createTowerRange } from './tower-range.ts';
 import { SimulationClock, RenderCadence } from './simulation-clock.ts';
@@ -61,7 +62,6 @@ import { readJSHeapMB } from './heap-memory.ts';
 import { prepareScene } from './scene-loading.ts';
 import { packGeometry } from './geometry-memory.ts';
 import { createMinimap } from './minimap.ts';
-import { Plane } from '@babylonjs/core/Maths/math.plane.js';
 import { compactPerformanceLog, roundLog } from '../performance-log.ts';
 import { compactLoadingLog } from '../loading-log.ts';
 import { createSceneCandidates } from './scene-candidates.ts';
@@ -117,14 +117,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     } catch { saves.failures++; if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
     finally { saves.lastMs = performance.now() - start; saves.maxMs = Math.max(saves.maxMs, saves.lastMs); saves.totalMs += saves.lastMs; frameWork.saveMs += saves.lastMs; }
   };
-  let world: ReturnType<typeof buildWorld>;
+  let world: Awaited<ReturnType<typeof buildWorld>>;
   let residents: ReturnType<typeof createResidents>;
   let wolves: Awaited<ReturnType<typeof createWolfView>>;
   try {
 
     await nextPaint();
     world = await loadingProgress.run('map', '地图与基础材质构建', async () => {
-      const world = buildWorld(scene, palette, shadows, economy);
+      const world = await buildWorld(scene, palette, shadows, economy);
       // Release oversized procedural arrays before cloning the actor library.
       // Work in small batches so the loading screen continues to paint.
       let started = performance.now();
@@ -172,7 +172,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const levelFeedback=createLevelFeedback(scene,damageHost);
   const levelPosition=(id:string)=>{
     const u=combat.unit(id),p=residents.displayPosition(id)??u?.position;
-    return u?.life==='active'&&p?{x:p.x,z:p.z,y:towerHeight(economy.state,id)}:undefined;
+    return u?.life==='active'&&p?{x:p.x,z:p.z,y:surfaceHeight(p.x,p.z)+towerHeight(economy.state,id)}:undefined;
   };
   combat.setLevelFeedback((id,level)=>{const p=levelPosition(id);if(p&&projectDamage({...p,y:p.y+1}).visible)levelFeedback.show(id,level,economy.state.seconds,p);});
   residents.syncCombat(combat.state.units);
@@ -384,7 +384,6 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const metrics = new FrameMetrics();
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const minimap = createMinimap(ui.minimapCanvas);
-  const mapGround = new Plane(0, 1, 0, 0);
   const sceneCandidates = createSceneCandidates(scene);
   const lifecycle = new AbortController();
   const target = new Vector3();
@@ -420,14 +419,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (placement.active) { placement.place(clientX, clientY); return; }
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
     if(settingRally){
-      const ray=scene.createPickingRay(x,y,null,camera),distance=-ray.origin.y/ray.direction.y;
-      if(distance>0&&Number.isFinite(distance)){
+      const ray=scene.createPickingRay(x,y,null,camera),distance=terrainRayDistance(ray);
+      if(distance!==null){
         const point=ray.origin.add(ray.direction.scale(distance));
         navigation.request('rally',()=>({start:{...economy.state.recruitment.rally},goal:{x:point.x,z:point.z},radius:.4,bounds:WORLD_BOUNDS,solids:world.obstacles(true),neighbours:[]}),path=>{
           if(!settingRally)return;
           const live=path&&validateNavigation({start:economy.state.recruitment.rally,goal:point,radius:.4,bounds:WORLD_BOUNDS,solids:world.obstacles(true),neighbours:[]},path);
           const end=live?.at(-1);if(end){economy.state.recruitment.rally={x:end.x,z:end.z};economy.revision++;settingRally=false;moveFeedback.show(end);save();ui.toast('集合点已更新');}
-          else ui.targetHint('无法到达该位置',{x:point.x,y:.2,z:point.z});
+          else ui.targetHint('无法到达该位置',{x:point.x,y:surfaceHeight(point.x,point.z)+.2,z:point.z});
         });
       }return;
     }
@@ -445,7 +444,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
           return;
         }
         const count = combat.attack(combatIds(), id);
-        ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: fighter.role === 'wolf' ? 1.9 : 2.6 });
+        ui.targetHint(count ? '攻击' : '先选择一名士兵', { ...fighter.position, y: surfaceHeight(fighter.position.x,fighter.position.z)+(fighter.role === 'wolf' ? 1.9 : 2.6) });
         if (count) {
           ui.flashAttackTarget(id, economy.state.seconds);
           attackPulse = { attacker: combatIds()[0], target: id };
@@ -482,8 +481,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       }
     }
     const ray = scene.createPickingRay(x, y, null, camera);
-    const distance = -ray.origin.y / ray.direction.y;
-    if (distance <= 0 || !Number.isFinite(distance)) return;
+    const distance = terrainRayDistance(ray);
+    if (distance === null) return;
     const point = ray.origin.add(ray.direction.scale(distance));
     if (residents.selectedCanMove()) {
       const ids=residents.selectedIds(),defs=homeResidents(economy.state),group=selectedGroup;
@@ -506,7 +505,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
             else{const end=path!.at(-1);if(end)moveFeedback.show(end);}
             refreshEconomy();save();
           }
-          if(finished===slots.length&&accepted<slots.length){if(!accepted)moveFeedback.hide();ui.targetHint(accepted?`${accepted}/${slots.length} 名已接受指令`:'无法到达该位置',{x:center.x,y:.2,z:center.z});}
+          if(finished===slots.length&&accepted<slots.length){if(!accepted)moveFeedback.hide();ui.targetHint(accepted?`${accepted}/${slots.length} 名已接受指令`:'无法到达该位置',{x:center.x,y:surfaceHeight(center.x,center.z)+.2,z:center.z});}
         });
         slots.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id)).forEach(slot=>dispatch(slot));
       };
@@ -515,7 +514,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         // the guide endpoint; a nearby fallback updates both marker and guide.
         navigation.request(`formation-${group}`,()=>{const id=ids.find(current);return id?context(id,point):undefined;},path=>{
           if(!ids.some(current))return;
-          if(!path?.length){moveFeedback.hide();ui.targetHint('无法到达该位置',{x:point.x,y:.2,z:point.z});return;}
+          if(!path?.length){moveFeedback.hide();ui.targetHint('无法到达该位置',{x:point.x,y:surfaceHeight(point.x,point.z)+.2,z:point.z});return;}
           const center=path.at(-1)!;moveFeedback.show(center);launch(center,path);
         });
       }else launch(point);
@@ -735,7 +734,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       const action=projectDamage(selectedWorld.anchor);ui.positionObjectActions(action.x,action.y,action.visible);
     }
     const leader=residents.selectedId()===farmerLeader?.id&&residents.displayPosition(farmerLeader!.id);
-    if(leader){const p=projectDamage({x:leader.x,z:leader.z,y:2.8});ui.positionUnitActions(p.x,p.y,p.visible);}
+    if(leader){const p=projectDamage({x:leader.x,z:leader.z,y:surfaceHeight(leader.x,leader.z)+2.8});ui.positionUnitActions(p.x,p.y,p.visible);}
     if (ui.hintAnchor) {
       const anchor = ui.hintAnchor;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
@@ -761,7 +760,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
       const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();
       const view = [[0, 0], [width, 0], [width, height], [0, height]].flatMap(([x, y]) => {
-        const ray = scene.createPickingRay(x, y, projectionIdentity, camera), distance = ray.intersectsPlane(mapGround);
+        const ray = scene.createPickingRay(x, y, projectionIdentity, camera), distance = terrainRayDistance(ray);
         if (distance === null) return [];
         const p = ray.origin.add(ray.direction.scale(distance)); return [{ x: p.x, z: p.z }];
       });

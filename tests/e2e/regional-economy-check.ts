@@ -18,7 +18,7 @@ export function checkRegionalEconomy(touch: boolean) {
     new Combat(e.state.combat, e, () => economyObstacles([])).update(.05);
     e.state.goods = []; e.state.combat.rewardGoods = [];
     e.state.inventory = { wood: 28, stone: 16, food: 0, iron: 2 };
-    const built = e.placeBuilding('warehouse', { x: mine.x - 6, z: mine.z }); expect(built.ok).toBe(true);
+    const built = e.placeBuilding('warehouse', { x: mine.x + 5, z: mine.z }); expect(built.ok).toBe(true);
     e.claim(); e.arrive(built.task!.id); e.advance(8);
     const site = e.state.sites[0];
     const node = RESOURCE_NODES.filter(n => n.kind === 'iron' && insidePolygon(n, mine.area))

@@ -15,11 +15,13 @@ import { RESOURCE_NAMES } from './economy.ts';
 import { createCropModel } from './crop-model.ts';
 import { createGroundGoodsModel, groundGoodsKind } from './ground-goods-model.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
-import { TREES, GRID_SIZE, LANDSCAPE, BUILDINGS } from './world-data.ts';
-import { attachTreeLOD, createReferenceTree, createTreeMaterials } from './tree.ts';
+import { TREES, GRID_SIZE, BUILDINGS } from './world-data.ts';
+import type { EnvironmentLibrary } from './environment-library.ts';
+import type { TreeSpecies } from './landscape-layout.ts';
+import { surfaceHeight } from './terrain-height.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
-import { ellipsoid, roundedBox, tintHeight } from './environment-shapes.ts';
+import { roundedBox } from './environment-shapes.ts';
 import { createLandscapeRock, createLandscapeRockMaterial } from './landscape-rock.ts';
 import type { CampfireView } from './campfire-view.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
@@ -30,10 +32,9 @@ import { createFarmModel, farmGridKey, farmNeighbourMask } from './farm-model.ts
 
 /** Mutable objects use Babylon instances. Removing one tree/crop leaves the
  * shared geometry, other instances and static scenery batches intact. */
-export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy, objects: Map<string, WorldObject>, doors: BuildingDoors, fires: CampfireView) {
+export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGenerator, economy: Economy, objects: Map<string, WorldObject>, doors: BuildingDoors, fires: CampfireView, environment: EnvironmentLibrary) {
   const templates = new Map<string, Mesh[]>();
   const instances = new Map<string, { state: string; meshes: AbstractMesh[] }>();
-  const treeMaterials = createTreeMaterials(scene);
   const rockMaterial = createLandscapeRockMaterial(scene);
   const carrot = new StandardMaterial('carrot-orange', scene);
   carrot.diffuseColor = Color3.FromHexString('#f28328'); carrot.specularColor = Color3.Black();
@@ -59,34 +60,22 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     });
     templates.set(name, sources); return sources;
   }
-  function treeTemplate(tone: number) {
-    const name = 'tree-' + tone, cached = templates.get(name);
-    if (cached) return cached;
-    const levels = (['near', 'medium', 'far'] as const).map(detail => template(detail === 'near' ? name : `${name}-${detail}`,
-      () => { createReferenceTree(scene, treeMaterials, 0, 0, 1, tone, detail); }));
-    for (const source of levels[0]) attachTreeLOD(source,
-      levels[1].find(mesh => mesh.material === source.material)!, levels[2].find(mesh => mesh.material === source.material)!);
-    return levels[0];
-  }
-  for (const [i, tree] of LANDSCAPE.sceneryTrees.entries()) for (const source of treeTemplate(tree.tone)) {
-    const mesh = source.createInstance(`forest-scenery-${i}`);
-    mesh.position.set(tree.x, .84, tree.z); mesh.scaling.setAll(tree.scale); mesh.rotation.y = tree.rotation;
-    mesh.isPickable = false; mesh.receiveShadows = true; mesh.freezeWorldMatrix();
-    shadows.addShadowCaster(mesh, false);
-  }
+  const treeTemplate = (species:TreeSpecies) => [environment.source(species)];
   function remove(id: string) {
     doors.remove(id); fires.remove(id);
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
     instances.delete(id); objects.delete(id);
   }
   function show(object: WorldObject, state: string, sources: () => Mesh[], scale = 1, rotation = 0, elevation = 0) {
+    const ground=surfaceHeight(object.x,object.z);
+    object.anchor.y+=ground;if(object.markerY!==undefined)object.markerY+=ground;
     object.labelAnchor=objects.get(object.id)?.labelAnchor;
     objects.set(object.id, object);
     if (instances.get(object.id)?.state === state) return;
     remove(object.id); objects.set(object.id, object);
     const meshes:AbstractMesh[] = sources().map(source => {
       const mesh = source.createInstance(object.id + '-' + source.name);
-      mesh.position.set(object.x, elevation, object.z); mesh.scaling.setAll(scale);
+      mesh.position.set(object.x, elevation+ground, object.z); mesh.scaling.setAll(scale);
       mesh.rotation.y = rotation;
       mesh.metadata = { worldObjectId: object.id }; mesh.isPickable = true; mesh.receiveShadows = true;
       // Flat soil/grass beds still receive shadows. Casting these shallow
@@ -126,28 +115,16 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       if (economy.state.depleted.includes(node.id)) { remove(node.id); continue; }
       if (node.kind === 'wood') {
         const tree = TREES[Number(node.id.slice(5))];
-        show({ id: node.id, kind: 'tree', name: '阔叶树', x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
+        show({ id: node.id, kind: 'tree', name: ({oak:'阔叶树',pine:'针叶树',sapling:'林缘小树',fruit:'果树',blossom:'花树'})[tree.species], x: tree.x, z: tree.z, radius: 1.5 * tree.scale,
           anchor: { x: tree.x, y: 2.9 * tree.scale, z: tree.z - .45 * tree.scale } }, 'tree',
-        () => treeTemplate(tree.tone), tree.scale, tree.rotation);
+        () => treeTemplate(tree.species), tree.scale, tree.rotation);
       } else if (node.kind === 'food') {
         show({ id: node.id, kind: 'rock', name: '林间果丛', x: node.x, z: node.z, radius: .9,
-          anchor: { x: node.x, y: 1.1, z: node.z } }, 'forage', () => template('forage', () => {
-          // Dense, rounded leafy shrub from the vegetation reference; a full
-          // volume of overlapping leaves, with fruit visible from game view.
-          const fruit = new StandardMaterial('wild-fruit', scene); fruit.diffuseColor = Color3.FromHexString('#b94b38'); fruit.specularColor = Color3.Black();
-          for (let ring = 0; ring < 3; ring++) for (let i = 0; i < 9 - ring * 2; i++) {
-            const a = i * Math.PI * 2 / (9 - ring * 2) + ring * .6, r = .50 - ring * .14;
-            const leaf = ellipsoid(scene, 'forage-leaf', [.46, .30, .62], [Math.cos(a) * r, .28 + ring * .27, Math.sin(a) * r], i % 3 ? p.leaf : p.leafLight, 8);
-            leaf.rotation.set(.25 + ring * .18, -a, .1); tintHeight(leaf, '#377338', '#b2ce61');
-          }
-          for (const [x, y, z] of [[-.48, .58, -.46], [.41, .72, -.38], [.18, .94, .1], [-.3, .8, .34]]) {
-            for (let i = 0; i < 3; i++) ellipsoid(scene, 'wild-fruit', [.15, .16, .15], [x + (i % 2) * .10, y + (i === 2 ? .1 : 0), z], fruit, 8);
-          }
-        }), node.scale, node.rotation);
+          anchor: { x: node.x, y: 1.1, z: node.z } }, 'forage', () => [environment.source('fruit')], node.scale*.46, node.rotation);
       } else show({ id: node.id, kind: 'rock', name: node.kind === 'iron' ? '铁矿' : '石材', x: node.x, z: node.z, radius: .75 * node.scale,
-        anchor: { x: node.x, y: .9, z: node.z } }, node.kind, () => template(node.kind, () => {
-        createLandscapeRock(scene, rockMaterial, node.kind === 'iron');
-      }), node.scale, node.rotation);
+        anchor: { x: node.x, y: .9, z: node.z } }, node.kind, () => node.kind==='stone' ? [environment.source('stone')] : template(node.kind, () => {
+        createLandscapeRock(scene, rockMaterial, true);
+      }), node.kind==='stone'?node.scale*.63:node.scale, node.rotation);
     }
     for (const id of instances.keys()) if (id.startsWith('plot-') && !economy.plot(id)) remove(id);
     const tilled = new Set(economy.state.plots.filter(plot => plot.tilled).map(farmGridKey));
@@ -180,7 +157,7 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       const state = built ? 'built' : task ? 'construction' : 'site';
       if (built && site.kind === 'campfire') {
         if (instances.get(site.id)?.state !== 'built') { remove(site.id); instances.set(site.id, { state: 'built', meshes: [] }); fires.add(site); }
-        objects.set(site.id, { id: site.id, x: site.x, z: site.z, kind: 'building', name: '火堆', radius: CAMPFIRE_SHAPE.radius, anchor: { x: site.x, y: 1.6, z: site.z } });
+        objects.set(site.id, { id: site.id, x: site.x, z: site.z, kind: 'building', name: '火堆', radius: CAMPFIRE_SHAPE.radius, anchor: { x: site.x, y: surfaceHeight(site.x,site.z)+1.6, z: site.z } });
         continue;
       }
       show({ ...site, kind: built ? 'building' : 'site', name: built ? BUILDING_TYPES[site.kind].name : `${BUILDING_TYPES[site.kind].name}用地`, radius: site.width / 2,

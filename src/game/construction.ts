@@ -1,6 +1,7 @@
+import { terrainHeight } from './terrain-height.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { isBlocked } from './movement.ts';
-import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE, WATER_OBSTACLE } from './world-data.ts';
+import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE, WATER_OBSTACLES } from './world-data.ts';
 import { economyObstacles } from './economy-config.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
@@ -38,7 +39,8 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   };
   // Placement reserves grid footprints, independently of built-model collision.
   const obstacles = economyObstacles(state.depleted, state.sites, []);
-  if (overlaps(WATER_OBSTACLE)) return '建筑占地不能进入水域';
+  if (LANDSCAPE.bridges.some(b=>overlaps({kind:'polygon',...b.area}))) return '桥面不能承载建筑地基';
+  if (WATER_OBSTACLES.some(overlaps)) return '建筑占地不能进入水域';
   if (obstacles.some(o => o.kind === 'polygon' && overlaps(o))) return '建筑占地超出可建设地面';
   if (obstacles.some(o => o.kind !== 'polygon' && overlaps(o))) return '此处有建筑或资源';
   // Farmland may share cell edges so players can extend an existing field.
@@ -46,6 +48,8 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   if (state.plots.some(p => Math.abs(site.x - p.x) < (site.width + GRID_SIZE) / 2 + fieldMargin
     && Math.abs(site.z - p.z) < (site.depth + GRID_SIZE) / 2 + fieldMargin)) return '此处已有耕地';
   if (state.goods.some(g => g.state === 'ground' && overlaps({ ...g, kind: 'circle', radius: .4 }))) return '请先搬走地面的资源';
+  const heights=[[-1,-1],[-1,1],[1,-1],[1,1],[0,0]].map(([x,z])=>terrainHeight(site.x+x*site.width/2,site.z+z*site.depth/2));
+  if(Math.max(...heights)-Math.min(...heights)>(site.kind==='farm'?.16:.35))return '此处坡度过大，地基需要较平坦的地面';
   if (occupants.some(overlaps)) return '请避开人物和动物';
   return '';
 }

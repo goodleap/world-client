@@ -3,7 +3,7 @@ import { initialEconomy } from '../../src/game/economy.ts';
 import { RESOURCE_NODES } from '../../src/game/economy-config.ts';
 import { openGame, snapshot, panTo, clickGround } from './helpers.ts';
 
-test('mobile forage actions remain compact and forest ground refuses construction', async ({ page }, info) => {
+test('mobile forage actions remain compact and resources prevent overlapping construction', async ({ page }, info) => {
   test.setTimeout(120_000);
   const state = initialEconomy(); state.steward.enabled = false;
   await page.addInitScript(s => localStorage.setItem('world-basic-economy-v1', JSON.stringify(s)), state);
@@ -15,8 +15,8 @@ test('mobile forage actions remain compact and forest ground refuses constructio
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
   await page.screenshot({ path: info.outputPath('forage-mobile.png') });
   await page.locator('#building-toggle').tap(); await page.locator('#build-farm').tap();
-  await clickGround(page, { x: bush.x, z: bush.z + 5 }, true);
-  expect((await snapshot(page)).placement.reason).toMatch(/平坦|水域|资源/);
+  await clickGround(page, bush, true);
+  expect((await snapshot(page)).placement.reason).toMatch(/资源/);
   expect((await snapshot(page)).economy.plots).toHaveLength(12);
   await page.screenshot({ path: info.outputPath('forest-no-build-mobile.png') });
   await page.locator('#cancel-building').tap();

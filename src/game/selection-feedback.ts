@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
@@ -78,7 +79,7 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
     const area = !!object?.width && !!object?.depth;
     fill.setEnabled(area); edges.forEach(e => e.setEnabled(area));
     if (area && object) {
-      const w = object.width!, d = object.depth!, y = object.markerY ?? .04;
+      const w = object.width!, d = object.depth!, y = object.markerY ?? surfaceHeight(object.x,object.z)+.04;
       fill.position.set(object.x, y + .015, object.z); fill.scaling.set(w, 1, d);
       edges.forEach((e, i) => {
         e.scaling.set(i < 2 ? w : .07, .025, i < 2 ? .07 : d);
@@ -90,7 +91,7 @@ export function createSelectionFeedback(scene: Scene, shadows: ShadowGenerator) 
   return { update,
     inspectEnemy(point?: Point, radius = .65) {
       enemyRing.setEnabled(!!point);
-      if (point) { enemyRing.position.set(point.x, .08, point.z); enemyRing.scaling.set(radius * 2, 1, radius * 2); }
+      if (point) { enemyRing.position.set(point.x, surfaceHeight(point.x,point.z)+.08, point.z); enemyRing.scaling.set(radius * 2, 1, radius * 2); }
     },
     snapshot: () => ({ color: SELECTION_COLOR, meshes: selected.size, area: fill.isEnabled(), technique: 'native-outline',
       enemy: { visible: enemyRing.isEnabled(), color: ENEMY_SELECTION_COLOR, x: enemyRing.position.x, z: enemyRing.position.z } }),

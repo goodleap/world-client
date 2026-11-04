@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import { DeathView } from './death-view.ts';
 import { prepareRenderTemplates } from './render-mesh-memory.ts';
 import { deathAge, DEATH_END } from './death.ts';
@@ -85,20 +86,20 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         if (actor.root.isEnabled() !== active) actor.root.setEnabled(active); actor.visible = false;
         if (!wolf || !active) {
           if (actor.label) actor.label.hidden = true;
-          if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, visualSeconds), wolf.facing, [actor.mesh], () => {});
+          if (wolf?.life === 'defeated') actor.death.sample(deathAge(wolf.diedAt, visualSeconds), wolf.facing, [actor.mesh], () => {},undefined,surfaceHeight(wolf.position.x,wolf.position.z));
           continue;
         }
         const before = previous.get(wolf.id);
         const display = before && wolf.life === 'active'
           ? sampleMotionPath(before, wolf.position, alpha, routeMotion(wolf.navigation)) : wolf.position;
         actor.root.position.x = display.x; actor.root.position.z = display.z;
-        if (wolf.life === 'active') actor.root.position.y = 0;
+        if (wolf.life === 'active') actor.root.position.y = surfaceHeight(display.x,display.z);
         if (wolf.life === 'defeated') {
           if (actor.label) actor.label.hidden = true;
           actor.death.sample(deathAge(wolf.diedAt, visualSeconds), wolf.facing, [actor.mesh], () => {
             for (const g of actor.clips.values()) g.stop();
             const rest = actor.clips.get('Idle')!; rest.start(false).pause(); rest.goToFrame(rest.from);
-          });
+          },undefined,surfaceHeight(wolf.position.x,wolf.position.z));
           actor.root.computeWorldMatrix(true); actor.mesh.computeWorldMatrix(true); actor.visible = actor.mesh.isInFrustum(planes);
           selectCharacterLOD(actor.mesh, camera); continue;
         }
@@ -128,7 +129,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight, viewport = camera.viewport.toGlobal(width, height);
       for (const actor of pool) {
         if (!actor.label || !actor.root.isEnabled() || actor.death.snapshot().phase !== 'alive') continue;
-        point.set(actor.root.position.x, 1.95, actor.root.position.z);
+        point.set(actor.root.position.x, actor.root.position.y+1.95, actor.root.position.z);
         Vector3.ProjectToRef(point, identity, scene.getTransformMatrix(), viewport, projected);
         const visible = actor.visible && (camera.orthoTop ?? 0) - (camera.orthoBottom ?? 0) < 50 && projected.z >= 0 && projected.z <= 1
           && projected.x >= 0 && projected.x <= width && projected.y >= 0 && projected.y <= height;

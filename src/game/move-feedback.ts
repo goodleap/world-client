@@ -1,3 +1,4 @@
+import { surfaceHeight } from './terrain-height.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
@@ -38,10 +39,10 @@ export function createMoveFeedback(scene: Scene, options: { name?: string; color
   root.setEnabled(false);
   return {
     show(point: Point) {
-      group.stop(); root.position.set(point.x, .06, point.z); root.scaling.setAll(1.45); material.alpha = .6;
+      group.stop(); root.position.set(point.x, surfaceHeight(point.x,point.z)+.06, point.z); root.scaling.setAll(1.45); material.alpha = .6;
       root.setEnabled(true); group.start(false, 1, 0, 48);
     },
-    follow(point: Point) { if (root.isEnabled()) root.position.set(point.x, .06, point.z); },
+    follow(point: Point) { if (root.isEnabled()) root.position.set(point.x, surfaceHeight(point.x,point.z)+.06, point.z); },
     hide() { group.stop(); root.setEnabled(false); },
     snapshot: () => ({ visible: root.isEnabled(), x: root.position.x, z: root.position.z }),
   };

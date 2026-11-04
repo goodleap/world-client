@@ -5,7 +5,8 @@ import { LANDSCAPE, WORLD_BOUNDS, GRID_SIZE, gridPoint } from '../src/game/world
 import { RESOURCE_NODES, economyObstacles, ECONOMY_CONFIG as E } from '../src/game/economy-config.ts';
 import { ENCOUNTERS } from '../src/game/combat-config.ts';
 import { Combat, fighterStats } from '../src/game/combat.ts';
-import { ENEMIES } from '../src/game/resident-data.ts';
+import { WILD_WOLF_SPAWNS } from '../src/game/raid-state.ts';
+import { ENEMIES, RESIDENTS } from '../src/game/resident-data.ts';
 import { findPath } from '../src/game/pathfinding.ts';
 import { isBlocked, sweepIsBlocked } from '../src/game/movement.ts';
 import { insidePolygon } from '../src/game/polygon.ts';
@@ -19,30 +20,31 @@ function clearCamp(e: Economy, id: string) {
   new Combat(e.state.combat, e, () => economyObstacles(e.state.depleted)).update(.05);
 }
 
-test('every clearing has a swept route for infantry and cavalry; most terrain stays inaccessible', () => {
+test('every clearing has a swept route for infantry and cavalry; authored woodland and water stay inaccessible', () => {
   const solids = economyObstacles([]), start = { x: -4, z: -4 };
-  for (const radius of [.4, 1.12]) for (const region of LANDSCAPE.regions) {
+  for (const radius of [.4, .6]) for (const region of LANDSCAPE.regions) {
     const route = findPath(start, region, radius, WORLD_BOUNDS, solids);
     assert.ok(route?.length, `${region.id} radius ${radius}`);
     let from = start;
     for (const to of route) { assert.equal(sweepIsBlocked(from, to, radius, solids), false); from = to; }
   }
-  for (const enemy of ENEMIES) assert.equal(isBlocked(enemy.spawn, enemy.bodyRadius, solids), false);
+  for (const actor of [...RESIDENTS,...ENEMIES]) assert.equal(isBlocked(actor.spawn, actor.bodyRadius, solids), false, actor.id);
+  for(const wolf of WILD_WOLF_SPAWNS)assert.equal(isBlocked(wolf,.4,solids),false);
   let solid = 0, sampled = 0;
   for (let x = WORLD_BOUNDS.minX + 1; x < WORLD_BOUNDS.maxX; x += 3) for (let z = WORLD_BOUNDS.minZ + 1; z < WORLD_BOUNDS.maxZ; z += 3) {
     sampled++; if (!LANDSCAPE.contains({ x, z })) solid++;
   }
-  assert.ok(solid / sampled > .6 && solid / sampled < .85);
-  assert.equal(findPath(start, { x: 0, z: 40 }, .4, WORLD_BOUNDS, solids), undefined);
+  assert.ok(solid / sampled > .45 && solid / sampled < .7);
+  assert.equal(findPath(start, { x: 0, z: 30 }, .4, WORLD_BOUNDS, solids), undefined);
 });
 
 test('passages and uncleared camps allow construction while physical wildland and guarded gathering remain restricted', () => {
   const e = new Economy(); e.setLeadership(false);
   e.state.inventory = { wood: 200, stone: 200, food: 0, iron: 0 };
-  assert.ok(e.placeBuilding('house', { x: -28, z: 8 }).ok);
-  assert.match(e.placeBuilding('house', { x: 0, z: 40 }).message, /地面/);
+  assert.ok(e.placeBuilding('house', { x: -28, z: 0 }).ok);
+  assert.match(e.placeBuilding('house', { x: 0, z: 30 }).message, /地面/);
   const mine = LANDSCAPE.regions.find(r => r.id === 'quarry')!;
-  const placed = e.placeBuilding('campfire', { x: mine.x - 6, z: mine.z });
+  const placed = e.placeBuilding('campfire', { x: mine.x + 5, z: mine.z });
   assert.ok(placed.ok, placed.message);
   clearCamp(e, 'quarry');
   assert.equal(e.regionLocked(mine), '');

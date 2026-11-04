@@ -1,3 +1,4 @@
+import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -54,8 +55,8 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     cursor = { x, y };
     if (!active || blocked() || document.elementFromPoint(x, y) !== ui.canvas) { hidePreview(); return; }
     const rect = ui.canvas.getBoundingClientRect(), ray = scene.createPickingRay(x - rect.left, y - rect.top, null, camera);
-    const distance = -ray.origin.y / ray.direction.y;
-    if (!Number.isFinite(distance) || distance <= 0) { hidePreview(); return; }
+    const distance = terrainRayDistance(ray);
+    if (distance === null) { hidePreview(); return; }
     const point = ray.origin.add(ray.direction.scale(distance));
     candidate = buildingAt(kind, point);
     reason = economy.buildingShortage(kind) || placementReason(candidate, economy.state, occupants());
@@ -63,7 +64,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     const color = Color3.FromHexString(reason ? '#ff826f' : warning ? '#f2c46d' : '#62e4ff');
     fillMaterial.emissiveColor.copyFrom(color); edgeMaterial.emissiveColor.copyFrom(color);
     const { width, depth } = candidate;
-    fill.scaling.set(width, 1, depth); fill.position.set(candidate.x, .14, candidate.z);
+    fill.scaling.set(width, 1, depth); fill.position.set(candidate.x, surfaceHeight(candidate.x,candidate.z)+.14, candidate.z);
     const type = BUILDING_TYPES[kind];
     let index = 0;
     for (const horizontal of [true, false]) {
@@ -72,14 +73,14 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
       for (const i of stops) {
         const edge = edges[index++], offset = (i / count - .5) * (horizontal ? depth : width), thickness = i === 0 || i === count ? .065 : .025;
         edge.scaling.set(horizontal ? width : thickness, .025, horizontal ? thickness : depth);
-        edge.position.set(candidate.x + (horizontal ? 0 : offset), .17, candidate.z + (horizontal ? offset : 0));
+        edge.position.set(candidate.x + (horizontal ? 0 : offset), surfaceHeight(candidate.x,candidate.z)+.17, candidate.z + (horizontal ? offset : 0));
         edge.setEnabled(true);
       }
     }
     for (; index < edges.length; index++) edges[index].setEnabled(false);
     fill.setEnabled(true);
     ui.setPlacement(true, `${type.name} · 点击或松手放置`);
-    if (reason || warning) ui.targetHint(reason || warning, { x: candidate.x, y: .2, z: candidate.z }, true);
+    if (reason || warning) ui.targetHint(reason || warning, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z }, true);
     else ui.clearTargetHint(true);
   }
   function place(x: number, y: number) {
@@ -89,11 +90,11 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (reason) return;
     const result = economy.placeBuilding(kind, candidate, occupants());
     if (result.ok) {
-      const at = { x: candidate.x, y: .2, z: candidate.z };
+      const at = { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z };
       cancel(); onPlaced(result.task!.target);
       if (result.warning) ui.targetHint(result.warning, at);
     }
-    else ui.targetHint(result.message, { x: candidate.x, y: .2, z: candidate.z });
+    else ui.targetHint(result.message, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z });
   }
   toggle.addEventListener('click', () => {
     if (blocked()) return;
