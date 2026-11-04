@@ -6,6 +6,9 @@ import { LANDSCAPE, GRID_SIZE } from '../src/game/world-data.ts';
 import { terrainHeight,surfaceHeight,terrainRayDistance } from '../src/game/terrain-height.ts';
 import { buildingAt, placementReason } from '../src/game/construction.ts';
 import { Economy } from '../src/game/economy.ts';
+import { ENEMIES, RESIDENTS, wanderSettings } from '../src/game/resident-data.ts';
+import { createWanderState } from '../src/game/wander.ts';
+import type { Obstacle } from '../src/game/movement.ts';
 
 test('home stays flat and picking rays meet elevated ground and bridge decks',()=>{
   for(const [x,z] of [[0,0],[-10,-10],[12,9]])assert.equal(terrainHeight(x,z),0);
@@ -29,4 +32,16 @@ test('bridge foundations and steep slopes are physical restrictions; flat highla
   const plateau=LANDSCAPE.regions.find(r=>r.id==='highland')!;
   assert.equal(placementReason(buildingAt('house',plateau),e.state),'');
   assert.match(placementReason(buildingAt('house',{x:plateau.x+16,z:plateau.z}),e.state),/坡度/);
+});
+
+test('restoring a developed map uses saved positions even when original spawns are occupied',()=>{
+  for(const definition of [RESIDENTS[0],ENEMIES[0]]){
+    const settings=wanderSettings(definition),solid:Obstacle={kind:'circle',...definition.spawn,radius:2};
+    assert.throws(()=>createWanderState(definition.spawn,settings,[solid],()=>.5),/walkable/);
+    const saved={x:definition.spawn.x+5,z:definition.spawn.z};
+    assert.deepEqual(createWanderState(definition.spawn,settings,[solid],()=>.5,saved).position,saved);
+    // Defeated actors can remain below a later building; they must not respawn
+    // or prevent loading. Their normal defeated-state presentation hides them.
+    assert.deepEqual(createWanderState(definition.spawn,settings,[solid],()=>.5,definition.spawn).position,definition.spawn);
+  }
 });

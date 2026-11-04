@@ -56,7 +56,8 @@ type ResourceProgress = (fraction: number) => void;
 
 export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerator, ui: GameUI,
   worldObstacles: (avoidFields?: boolean) => readonly Obstacle[] = () => RESIDENT_OBSTACLES, vitals: Vitals = {},
-  definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES], elevation:(id:string)=>number=()=>0) {
+  definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES], elevation:(id:string)=>number=()=>0,
+  restored:(id:string)=>Point|undefined=()=>undefined) {
   const resting = new Set<string>();
   const obstaclesFor = (role: string) => worldObstacles(role !== 'farmer');
   const placeholderRoles = new Set<string>();
@@ -72,7 +73,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
   const createActor = (definition:ResidentDefinition, index:number) => {
     const random = seededRandom(seed + (index + 1) * 1337);
     const settings = wanderSettings(definition);
-    const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random);
+    const state = createWanderState(definition.spawn, settings, obstaclesFor(definition.role), random,restored(definition.id));
     const human = definition.role === 'dog' ? undefined : createCharacter(scene, p, shadows, {
       id: definition.id, role: definition.role, marker: false, modelOnly:true, phase: index * 1.2, mounted: definition.role === 'cavalry',
     });

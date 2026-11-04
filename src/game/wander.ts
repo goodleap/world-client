@@ -29,12 +29,15 @@ export function segmentIsClear(from: Point, to: Point, radius: number, bounds: B
   return inBounds(from, radius, bounds) && inBounds(to, radius, bounds) && !sweepIsBlocked(from, to, radius, obstacles);
 }
 
-export function createWanderState(spawn: Point, settings: WanderSettings, obstacles: readonly Obstacle[], random: () => number): WanderState {
-  if (!inBounds(spawn, settings.bodyRadius, settings.bounds) || isBlocked(spawn, settings.bodyRadius, obstacles)) {
+export function createWanderState(spawn: Point, settings: WanderSettings, obstacles: readonly Obstacle[], random: () => number, restored?: Point): WanderState {
+  // A saved actor already has a position. Its original spawn may now contain
+  // a farm/building; corpses and tower occupants may also overlap current solids.
+  const position=restored??spawn;
+  if (!inBounds(position, settings.bodyRadius, settings.bounds) || !restored&&isBlocked(position, settings.bodyRadius, obstacles)) {
     throw new Error('Resident spawn must be on walkable land.');
   }
   return {
-    position: { x: spawn.x, z: spawn.z }, pause: 0.3 + random() * 1.1, blockedFor: 0,
+    position: { x: position.x, z: position.z }, pause: 0.3 + random() * 1.1, blockedFor: 0,
     walkingFor: 0, distanceTravelled: 0, destinationsReached: 0,
   };
 }

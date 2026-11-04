@@ -134,7 +134,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       }
       return world;
     });
-    residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions(),id=>towerHeight(economy.state,id));
+    residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions(),id=>towerHeight(economy.state,id),
+      id=>economy.state.combat.units.find(u=>u.id===id)?.position??economy.state.residents[id]?.position);
 
     await residents.loadFarmerModel();
 

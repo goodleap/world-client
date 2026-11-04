@@ -27,7 +27,7 @@ export function landscapeTexture(name: string, scene: Scene): Texture | undefine
   let failed = false;
   const texture = new Texture(compressed ? asset(`terrain/${name}.ktx2?v=${manifest.paintKey}`) : png, scene, {
     noMipmap: false, invertY: true, samplingMode: Texture.TRILINEAR_SAMPLINGMODE,
-    onError: () => { if (compressed && !failed) { failed = true; texture.updateURL(png); } },
+    onError: () => { if (!scene.isDisposed && compressed && !failed) { failed = true; texture.updateURL(png); } },
   });
   texture.name = name;
   return texture;
