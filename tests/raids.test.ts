@@ -212,3 +212,36 @@ test('fourth-wave cavalry replaces one raider and restores its route, level and 
   const saved=decodeEconomy(encodeEconomy(e)).state.combat.units.find(u=>u.id===rider.id)!;
   assert.equal(saved.role,'cavalry');assert.equal(saved.experience,250);assert.equal(saved.hp,121);assert.deepEqual(saved.route,rider.route);
 });
+
+test('soldier waves double up to twelve, with separate positions and saved double-digit IDs', () => {
+  const solids = economyObstacles([], [], []);
+  const { e, c, r } = setup(new Economy(initialEconomy(184)), solids);
+  e.state.upgrades.arms = 3; e.state.raids.wave = 3; e.state.raids.nextAt = 60; e.state.seconds = 52;
+  r.update(.05);
+  assert.equal(r.state.pendingCount, 12);
+  assert.doesNotThrow(() => decodeEconomy(encodeEconomy(e)));
+  e.state.seconds = 60; r.update(.05);
+  const units = r.state.soldiers.map(id => c.unit(id)!);
+  assert.equal(units.length, 12); assert(units.some(u => u.id.endsWith('-11')));
+  assert(units.every(u => !isBlocked(u.position, .6, solids)));
+  for (const [i, u] of units.entries()) for (const v of units.slice(i + 1)) {
+    assert(Math.hypot(u.position.x - v.position.x, u.position.z - v.position.z) >= 1.2);
+  }
+  assert.deepEqual(decodeEconomy(encodeEconomy(e)).state.raids.soldiers, r.state.soldiers);
+});
+
+test('a provoked raider still withdraws when the wave expires', () => {
+  const { e, c, r } = setup();
+  e.state.raids.wave = 1; e.state.seconds = 52; r.update(.05);
+  e.state.seconds = r.state.nextAt; r.update(.05);
+  const u = c.unit(r.state.soldiers[0])!;
+  u.position = { x: u.home.x + 8, z: u.home.z };
+  u.provoked = { from: { ...u.position }, leash: 20 }; u.target = 'archer';
+  u.attackApproach = { x: u.position.x + 4, z: u.position.z };
+  u.route = [u.attackApproach, { x: u.position.x + 8, z: u.position.z }];
+  const before = Math.hypot(u.position.x - u.home.x, u.position.z - u.home.z);
+  e.state.seconds = r.state.startedAt + RAID_CONFIG.duration;
+  for (let i = 0; i < 20; i++) { r.update(.05); c.update(.05); }
+  assert.equal(u.order, 'retreat'); assert.equal(u.provoked, undefined); assert.equal(u.attackApproach, undefined);
+  assert(Math.hypot(u.position.x - u.home.x, u.position.z - u.home.z) < before - 1);
+});

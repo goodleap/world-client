@@ -1,3 +1,4 @@
+import { RAID_CONFIG } from './raid-state.ts';
 import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
 import { assignedTower, occupiedTower, towerHeight, towerExit, releaseTower, damageTower, TOWER_CONFIG } from './towers.ts';
 import type { Point, Obstacle } from './movement.ts';
@@ -29,6 +30,8 @@ export interface Fighter {
   diedAt?: number; departed?:boolean; deathElevation?:number; deathTower?:string;
   facing: number; speed: number; cooldown: number; defendFrom?: Point; hurtAt?: number;
   pursuitQuiet?: number;
+  provoked?: { from: Point; leash: number };
+  attackApproach?: Point;
   attack?: { id: number; target: string; elapsed: number; released: boolean };
   route: Point[]; navigation: RouteState; planIn: number;
 }
@@ -48,6 +51,8 @@ export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0] & { 
     attack: Math.round(base.attack * (1 + rank * .1) * 10) / 10 + equipment * 3,
     armor: base.armor + rank + equipment };
 }
+// The route's final target anchor is shared with guidance; reserve the reachable firing/contact point.
+export const fighterDestination = (u: Fighter | undefined) => u?.attackApproach ?? u?.route.at(-1);
 export const fighterRadius = (u: Pick<Fighter, 'role'>) => BODY_RADIUS[u.role];
 // Keep the established melee reach/approach spacing, independently of ground discs.
 export const fighterContactRadius = (u: Pick<Fighter, 'role'>) => u.role === 'cavalry' ? 1.12 : fighterRadius(u);
@@ -156,9 +161,9 @@ export class Combat {
   }
 
   private reservations(u: Fighter) {
-    return this.neighbours(u).map(n => ({ ...n, destination: this.unit(n.id)?.route.at(-1) ?? (n as {destination?:Point}).destination }));
+    return this.neighbours(u).map(n => ({ ...n, destination: fighterDestination(this.unit(n.id)) ?? (n as {destination?:Point}).destination }));
   }
-  private stop(u: Fighter) { u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
+  private stop(u: Fighter) { u.attackApproach = undefined; u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
   movementInput(id:string,goal:Point){
     const u=this.controllable([id])[0];if(!u)return;
     const tower=occupiedTower(this.economy.state,u.id);
@@ -196,7 +201,7 @@ export class Combat {
       u.attack = undefined; u.target = undefined; u.order = rest ? 'rest' : retreat ? 'retreat' : 'move';
       if (!rest) this.manual(u.id,preserveTower);
       const destination = path.at(-1) ?? goal;
-      u.goal = { x: destination.x, z: destination.z }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
+      u.attackApproach = undefined; u.goal = { x: destination.x, z: destination.z }; u.route = path; u.planIn = 0; resetRouteState(u.navigation); accepted++;
     }
     return accepted;
   }
@@ -219,6 +224,11 @@ export class Combat {
   }
   guard(ids: readonly string[]) {
     for (const u of this.controllable(ids)) { this.manual(u.id); u.order = 'guard'; u.goal = undefined; u.target = undefined; u.attack = undefined; this.stop(u); }
+  }
+  private retaliationTarget(u: Fighter, source: CombatTarget): CombatTarget | undefined {
+    if (this.canTarget(u, source)) return source;
+    const tower = occupiedTower(this.economy.state, source.id);
+    return tower ? this.target(tower.id) : undefined;
   }
   private damage(victim: CombatTarget, amount: number, sourceId: string, ignoreArmor = false) {
     const source = this.target(sourceId);
@@ -255,30 +265,38 @@ export class Combat {
     this.awardDamage(sourceId, victim.hp - target.hp);
     target.hurtAt = this.economy.state.seconds;
     if (target.role === 'wolf') {
-      const source = this.unit(sourceId);
-      if (source?.team === 'home' && !target.target && distance(target.position, source.position) <= C.acquire + 3) target.target = source.id;
-      if (!target.hp) { target.life = 'defeated'; target.diedAt = this.economy.state.seconds; target.attack = undefined; target.target = undefined; this.stop(target); }
+      const aggressor = source && this.retaliationTarget(target, source), current = target.target && this.target(target.target);
+      if (aggressor?.team === 'home' && aggressor.life === 'active' && target.hp < victim.hp
+        && (!current || current.life !== 'active' || !current.canAttack || !this.canTarget(target, current))) {
+        target.target = aggressor.id;
+        target.provoked ??= { from: { ...target.position }, leash: Math.max(RAID_CONFIG.chase, distance(target.position, aggressor.position)) + C.campPursuit.buffer };
+        this.stop(target); target.planIn = 0;
+      }
+      if (!target.hp) { target.life = 'defeated'; target.provoked = undefined; target.diedAt = this.economy.state.seconds; target.attack = undefined; target.target = undefined; this.stop(target); }
       return;
     }
     this.economy.state.vitals[target.id].hurtUntil = this.economy.state.seconds + 3;
     if (target.hp) {
-      const source = this.target(sourceId), current = target.target && this.target(target.target);
-      // Both sides retaliate, keeping an existing valid opponent stable.
-      // Player movement wins; automatic meals/supply yield to combat.
-      if (source?.life === 'active' && source.team !== target.team && !['move', 'retreat'].includes(target.order)
-        && !(target.order === 'hold' && target.goal) && (!current || current.life !== 'active')
-        && distance(target.position, source.position) <= C.chase
-        && (target.team === 'home' || distance(source.position, this.camp(target)) <= this.camp(target).leash)) {
+      const aggressor = source && this.retaliationTarget(target, source), current = target.target && this.target(target.target);
+      // Damage is its own trigger. Home movement keeps player authority; enemy
+      // automatic approaches/returns can respond even outside passive alert.
+      const commanded = target.team === 'home' && (['move', 'retreat'].includes(target.order) || target.order === 'hold' && !!target.goal);
+      if (target.hp < victim.hp && aggressor?.life === 'active' && hostile(target, aggressor) && !commanded
+        && !(target.team === 'enemy' && target.order === 'retreat')
+        && (!current || current.life !== 'active' || !current.canAttack || !this.canTarget(target, current))) {
         this.economy.interrupt(target.position, target.id);
         this.economy.state.vitals[target.id].rest = undefined;
-        target.defendFrom ??= target.team === 'home' ? { ...target.position } : { ...this.camp(target) };
-        target.order = 'guard'; target.target = source.id; target.goal = undefined; this.stop(target);
+        if (target.team === 'enemy') target.provoked ??= { from: { ...target.position },
+          leash: Math.max(C.chase, distance(target.position, aggressor.position)) + C.campPursuit.buffer };
+        target.defendFrom ??= { ...target.position };
+        target.order = 'guard'; target.target = aggressor.id; target.goal = undefined;
+        this.stop(target); target.planIn = 0;
       }
       return;
     }
     this.economy.interrupt(target.position, target.id);
     this.economy.state.vitals[target.id].rest = undefined;
-    this.stop(target); target.attack = undefined; target.target = undefined; target.goal = undefined;
+    this.stop(target); target.provoked = undefined; target.attack = undefined; target.target = undefined; target.goal = undefined;
     target.life = 'defeated'; target.diedAt = this.economy.state.seconds;
     const tower=occupiedTower(this.economy.state,target.id);
     if(tower){target.deathElevation=TOWER_CONFIG.height;target.deathTower=tower.id;}
@@ -290,13 +308,18 @@ export class Combat {
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
   }
   private travel(u: Fighter, dt: number, speed: number) {
+    // One route includes the target anchor, but its occupied feet are not a
+    // walking destination. Replan/yield along the same reachable prefix, then
+    // restore the anchor before rendering. Range/LOS can stop movement earlier.
+    const anchor = u.attackApproach ? u.route.pop() : undefined;
     const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.neighbours(u));
+    if (anchor) u.route.push(anchor);
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
   }
   private plan(u: Fighter, points: Point[]) {
-    u.planIn = .8;
+    u.planIn = .8; u.attackApproach = undefined;
     u.route = planWorkApproach(u.position, points, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.reservations(u)) ?? [];
   }
   private sampleMotion(dt: number) {
@@ -309,7 +332,7 @@ export class Combat {
         velocity = { x: (target.position.x - previous.position.x) / this.motionStep, z: (target.position.z - previous.position.z) / this.motionStep };
         // Repositioning/teleports are not a useful motion estimate.
         if (Math.hypot(velocity.x, velocity.z) > speed + .1) velocity = { x: 0, z: 0 };
-      } else if (unit?.route.length && !unit.attack && !unit.navigation.waiting) {
+      } else if (unit && unit.route.length > (unit.attackApproach ? 1 : 0) && !unit.attack && !unit.navigation.waiting) {
         const goal = unit.route[0], length = distance(unit.position, goal);
         if (length > 1e-6) velocity = { x: (goal.x - unit.position.x) * speed / length, z: (goal.z - unit.position.z) * speed / length };
       }
@@ -319,7 +342,8 @@ export class Combat {
   }
   private targetMotion(target: CombatTarget) {
     const velocity = this.motion.get(target.id)?.velocity ?? { x: 0, z: 0 };
-    const unit = this.unit(target.id), end = unit?.route.length === 1 ? unit.route[0] : undefined;
+    const unit = this.unit(target.id);
+    const end = unit && unit.route.length === (unit.attackApproach ? 2 : 1) ? fighterDestination(unit) : undefined;
     const speed = Math.hypot(velocity.x, velocity.z), length = end ? distance(target.position, end) : 0;
     const stop = end && length > 1e-6 && speed > .01
       && ((end.x - target.position.x) * velocity.x + (end.z - target.position.z) * velocity.z) / (length * speed) > .995 ? end : undefined;
@@ -351,14 +375,24 @@ export class Combat {
     // crowds or solids obstruct it, and retain the shared swept collision check.
     const obstacles=[...this.solids(),...neighbours.map(n=>bodyObstacle(n.position,n.radius))];
     const directClear=segmentIsClear(u.position,direct,fighterRadius(u),WORLD_BOUNDS,obstacles);
+    if (u.attackApproach && !this.visible(u.attackApproach, target.position, u.id, target.id)) u.planIn = 0;
     if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours) && directClear) {
-      u.route = [direct];
+      u.attackApproach = direct;
+      u.route = [direct, { x: target.position.x, z: target.position.z }];
     } else if (u.planIn <= 0) {
       const points = Array.from({ length: 12 }, (_, i) => ({ x: target.position.x + Math.cos(i * Math.PI / 6) * radius,
         z: target.position.z + Math.sin(i * Math.PI / 6) * radius }))
         .filter(p => this.visible(p, target.position, u.id, target.id));
       this.plan(u, points);
+      if (u.route.length) {
+        u.attackApproach = { ...u.route.at(-1)! };
+        u.route.push({ x: target.position.x, z: target.position.z });
+      }
+    } else if (u.attackApproach && u.route.length) {
+      u.route[u.route.length - 1] = { x: target.position.x, z: target.position.z };
     }
+    // The normal strike test stops us early on this shared route; its target
+    // anchor also works when the feet are on a tower or across a river.
     this.travel(u, dt, stats.speed);
   }
   update(seconds: number) {
@@ -387,22 +421,26 @@ export class Combat {
       const stationary=!!occupiedTower(this.economy.state,u.id);
       const returning = u.order === 'hold' && !!u.goal;
       let target = u.target ? this.target(u.target) : undefined;
-      if(target&&(!this.canTarget(u,target)||stationary&&(distance(u.position,target.position)>TOWER_CONFIG.range||!this.visible(u.position,target.position,u.id,target.id)))){target=undefined;u.target=undefined;u.attack=undefined;}
-      if(stationary){u.route=[];u.goal=undefined;}
+      if (u.target && (!target || target.life !== 'active')) { target = undefined; u.target = undefined; this.stop(u); }
+      if(target&&(!this.canTarget(u,target)||stationary&&(distance(u.position,target.position)>TOWER_CONFIG.range||!this.visible(u.position,target.position,u.id,target.id)))){target=undefined;u.target=undefined;u.attack=undefined;this.stop(u);}
+      if(stationary){u.route=[];u.attackApproach=undefined;u.goal=undefined;}
       const explicit = u.order === 'attack' && target?.life === 'active';
-      const anchor = u.team === 'enemy' ? this.camp(u) : u.defendFrom ?? u.position;
-      const leash = u.team === 'enemy' ? Math.max(C.chase, this.camp(u).leash) : C.chase;
+      const anchor = u.team === 'enemy' ? u.provoked?.from ?? this.camp(u) : u.defendFrom ?? u.position;
+      const leash = u.team === 'enemy' ? u.provoked?.leash ?? Math.max(C.chase, this.camp(u).leash) : C.chase;
       const campGuard = u.team === 'enemy' && enemyDefinitions.has(u.id);
       const opponent = target?.life === 'active' ? target : undefined;
+      if (u.provoked && !opponent && !u.attack && !returning && u.order !== 'retreat') {
+        u.goal = { ...u.home }; u.order = 'hold'; u.target = undefined; this.stop(u); continue;
+      }
       const outside = distance(u.position, anchor) > leash || !!opponent
-        && (distance(opponent.position, anchor) > leash || distance(u.position, opponent.position) > C.chase);
+        && (distance(opponent.position, anchor) > leash || distance(u.position, opponent.position) > (u.provoked?.leash ?? C.chase));
       let disengage = !campGuard && !!target && outside;
       if (campGuard && !explicit && !returning) {
         const close = opponent && distance(u.position, opponent.position) <= Math.max(C.campPursuit.closeRange, this.reach(u, opponent))
           && this.visible(u.position, opponent.position, u.id, opponent.id);
         u.pursuitQuiet = outside && !close ? Math.min(C.campPursuit.quietSeconds, (u.pursuitQuiet ?? 0) + dt) : 0;
-        disengage = distance(u.position, anchor) > leash + C.campPursuit.buffer
-          || !!opponent && distance(opponent.position, anchor) > leash + C.campPursuit.buffer
+        disengage = distance(u.position, anchor) > leash + (u.provoked ? 0 : C.campPursuit.buffer)
+          || !!opponent && distance(opponent.position, anchor) > leash + (u.provoked ? 0 : C.campPursuit.buffer)
           || outside && u.pursuitQuiet >= C.campPursuit.quietSeconds - 1e-8;
       }
       if (!explicit && !returning && disengage) {
@@ -443,7 +481,7 @@ export class Combat {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal]);
           this.travel(u, dt, stats.speed);
-        } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) { u.defendFrom = undefined; u.target = undefined; u.pursuitQuiet = undefined; } }
+        } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) { u.defendFrom = undefined; u.target = undefined; u.pursuitQuiet = undefined; u.provoked = undefined; } }
         continue;
       }
       if (!target && this.economy.state.vitals[u.id]?.rest) continue;
@@ -498,6 +536,12 @@ export class Combat {
         this.pursue(u, target, dt);
       }
     }
+    // Later units in the simulation order may have moved since pursuit was
+    // planned. Keep the shared terminal anchor at this step's target position.
+    for (const u of this.state.units) if (u.attackApproach && u.route.length && u.target) {
+      const target = this.target(u.target);
+      if (target?.life === 'active') u.route[u.route.length - 1] = { x: target.position.x, z: target.position.z };
+    }
     for (const camp of this.state.camps) {
       const config = ENCOUNTERS.find(c => c.id === camp.id)!;
       const units = this.state.units.filter(u => u.team === 'enemy' && this.camp(u).id === camp.id);
@@ -529,7 +573,7 @@ export class Combat {
  * resetting cooldowns, or minting another outpost reward. */
 export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly {id:string}[]=[]): CombatState {
   const raiders=(Array.isArray(raw?.units)?raw.units:[]).filter(u=>u.id?.startsWith('enemy-raid-'));
-  if(raiders.length>6||raiders.some(u=>!/^enemy-raid-(infantry|archer|cavalry)-[1-9]\d*-[0-5]$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
+  if(raiders.length>RAID_CONFIG.maxSoldiers||raiders.some(u=>!/^enemy-raid-(infantry|archer|cavalry)-[1-9]\d*-(?:[0-9]|1[01])$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
   const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer'|'cavalry',u.id,u.home))]);
   const opponents = [...initial.units, ...threats, ...(Array.isArray(towers)?towers:[]).map(t=>({id:t.id,team:'home' as const})), ...residents.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
@@ -553,6 +597,8 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
       || u.deathElevation!==undefined&&(!num(u.deathElevation,6)||u.life!=='defeated'||u.role!=='archer')
       || u.deathTower!==undefined&&!towers.some(t=>t.id===u.deathTower)
       || u.diedAt !== undefined && (!num(u.diedAt, 1e12) || u.life !== 'defeated')
+      || u.attackApproach && !point(u.attackApproach)
+      || u.provoked && (u.team !== 'enemy' || !point(u.provoked.from) || !num(u.provoked.leash, 400))
       || u.defendFrom && !point(u.defendFrom) || u.hurtAt !== undefined && !num(u.hurtAt, 1e12)
       || u.pursuitQuiet !== undefined && (!enemyDefinitions.has(u.id) || !num(u.pursuitQuiet, C.campPursuit.quietSeconds))
       || u.target && !opponents.some(t => t.id === u.target && t.team !== u.team)

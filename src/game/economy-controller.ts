@@ -17,17 +17,18 @@ type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 export function createEconomyController(economy: Economy, world: World, residents: Residents, automatic = true, onDispatch: (worker: string, task: WorkTask) => void = () => {}, onStorageUse: (from?: Point) => void = () => {}, canTakeWork: (id: string, task?: WorkTask) => boolean = () => true, unsafePath?:(points:readonly Point[])=>boolean, workObstacles:()=>readonly Obstacle[]=()=>[], isEvading:(id:string)=>boolean=()=>false) {
   const steward = createSteward(economy,p=>!unsafePath?.([p]));
   let safetyAt=0;
-  function safeTask(task:WorkTask,from:Point,path:Point[]){
+  function safeTask(task:WorkTask,from:Point,path:Point[], hold = true){
+    const pause = () => { if (hold) economy.holdDanger(task,from); return false; };
     if(task.origin==='manual'||!unsafePath)return true;
     const zones=workObstacles(),target=economy.taskPoint(task),end=path.at(-1)??from;
     const solids=economyObstacles(economy.state.depleted,economy.state.sites,economy.state.buildings);
     task.watchPath=[{x:from.x,z:from.z},...path].map(p=>({x:p.x,z:p.z}));
     if(target&&unsafePath([target])) {
-      task.watchPath=[{x:target.x,z:target.z}];economy.holdDanger(task,from);return false;
+      task.watchPath=[{x:target.x,z:target.z}];return pause();
     }
     if(unsafePath(task.watchPath)) {
       const detour=zones.length?findPath(from,end,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
-      if(!detour||unsafePath([from,...detour])){economy.holdDanger(task,from);return false;}
+      if(!detour||unsafePath([from,...detour])){return pause();}
       path.splice(0,path.length,...detour);
     }
     const doors=economy.warehouseDoors().sort((a,b)=>Math.hypot(a.x-end.x,a.z-end.z)-Math.hypot(b.x-end.x,b.z-end.z));
@@ -41,9 +42,10 @@ export function createEconomyController(economy: Economy, world: World, resident
       if(detour&&!unsafePath([end,...detour])){back=detour;break;}
     }
     task.watchPath=[{x:from.x,z:from.z},...path,...back??blockedBack??[]].map(p=>({x:p.x,z:p.z}));
-    if(task.danger||unsafePath(task.watchPath)){economy.holdDanger(task,from);return false;}
+    if(task.danger||unsafePath(task.watchPath)){return pause();}
     return true;
   }
+  const rejectedUntil = new Map<string, number>();
   const approachRetry = new Map<string, number>();
   function storageChange(action: () => void, from?: Point) {
     const before = { ...economy.state.inventory }; action();
@@ -164,16 +166,35 @@ export function createEconomyController(economy: Economy, world: World, resident
       if (residents.hasMoveCommand(id) && !isEvading(id)) continue;
       const eligible=(task:WorkTask)=>canTakeWork(id,task);
       let requested = false;
+      let prepared: { target: string; place: NonNullable<ReturnType<typeof destination>>; path: Point[]; watchPath?: Point[] } | undefined;
       if (!economy.active(id)) for (let attempts = 0; attempts <= ECONOMY_CONFIG.queueLimit; attempts++) {
         let task = economy.claim(id, residents.farmerPosition(id),eligible);
         if (!task && canDispatch && !requested && canTakeWork(id)) {
           requested = true;
-          if (steward.requestWork(residents.farmerPosition(id))) task = economy.claim(id, residents.farmerPosition(id),eligible);
+          const from = residents.farmerPosition(id);
+          let searches = 0;
+          const created = steward.requestWork(from, job => {
+            const key = `${id}:${job.kind}:${job.target}`;
+            if ((rejectedUntil.get(key) ?? 0) > economy.state.seconds || searches >= 8) return false;
+            searches++;
+            const probe: WorkTask = { ...job, id: -1, origin: 'steward', status: 'waiting', progress: 0, reserved: false, reason: '', retryAt: 0 };
+            const place = destination(probe, from), path = place && residents.planFarmerWork(place.points, id);
+            if (!place || !path || !safeTask(probe, from, path, false)) {
+              rejectedUntil.set(key, economy.state.seconds + 2);
+              if (rejectedUntil.size > 512) rejectedUntil.delete(rejectedUntil.keys().next().value!);
+              return false;
+            }
+            prepared = { target: job.target, place, path, watchPath: probe.watchPath };
+            rejectedUntil.delete(key); return true;
+          });
+          if (created) task = economy.claim(id, from, eligible);
         }
         if (!task) break;
-        const place = destination(task, residents.farmerPosition(id));
-        const path = place && residents.planFarmerWork(place.points, id);
-        if (place && path) { if(!safeTask(task,residents.farmerPosition(id),path))continue; residents.startFarmerWork(task.id, path, place.target, id); if (economy.state.steward.enabled && task.origin === 'steward') onDispatch(id, task); break; }
+        const cached = prepared?.target === task.target ? prepared : undefined;
+        const place = cached?.place ?? destination(task, residents.farmerPosition(id));
+        const path = cached?.path ?? (place && residents.planFarmerWork(place.points, id));
+        if (cached) task.watchPath = cached.watchPath;
+        if (place && path) { if(!cached&&!safeTask(task,residents.farmerPosition(id),path))continue; residents.startFarmerWork(task.id, path, place.target, id); if (economy.state.steward.enabled && task.origin === 'steward') onDispatch(id, task); break; }
         economy.defer(task.id, '暂时无法到达，稍后重试');
       }
     }

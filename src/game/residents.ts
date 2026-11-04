@@ -9,7 +9,7 @@ import { deathAge } from './death.ts';
 import { nextPaint } from '../launcher.ts';
 import type { Neighbour } from './route-following.ts';
 import type { Fighter } from './combat.ts';
-import { fighterStats } from './combat.ts';
+import { fighterStats, fighterDestination } from './combat.ts';
 import type { Vitals } from './vitals.ts';
 import type { ResidentDefinition } from './resident-data.ts';
 import type { SavedResident } from './economy.ts';
@@ -185,7 +185,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     return result;
   };
   const workNeighbours = (actor: typeof actors[number]) => [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({
-    position: other.state.position, radius: groundRadius(other), destination: combatPoses.get(other.definition.id)?.route.at(-1) ?? other.route.at(-1),
+    position: other.state.position, radius: groundRadius(other), destination: fighterDestination(combatPoses.get(other.definition.id)) ?? other.route.at(-1),
   }))];
   const advanceRoute = (actor: typeof actors[number], seconds: number) => {
     const result = navigate(actor, actor.route, actor.navigation, seconds, destinationSpeed(actor));

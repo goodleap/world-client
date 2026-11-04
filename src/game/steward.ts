@@ -1,4 +1,5 @@
-import { Economy, pending } from './economy.ts';
+import { pathInDanger } from './danger-zones.ts';
+import { Economy, queued } from './economy.ts';
 import type { CropKind, Resource, WorkKind } from './economy.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES } from './economy-config.ts';
 import { GRID_SIZE, HOME } from './world-data.ts';
@@ -8,18 +9,19 @@ export const inStewardRange = (point: Point) => Math.hypot(point.x - HOME.x, poi
 
 /** Each quantity is counted at exactly one location in its production pipeline. */
 export function expectedSupply(e: Economy, resource: Resource) {
-  let amount = e.available()[resource] + e.state.goods.filter(g => g.resource === resource && !g.destination).reduce((n, g) => n + g.amount, 0);
+  const safe = (point: Point) => !pathInDanger(e.state.dangerZones, [point]);
+  let amount = e.available()[resource] + e.state.goods.filter(g => g.resource === resource && !g.destination && safe(g)).reduce((n, g) => n + g.amount, 0);
   if (resource === 'food') {
-    for (const plot of e.state.plots) if (plot.crop) amount += C.crops[plot.crop].yield;
-    for (const t of e.state.tasks) if (pending(t) && t.kind === 'sow' && t.crop) amount += C.crops[t.crop].yield;
-  } else for (const t of e.state.tasks) if (pending(t) && t.kind === (resource === 'wood' ? 'chop' : 'mine')) {
+    for (const plot of e.state.plots) if (plot.crop && safe(plot)) amount += C.crops[plot.crop].yield;
+    for (const t of e.state.tasks) if (queued(t) && t.kind === 'sow' && t.crop) amount += C.crops[t.crop].yield;
+  } else for (const t of e.state.tasks) if (queued(t) && t.kind === (resource === 'wood' ? 'chop' : 'mine')) {
     amount += (RESOURCE_NODES.find(n => n.id === t.target && n.kind === resource)?.yield ?? 0);
   }
   return amount;
 }
 export function chooseCrop(e: Economy): CropKind {
   const committed = (kind: CropKind) => e.state.plots.filter(p => p.crop === kind).length
-    + e.state.tasks.filter(t => pending(t) && t.kind === 'sow' && t.crop === kind).length
+    + e.state.tasks.filter(t => queued(t) && t.kind === 'sow' && t.crop === kind).length
     + e.state.goods.filter(g => g.crop === kind).length;
   // Short-cycle vegetables bridge a low pantry; otherwise alternate supply
   // with slower, more productive wheat, including already committed harvests.
@@ -30,7 +32,7 @@ export function createSteward(economy: Economy, safe:(point:Point)=>boolean=()=>
   return {
     /** Called only after one idle farmer has exhausted existing runnable jobs.
      * Consider alternatives, but commit exactly one order for that vacancy. */
-    requestWork(position: Point = HOME) {
+    requestWork(position: Point = HOME, canReach: (job: {kind:WorkKind;target:string;crop?:CropKind}) => boolean = () => true) {
       if (!economy.state.steward.enabled) return;
       const capacity = economy.capacity();
       const candidates: { kind: WorkKind; target: string; point: Point; priority: number; crop?: CropKind }[] = [];
@@ -49,7 +51,7 @@ export function createSteward(economy: Economy, safe:(point:Point)=>boolean=()=>
       }
       for (const resource of ['wood', 'stone'] as const) {
         if (economy.state.inventory[resource] >= capacity[resource] || expectedSupply(economy, resource) >= capacity[resource]) continue;
-        const needed = economy.state.tasks.filter(t => pending(t) && t.kind === 'build' && !t.reserved)
+        const needed = economy.state.tasks.filter(t => queued(t) && t.kind === 'build' && !t.reserved)
           .reduce((sum, t) => sum + economy.cost('build', t.target)[resource], 0);
         const priority = needed > economy.available()[resource] ? .5 : 4;
         for (const node of RESOURCE_NODES) if (node.kind === resource && inStewardRange(node)
@@ -59,7 +61,7 @@ export function createSteward(economy: Economy, safe:(point:Point)=>boolean=()=>
       }
       candidates.sort((a, b) => a.priority - b.priority
         || Math.hypot(a.point.x - position.x, a.point.z - position.z) - Math.hypot(b.point.x - position.x, b.point.z - position.z));
-      const job = candidates.find(c=>safe(c.point));
+      const job = candidates.find(c=>safe(c.point) && canReach(c));
       return job && economy.request(job.kind, job.target, job.crop, 'steward').task;
     },
   };
@@ -67,7 +69,7 @@ export function createSteward(economy: Economy, safe:(point:Point)=>boolean=()=>
 
 export function stewardStatus(e: Economy, manualFarmers = 0) {
   if (!e.state.steward.enabled) return '自动经营已暂停';
-  const tasks = e.state.tasks.filter(pending);
+  const tasks = e.state.tasks.filter(queued);
   const active = tasks.filter(t => ['working', 'travelling', 'delivering'].includes(t.status));
   if (active.length) return `经营中 · ${active.length} 位农民作业${manualFarmers ? ' · 手动指令优先' : ''}`;
   if (manualFarmers) return '等待农民完成手动指令';

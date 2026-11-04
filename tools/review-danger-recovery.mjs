@@ -67,7 +67,7 @@ try {
     try {
       await open();
       await page.evaluate(()=>window.__dangerReview.to(9.5));
-      const waiting=await read();assert(waiting.oldZone);assert.equal(waiting.version,21);
+      const waiting=await read();assert(waiting.oldZone);assert.equal(waiting.version,22);
       if(scenario==='farmers')assert(waiting.tasks.filter(t=>plots.includes(t.target)).every(t=>t.danger));
       else assert.equal(waiting.people.find(p=>p.id==='dog').travelled,0,'dog does not wander back into the cooling area');
       await page.evaluate(()=>window.__dangerReview.save());

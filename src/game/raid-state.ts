@@ -7,7 +7,7 @@ import type { ResidentDefinition } from './resident-data.ts';
 import type { Point } from './movement.ts';
 
 /** Trial pacing; game time only. No wall clock or refresh-time random rolls. */
-export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, maxWolves: 6, warning: 8,
+export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, maxWolves: 6, maxSoldiers: 12, warning: 8,
   duration: 120, fearRadius: 6, fearSeconds: 3, acquire: 11, chase: 17, aidRadius: 10, loot: 2, feedSeconds: 1.1 };
 export const WILD_WOLF_SPAWNS: readonly Point[] = [
   { x: -46, z: 24 }, { x: -43, z: 25 },
@@ -47,8 +47,8 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
     || !Array.isArray(raw.wolves) || raw.wolves.length > RAID_CONFIG.maxWolves || new Set(raw.wolves.map(w => w.id)).size !== raw.wolves.length
     || !Array.isArray(raw.wildWolves) || raw.wildWolves.length !== WILD_WOLF_SPAWNS.length
     || raw.wildWolves.some((w, i) => w.id !== `wolf-wild-${i}` || !point(w.home) || Math.hypot(w.home.x - WILD_WOLF_SPAWNS[i].x, w.home.z - WILD_WOLF_SPAWNS[i].z) > .001 || w.mode === 'gone')
-    || !Array.isArray(raw.soldiers)||raw.soldiers.length>6||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>!new RegExp(`^enemy-raid-(infantry|archer|cavalry)-${raw.wave}-[0-5]$`).test(id))
-    ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,6)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
+    || !Array.isArray(raw.soldiers)||raw.soldiers.length>RAID_CONFIG.maxSoldiers||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>!new RegExp(`^enemy-raid-(infantry|archer|cavalry)-${raw.wave}-(?:[0-9]|1[01])$`).test(id))
+    ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,raw.wave%2 ? RAID_CONFIG.maxSoldiers : RAID_CONFIG.maxWolves)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
     || !raw.evading || typeof raw.evading !== 'object') throw new Error('狼群袭击存档无效');
   for (const [id, e] of Object.entries(raw.evading)) {
     if (!residents.some(r => r.id === id) || !e || !n(e.planAt)) throw new Error('避险存档无效');
@@ -61,6 +61,7 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
       || (w.life === 'active') !== (w.hp > 0) || w.experience !== 0 || !['approach', 'hunt', 'feed', 'flee', 'gone'].includes(w.mode)
       || !n(w.cooldown, 2) || !n(w.fear, 10) || !n(w.feeding, 2) || !n(w.gait, 1) || ![0, 1].includes(w.carried)
       || w.diedAt !== undefined && (!n(w.diedAt) || w.life !== 'defeated')
+      || w.provoked && (!point(w.provoked.from) || !n(w.provoked.leash,400))
       || w.defendFrom && !point(w.defendFrom)
       || w.settled && w.life !== 'defeated'
       || typeof w.settled !== 'boolean' || !Number.isFinite(w.facing) || w.hurtAt !== undefined && !n(w.hurtAt)

@@ -5,11 +5,12 @@ import { buildingAt, placementReason } from '../src/game/construction.ts';
 import { GRID_SIZE, HOME, WAREHOUSE_DOOR, LANDSCAPE, gridPoint } from '../src/game/world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from '../src/game/economy-config.ts';
 
-test('free placement snaps footprint edges, queues unfunded work, rejects overlap and releases cancelled land', () => {
+test('free placement snaps footprint edges, reserves funded work, rejects overlap and releases cancelled land', () => {
   const e = new Economy(), point = gridPoint(44, 56);
+  e.state.inventory = { wood: 12, stone: 8, food: 0, iron: 0 };
   assert.equal(e.state.sites.length, 0);
   const result = e.placeBuilding('house', { x: point.x + .2, z: point.z - .3 });
-  assert.ok(result.ok); assert.match(result.message, /缺少/);
+  assert.ok(result.ok); assert.equal(result.task?.reserved, true);
   const site = e.state.sites[0];
   assert.ok(Math.abs(site.x - point.x) < 1e-9 && Math.abs(site.z - point.z) < 1e-9);
   assert.ok(Math.abs((site.x - site.width / 2) / GRID_SIZE - Math.round((site.x - site.width / 2) / GRID_SIZE)) < 1e-9);

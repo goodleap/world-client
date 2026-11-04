@@ -2,7 +2,7 @@ import './style.css';
 import { createLauncher, nextPaint } from './launcher.ts';
 import type { GameUI } from './ui.ts';
 import type { Game } from './game/game.ts';
-import { Economy } from './game/economy.ts';
+import { Economy, initialEconomy, debugRequested } from './game/economy.ts';
 import { readSavedGame } from './game/economy-storage.ts';
 import type { StartMode } from './launcher.ts';
 import { diagnosticContext } from './diagnostics.ts';
@@ -68,7 +68,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     // Re-read when Continue is clicked, in case another tab changed the save.
     const saved = mode === 'continue' ? readSavedGame() : undefined;
     if (saved && saved.status !== 'ready') { menu(); return; }
-    const economy = saved?.status === 'ready' ? saved.economy : new Economy();
+    const economy = saved?.status === 'ready' ? saved.economy : new Economy(initialEconomy(Math.floor(Math.random() * 0xffffffff) + 1, debugRequested(location.search)));
     launcher.beginGame(mode);
     await nextPaint();
     const { createGame } = await prepareGame();

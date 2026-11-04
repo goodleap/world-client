@@ -30,10 +30,26 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   let kind: BuildingKind = 'farm';
   let pointer: { id: number; x: number; y: number; scrollLeft: number; touch: boolean; mode: 'pending' | 'scroll' | 'place' } | undefined;
   let cursor: { x: number; y: number } | undefined;
+  let budgetRevision = -1;
+  const costs = choices.map(choice => choice.querySelector<HTMLElement>('.building-cost')!);
+  const labels = costs.map(cost => cost.textContent!);
+  function refreshBudget() {
+    if (budgetRevision === economy.revision) return;
+    budgetRevision = economy.revision;
+    const available = economy.available();
+    choices.forEach((choice, i) => {
+      const shortage = economy.buildingShortage(choice.dataset.building as BuildingKind, available);
+      if (choice.disabled !== !!shortage) choice.disabled = !!shortage;
+      if (choice.title !== shortage) choice.title = shortage;
+      const label = shortage ? shortage.replace('、', '\n') : labels[i];
+      if (costs[i].textContent !== label) costs[i].textContent = label;
+    });
+  }
+  refreshBudget();
   const showPalette = (show: boolean) => { palette.hidden = !show; toggle.setAttribute('aria-expanded', String(show)); };
   const hidePreview = () => { for (const m of meshes) m.setEnabled(false); candidate = undefined; ui.clearTargetHint(); };
   function cancel() { active = false; cursor = undefined; pointer = undefined; hidePreview(); ui.setPlacement(false); showPalette(false); }
-  function begin(nextKind: BuildingKind) { if (blocked()) return; onBegin(); kind = nextKind; active = true; ui.setPlacement(true, `${BUILDING_TYPES[kind].name} · 选择位置`); }
+  function begin(nextKind: BuildingKind) { if (blocked() || economy.buildingShortage(nextKind)) return; onBegin(); kind = nextKind; active = true; ui.setPlacement(true, `${BUILDING_TYPES[kind].name} · 选择位置`); }
   function preview(x: number, y: number) {
     cursor = { x, y };
     if (!active || blocked() || document.elementFromPoint(x, y) !== ui.canvas) { hidePreview(); return; }
@@ -42,7 +58,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (!Number.isFinite(distance) || distance <= 0) { hidePreview(); return; }
     const point = ray.origin.add(ray.direction.scale(distance));
     candidate = buildingAt(kind, point);
-    reason = economy.regionLocked(candidate) || placementReason(candidate, economy.state, occupants());
+    reason = economy.buildingShortage(kind) || economy.regionLocked(candidate) || placementReason(candidate, economy.state, occupants());
     const color = Color3.FromHexString(reason ? '#ff826f' : '#62e4ff');
     fillMaterial.emissiveColor.copyFrom(color); edgeMaterial.emissiveColor.copyFrom(color);
     const { width, depth } = candidate;
@@ -82,7 +98,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   for (const choice of choices) {
     const nextKind = choice.dataset.building as BuildingKind;
     choice.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || blocked()) return;
+      if (event.button !== 0 || blocked() || choice.disabled) return;
       // Leave horizontal touch gestures to native scrolling. Vertical dragging
       // still places a building, and a tap still enters placement mode.
       if (event.pointerType !== 'touch') event.preventDefault();
@@ -117,7 +133,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   window.addEventListener('blur', cancel, options);
   return {
     get active() { return active; }, place, cancel,
-    update() { if (active && cursor) preview(cursor.x, cursor.y); },
+    update() { refreshBudget(); if (active && cursor) preview(cursor.x, cursor.y); },
     snapshot: () => ({ active, candidate, reason }),
     dispose() { cancel(); abort.abort(); meshes.forEach(m => m.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); },
   };

@@ -958,7 +958,6 @@ kbd {
 .queue-heading { display:flex; align-items:center; justify-content:space-between; }
 .queue-heading h2 { font-size:18px; margin:0; }
 .queue-heading button { width:40px; height:40px; border:0; border-radius:50%; background:#e8edda; color:#718462; }
-.queue-note { font-size:11px; line-height:1.7; color:#6b7e60; }
 #queue-list { padding:0; list-style:none; font-size:12px; line-height:1.7; }
 #queue-list li { position:relative; padding:12px 50px 12px 0; border-top:1px solid #dce2cb; }
 #queue-list strong, #queue-list span { display:block; }
@@ -1041,7 +1040,7 @@ kbd {
 .building-palette button { display:flex; flex-direction:column; gap:3px; width:100%; min-height:50px; text-align:left; padding:7px 9px; border:0; border-radius:9px; background:transparent; touch-action:none; user-select:none; }
 .building-palette button + button { margin-top:2px; }
 .building-palette button:hover, .building-palette button:focus-visible { background:#e8edda; }
-.building-palette button span { display:flex; align-items:center; justify-content:space-between; width:100%; font-size:13px; font-weight:600; }
+.building-palette button > span { display:flex; align-items:center; justify-content:space-between; width:100%; font-size:13px; font-weight:600; }
 .building-palette small { font-size:11px; font-weight:400; color:#617359; }
 .view-controls { top:auto; right:max(16px,var(--safe-right)); bottom:max(24px,var(--safe-bottom)); padding:0; border-radius:14px; }
 #reset { width:46px; height:46px; border-radius:14px; }
@@ -1134,10 +1133,13 @@ kbd {
 .bottom-controls > #building-toggle.active { background:#d5f6f4; border-color:#62e4ff; }
 .bottom-controls .view-controls { position:static; grid-column:3; justify-self:end; pointer-events:auto; }
 .bottom-dock .construction-controls { position:static; display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; pointer-events:none; }
-.bottom-dock .building-palette { display:flex; gap:6px; width:max-content; max-width:100%; padding:6px; overflow-x:auto; overscroll-behavior:contain; scrollbar-width:thin; touch-action:pan-x; pointer-events:auto; }
-.building-palette button { flex:0 0 128px; width:128px; min-height:58px; margin:0; touch-action:pan-x; }
+.bottom-dock .building-palette { display:flex; gap:2px; width:max-content; max-width:100%; padding:3px; overflow-x:auto; overscroll-behavior:contain; scrollbar-width:thin; touch-action:pan-x; pointer-events:auto; }
+.building-palette button { flex:0 0 86px; width:86px; min-height:58px; padding:6px; gap:2px; margin:0; touch-action:pan-x; }
 .building-palette button + button { margin:0; }
 .building-palette button small { white-space:nowrap; }
+.building-palette .building-cost { white-space:pre-line; line-height:13px; }
+.building-palette button:disabled { opacity:.7; cursor:not-allowed; }
+.building-palette button:disabled .building-cost { color:#9b4535; }
 .bottom-dock .placement-status { width:max-content; max-width:100%; pointer-events:auto; }
 .bottom-controls .resident-selection { position:relative; left:auto; bottom:auto; grid-column:2; width:232px; max-width:100%; height:var(--corner-size); justify-self:center; display:flex; align-items:center; gap:7px; padding:4px 3px 4px 9px; pointer-events:auto; }
 .bottom-controls .resident-selection.has-command { width:278px; }
@@ -1159,7 +1161,6 @@ kbd {
 @media(max-width:600px) {
   .bottom-controls { grid-template-columns:auto minmax(0,1fr) auto; gap:7px; }
   .bottom-controls .resident-selection { padding:3px 2px 3px 6px; gap:5px; }
-  .bottom-dock .building-palette button { flex-basis:112px; width:112px; padding:7px; }
   .bottom-controls > #building-toggle { padding:0 10px; gap:5px; }
   .resident-card-heading strong { font-size:11px; line-height:15px; }
   .resident-vitals { gap:4px; }
@@ -1331,14 +1332,8 @@ kbd {
 .map-button { position:absolute; top:var(--top); right:calc(var(--right) + var(--corner-size) + var(--top-gap)); z-index:var(--layer-controls); width:var(--corner-size); height:var(--corner-size); padding:0; border:1px solid #fff; border-radius:15px; background:var(--paper); }
 .map-button[aria-expanded=true] { background:#d5f6f4; border-color:#62e4ff; }
 .map-button svg { width:23px; height:23px; }
-.minimap-panel { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); right:var(--right); z-index:var(--layer-controls); width:clamp(124px,40vw,200px); box-sizing:border-box; padding:7px; border:1px solid #fff9; border-radius:13px; background:var(--paper); color:var(--ink); touch-action:none; }
-.minimap-heading { display:flex; justify-content:space-between; margin-bottom:5px; font-size:10px; }
-#minimap { display:block; width:100%; height:auto; border-radius:6px; }
-.minimap-legend { display:flex; justify-content:space-between; gap:3px; margin-top:5px; font-size:9px; white-space:nowrap; }
-.minimap-legend span { display:flex; align-items:center; gap:3px; }
-.minimap-legend i { display:inline-block; width:5px; height:5px; border-radius:50%; }
-.map-home { background:#3db8cd; }.map-enemy { background:#d85c45; }
-.minimap-legend .map-view { width:7px; height:5px; border:1px solid #879477; border-radius:1px; }
+.minimap-panel { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); right:var(--right); z-index:var(--layer-controls); width:clamp(124px,40vw,200px); box-sizing:border-box; padding:0; overflow:hidden; border:1px solid #fff9; border-radius:9px; background:var(--paper); color:var(--ink); touch-action:none; }
+#minimap { display:block; width:100%; height:auto; }
 .status-stack { position:absolute; top:calc(var(--top) + var(--corner-size) + 8px); left:var(--left); z-index:var(--layer-controls); display:flex; flex-direction:column; align-items:flex-start; gap:7px; width:max-content; max-width:calc(100% - var(--left) - var(--right)); pointer-events:none; }
 .status-stack .performance-hud { position:static; padding:6px 7px; column-gap:7px; row-gap:3px; font-size:10px; }
 .performance-triangles, .performance-memory { grid-column:1 / -1; text-align:left; }
@@ -1348,3 +1343,5 @@ kbd {
 @media(max-width:600px) { #game-page { --top-gap:5px; } }
 @media(max-width:360px) { .status-stack .performance-hud { font-size:9px; column-gap:5px; } .performance-hud small { font-size:8px; margin-left:2px; } }
 @media(max-height:500px) { .minimap-panel { width:min(172px,44dvh); } }
+
+#building-notice:empty, #recruit-notice:empty { display:none; }

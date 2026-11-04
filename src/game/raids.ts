@@ -1,4 +1,4 @@
-import { Combat, fighterRadius, createFighter } from './combat.ts';
+import { Combat, fighterRadius, fighterDestination, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
 import type { Wolf } from './raid-state.ts';
@@ -29,6 +29,10 @@ export interface RaidResidents {
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 const home = { x: 0, z: -3 };
 const circle = (p: Point, radius: number) => Array.from({ length: 8 }, (_, i) => ({ x: p.x + Math.cos(i * Math.PI / 4) * radius, z: p.z + Math.sin(i * Math.PI / 4) * radius }));
+
+const spawnSpots = (origin: Point, count: number) => count <= 8 ? circle(origin, 2.5).slice(0, count)
+  : Array.from({ length: count }, (_, i) => ({ x: origin.x + Math.cos(i * Math.PI * 2 / count) * 3.2,
+    z: origin.z + Math.sin(i * Math.PI * 2 / count) * 3.2 }));
 
 /** Dynamic threats share the combat hit pipeline and the swept route follower.
  * Only this controller owns wolf decisions, theft and wave settlement. */
@@ -83,7 +87,7 @@ export class Raids {
   }
   private plan(w: Wolf, points: Point[]) {
     w.planIn = .9;
-    const reservations = this.neighboursFor(w).map(n => ({ ...n, destination: this.combat.unit(n.id)?.route.at(-1) }));
+    const reservations = this.neighboursFor(w).map(n => ({ ...n, destination: fighterDestination(this.combat.unit(n.id)) }));
     w.route = planWorkApproach(w.position, points, fighterRadius(w), WORLD_BOUNDS, this.solids(), reservations) ?? [];
   }
   private travel(w: Wolf, dt: number) {
@@ -95,26 +99,31 @@ export class Raids {
   }
   private flee(w: Wolf) {
     if (w.mode === 'flee' || w.mode === 'gone') return;
-    w.mode = 'flee'; w.target = undefined; w.foodTarget = undefined; w.attack = undefined; w.feeding = 0; w.route = []; w.planIn = 0;
+    w.mode = 'flee'; w.provoked = undefined; w.target = undefined; w.foodTarget = undefined; w.attack = undefined; w.feeding = 0; w.route = []; w.planIn = 0;
     resetRouteState(w.navigation);
+  }
+  private spawnClear(origin: Point, spots: readonly Point[]) {
+    const solids = this.solids();
+    return spots.every(p => !isBlocked(p,.72,solids)
+      && !this.combat.state.units.some(u=>u.life==='active'&&!u.departed&&distance(p,u.position)<fighterRadius(u)+.92)
+      && !this.wolves.some(w=>w.life==='active'&&w.mode!=='gone'&&distance(p,w.position)<1.64)
+      && !homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16)
+      && ![...BUILDINGS,...this.economy.state.sites].some(b=>distance(p,b)<12)
+      && segmentIsClear(p,origin,.72,WORLD_BOUNDS,solids));
   }
   private warn() {
     const state=this.state,now=this.economy.state.seconds;
     const defenders=this.combat.state.units.filter(u=>u.team==='home'&&u.life==='active'&&u.hp>COMBAT_CONFIG[u.role].hp*.35).length;
-    const count=defenders<2?1:state.wave===0?2:Math.min(C.maxWolves,2+Math.floor(defenders/3)+this.economy.state.upgrades.arms);
+    const base=defenders<2?1:state.wave===0?2:Math.min(C.maxWolves,2+Math.floor(defenders/3)+this.economy.state.upgrades.arms);
+    const count=state.wave%2 ? Math.min(C.maxSoldiers,base*2) : base;
     const candidates=LANDSCAPE.regions.filter(r=>r.id!=='home'&&!('camp' in r)&&distance(r,home)>32);
     const start=Math.floor(raidRandom(state)*candidates.length);
     // Prefer off-screen entrances. An overview of the entire map must not
     // indefinitely disable raids: distant announced entrances remain usable.
-    for(const visible of [false,true])for(let i=0;i<candidates.length;i++) {
-      const r=candidates[(start+i)%candidates.length],origin={x:r.x+(raidRandom(state)-.5)*4,z:r.z+(raidRandom(state)-.5)*4};
-      const spots=circle(origin,2.5).slice(0,count);
-      if(spots.some(p=>!visible&&this.visible(p)||isBlocked(p,.72,this.solids())
-        ||this.combat.state.units.some(u=>u.life==='active'&&!u.departed&&distance(p,u.position)<fighterRadius(u)+.92)
-        ||this.wolves.some(w=>w.life==='active'&&w.mode!=='gone'&&distance(p,w.position)<1.64)
-        ||homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16)
-        ||[...BUILDINGS,...this.economy.state.sites].some(b=>distance(p,b)<12)
-        ||!segmentIsClear(p,origin,.72,WORLD_BOUNDS,this.solids())))continue;
+    for(const visible of [false,true])for(let i=0;i<candidates.length*3;i++) {
+      const r=candidates[(start+i)%candidates.length],origin={x:r.x+(raidRandom(state)-.5)*16,z:r.z+(raidRandom(state)-.5)*16};
+      const spots=spawnSpots(origin,count);
+      if (!this.spawnClear(origin, spots) || !visible && spots.some(p => this.visible(p))) continue;
       if(!planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]))continue;
       state.pendingOrigin=origin;state.pendingCount=count;state.warningAt=now;state.nextAt=Math.max(state.nextAt,now+C.warning);
       const direction=Math.abs(origin.x)>Math.abs(origin.z)?origin.x>0?'东侧':'西侧':origin.z>0?'北侧':'南侧';
@@ -126,16 +135,16 @@ export class Raids {
   private spawn() {
     const state=this.state,now=this.economy.state.seconds,origin=state.pendingOrigin;
     if(!origin)return;
-    const count=state.pendingCount,spots=circle(origin,2.5).slice(0,count);
+    const count=state.pendingCount,spots=spawnSpots(origin,count);
     const route=planMoveDestination(origin,home,.72,WORLD_BOUNDS,this.solids(),[]);
-    if(!route||spots.some(p=>isBlocked(p,.72,this.solids())||homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(p,this.position(r.id))<16))) {
-      state.pendingOrigin=undefined;state.nextAt=now+5+C.warning;return;
+    if(!route||!this.spawnClear(origin, spots)) {
+      state.pendingOrigin=undefined;state.pendingCount=0;state.nextAt=now+5+C.warning;return;
     }
     const old=new Set(state.soldiers);
     this.combat.state.units=this.combat.state.units.filter(u=>!old.has(u.id));
     this.combat.state.projectiles=this.combat.state.projectiles.filter(p=>!old.has(p.source)&&!old.has(p.target));
     for(const id of old){delete this.economy.state.vitals[id];delete this.economy.state.residents[id];}
-    state.soldiers=[];state.wolves=[];state.wave++;state.phase='raid';state.startedAt=now;state.origin={...origin};state.pendingOrigin=undefined;
+    state.soldiers=[];state.wolves=[];state.wave++;state.phase='raid';state.startedAt=now;state.origin={...origin};state.pendingOrigin=undefined;state.pendingCount=0;
     if(state.wave%2)state.wolves=spots.map((p,n)=>{
       const wolf=newWolf(`wolf-${state.wave}-${n}`,p);wolf.route=[{...origin},...route.map(p=>({...p}))];return wolf;
     });
@@ -205,7 +214,9 @@ export class Raids {
     }
     for(const id of this.state.soldiers){const u=this.combat.unit(id);if(!u||u.life!=='active'||u.departed)continue;
       if(now-this.state.startedAt<C.duration&&!u.target&&!u.attack&&!u.goal){u.order='guard';u.goal={...home};}
-      if(now-this.state.startedAt>=C.duration){u.order='retreat';u.goal={...u.home};u.target=undefined;u.attack=undefined;
+      if(now-this.state.startedAt>=C.duration){
+        if(u.order!=='retreat'){u.route=[];u.attackApproach=undefined;u.planIn=0;resetRouteState(u.navigation);}
+        u.provoked=undefined;u.order='retreat';u.goal={...u.home};u.target=undefined;u.attack=undefined;
         if(distance(u.position,u.home)<2&&!homeResidents(this.economy.state).some(r=>health(this.economy.state,r.id)>0&&distance(this.position(r.id),u.position)<16)){u.departed=true;u.route=[];}
       }
     }
@@ -256,10 +267,10 @@ export class Raids {
       if (attack.elapsed >= stats.windup + stats.recovery) w.attack = undefined;
       return;
     }
-    const anchor = wild ? w.home : w.defendFrom ?? w.position;
-    if (w.target && (!this.combat.target(w.target)||!this.combat.canTarget(w,this.combat.target(w.target)!)||this.combat.target(w.target)!.hp<=0 || distance(w.position, this.position(w.target)) > C.chase
-      || distance(anchor, this.position(w.target)) > C.chase)) {
-      w.target = undefined; w.route = []; w.defendFrom = undefined;
+    const anchor = w.provoked?.from ?? (wild ? w.home : w.defendFrom ?? w.position), chase = w.provoked?.leash ?? C.chase;
+    if (w.target && (!this.combat.target(w.target)||!this.combat.canTarget(w,this.combat.target(w.target)!)||this.combat.target(w.target)!.hp<=0 || distance(w.position, this.position(w.target)) > chase
+      || distance(anchor, this.position(w.target)) > chase)) {
+      w.target = undefined; w.route = []; w.defendFrom = undefined; w.provoked = undefined;
       if (wild) { w.mode = 'flee'; w.planIn = 0; return; }
     }
     if ((!w.target || !this.combat.target(w.target)?.canAttack) && w.planIn <= 0) {

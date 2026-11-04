@@ -13,7 +13,7 @@ export interface MinimapFrame {
 /** Native Canvas 2D schematic: static terrain cached once, live markers at 5 Hz.
  * No second Babylon camera, render pass, picking, or autonomous animation loop. */
 export function createMinimap(canvas: HTMLCanvasElement) {
-  const width = 320, height = Math.round(width * MAP_DEPTH / MAP_WIDTH), pad = 7;
+  const width = 320, height = Math.round(width * MAP_DEPTH / MAP_WIDTH), pad = 0;
   let background: HTMLCanvasElement | undefined, context: CanvasRenderingContext2D | null = null;
   let visible = false, nextAt = 0, draws = 0, terrainBuilds = 0;
   let last: { units: number; buildings: number; view: Point[] } | undefined;

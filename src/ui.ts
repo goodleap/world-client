@@ -47,9 +47,7 @@ export function createUI(app: HTMLElement) {
     <button id="map-toggle" class="map-button icon-button" aria-label="展开小地图" title="展开小地图" aria-expanded="false" aria-controls="minimap-panel">${icon('map')}</button>
     <button id="settings" class="settings-button icon-button" aria-label="设置" title="设置">${icon('settings')}</button>
     <section id="minimap-panel" class="minimap-panel" aria-label="小地图" hidden>
-      <div class="minimap-heading"><span>小地图</span><span aria-label="上方为北">N ↑</span></div>
-      <canvas id="minimap" width="320" height="320" role="img" aria-label="地形、道路、建筑与单位位置，浅色框为当前视野，蓝点为我方，红点为敌方"></canvas>
-      <div class="minimap-legend"><span><i class="map-home"></i>我方</span><span><i class="map-enemy"></i>敌方</span><span><i class="map-view"></i>视野</span></div>
+      <canvas id="minimap" width="320" height="320" role="img" aria-label="上方为北。地形、道路、建筑与单位位置，浅色框为当前视野，蓝点为我方，红点为敌方"></canvas>
     </section>
     <div class="status-stack">
     <aside id="performance" class="performance-hud" aria-label="性能信息" title="约每半秒更新。FPS 与 CPU 为这段时间的平均值；CPU 包含游戏逻辑和渲染提交，不包含帧间等待或 GPU 执行时间。三角形为采样帧实际提交总量，包含主画面、阴影等渲染通道。">
@@ -63,7 +61,6 @@ export function createUI(app: HTMLElement) {
     <button id="raid-notice" class="raid-notice" aria-live="polite" hidden></button>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
-      <p class="queue-note">农民·领头参与作业，并指挥农民经营小屋周围 30 格。手动指令优先，资源送到仓库才入库。</p>
       <ol id="queue-list"></ol>
     </section>
     </div>
@@ -79,11 +76,14 @@ export function createUI(app: HTMLElement) {
     <div class="bottom-dock">
       <nav class="construction-controls" aria-label="建筑选项">
         <div id="building-palette" class="building-palette" aria-label="选择建设类型" hidden>
-          <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small>开垦 · 无需材料</small></button>
-          <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small>木材 ${ECONOMY_CONFIG.warehouseCost.wood} · 石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
-          <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small>石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
-          <button id="build-tower" data-building="tower"><span>哨塔 <small>1.5 × 1.5</small></span><small>木材 ${TOWER_CONFIG.cost.wood} · 石材 ${TOWER_CONFIG.cost.stone}</small></button>
-          <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small>木材 ${ECONOMY_CONFIG.houseCost.wood} · 石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
+          <button id="build-farm" data-building="farm"><span>耕地 <small>1 × 1</small></span><small class="building-cost">无需材料</small></button>
+          <button id="build-warehouse" data-building="warehouse"><span>仓库 <small>3 × 2</small></span><small class="building-cost">木材 ${ECONOMY_CONFIG.warehouseCost.wood}
+石材 ${ECONOMY_CONFIG.warehouseCost.stone}</small></button>
+          <button id="build-campfire" data-building="campfire"><span>火堆 <small>2 × 2</small></span><small class="building-cost">石材 ${CAMPFIRE_CONFIG.cost.stone}</small></button>
+          <button id="build-tower" data-building="tower"><span>哨塔 <small>1.5 × 1.5</small></span><small class="building-cost">木材 ${TOWER_CONFIG.cost.wood}
+石材 ${TOWER_CONFIG.cost.stone}</small></button>
+          <button id="build-house" data-building="house"><span>民房 <small>2 × 2</small></span><small class="building-cost">木材 ${ECONOMY_CONFIG.houseCost.wood}
+石材 ${ECONOMY_CONFIG.houseCost.stone}</small></button>
         </div>
         <div id="placement-status" class="placement-status" hidden><span id="placement-hint" role="status"></span><button id="cancel-building" aria-label="取消放置">取消</button></div>
       </nav>
@@ -122,7 +122,7 @@ export function createUI(app: HTMLElement) {
           <thead><tr><th scope="col">名称</th><th scope="col">生命</th><th scope="col">防御</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
           <tbody id="building-rows"></tbody>
         </table></div>
-        <p id="building-notice" class="dialog-note" role="status">维修由农民执行，按本次缺损预留材料。</p>
+        <p id="building-notice" class="dialog-note" role="status"></p>
       </section>
       <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
         <div class="population-tools"><p id="population-summary"></p>
@@ -141,7 +141,7 @@ export function createUI(app: HTMLElement) {
       </section>
     </dialog>
     <dialog id="demolish-dialog" class="paper-dialog demolish-dialog" aria-labelledby="demolish-title"><button class="dialog-close" aria-label="取消拆除">${icon('close')}</button><h2 id="demolish-title">拆除建筑</h2><p id="demolish-description"></p><div class="home-actions"><button id="demolish-confirm">确认拆除</button></div></dialog>
-    <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status">入队扣除可用库存并预留名额；取消退还材料。</p></dialog>
+    <dialog id="recruit-dialog" class="paper-dialog recruit-dialog" aria-labelledby="recruit-title"><button class="dialog-close" aria-label="关闭家园中心">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="recruit-title">家园中心</h2><p id="recruit-capacity"></p><div class="recruit-options-scroll"><div id="recruit-options" class="recruit-options"></div></div><h3>招募队列 <small>最多 5 名 · 依次招募</small></h3><ol id="recruit-queue"></ol><div class="home-actions"><button id="set-rally">设置集合点</button></div><p id="recruit-notice" class="dialog-note" role="status"></p></dialog>
     <dialog id="settings-dialog" class="paper-dialog settings-dialog" aria-labelledby="settings-title"><button class="dialog-close" aria-label="关闭设置">${icon('close')}</button><p class="eyebrow">游戏已暂停</p><h2 id="settings-title">设置</h2><div class="system-actions"><button id="continue-game" class="primary-button">继续游戏</button><button id="settings-graphics">画面设置</button><button id="settings-help">操作说明</button><button id="return-menu">回到主菜单</button><button id="exit-game">退出游戏</button></div><p id="settings-notice" class="dialog-note" role="status">离开前会保存当前进度。</p></dialog>
     <dialog id="graphics-dialog" class="paper-dialog graphics-dialog" aria-labelledby="graphics-title"><div class="graphics-heading"><h2 id="graphics-title">画面设置</h2><button id="graphics-back">返回设置</button></div><p class="eyebrow">游戏已暂停</p><label class="performance-setting" for="performance-mode">性能模式<select id="performance-mode"><option value="standard">标准 · 60 帧</option><option value="saving">省电 · 30 帧</option><option value="minimum">强省电 · 20 帧</option></select><small>省电模式降低画面分辨率与阴影，游戏速度保持不变。</small></label><label class="settings-toggle" for="shadows-enabled"><span>开启阴影<small>关闭可减轻设备负担</small></span><input id="shadows-enabled" type="checkbox" role="switch" checked></label><div class="lighting-controls" aria-label="光照设置">
       <label for="environment-light">环境补光 <output id="environment-light-value"></output><input id="environment-light" type="range" min="0" max="2" step="0.01"></label>

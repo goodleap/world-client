@@ -30,11 +30,14 @@ test('till, sow, grow and harvest form a repeatable cycle with exactly one outpu
   assert.ok(e.request('sow', id, 'carrot').ok);
 });
 
-test('FIFO skips unfunded construction, gathers materials, reserves once and spends only on completion', () => {
+test('construction requires gathered materials, reserves once and spends only on completion', () => {
   const e = new Economy();
-  e.placeBuilding('house', gridPoint(44, 56)); e.request('chop', 'tree-0'); e.request('mine', 'rock-0');
+  assert.equal(e.placeBuilding('house', gridPoint(44, 56)).ok, false);
+  assert.equal(e.state.sites.length, 0); assert.equal(e.state.tasks.length, 0);
+  e.request('chop', 'tree-0'); e.request('mine', 'rock-0');
   assert.equal(finish(e).kind, 'chop'); assert.equal(e.state.inventory.wood, 24);
   assert.equal(finish(e).kind, 'mine'); assert.equal(e.state.inventory.stone, 16);
+  assert(e.placeBuilding('house', gridPoint(44, 56)).ok);
   const build = e.claim()!; assert.equal(build.kind, 'build');
   assert.deepEqual(e.reserved(), C.houseCost); assert.equal(e.state.inventory.wood, 24);
   e.arrive(build.id); e.advance(C.workSeconds.build - .5);
@@ -47,11 +50,15 @@ test('FIFO skips unfunded construction, gathers materials, reserves once and spe
 
 test('concurrent requests cannot double reserve, and cancellation releases resources without spending', () => {
   const state = initialEconomy(); state.inventory = { wood: 12, stone: 8, food: 0, iron: 0 };
-  const e = new Economy(state), first = e.placeBuilding('house', gridPoint(44, 56)).task!, second = e.placeBuilding('house', gridPoint(55, 57)).task!;
-  assert.equal(first.reserved, true); assert.equal(second.reserved, false);
+  const e = new Economy(state), first = e.placeBuilding('house', gridPoint(44, 56)).task!;
+  assert.equal(first.reserved, true);
+  const before = encodeEconomy(e);
+  assert.equal(e.placeBuilding('house', gridPoint(55, 57)).ok, false);
+  assert.equal(encodeEconomy(e), before, 'rejection must not create a site/task or consume IDs');
   assert.deepEqual(e.available(), { wood: 0, stone: 0, food: 0, iron: 0 });
   e.claim(); e.arrive(first.id); e.advance(2); assert.ok(e.cancel(first.id));
   assert.deepEqual(e.state.inventory, { wood: 12, stone: 8, food: 0, iron: 0 });
+  const second = e.placeBuilding('house', gridPoint(55, 57)).task!;
   assert.equal(e.claim()!.id, second.id); assert.ok(second.reserved);
   assert.equal(e.cancel(first.id), false);
 });

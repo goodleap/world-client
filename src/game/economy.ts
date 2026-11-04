@@ -48,7 +48,7 @@ export interface EconomyState {
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
   buildingHealth:Record<string,number>; autoRepair: boolean; dangerZones: DangerZone[];
-  version: 21; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 22; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -56,6 +56,7 @@ export const WORK_NAMES: Record<WorkKind, string> = { till: '开垦', sow: '播�
 export const STATUS_NAMES: Record<TaskStatus, string> = { waiting: '等待', travelling: '前往', working: '作业中', delivering: '运送仓库', storage: '等待入库', done: '完成', cancelled: '已取消', invalid: '已失效' };
 export const resources: Resource[] = ['wood', 'stone', 'food', 'iron'];
 export const pending = (task: WorkTask) => !['done', 'cancelled', 'invalid'].includes(task.status);
+export const queued = (task: WorkTask) => pending(task) && !(task.origin !== 'manual' && task.danger);
 const emptyCost = (): Inventory => ({ wood: 0, stone: 0, food: 0, iron: 0 });
 function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], plots: FarmPlot[], terminal: boolean) {
   if(kind==='repair')return BUILDINGS.some(b=>b.id===target)||sites.some(s=>s.id===target)||terminal&&/^site-\d+$/.test(target);
@@ -66,9 +67,11 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
   return RESOURCE_NODES.some(n => n.id === target && (kind === 'chop' ? n.kind === 'wood' : kind === 'gather' ? n.kind === 'food' : n.kind === 'stone' || n.kind === 'iron'));
 }
 
-export function initialEconomy(seed?: number): EconomyState {
+export const DEBUG_RESOURCES = 100_000;
+export const debugRequested = (search: string) => new URLSearchParams(search).has('debug');
+export function initialEconomy(seed?: number, debug = false): EconomyState {
   return {
-    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:false, dangerZones:[], version: 21, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: { ...C.initialInventory },
+    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:false, dangerZones:[], version: 22, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : { ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -109,6 +112,8 @@ export class Economy {
   }
   placeBuilding(kind: BuildingKind, point: Point, occupants: readonly Obstacle[] = []): { ok: boolean; message: string; task?: WorkTask } {
     if (!Object.hasOwn(BUILDING_TYPES, kind)) return { ok: false, message: '未知建筑类型' };
+    const shortage = this.buildingShortage(kind);
+    if (shortage) return { ok: false, message: shortage };
     const farm = kind === 'farm';
     if (farm ? this.state.plots.length >= 10000 : this.state.sites.length >= 100) return { ok: false, message: '已达到家园用地上限' };
     const site = buildingAt(kind, point, farm ? `plot-${this.state.nextPlotId}` : `site-${this.state.nextSiteId}`);
@@ -204,7 +209,8 @@ export class Economy {
   capacity(): Inventory {
     // Damage stops deliveries, not ownership of resources already stored.
     const count = 1+this.state.sites.filter(s=>s.kind==='warehouse'&&this.state.buildings.includes(s.id)).length;
-    return { wood: C.capacity.wood * count, stone: C.capacity.stone * count, food: C.capacity.food * count, iron: C.capacity.iron * count };
+    const capacity = (key: Resource) => Math.max(C.capacity[key] * count, this.state.debug ? DEBUG_RESOURCES : 0);
+    return { wood: capacity('wood'), stone: capacity('stone'), food: capacity('food'), iron: capacity('iron') };
   }
   taskFor(target: string) { return this.state.tasks.find(t => (t.target === target || t.cargo === target) && pending(t)); }
   active(worker = 'farmer') { return this.state.tasks.find(t => (t.worker ?? 'farmer') === worker && (t.status === 'travelling' || t.status === 'working' || t.status === 'delivering')); }
@@ -219,8 +225,16 @@ export class Economy {
       return task?.resource && !task.cargo ? { ...emptyCost(), [task.resource]: task.amount! } : emptyCost();
     }
     const type = this.state.sites.find(s => s.id === target)?.kind;
-    return kind === 'build' ? { ...emptyCost(), ...(type === 'tower' ? TOWER_CONFIG.cost : type === 'campfire' ? F.cost : type === 'warehouse' ? C.warehouseCost : C.houseCost) } : emptyCost();
+    return kind === 'build' ? this.buildingCost(type ?? 'house') : emptyCost();
   }
+  buildingCost(kind: BuildingKind): Inventory {
+    return { ...emptyCost(), ...(kind === 'farm' ? {} : kind === 'tower' ? TOWER_CONFIG.cost : kind === 'campfire' ? F.cost : kind === 'warehouse' ? C.warehouseCost : C.houseCost) };
+  }
+  private shortage(cost: Inventory, available = this.available()) {
+    const missing = resources.filter(key => cost[key] > available[key]);
+    return missing.length ? '缺少' + missing.map(key => `${RESOURCE_NAMES[key]} ${cost[key] - available[key]}`).join('、') : '';
+  }
+  buildingShortage(kind: BuildingKind, available = this.available()) { return this.shortage(this.buildingCost(kind), available); }
   reserved(): Inventory {
     const sum = emptyCost();
     for (const task of this.state.tasks) if (pending(task) && task.reserved) {
@@ -261,7 +275,8 @@ export class Economy {
     const invalid = this.invalidReason(kind, target, crop);
     if (invalid) return { ok: false, message: invalid };
     if (this.taskFor(target)) return { ok: false, message: '该目标已有任务' };
-    if (this.state.tasks.filter(pending).length >= C.queueLimit) return { ok: false, message: '作业队列已满，请等待农民完成任务' };
+    if (kind === 'build') { const shortage = this.shortage(this.cost(kind, target)); if (shortage) return { ok: false, message: shortage }; }
+    if (this.state.tasks.filter(queued).length >= C.queueLimit) return { ok: false, message: '作业队列已满，请等待农民完成任务' };
     const task: WorkTask = { ...supply, origin, id: this.state.nextId++, kind, target, crop: kind === 'sow' ? crop : undefined,
       status: 'waiting', progress: 0, reserved: false, reason: '', retryAt: 0 };
     if(kind==='repair')task.repair=repairQuote(this.state,target);
@@ -325,9 +340,11 @@ export class Economy {
     this.defer(task.id,'危险，等待清场',position);task.danger={};task.retryAt=0;this.changed();
   }
   checkDanger(unsafe:(path:readonly Point[])=>boolean){
+    let room = C.queueLimit - this.state.tasks.filter(queued).length;
     for(const task of this.state.tasks){
       if(!task.danger||!pending(task)||!task.watchPath?.length)continue;
-      if(unsafe(task.watchPath))continue;
+      if(unsafe(task.watchPath) || room <= 0)continue;
+      room--;
       task.danger=undefined;task.reason='';task.retryAt=0;this.changed();
     }
   }
@@ -527,11 +544,15 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 21) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 22) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
-  if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
-  if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12) throw new Error('作业存档无效');
+  if (typeof raw.debug !== 'boolean') throw new Error('调试存档无效');
+  state.debug = raw.debug;
+  if (!raw.inventory || !resources.every(k => number(raw.inventory[k], Math.max(C.capacity[k] * 101, raw.debug ? DEBUG_RESOURCES : 0)) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
+  if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12 + 10000) throw new Error('作业存档无效');
+  // Explicitly taking over held work may briefly exceed the new-order limit.
+  if (raw.tasks.filter(t => !pending(t)).length > 12) throw new Error('作业队列超出上限');
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
   state.recruitment=decodeRecruitment(raw.recruitment);
   const residents=homeResidents(state),residentIds=new Set(residents.map(r=>r.id));
