@@ -13,6 +13,7 @@ import type { Economy } from './economy.ts';
 import { createEconomyWorld } from './economy-world.ts';
 import { createLandscapeTerrain, createLandscapeWater } from './landscape-terrain.ts';
 import { createGroundCover } from './ground-cover.ts';
+import { createGroundCoverCards } from './ground-cover-cards.ts';
 import { createCampfireView } from './campfire-view.ts';
 import { createBuildingDoors } from './building-doors.ts';
 import { attachBuildingLOD } from './building-lod.ts';
@@ -111,7 +112,7 @@ export async function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenera
   const economyWorld = createEconomyWorld(scene, p, shadows, economy, objects, doors, fires, environment);
   fires.update(economy.state.campfires, 0, { x: 0, z: 0 });
   createLandscapeScenery(scene,shadows,environment);
-  const cover = createGroundCover(scene,environment);
+  const cover = createGroundCover(scene,await createGroundCoverCards(scene));
   const syncCover = () => cover.sync([...economy.state.sites, ...economy.state.plots.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))]);
   syncCover();
   return { land, objects, doors, fires, ...economyWorld,

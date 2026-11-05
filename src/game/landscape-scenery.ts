@@ -14,7 +14,7 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
     const mesh=library.source(asset).createInstance(`map-scenery-${asset}-${sequence++}`);
     mesh.position.set(x,y,z);if(typeof scale==='number')mesh.scaling.setAll(scale);else mesh.scaling.set(...scale);mesh.rotation.y=angle;
     mesh.isPickable=false;mesh.receiveShadows=true;mesh.freezeWorldMatrix();
-    if(asset!=='grass'&&asset!=='flowers'&&asset!=='reeds')shadows.addShadowCaster(mesh,false);
+    if(asset!=='reeds')shadows.addShadowCaster(mesh,false);
     return mesh;
   };
   // The rock model keeps its ledges but has a low, rounded upper rim. Match
@@ -39,7 +39,7 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
       carried=d-length;
     }
   }
-  for(const item of LANDSCAPE.decorations)place(item.asset,item.x,item.z,item.scale,item.rotation);
+  // Low non-resource leaves and pebbles are baked into the ground paint.
   // Shore groups alternate reed pockets, gravel bars and larger creek stones;
   // there is no evenly spaced decorative ring around the water.
   for(const area of LANDSCAPE.waterAreas){

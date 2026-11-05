@@ -13,7 +13,7 @@ OUT = ROOT / 'src/assets/environment'
 OUT.mkdir(parents=True, exist_ok=True)
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
-names = ['oak-small', 'oak', 'oak-large', 'pine', 'bush', 'reeds', 'grass', 'flowers', 'flowers-cream', 'flowers-lilac', 'stone', 'cliff']
+names = ['oak-small', 'oak', 'oak-large', 'pine', 'bush', 'reeds', 'stone', 'cliff']
 stats = {}
 for name in names:
     before = set(bpy.data.objects)
@@ -52,7 +52,7 @@ for name in names:
                 bm = bmesh.new();bm.from_mesh(obj.data)
                 bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=0.00001)
                 bm.to_mesh(obj.data);bm.free()
-                if len(obj.data.polygons) > 1200 and not name.startswith('flowers'):
+                if len(obj.data.polygons) > 1200:
                     modifier = obj.modifiers.new('Native LOD decimation', 'DECIMATE')
                     modifier.ratio = (.6 if level == 'medium' else .32) if name == 'cliff' else (.25 if level == 'medium' else .065) if source.get('treePart')=='crown' else ratio
                     bpy.ops.object.modifier_apply(modifier=modifier.name)

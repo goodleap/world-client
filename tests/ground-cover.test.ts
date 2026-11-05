@@ -15,8 +15,8 @@ import { FARM_PLOTS } from '../src/game/economy-config.ts';
 test('native ground patches keep separate GPU instance buffers and clear roads, farm plots and building footprints', () => {
   const engine = new NullEngine(), scene = new Scene(engine);
   try {
-    const template=MeshBuilder.CreateBox('plant-test-template',{size:.25},scene);template.setEnabled(false);
-    const cover = createGroundCover(scene,{source:()=>template});
+    const template=MeshBuilder.CreatePlane('plant-test-template',{size:.25},scene);template.setEnabled(false);
+    const cover = createGroundCover(scene,[template,template,template,template]);
     cover.sync([]);
     const patches = scene.meshes.filter((m): m is Mesh => m instanceof Mesh && m.name.startsWith('meadow-cover-'));
     const positions = () => patches.filter(m => m.isEnabled()).flatMap(m => m.thinInstanceGetWorldMatrices()

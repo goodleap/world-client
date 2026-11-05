@@ -1,0 +1,26 @@
+import { Engine } from '@babylonjs/core/Engines/engine.js';
+import { Scene } from '@babylonjs/core/scene.js';
+import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera.js';
+import { Camera } from '@babylonjs/core/Cameras/camera.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { Color3, Color4 } from '@babylonjs/core/Maths/math.color.js';
+import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
+import { createDaylight } from '../../src/game/lighting.ts';
+import { createGroundCoverCards } from '../../src/game/ground-cover-cards.ts';
+
+const canvas=document.createElement('canvas');document.body.append(canvas);
+const review=window as unknown as {coverReviewReady:boolean;coverReviewStage:string};review.coverReviewStage='scene';
+Object.assign(document.body.style,{margin:'0',overflow:'hidden'});
+Object.assign(canvas.style,{width:'100vw',height:'100vh',display:'block'});
+const engine=new Engine(canvas,true),scene=new Scene(engine);scene.clearColor=Color4.FromHexString('#859f53ff');
+const camera=new ArcRotateCamera('camera',-Math.PI/2,new URLSearchParams(location.search).has('side')?1.2:.76,10,new Vector3(0,.15,0),scene);
+camera.mode=Camera.ORTHOGRAPHIC_CAMERA;camera.orthoLeft=-2.2;camera.orthoRight=2.2;camera.orthoTop=1.1;camera.orthoBottom=-1.1;
+createDaylight(scene);
+const floor=MeshBuilder.CreateGround('floor',{width:9,height:9},scene),paint=new StandardMaterial('floor-paint',scene);
+paint.diffuseColor=Color3.FromHexString('#80a34f');paint.specularColor=Color3.Black();floor.material=paint;
+const cards=await createGroundCoverCards(scene);
+review.coverReviewStage='cards';
+cards.forEach((mesh,i)=>{mesh.isVisible=true;mesh.position.set((i-1.5)*1.05,0,0);});
+engine.runRenderLoop(()=>scene.render());await scene.whenReadyAsync();
+review.coverReviewReady=true;

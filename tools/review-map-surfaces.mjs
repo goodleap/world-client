@@ -38,6 +38,22 @@ try {
   await page.evaluate(v=>{const r=window.__surfaceReview;r.view(v.x,v.z,v.size);for(let i=0;i<16;i++)r.frame();},v);
   await page.screenshot({path:`${out}/${v.name}.png`,scale:'css'});
  }
+ let cover;
+ if(process.env.MAP_CHECK_COVER){
+  cover=await page.evaluate(center=>{
+   const r=window.__surfaceReview,patches=r.scene.meshes.filter(m=>m.name.startsWith('meadow-cover-'));
+   const flowers=patches.filter(m=>!m.name.endsWith(':0')).flatMap(m=>m.thinInstanceGetWorldMatrices().map(matrix=>({x:m.position.x+matrix.m[12],z:m.position.z+matrix.m[14]})));
+   const closest=flowers.sort((a,b)=>Math.hypot(a.x-center.x,a.z-center.z)-Math.hypot(b.x-center.x,b.z-center.z))[0];
+   r.view(closest.x,closest.z,2.2);for(let i=0;i<16;i++)r.frame();
+   return {patches:patches.length,instances:patches.reduce((n,m)=>n+m.thinInstanceCount,0),
+    trianglesPerClump:[...new Set(patches.map(m=>m.getTotalIndices()/3))],
+    allCutout:patches.every(m=>m.material.needAlphaTesting()&&!m.material.needAlphaBlendingForMesh(m)),
+    allUnpickable:patches.every(m=>!m.isPickable),
+    oldModels:r.scene.meshes.filter(m=>['grass','flowers','flowers-cream','flowers-lilac'].includes(m.metadata?.gltf?.extras?.asset)).length};
+  },meadow);
+  assert.deepEqual(cover.trianglesPerClump,[2]);assert(cover.allCutout&&cover.allUnpickable);assert.equal(cover.oldModels,0);
+  await page.screenshot({path:`${out}/ground-cover-close.png`,scale:'css'});
+ }
  const interactions=[];
  if(process.env.MAP_CHECK_INTERACTIONS){
   const e=new Economy();
@@ -64,6 +80,6 @@ try {
   await mkdir(process.env.MAP_EXPORT_TEXTURES,{recursive:true});
   for(const t of textures)await writeFile(`${process.env.MAP_EXPORT_TEXTURES}/${t.name}.png`,Buffer.from(t.png,'base64'));
  }
- await writeFile(`${out}/review.json`,JSON.stringify({errors,interactions,objects:snapshot.objects,camera:snapshot.camera,rendering:snapshot.rendering},null,2));
- assert.deepEqual(errors,[]);console.log(JSON.stringify({output:out,errors,objects:snapshot.objects.length,interactions}));
+ await writeFile(`${out}/review.json`,JSON.stringify({errors,interactions,cover,objects:snapshot.objects,camera:snapshot.camera,rendering:snapshot.rendering},null,2));
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({output:out,errors,objects:snapshot.objects.length,interactions,cover}));
 }finally{await browser.close();}

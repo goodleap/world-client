@@ -77,6 +77,18 @@ export function createLandscapeTerrain(scene: Scene, _palette: Palette) {
       ctx.beginPath(); ctx.moveTo(x - .1, z); ctx.quadraticCurveTo(x - .06, z - length * .65, x - .14, z - length);
       ctx.moveTo(x, z); ctx.quadraticCurveTo(x + .06, z - length * .7, x + .03, z - length * 1.15); ctx.stroke();
     }
+    // Tiny non-interactive leaves and pebbles belong to the ground paint,
+    // rather than separate 3D shrubs/boulders with heavy dark undersides.
+    for(const item of layout.decorations){
+      ctx.save();ctx.translate(item.x,item.z);ctx.rotate(item.rotation);
+      const size=item.scale[0];
+      for(let i=0;i<3;i++){
+        const x=(i-1)*size*.43,z=(i%2-.5)*size*.5;
+        ctx.fillStyle=item.asset==='stone'?['#a6a98c','#b7b798','#969d7a'][i]:['#8fac59','#a0b965','#7d9c4e'][i];
+        ctx.beginPath();ctx.ellipse(x,z,size*(item.asset==='stone'?.29:.42),size*.16,i*.7,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
     // Roads are paint on the native heightfield, so ramps cannot expose a
     // different surface between the road's edge vertices. All layers share the
     // same authored curves and widths used by placement and navigation.

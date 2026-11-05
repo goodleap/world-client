@@ -29,26 +29,6 @@
     "medium": 2600,
     "far": 464
   },
-  "grass": {
-    "near": 1196,
-    "medium": 1040,
-    "far": 1040
-  },
-  "flowers": {
-    "near": 1620,
-    "medium": 1620,
-    "far": 1620
-  },
-  "flowers-cream": {
-    "near": 2160,
-    "medium": 2160,
-    "far": 2160
-  },
-  "flowers-lilac": {
-    "near": 2700,
-    "medium": 2700,
-    "far": 2700
-  },
   "stone": {
     "near": 338,
     "medium": 338,

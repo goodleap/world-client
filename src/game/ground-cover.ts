@@ -6,7 +6,6 @@ import type { BuildingSite } from './construction.ts';
 import type { Point } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, MAP_WIDTH, MAP_DEPTH, LANDSCAPE } from './world-data.ts';
 import { FARM_PLOTS, RESOURCE_NODES } from './economy-config.ts';
-import type { EnvironmentLibrary } from './environment-library.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { polygonDistance } from './polygon.ts';
 import { nearRoad } from './road-layout.ts';
@@ -17,8 +16,7 @@ const CHUNK_SIZE = 12, SPACING = 1.8, MARGIN = .42;
 const inFootprint = (p: Point, b: Footprint) => Math.abs(p.x - b.x) < b.width / 2 + MARGIN && Math.abs(p.z - b.z) < b.depth / 2 + MARGIN;
 /** Shared native thin instances: rounded silhouettes, one draw per visible
  * patch/type, no individual meshes, animation callbacks or shadow-map draws. */
-export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibrary,'source'>) {
-  const templates=[environment.source('grass','far'),...(['flowers','flowers-cream','flowers-lilac'] as const).map(a=>environment.source(a,'medium'))];
+export function createGroundCover(scene: Scene, templates:readonly Mesh[]) {
   const chunks = new Map<string, { mesh: Mesh; plants: Plant[]; visible?: Plant[] }>();
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
   let seed = 19331;
@@ -54,6 +52,7 @@ export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibr
       chunk.plants.push(plant);
     }
   }
+  for(const template of new Set(templates))template.dispose(false,false);
   let footprintKey: string | undefined;
   function sync(sites: readonly Footprint[]) {
     const key = sites.map(s => `${s.x},${s.z},${s.width},${s.depth}`).join(';');
@@ -63,8 +62,10 @@ export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibr
       const visible = chunk.plants.filter(p => !sites.some(site => inFootprint(p, site)));
       if (chunk.visible?.length === visible.length && visible.every((p, i) => p === chunk.visible![i])) continue;
       const matrices = new Float32Array(visible.length * 16);
-      for (const [i, p] of visible.entries()) Matrix.Compose(new Vector3(p.size, p.size, p.size),
-        Quaternion.RotationAxis(Vector3.Up(), p.rotation), new Vector3(p.x - chunk.mesh.position.x, surfaceHeight(p.x,p.z), p.z - chunk.mesh.position.z)).copyToArray(matrices, i * 16);
+      // Small yaw and mirroring vary the silhouettes while keeping the
+      // painted short stems upright toward the fixed game camera azimuth.
+      for (const [i, p] of visible.entries()) Matrix.Compose(new Vector3(p.rotation>Math.PI?-p.size:p.size, p.size, p.size),
+        Quaternion.RotationAxis(Vector3.Up(), Math.sin(p.rotation)*.22), new Vector3(p.x - chunk.mesh.position.x, surfaceHeight(p.x,p.z), p.z - chunk.mesh.position.z)).copyToArray(matrices, i * 16);
       chunk.mesh.setEnabled(visible.length > 0);
       if (visible.length) {
         chunk.mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
