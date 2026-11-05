@@ -22,7 +22,7 @@ test('map development starts clean, stays peaceful, and supports building, recru
     assert.equal(FARM_PLOTS.length, 0);
     assert.equal(createLandGrid().some(c => c.type === 'garden'), false);
     assert.equal(buildingOperational(e.state, 'warehouse'), false);
-    assert.equal(e.state.steward.enabled, false);
+    assert.equal(e.state.steward.enabled, true);
     assert.deepEqual(Object.keys(e.state.vitals), RESIDENTS.map(r => r.id));
     const combat = new Combat(e.state.combat, e, () => []);
     const people = { status: id => ({ position: RESIDENTS.find(r => r.id === id).spawn, moving: false }),

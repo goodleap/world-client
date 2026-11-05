@@ -9,7 +9,7 @@ import '@babylonjs/loaders/glTF/index.js';
 import { TREE_COLORS, treeColor } from '../../src/game/tree-profile.ts';
 import type { TreeColor, TreeSpecies } from '../../src/game/tree-profile.ts';
 
-export const assetNames=['oak','oak-small','oak-large','sapling','fruit','blossom','pine','pine-small','pine-large','bush','reeds','grass','flowers','stone','cliff'] as const;
+export const assetNames=['oak','oak-small','oak-large','sapling','fruit','blossom','pine','bush','reeds','grass','flowers','stone','cliff'] as const;
 export type AssetName=typeof assetNames[number];
 export type XYZ=[number,number,number];
 
@@ -29,7 +29,7 @@ export class ModelLibrary {
         if(!mesh.getTotalVertices())continue;
         const materialName=mesh.material?.name??'matte';
         let material=materials.get(materialName);
-        if(!material){material=new StandardMaterial(materialName,this.scene);material.diffuseColor=mesh.metadata?.gltf?.extras?.treePart==='crown'?Color3.FromHexString(TREE_COLORS[treeColor(name.split('-')[0] as TreeSpecies,name==='fruit'?2:0)]):Color3.White();material.specularColor=Color3.Black();materials.set(materialName,material);}
+        if(!material){material=new StandardMaterial(materialName,this.scene);material.diffuseColor=mesh.metadata?.gltf?.extras?.treePart==='crown'&&name!=='pine'?Color3.FromHexString(TREE_COLORS[treeColor(name.split('-')[0] as TreeSpecies,name==='fruit'?2:0)]):Color3.White();material.specularColor=Color3.Black();materials.set(materialName,material);}
         mesh.material=material;
         const colors=mesh.getVerticesData('color'),stride=mesh.getVertexBuffer('color')?.getSize()??4;
         if(colors){

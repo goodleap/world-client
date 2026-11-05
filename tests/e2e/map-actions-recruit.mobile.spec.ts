@@ -14,8 +14,9 @@ test('map tap previews and commits on close; information and world actions stay 
   expect(Math.abs(card.y-settings.y)).toBeLessThan(2);expect(Math.abs(card.x+card.width/2-640)).toBeLessThan(1);
   await expect(page.locator('#selection-info #selection-actions')).toHaveCount(0);
   await page.screenshot({path:info.outputPath('desktop-top-information.png')});await page.locator('#clear-selection').click();
-  await selectUnit(page,'farmer-leader',true);await expect(page.locator('#unit-actions-panel')).toBeVisible();
-  expect(await page.locator('#selection-info #leader-command-control').count()).toBe(0);await page.locator('#clear-selection').click();
+  await selectUnit(page,'farmer-leader',true);await expect(page.locator('#leader-command-control')).not.toBeVisible();
+  await page.locator('#unit-details summary').click();await expect(page.locator('#leader-command-control')).toBeVisible();
+  expect(await page.locator('#selection-info #leader-command-control').count()).toBe(1);await expect(page.locator('#unit-actions-panel')).toHaveCount(0);await page.locator('#clear-selection').click();
   await page.setViewportSize({width:412,height:915});await panTo(page,HOME_CENTER,true);await clickGround(page,HOME_CENTER,true,2);
   await expect(page.locator('#selection-actions-panel')).toBeVisible();await expect(page.locator('.selected-object-label')).toBeVisible();
   const action=(await page.locator('#selection-actions-panel').boundingBox())!,top=(await page.locator('#selection-info').boundingBox())!;

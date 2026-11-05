@@ -1,4 +1,6 @@
-/** Authored GLBs use grid units. Crown size is distinct from trunk collision. */
+/** Placement styles choose palette/size, not separate player-facing species.
+ * Ordinary trees share the approved crown; only pine has a distinct model/name.
+ * Authored GLBs use grid units. Crown size is distinct from trunk collision. */
 export type TreeSpecies = 'oak' | 'pine' | 'sapling' | 'fruit' | 'blossom';
 export type TreeSize = 'small' | 'medium' | 'large';
 export const TREE_SIZES = {
@@ -21,4 +23,7 @@ const palettes: Record<TreeSpecies, readonly TreeColor[]> = {
   blossom: ['pink', 'pink', 'pink'],
 };
 export const treeColor = (species: TreeSpecies, tone: number): TreeColor => palettes[species][tone % 3];
-export const treeAsset = (species: TreeSpecies, size: TreeSize) => `${species === 'pine' ? 'pine' : 'oak'}${size === 'medium' ? '' : `-${size}`}`;
+export const treeName = (species?: TreeSpecies) => species === 'pine' ? '松树' : '树木';
+export const treeAsset = (species: TreeSpecies, size: TreeSize) => species === 'pine' ? 'pine' : `oak${size === 'medium' ? '' : `-${size}`}`;
+// Pine keeps the original tiered silhouette and shares one Geometry at all sizes.
+export const treeModelScale = (species: TreeSpecies, size: TreeSize) => species === 'pine' ? TREE_SIZES[size].diameter / TREE_SIZES.medium.diameter : 1;

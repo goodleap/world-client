@@ -1,8 +1,8 @@
 """Author the map-redesign review assets; never writes production game assets.
 
 Reference: the approved sphere-cluster tree sheet (2026-11-05), alongside the
-map/creek studies (2026-11-04). Curves/remesh fuse wood forks only. Crowns keep
-separate round lobes, with small / medium / large diameters of 1 / 1.5 / 2 cells.
+map/creek studies (2026-11-04). Curves/remesh fuse wood forks only. Ordinary
+crowns keep separate round lobes at 1 / 1.5 / 2 cells; pine retains its pointed tiers.
 Run: blender -b -t 2 --factory-startup --python studies/map-art/build_models.py -- oak
 """
 import bpy
@@ -170,7 +170,7 @@ def fused_wood(parts, name, material, voxel=.055):
 # Approved 2026-11-05 sphere-cluster reference. Coordinates are authored in
 # grid units; each crown is normalized to its size's 1 / 1.5 / 2 cell diameter.
 # Broadleaf revision: 5 / 9 / 14 main lobes plus small recessed infill lobes.
-# These review assets are NOT published to the map until the user approves.
+# Approved broadleaf assets are published to the map with publish_environment.py.
 TREE_LOBES={
  'small': [(.015,-.01,1.23,.30),(-.265,-.20,.68,.24),(.28,-.18,.74,.25),(.23,.235,.89,.225),(-.23,.27,.88,.235)],
  'medium': [(0,.02,1.46,.36),(-.35,-.27,1.13,.30),(.36,-.27,1.19,.31),(.33,.29,1.16,.28),(-.34,.32,1.22,.29),(-.55,.015,.77,.23),(.52,.035,.83,.24),(.22,-.50,.84,.22),(-.22,.50,.90,.21)],
@@ -183,11 +183,7 @@ TREE_INFILL={
  'medium': [(-.06,.05,.96,.18),(.08,.08,1.23,.17)],
  'large': [(-.12,.06,1.14,.20),(.13,.05,1.42,.18),(.04,-.24,1.18,.19),(-.08,.48,1.46,.19)],
 }
-PINE_LOBES={
- 'small': [(0,.03,1.66,.28),(-.24,.03,1.20,.31),(.25,.08,1.16,.33),(.05,-.28,.98,.30)],
- 'medium': [(0,.06,2.13,.31),(-.26,.08,1.74,.34),(.30,.10,1.66,.35),(-.40,-.03,1.18,.40),(.41,.03,1.15,.41),(.03,-.42,1.32,.36),(-.04,.43,1.33,.36)],
- 'large': [(0,.07,2.60,.37),(-.30,.10,2.15,.39),(.35,.08,2.05,.41),(-.51,.06,1.55,.47),(.53,.07,1.48,.49),(-.08,-.48,1.68,.40),(.02,.53,1.72,.41),(-.45,-.32,1.05,.38),(.43,.36,1.08,.41)],
-}
+
 
 
 def balanced_lobes(lobes):
@@ -228,12 +224,12 @@ def round_crown(name, lobes, material, primary_count):
     return obj
 
 
-def rounded_tree(kind='oak', size='medium'):
+def rounded_tree(size='medium'):
     wood,foliage=mat('Warm branching wood'),mat('Separate round crown clusters')
-    authored=(PINE_LOBES if kind=='pine' else TREE_LOBES)[size]
+    authored=TREE_LOBES[size]
     lobes=balanced_lobes(authored)
     cx,cy=authored[0][0]-lobes[0][0],authored[0][1]-lobes[0][1]
-    infill=[] if kind=='pine' else [(x-cx,y-cy,z,r) for x,y,z,r in TREE_INFILL[size]]
+    infill=[(x-cx,y-cy,z,r) for x,y,z,r in TREE_INFILL[size]]
     parts=[];top_x,top_y,main_height,_=lobes[0]
     crown_bottom=min(z-r for x,y,z,r in lobes)
     fork_height=crown_bottom*.65
@@ -252,7 +248,7 @@ def rounded_tree(kind='oak', size='medium'):
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
     # L review adjustment: lift the intact crown and forks by .10 authored
     # units, extending just the lower stem instead of stretching the foliage.
-    if kind!='pine' and size=='large':
+    if size=='large':
         for obj in objects:
             if obj.get('treePart')=='crown':
                 obj.location.z+=.10
@@ -261,6 +257,11 @@ def rounded_tree(kind='oak', size='medium'):
                 weight=min(1,max(0,vertex.co.z/fork_height))
                 vertex.co.z+=.10*weight
             obj.data.update()
+    normalize_tree(size)
+
+
+def normalize_tree(size):
+    objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
     bpy.context.view_layer.update()
     radius=max(math.hypot(*(o.matrix_world@v.co)[:2]) for o in objects for v in o.data.vertices)
     factor={'small':1,'medium':1.5,'large':2}[size]/(radius*2)
@@ -271,7 +272,7 @@ def rounded_tree(kind='oak', size='medium'):
 
 
 def oak():
-    rounded_tree('oak')
+    rounded_tree()
 
 
 def painted(obj, material, shade, variation=.06):
@@ -296,11 +297,63 @@ def ellipsoid(name,at,size,shade,material):
 
 
 def small_tree(kind='sapling'):
-    rounded_tree(kind,'small' if kind=='sapling' else 'medium')
+    rounded_tree('small' if kind=='sapling' else 'medium')
 
 
 def pine():
-    rounded_tree('pine')
+    wood,foliage=mat('Conifer bark'),mat('Conifer matte needles')
+    parts=[]
+    tube([(0,0,0),(.04,0,1.6),(-.08,.03,3.5),(.02,0,5.9)],[.27,.21,.12,.012],parts)
+    for i in range(5):
+        a=TAU*i/5
+        tube([(0,0,.3),(math.cos(a)*.5,math.sin(a)*.5,.03)],[.12,.02],parts)
+    trunk=fused_wood(parts,'Conifer · tapered trunk',wood,.052)
+    trunk['treePart']='wood'
+    needles=Leaves(foliage)
+    # Dense overlapping drooping branch fans form the stepped silhouette.
+    for level in range(6):
+        z=1.15+level*.75
+        radius=1.5-level*.23
+        # A shallow irregular leafy core joins the fans into a continuous mass,
+        # avoiding empty rings around the trunk at the top of the silhouette.
+        vertices,faces,colors=[],[],[]
+        segments,rings=48,8
+        for j in range(rings):
+            t=j/(rings-1)
+            for k in range(segments):
+                a=k*TAU/segments
+                r=radius*max(.018,(1-t)**.72)*(1+.10*math.sin(a*5+level*1.7))
+                zz=z+.12+t*1.55-.15*math.sin(a*5+level*1.7)*(1-t)
+                vertices.append((math.cos(a)*r,math.sin(a)*r,zz))
+                colors.append(blend(color('#356b46'),color('#63934c'),.25+t*.6))
+        for j in range(rings-1):
+            for k in range(segments):
+                a=j*segments+k;b=j*segments+(k+1)%segments
+                faces.append((a,b,b+segments,a+segments))
+        mesh('Conifer · soft connected branch mass',vertices,faces,colors,foliage)
+        for ring in range(2):
+            count=10 if ring==0 else 7
+            for i in range(count):
+                a=TAU*i/count+level*.38+ring*.2
+                r=radius*(.58 if ring==0 else .25)*(1+.11*math.sin(a*5+level))
+                p=Vector((math.cos(a)*r,math.sin(a)*r,z+.38+ring*.28+math.sin(a*5+level*1.7)*.16))
+                for j in range(7):
+                    angle=a+(j-3)*.19
+                    needles.leaf(p,(math.cos(angle),math.sin(angle),-.16),radius*(.71 if ring==0 else .62)*(1+.08*math.cos(i*2+j)),radius*.18,
+                        color(['#326746','#3a7850','#508a4e','#689b50'][(i+j+level)%4]),curl=.23)
+    needles.spray((.01,0,5.94),.23,['#50854a','#65974e','#80ac55'],39,count=7)
+    needles.finish('Conifer · six drooping branch tiers')
+
+    # Restore the original pointed, six-tier pine from cbd710d. Joining preserves its
+    # vertices, paint and silhouette while exposing two shared runtime parts.
+    crown_parts=[o for o in bpy.context.scene.objects if o.type=='MESH' and o!=trunk]
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in crown_parts:obj.select_set(True)
+    bpy.context.view_layer.objects.active=crown_parts[0]
+    bpy.ops.object.join()
+    crown=bpy.context.object;crown.name='Pine · original pointed tiers'
+    crown['treePart']='crown';crown['crownShape']='tiered-conifer';crown['branchTiers']=6
+    normalize_tree('medium')
 
 
 def bush():
@@ -437,9 +490,8 @@ def cliff():
 
 BUILDERS={'oak':oak,'sapling':small_tree,'fruit':lambda:small_tree('fruit'),
           'blossom':lambda:small_tree('blossom'),'pine':pine,'bush':bush,'reeds':reeds,'grass':grass,'flowers':flowers,'stone':stone,'cliff':cliff}
-for family in ('oak','pine'):
-    for size in ('small','large'):
-        BUILDERS[f'{family}-{size}']=lambda family=family,size=size:rounded_tree(family,size)
+for size in ('small','large'):
+    BUILDERS[f'oak-{size}']=lambda size=size:rounded_tree(size)
 requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(BUILDERS)
 for name in requested:
     bpy.ops.object.select_all(action='SELECT')
@@ -455,11 +507,14 @@ for name in requested:
     crowns=[o for o in objects if o.get('treePart')=='crown']
     if crowns:
         points=[o.matrix_world@v.co for o in crowns for v in o.data.vertices]
-        metrics['crown']={'lobes':sum(o['lobeCount'] for o in crowns),
-                         'primary_lobes':sum(o['primaryLobeCount'] for o in crowns),
-                         'infill_lobes':sum(o['infillLobeCount'] for o in crowns),
-                         'diameter':round(2*max(math.hypot(p.x,p.y) for p in points),5),
+        metrics['crown']={'diameter':round(2*max(math.hypot(p.x,p.y) for p in points),5),
                          'height':round(max(p.z for p in points),5),
                          'bare_trunk_fraction':round(min(p.z for p in points)/max(p.z for p in points),4)}
+        if name=='pine':
+            metrics['crown'].update(shape='tiered-conifer',branch_tiers=6)
+        else:
+            metrics['crown'].update(lobes=sum(o['lobeCount'] for o in crowns),
+                                   primary_lobes=sum(o['primaryLobeCount'] for o in crowns),
+                                   infill_lobes=sum(o['infillLobeCount'] for o in crowns))
     (OUT/f'{name}.json').write_text(json.dumps(metrics,indent=2)+'\n')
     print(json.dumps(metrics))

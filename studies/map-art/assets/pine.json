@@ -1,6 +1,13 @@
 {
   "asset": "pine",
-  "triangles": 14472,
-  "vertices": 7252,
-  "materials": 2
+  "triangles": 76120,
+  "vertices": 39806,
+  "materials": 2,
+  "crown": {
+    "diameter": 1.5,
+    "height": 2.50959,
+    "bare_trunk_fraction": 0.1655,
+    "shape": "tiered-conifer",
+    "branch_tiers": 6
+  }
 }

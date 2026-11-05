@@ -13,6 +13,8 @@ test('environment updates load a fingerprinted model instead of the stale public
   expect(staleRequests).toBe(0);
   expect(models).toHaveLength(1);
   expect(models[0]).toMatch(/\/assets\/environment-[\w-]+\.glb$/);
-  expect((await snapshot(page)).objects.filter(object=>object.kind==='tree').length).toBeGreaterThan(100);
+  const trees=(await snapshot(page)).objects.filter(object=>object.kind==='tree');
+  expect(trees.length).toBeGreaterThan(100);
+  expect([...new Set(trees.map(tree=>tree.name))].sort()).toEqual(['松树','树木']);
   expect(errors).toEqual([]);
 });

@@ -735,8 +735,6 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
       const action=projectDamage(selectedWorld.anchor);ui.positionObjectActions(action.x,action.y,action.visible);
     }
-    const leader=residents.selectedId()===farmerLeader?.id&&residents.displayPosition(farmerLeader!.id);
-    if(leader){const p=projectDamage({x:leader.x,z:leader.z,y:surfaceHeight(leader.x,leader.z)+2.8});ui.positionUnitActions(p.x,p.y,p.visible);}
     if (ui.hintAnchor) {
       const anchor = ui.hintAnchor;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,

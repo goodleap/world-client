@@ -13,7 +13,7 @@ OUT = ROOT / 'src/assets/environment'
 OUT.mkdir(parents=True, exist_ok=True)
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
-names = ['oak-small', 'oak', 'oak-large', 'pine-small', 'pine', 'pine-large', 'bush', 'reeds', 'grass', 'flowers', 'stone', 'cliff']
+names = ['oak-small', 'oak', 'oak-large', 'pine', 'bush', 'reeds', 'grass', 'flowers', 'stone', 'cliff']
 stats = {}
 for name in names:
     before = set(bpy.data.objects)

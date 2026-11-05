@@ -53,9 +53,9 @@ export async function loadEnvironment(scene:Scene) {
   };
   for(const [key,source] of meshes)if(key.endsWith('-near')){
     const name=key.slice(0,-5);
-    // Crown LODs are attached to their palette clones below.
-    if(name.endsWith('-crown'))continue;
-    attachLOD(source,get(name,'medium'),get(name,'far'),name.endsWith('-wood')?.22:.055);
+    // Ordinary crowns use palette clones; the restored pine retains its paint.
+    if(name.endsWith('-crown')&&name!=='pine-crown')continue;
+    attachLOD(source,get(name,'medium'),get(name,'far'),name.endsWith('-wood')||name==='pine-crown'?.22:.055);
   }
   material.freeze();
   const colors=new Map<TreeColor,StandardMaterial>(),crowns=new Map<string,Mesh>();
@@ -76,7 +76,7 @@ export async function loadEnvironment(scene:Scene) {
   for(const original of container.materials)original.dispose();
   return {source:(name:EnvironmentAsset,detail:Detail='near')=>get(name,detail),
     tree(species:TreeSpecies,size:TreeSize,tone:number){
-      const asset=treeAsset(species,size);return [get(`${asset}-wood`,'near'),crown(asset,treeColor(species,tone))];
+      const asset=treeAsset(species,size);return [get(`${asset}-wood`,'near'),asset==='pine'?get('pine-crown','near'):crown(asset,treeColor(species,tone))];
     }};
 }
 export type EnvironmentLibrary=Awaited<ReturnType<typeof loadEnvironment>>;

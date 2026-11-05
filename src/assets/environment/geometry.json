@@ -1,33 +1,23 @@
 {
   "oak-small": {
-    "near": 7524,
-    "medium": 1532,
-    "far": 360
+    "near": 10480,
+    "medium": 2184,
+    "far": 522
   },
   "oak": {
-    "near": 14612,
-    "medium": 2882,
-    "far": 668
+    "near": 21188,
+    "medium": 4282,
+    "far": 1006
   },
   "oak-large": {
-    "near": 21960,
-    "medium": 4150,
-    "far": 940
-  },
-  "pine-small": {
-    "near": 7692,
-    "medium": 1554,
-    "far": 364
+    "near": 39308,
+    "medium": 7656,
+    "far": 1764
   },
   "pine": {
-    "near": 14472,
-    "medium": 2862,
-    "far": 664
-  },
-  "pine-large": {
-    "near": 21480,
-    "medium": 4084,
-    "far": 928
+    "near": 76120,
+    "medium": 16253,
+    "far": 4161
   },
   "bush": {
     "near": 10764,

@@ -78,7 +78,7 @@ export function createUI(app: HTMLElement) {
         <details id="unit-details"><summary aria-label="展开或收起单位详情">
           <div class="resident-card-heading"><strong id="resident-name"></strong><small id="resident-level" hidden></small><span id="resident-activity"></span></div>
           <div id="resident-vitals" class="resident-vitals"></div>
-        </summary><div id="unit-attributes" class="unit-attributes"></div></details>
+        </summary><div id="unit-attributes" class="unit-attributes"></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></details>
         <span id="resident-hint" class="sr-only"></span>
       </section>
       <section id="selection-card" class="selection-card" aria-label="对象信息" hidden><strong id="selection-name"></strong><small id="selection-kind"></small><p id="selection-hint" role="status"></p></section>
@@ -109,7 +109,6 @@ export function createUI(app: HTMLElement) {
     <div id="joystick" class="joystick" aria-hidden="true"><div class="joystick-axis"></div><div id="joystick-knob" class="joystick-knob"></div></div>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <section id="selection-actions-panel" class="selection-actions-panel" aria-label="对象操作" hidden><div id="selection-actions" class="selection-actions"></div></section>
-    <section id="unit-actions-panel" class="unit-actions-panel" aria-label="单位操作" hidden><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></section>
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
 
     <nav id="group-shortcuts" class="group-shortcuts" aria-label="快速选择编队"></nav>
@@ -303,12 +302,12 @@ export function createUI(app: HTMLElement) {
   }, options);
 
   // World overlays keep their offset from the projected target, even at edges.
-  const card = get('selection-card'),actionsPanel=get('selection-actions-panel'),unitActions=get('unit-actions-panel');
+  const card = get('selection-card'),actionsPanel=get('selection-actions-panel');
   residentSizeObserver.observe(actionsPanel);
   const hint = get('target-hint');
   const infoCard=get('selection-info'),unitCard=get('resident-selection');
   let residentName='',residentInfo:UnitInfo|undefined;
-  const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;unitActions.hidden=unitCard.hidden||get('leader-command-control').hidden;};
+  const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;};
   const infoObserver=new ResizeObserver(entries=>{for(const entry of entries)app.style.setProperty('--selection-height',`${Math.ceil(entry.borderBoxSize?.[0]?.blockSize??entry.contentRect.height)}px`);});
   infoObserver.observe(infoCard);
   const objectLabel=document.createElement('span');objectLabel.className='resident-label selected-object-label';objectLabel.hidden=true;
@@ -539,12 +538,10 @@ export function createUI(app: HTMLElement) {
     },
     positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(objectLabel, x, y, visible),
     positionObjectActions:(x:number,y:number,visible:boolean)=>positionOverlay(actionsPanel,x,y,visible),
-    positionUnitActions:(x:number,y:number,visible:boolean)=>positionOverlay(unitActions,x,y,visible),
     setResident(name?: string, canWork = false, leadership?: boolean) {
       residentName=name??'';if(!name)residentInfo=undefined;syncSelection();
       get('resident-name').textContent = name === '农民·领头' ? '领头' : name ?? '';
       get('resident-name').title = name ?? '';
-      get('resident-selection').classList.toggle('has-command', leadership !== undefined);
       get('resident-hint').textContent = canWork ? '点空地移动 · 点目标作业' : '点空地指挥移动';
       get('leader-command-control').hidden = leadership === undefined;
       get<HTMLInputElement>('leader-command-enabled').checked = leadership ?? false;syncSelection();

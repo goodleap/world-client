@@ -16,6 +16,7 @@ import { createCropModel } from './crop-model.ts';
 import { createGroundGoodsModel, groundGoodsKind } from './ground-goods-model.ts';
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
 import { TREES, GRID_SIZE, BUILDINGS } from './world-data.ts';
+import { treeModelScale, treeName } from './tree-profile.ts';
 import type { EnvironmentLibrary } from './environment-library.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { BUILDING_TYPES } from './construction.ts';
@@ -113,8 +114,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       if (economy.state.depleted.includes(node.id)) { remove(node.id); continue; }
       if (node.kind === 'wood') {
         const tree = TREES[Number(node.id.slice(5))];
-        const sources=environment.tree(tree.species,tree.size,tree.tone),scale=GRID_SIZE*tree.scale;
-        show({ id: node.id, kind: 'tree', name: ({oak:'阔叶树',pine:'针叶树',sapling:'林缘小树',fruit:'果树',blossom:'花树'})[tree.species], x: tree.x, z: tree.z, radius: node.canopyRadius,
+        const sources=environment.tree(tree.species,tree.size,tree.tone),scale=GRID_SIZE*tree.scale*treeModelScale(tree.species,tree.size);
+        show({ id: node.id, kind: 'tree', name: treeName(tree.species), x: tree.x, z: tree.z, radius: node.canopyRadius,
           anchor: { x: tree.x, y: Math.max(...sources.map(s=>s.getBoundingInfo().boundingBox.maximum.y))*scale, z: tree.z - .45 * tree.scale } }, 'tree',
         () => sources, scale, tree.rotation);
       } else if (node.kind === 'food') {

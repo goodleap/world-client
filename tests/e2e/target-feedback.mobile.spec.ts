@@ -32,6 +32,8 @@ test('growth and placement hints follow their targets; the selected leader has a
   await selectUnit(page, 'farmer', true);
   await expect(page.locator('#leader-command-control')).not.toBeVisible();
   await selectUnit(page, 'farmer-leader', true);
+  await expect(page.locator('#leader-command-control')).not.toBeVisible();
+  await page.locator('#unit-details summary').click();
   await expect(page.locator('#leader-command-control')).toBeVisible();
   await expect(page.locator('#leader-command-enabled')).not.toBeChecked();
   await page.locator('#leader-command-enabled').check();

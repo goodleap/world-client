@@ -7,11 +7,14 @@ import { insidePolygon } from '../src/game/polygon.ts';
 import { isBlocked } from '../src/game/movement.ts';
 import { findPath } from '../src/game/pathfinding.ts';
 import { buildingAt, placementReason } from '../src/game/construction.ts';
+import { treeColor, treeName } from '../src/game/tree-profile.ts';
 
 test('all three tree sizes expose reachable individual wood resources', () => {
   const wood=RESOURCE_NODES.filter(n=>n.kind==='wood'),solids=economyObstacles([]);
   assert.equal(wood.length,TREES.length);
   assert.deepEqual([...new Set(TREES.map(t=>t.size))].sort(),['large','medium','small']);
+  assert.deepEqual([...new Set(TREES.map(t=>treeName(t.species)))].sort(),['松树','树木']);
+  assert.deepEqual([...new Set(TREES.map(t=>treeColor(t.species,t.tone)))].sort(),['gold','leaf','lime','orange','pine','pink']);
   assert.ok(wood.filter(n=>LANDSCAPE.geography.forests.some(f=>insidePolygon(n,f.area))).length>100);
   for(const tree of TREES){
     assert.ok(LANDSCAPE.contains(tree),'ordinary trees cannot be planted inside permanent cliffs');
