@@ -1,4 +1,5 @@
 import type { Fighter } from './combat.ts';
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { createRouteState } from './route-following.ts';
 import { WORLD_BOUNDS } from './world-data.ts';
@@ -9,7 +10,7 @@ import type { Point } from './movement.ts';
 /** Trial pacing; game time only. No wall clock or refresh-time random rolls. */
 export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, maxWolves: 6, maxSoldiers: 12, warning: 8,
   duration: 120, fearRadius: 6, fearSeconds: 3, acquire: 11, chase: 17, aidRadius: 10, loot: 2, feedSeconds: 1.1 };
-export const WILD_WOLF_SPAWNS: readonly Point[] = [
+export const WILD_WOLF_SPAWNS: readonly Point[] = MAP_DEVELOPMENT?[]:[
   { x: -48, z: -1 }, { x: -48, z: 2 },
   { x: -53, z: 40 }, { x: -53, z: 43 },
   { x: -33, z: -46 }, { x: -33, z: -43 },

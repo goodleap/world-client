@@ -2,6 +2,7 @@ import { OBSTACLES, TREES, LANDSCAPE, gridPoint, MAP_CELLS, MAP_ROWS } from './w
 import type { Obstacle } from './movement.ts';
 import type { BuildingSite } from './construction.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
  * FIFO among executable jobs; reserve before work, spend on
@@ -23,7 +24,7 @@ export const ECONOMY_CONFIG = {
   retrySeconds: 3,
 } as const;
 
-export const FARM_PLOTS = Array.from({ length: 12 }, (_, i) => ({
+export const FARM_PLOTS = Array.from({ length: MAP_DEVELOPMENT?0:12 }, (_, i) => ({
   id: `plot-${i}`, ...gridPoint(MAP_CELLS / 2 + 1.5 + i % 4, MAP_ROWS / 2 + 2.5 + Math.floor(i / 4)),
 }));
 export const RESOURCE_NODES = [

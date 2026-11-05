@@ -1,4 +1,5 @@
 import { BODY_RADIUS } from './body-shape.ts';
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { OUTPOST, ENCOUNTERS } from './combat-config.ts';
 import { WORLD_BOUNDS, OBSTACLES, LANDSCAPE } from './world-data.ts';
 import { isBlocked, type Obstacle, type Point } from './movement.ts';
@@ -16,7 +17,7 @@ export interface ResidentDefinition {
 // Runtime human tempo; authored strides and economy clocks stay unchanged.
 export const HUMAN_SPEED_MULTIPLIER = 2;
 
-export const RESIDENTS: readonly ResidentDefinition[] = [
+export const STANDARD_RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'farmer', role: 'farmer', name: '农民', spawn: { x: 1.8, z: -2.3 }, home: { x: 1.8, z: -2 }, areaRadius: 3.6, bodyRadius: BODY_RADIUS.farmer, speed: 1.15, labelHeight: 2.35 },
   { id: 'farmer-2', role: 'farmer', name: '农民二', spawn: { x: 0, z: -.8 }, home: { x: 0, z: -.8 }, areaRadius: 3.6, bodyRadius: BODY_RADIUS.farmer, speed: 1.15, labelHeight: 2.35 },
   { id: 'infantry', role: 'infantry', name: '步兵', spawn: { x: 0, z: 1.2 }, home: { x: 0, z: 1.2 }, areaRadius: 4.2, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
@@ -26,6 +27,7 @@ export const RESIDENTS: readonly ResidentDefinition[] = [
   { id: 'farmer-leader', role: 'farmer', name: '农民·领头', effects: ['leader'], spawn: { x: 0, z: -3.8 }, home: { x: 0, z: -3.8 }, areaRadius: 3.6, bodyRadius: BODY_RADIUS.farmer, speed: 1.15, labelHeight: 2.35 },
 ];
 
+export const RESIDENTS=STANDARD_RESIDENTS.filter(r=>!MAP_DEVELOPMENT||r.role==='farmer');
 // Deterministic camp slots avoid actual terrain/resources and each other.
 const campSolids:Obstacle[]=[...OBSTACLES,...[...LANDSCAPE.rocks,...LANDSCAPE.iron].map(p=>({kind:'circle' as const,...p,radius:.85*p.scale})),
   ...LANDSCAPE.forage.map(p=>({kind:'circle' as const,...p,radius:.65}))];
@@ -37,13 +39,13 @@ function campSlots(c:typeof ENCOUNTERS[number]):Point[]{
   if(slots.length<count)throw new Error(`营地 ${c.id} 没有足够安全出生点`);
   return slots.sort((a,b)=>b.z-a.z||a.x-b.x);
 }
-const campSpawns=new Map(ENCOUNTERS.filter(c=>c.members).map(c=>[c.id,campSlots(c)]));
+const campSpawns=new Map((MAP_DEVELOPMENT?[]:ENCOUNTERS).filter(c=>c.members).map(c=>[c.id,campSlots(c)]));
 const campArcher=(c:typeof ENCOUNTERS[number],i:number)=>!!c.members&&i>=c.members-Math.ceil(c.members*.3);
 const campCavalry=(c:typeof ENCOUNTERS[number],i:number)=>!!c.members&&i>=(c.members>=12?2:1)&&i<(c.members>=12?2:1)+Math.ceil(c.members/8);
 const campRole=(c:typeof ENCOUNTERS[number],i:number):ResidentRole=>campCavalry(c,i)?'cavalry':c.members?campArcher(c,i)?'archer':'infantry':c.id==='pass'&&i>0?'archer':'infantry';
 
 /** All soldiers use shared assets; allegiance is gameplay data. */
-export const ENEMIES: readonly ResidentDefinition[] = [
+export const ENEMIES: readonly ResidentDefinition[] = MAP_DEVELOPMENT?[]:[
   { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
   { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1, labelHeight: 2.15 },
@@ -70,7 +72,7 @@ export const canResidentWork = (id: string) => !id.startsWith('enemy-') && unitR
 export const canResidentSupply = (id: string) => !id.startsWith('enemy-') && !!unitRole(id) && unitRole(id) !== 'dog';
 
 export function newResident(role: ResidentRole, id: string, spawn: Point): ResidentDefinition {
-  const template = RESIDENTS.find(r => r.role === role)!;
+  const template = STANDARD_RESIDENTS.find(r => r.role === role)!;
   const names = { farmer: '农民', infantry: '步兵', archer: '弓兵', cavalry: '骑兵', dog: '田园犬' };
   return { ...template, effects: undefined, id, name: `${names[role]}${id.split('-').at(-1)}`,
     spawn: { ...spawn }, home: { ...spawn } };
@@ -79,7 +81,7 @@ export function newResident(role: ResidentRole, id: string, spawn: Point): Resid
 // Residents stay out of the planted beds as well as the same solids used by the player.
 export const RESIDENT_OBSTACLES: readonly Obstacle[] = [
   ...OBSTACLES,
-  { kind: 'box', x: 5.07, z: -5.91, halfWidth: 3.38, halfDepth: 2.54 },
+  ...(MAP_DEVELOPMENT?[]:[{ kind: 'box' as const, x: 5.07, z: -5.91, halfWidth: 3.38, halfDepth: 2.54 }]),
 ];
 
 export function wanderSettings(resident: ResidentDefinition): WanderSettings {

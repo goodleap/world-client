@@ -20,7 +20,7 @@ export function maxHealth(id: string, state?: EconomyState) {
   if (role==='infantry'||role==='archer'||role==='cavalry')return levelHealth(COMBAT_CONFIG[role].hp, experience);
   return id === 'horse' || id.startsWith('horse:') ? 160 : role === 'dog' ? 80 : 100;
 }
-export const vitalIds = [...RESIDENTS, ...ENEMIES].map(r => r.id).concat('horse');
+export const vitalIds = [...RESIDENTS, ...ENEMIES].map(r => r.id).concat(RESIDENTS.some(r=>r.role==='cavalry')?['horse']:[]);
 export function initialVital(id:string):Vital {
   const role=unitRole(id), fighter=role==='infantry'||role==='archer'||role==='cavalry';
   return {stamina:100,hp:fighter?undefined:maxHealth(id),manualUntil:0,retryAt:0,hurtUntil:0};

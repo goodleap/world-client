@@ -1,3 +1,4 @@
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { RAID_CONFIG } from './raid-state.ts';
 import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
@@ -66,7 +67,7 @@ export function createFighter(r:ResidentDefinition):Fighter {
     life:'active',order:'guard',facing:Math.PI,speed:0,cooldown:0,route:[],navigation:createRouteState(),planIn:0};
 }
 export function initialCombat(definitions:readonly ResidentDefinition[]=[...RESIDENTS,...ENEMIES]): CombatState {
-  return { camps: ENCOUNTERS.map(c => ({ id: c.id, cleared: false, discovered: false, rewardGranted: false, respawnAt: 0, cycle: 0 })), nextAttack: 1, discovered: false, cleared: false, rewardGranted: false, rewardGoods: [], projectiles: [],
+  return { camps: ENCOUNTERS.map(c => ({ id: c.id, cleared: MAP_DEVELOPMENT, discovered: MAP_DEVELOPMENT, rewardGranted: MAP_DEVELOPMENT, respawnAt: 0, cycle: 0 })), nextAttack: 1, discovered: MAP_DEVELOPMENT, cleared: MAP_DEVELOPMENT, rewardGranted: MAP_DEVELOPMENT, rewardGoods: [], projectiles: [],
     units: definitions.filter(r=>!['farmer','dog'].includes(r.role)).map(createFighter) };
 }
 
@@ -673,6 +674,7 @@ export class Combat {
       if (target?.life === 'active') u.route[u.route.length - 1] = { x: target.position.x, z: target.position.z };
     }
     for (const camp of this.state.camps) {
+      if(MAP_DEVELOPMENT)continue;
       const config = ENCOUNTERS.find(c => c.id === camp.id)!;
       const units = this.state.units.filter(u => u.team === 'enemy' && enemyDefinitions.get(u.id)?.camp === camp.id);
       if (!camp.cleared && units.every(u => u.life === 'defeated')) {

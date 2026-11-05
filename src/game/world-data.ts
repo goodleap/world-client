@@ -1,4 +1,5 @@
 import { createMapLandmarks } from './map-landmarks.ts';
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { createLandscapeLayout } from './landscape-layout.ts';
 import { MAP_CONFIG } from './map-regions.ts';
@@ -18,14 +19,15 @@ export const WORLD_BOUNDS: Bounds = { minX: -MAP_WIDTH / 2, maxX: MAP_WIDTH / 2,
 export const SPAWN: Point = gridPoint(MAP_CELLS / 2, MAP_ROWS / 2);
 export const WALK_SPEED = 3.7;
 export const PLAYER_RADIUS = 0.28;
-export const BUILDINGS = [
+export const STANDARD_BUILDINGS = [
   { id: 'cottage', ...gridPoint(MAP_CELLS / 2 - 2, MAP_ROWS / 2 - 3), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.65, roof: 'terracotta' },
   { id: 'warehouse', ...gridPoint(MAP_CELLS / 2 + 2.5, MAP_ROWS / 2 - 3), width: 3 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.9, roof: 'terracotta' },
   { id: 'home-center', ...gridPoint(MAP_CELLS / 2 + 6.5, MAP_ROWS / 2 - 4.5), width: 3 * GRID_SIZE, depth: 3 * GRID_SIZE, height: 3.1, roof: 'terracotta' },
 ] as const;
-export const WAREHOUSE = BUILDINGS[1];
-export const HOME = BUILDINGS[0];
-export const HOME_CENTER = BUILDINGS[2];
+export const BUILDINGS = STANDARD_BUILDINGS.filter(b=>!MAP_DEVELOPMENT||b.id==='home-center');
+export const WAREHOUSE = STANDARD_BUILDINGS[1];
+export const HOME = STANDARD_BUILDINGS[0];
+export const HOME_CENTER = STANDARD_BUILDINGS[2];
 export const WAREHOUSE_DOOR = { x: WAREHOUSE.x, z: WAREHOUSE.z - WAREHOUSE.depth / 2 - .75 };
 export const MAP_LANDMARKS = createMapLandmarks(GRID_SIZE);
 export const LANDSCAPE = createLandscapeLayout(gridPoint, GRID_SIZE);
@@ -49,7 +51,7 @@ export function createLandGrid(): LandCell[] {
   for (let row = 0; row < MAP_ROWS; row++) for (let column = 0; column < MAP_CELLS; column++) {
     const p = gridPoint(column + .5, row + .5);
     let type: LandType = LANDSCAPE.contains(p) ? 'grass' : 'wildland';
-    if (column >= MAP_CELLS / 2 + 1 && column < MAP_CELLS / 2 + 5 && row >= MAP_ROWS / 2 + 2 && row < MAP_ROWS / 2 + 5) type = 'garden';
+    if (!MAP_DEVELOPMENT && column >= MAP_CELLS / 2 + 1 && column < MAP_CELLS / 2 + 5 && row >= MAP_ROWS / 2 + 2 && row < MAP_ROWS / 2 + 5) type = 'garden';
     if (LANDSCAPE.waterSolids.some(a => insidePolygon(p, a))) type = 'water';
     if (BUILDINGS.some(b => Math.abs(p.x - b.x) < b.width / 2 && Math.abs(p.z - b.z) < b.depth / 2)) type = 'building';
     cells.push({ ...p, type });

@@ -1,4 +1,4 @@
-import { RESIDENTS, newResident } from './resident-data.ts';
+import { RESIDENTS, STANDARD_RESIDENTS, newResident } from './resident-data.ts';
 import type { ResidentDefinition, ResidentRole } from './resident-data.ts';
 import type { Economy, EconomyState, Inventory } from './economy.ts';
 import type { Point, Obstacle } from './movement.ts';
@@ -73,7 +73,7 @@ export function advanceRecruitment(e: Economy, seconds: number, occupants: reado
   const state=e.state, order=state.recruitment.queue[0];if(!order)return;
   order.elapsed=Math.min(RECRUIT_CONFIG[order.role].seconds,order.elapsed+seconds);
   if(order.elapsed<RECRUIT_CONFIG[order.role].seconds)return;
-  const id=`recruit-${order.role}-${order.serial}`, radius=RESIDENTS.find(r=>r.role===order.role)!.bodyRadius;
+  const id=`recruit-${order.role}-${order.serial}`, radius=STANDARD_RESIDENTS.find(r=>r.role===order.role)!.bodyRadius;
   const solids=[...economyObstacles(state.depleted,state.sites,state.buildings),...occupants];
   const door={x:HOME_CENTER.x-.35,z:HOME_CENTER.z-HOME_CENTER.depth/2-1.25};
   const candidates=Array.from({length:4},(_,row)=>[-1,0,1].map(col=>({x:door.x+col*(radius*2+.2),z:door.z-row*.7}))).flat();

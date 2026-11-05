@@ -1,3 +1,4 @@
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { Combat, fighterRadius, fighterDestination, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
@@ -261,6 +262,7 @@ export class Raids {
     }
   }
   update(seconds: number) {
+    if(MAP_DEVELOPMENT)return;
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const dt = Math.min(seconds, .25), now = this.economy.state.seconds;
     this.updateAreas();

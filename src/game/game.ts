@@ -1,3 +1,4 @@
+import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
 import { towerHeight, assignedTower, garrisonAvailability, garrisonCandidate, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
 import { createTowerRange } from './tower-range.ts';
@@ -119,7 +120,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   };
   let world: Awaited<ReturnType<typeof buildWorld>>;
   let residents: ReturnType<typeof createResidents>;
-  let wolves: Awaited<ReturnType<typeof createWolfView>>;
+  let wolves: Awaited<ReturnType<typeof createWolfView>> | undefined;
   try {
 
     await nextPaint();
@@ -143,7 +144,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
 
     await residents.loadRolePlaceholders();
     await residents.loadDogModel();
-    wolves = await createWolfView(scene, shadows, ui);
+    if(!MAP_DEVELOPMENT)wolves = await createWolfView(scene, shadows, ui);
     releaseModelDownloads();
 
     await nextPaint();
@@ -627,7 +628,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     const logicStart = performance.now();
     if(canSave&&!resuming&&!ui.paused){navigation.flush();backgroundPaths.flush();}
     if(canSave&&!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
-        residents.beginStep(); wolves.beginStep(raids.wolves); fixedSteps++;
+        residents.beginStep(); wolves?.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
         controller.update(dt);
         raids.update(dt);
@@ -689,11 +690,11 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       selectionRevision = selectionKey;
     }
     towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
-    wolves.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
+    wolves?.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
     if (selectedEnemy) {
       const enemy = combat.unit(selectedEnemy);
       if (!enemy || enemy.life !== 'active' || enemy.hp <= 0 || enemy.departed) clearEnemy();
-      else selectionFeedback.inspectEnemy(residents.displayPosition(enemy.id) ?? wolves.displayPosition(enemy.id) ?? enemy.position, fighterRadius(enemy) + .25);
+      else selectionFeedback.inspectEnemy(residents.displayPosition(enemy.id) ?? wolves?.displayPosition(enemy.id) ?? enemy.position, fighterRadius(enemy) + .25);
     }
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
     const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
@@ -718,12 +719,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
     if (attackPulse) {
       const target = combat.target(attackPulse.target);
-      if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(residents.displayPosition(target.id)??wolves.displayPosition(target.id)??target.position);
+      if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(residents.displayPosition(target.id)??wolves?.displayPosition(target.id)??target.position);
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
     levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,levelPosition,projectDamage);
     const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
-    residents.updateLabels(camera); wolves.updateLabels(camera);
+    residents.updateLabels(camera); wolves?.updateLabels(camera);
     ui.setInspectedUnits([...residents.selectedIds(),...(selectedEnemy?[selectedEnemy]:[])]);
     damageNumbers.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,projectDamage);
     renderElapsed=0;
@@ -753,7 +754,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
         const p = residents.displayPosition(d.id); if (p) units.push({ id: d.id, x: p.x, z: p.z, enemy: false, selected: selected.has(d.id) });
       }
       for (const w of raids.wolves) if (w.life === 'active' && w.mode !== 'gone') {
-        const p = wolves.displayPosition(w.id) ?? w.position; units.push({ id: w.id, x: p.x, z: p.z, enemy: true, selected: selected.has(w.id) });
+        const p = wolves?.displayPosition(w.id) ?? w.position; units.push({ id: w.id, x: p.x, z: p.z, enemy: true, selected: selected.has(w.id) });
       }
       return { units, plots: economy.state.plots,
         buildings: [...world.objects.values()].filter(o => o.kind === 'building' || o.kind === 'site').map(o => ({ x:o.x,z:o.z,width:o.width,depth:o.depth,radius:o.radius,site:o.kind==='site' })) };
@@ -864,7 +865,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,
       combat: structuredClone(combat.state),
-      wolves: wolves.snapshot(),
+      wolves: wolves?.snapshot()??[],
       doors: world.doors.snapshot(), fires: world.fires.snapshot(),
       economy: structuredClone(economy.state), farmerWork: residents.farmerWorkState(),
       selection: { resident: residents.selectedId(), enemy: selectedEnemy, group: selectedGroup, members:residents.selectedIds(), building: selectedWorld?.kind === 'building' ? selectedWorld.id : undefined,
