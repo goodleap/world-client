@@ -58,7 +58,7 @@ export function createLandscapeTerrain(scene: Scene, _palette: Palette) {
     }
     // Tree groups and flower drifts remain legible from the overview. Individual
     // grass and blossom geometry supplies detail when the camera approaches.
-    for (const tree of [...layout.trees,...layout.sceneryTrees]) patch(tree.x,tree.z,tree.scale*2.5,'#536d3830',.85);
+    for (const tree of layout.trees) patch(tree.x,tree.z,tree.scale*1.1,'#536d3830',.85);
     for (const rock of layout.rocks) patch(rock.x,rock.z,rock.scale*1.7,'#92947c55',.8);
     const flowerField=layout.regions.find(r=>r.id==='meadow')!;
     for(let cluster=0;cluster<7;cluster++){

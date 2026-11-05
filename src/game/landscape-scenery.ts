@@ -6,7 +6,7 @@ import { groundHeight, terrainHeight } from './terrain-height.ts';
 import { seededRandom } from './landscape-layout.ts';
 import { polygonDistance, insidePolygon } from './polygon.ts';
 
-/** Immutable scenery lives inside the authored woodland/water solids. Small
+/** Immutable rocks and ground cover follow the authored landforms and shores. Small
  * ground cover is passable; full-size rocks and trunks never straddle a road. */
 export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,library:EnvironmentLibrary) {
   const random=seededRandom(9037);let sequence=0;
@@ -17,7 +17,6 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
     if(asset!=='grass'&&asset!=='flowers'&&asset!=='reeds')shadows.addShadowCaster(mesh,false);
     return mesh;
   };
-  for(const tree of LANDSCAPE.sceneryTrees)place(tree.species,tree.x,tree.z,tree.scale,tree.rotation);
   // The approved layered cliff model is set into the real terrace faces.
   // It follows the whole rim, with explicit breaks at the road approaches.
   for(const form of LANDSCAPE.geography.forms.filter(f=>f.kind!=='basin')){

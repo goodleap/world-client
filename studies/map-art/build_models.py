@@ -2,7 +2,8 @@
 
 Reference: the map + creek/forest concept images approved in the conversation
 on 2026-11-04. Native Blender curves/remesh fuse the trunk forks. Foliage is
-curved, thick leaf sprays with vertex-painted light/shade, not textured balls.
+rounded, connected full crowns with broad matte color gradients. Ordinary
+trees follow the one-cell canopy size requested on 2026-11-05.
 Run: blender -b -t 2 --factory-startup --python studies/map-art/build_models.py -- oak
 """
 import bpy
@@ -167,41 +168,89 @@ def fused_wood(parts, name, material, voxel=.055):
     return obj
 
 
-def oak():
-    wood,foliage = mat('Bark · matte ochre'),mat('Foliage · painted leaf fans')
+def round_crown(name, lobes, material, palette):
+    """Connected cloud-like crown with broad rounded lobes and soft color depth."""
     parts=[]
-    tube([(0,0,0),(-.25,.05,.65),(-.37,.02,1.5),(-.1,0,2.4),(-.38,.05,3.25),(-.4,.1,4.25)],
-         [.48,.38,.29,.25,.16,.04],parts)
-    tube([(-.3,0,1.3),(.15,-.12,1.95),(.85,-.12,2.35),(1.65,-.25,3.4)], [.3,.24,.17,.045],parts)
-    tube([(-.26,0,2),(-.8,.06,2.5),(-1.45,.1,2.8),(-1.9,.1,3.6)],[.22,.18,.12,.04],parts)
-    tube([(-.2,.02,2.5),(.0,.6,3),(.35,1.1,3.8)],[.22,.14,.04],parts)
-    tube([(.5,-.1,2.2),(.75,-.65,2.65),(.65,-1.25,3.3)],[.16,.1,.025],parts)
-    for i in range(7):
-        a=i*TAU/7+.25
-        tube([(-.05,0,.58),(math.cos(a)*.42,math.sin(a)*.42,.18),
-              (math.cos(a)*.92,math.sin(a)*.92,.06),(math.cos(a)*1.25,math.sin(a)*1.25,.018)],
-             [.2,.18,.08,.009],parts)
-    fused_wood(parts,'Oak · rooted asymmetric fork',wood)
-    leaves=Leaves(foliage)
-    # Several flattened crown terraces with air between the main branches.
-    lobes=[(-1.7,.12,3.58,1.0),(.75,-1,3.34,.83),(1.52,-.28,3.75,1.02),
-           (.32,1.03,4.02,.95),(-.45,.03,4.5,1.08),(-1.02,-.7,4.08,.95),(.75,.15,4.48,.86)]
-    seed=46
-    for x,y,z,size in lobes:
-        leaves.spray((x,y,z+.15),size*.67,['#7eaa39','#8eb83a','#a9c94b'],seed)
-        seed+=1
-        for i in range(6):
-            a=TAU*i/6+.2
-            p=(x+math.cos(a)*size*.55,y+math.sin(a)*size*.55,z-.03+(i%2)*.08)
-            leaves.spray(p,size*.55,['#527f31','#689639','#8eb53d'],seed)
-            seed+=1
-        # Lower fans make the crown deep, with a dark leafy underside.
-        for i in (0,2,4):
-            a=TAU*i/6+.3
-            leaves.spray((x+math.cos(a)*size*.43,y+math.sin(a)*size*.43,z-.36),
-                         size*.54,['#3f6d32','#527e31','#6c9635'],seed,count=7)
-            seed+=1
-    leaves.finish('Oak · layered leafy canopy')
+    for at,size in lobes:
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=20,location=at)
+        obj=bpy.context.object;obj.scale=size
+        bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+        parts.append(obj)
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in parts:obj.select_set(True)
+    bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join()
+    obj=bpy.context.object;obj.name=name
+    bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    remesh=obj.modifiers.new('Joined full crown','REMESH');remesh.mode='VOXEL';remesh.voxel_size=.04
+    bpy.ops.object.modifier_apply(modifier=remesh.name)
+    smooth=obj.modifiers.new('Rounded lobe junctions','SMOOTH');smooth.factor=.85;smooth.iterations=4
+    bpy.ops.object.modifier_apply(modifier=smooth.name)
+    obj.data.materials.append(material)
+    attr=obj.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
+    low,mid,high=map(color,palette)
+    floor=min(v.co.z for v in obj.data.vertices);height=max(v.co.z for v in obj.data.vertices)-floor
+    for v in obj.data.vertices:
+        x,y,z=v.co;t=max(0,min(1,(z-floor)/height))
+        # Broad gradients keep the surface matte, without tiny leaf tessellation.
+        c=blend(low,mid,min(1,t/.52)) if t<.52 else blend(mid,high,(t-.52)/.48)
+        warmth=1+.025*math.sin(x*3+y*2)
+        attr.data[v.index].color=(*[min(1,a*warmth) for a in c],1)
+    for face in obj.data.polygons:face.use_smooth=True
+    return obj
+
+
+def rounded_tree(kind='oak'):
+    wood,foliage=mat('Warm rounded bark'),mat('Full matte foliage')
+    pine=kind=='pine';pink=kind=='blossom';fruit=kind=='fruit';small=kind=='sapling'
+    parts=[]
+    tube([(0,0,.03),(-.06,.02,.5),(.03,0,1.1),(-.02,.03,1.8),(.03,.01,2.4)],
+         [.18,.145,.115,.08,.018],parts)
+    if not pine:
+        tube([(-.02,0,.8),(-.19,.02,1.15),(-.42,.05,1.52)], [.12,.09,.02],parts)
+        tube([(.02,0,1.02),(.23,-.04,1.28),(.42,-.1,1.68)], [.105,.075,.02],parts)
+        tube([(.02,0,1.3),(.05,.25,1.6),(.12,.35,1.9)], [.08,.05,.015],parts)
+    for i in range(5):
+        a=i*TAU/5+.3
+        tube([(0,0,.22),(math.cos(a)*.19,math.sin(a)*.19,.07),(math.cos(a)*.32,math.sin(a)*.32,.025)], [.10,.075,.012],parts)
+    fused_wood(parts,kind+' · rounded rooted trunk',wood,.025)
+    if pine:
+        # Plump, overlapping branch tiers keep the conifer silhouette soft.
+        lobes=[]
+        for level,(z,r,h) in enumerate([(1.05,.75,.48),(1.57,.60,.47),(2.05,.45,.44),(2.47,.29,.42)]):
+            lobes.append(((.025*math.sin(level),0,z),(r,r*.94,h)))
+            for i in range(5):
+                a=i*TAU/5+level*.5
+                lobes.append(((math.cos(a)*r*.62,math.sin(a)*r*.62,z-.08),(r*.43,r*.42,h*.69)))
+        palette=['#357349','#579747','#87b656']
+    else:
+        lobes=[((-.43,.02,1.75),(.49,.48,.51)),((.43,-.05,1.88),(.49,.47,.54)),
+               ((-.04,.34,2.03),(.53,.45,.59)),((-.04,-.30,2.10),(.53,.48,.59)),
+               ((-.23,.0,2.40),(.49,.46,.54)),((.26,.08,2.35),(.48,.45,.52))]
+        if small:lobes=[((x*.84,y*.84,z*.90),(a*.84,b*.84,c*.91)) for (x,y,z),(a,b,c) in lobes]
+        if fruit:lobes=[((x,y,z*.88),(a,b,c*.90)) for (x,y,z),(a,b,c) in lobes]
+        if pink:lobes=[((x,y,z*.94),(a,b,c*.94)) for (x,y,z),(a,b,c) in lobes]
+        palette=['#477b35','#78a83e','#a8c956'] if not pink else ['#bf628d','#e08eac','#efb4c8']
+    round_crown(kind+' · full rounded crown',lobes,foliage,palette)
+    if fruit:
+        fruitmat=mat('Matte red apples')
+        for i in range(9):
+            a=i*TAU/9+.2;dx,dy=math.cos(a),math.sin(a);z=1.43+(i%3)*.24;r=0
+            for (cx,cy,cz),(sx,sy,sz) in lobes:
+                aa=dx*dx/(sx*sx)+dy*dy/(sy*sy);bb=-2*(dx*cx/(sx*sx)+dy*cy/(sy*sy))
+                cc=cx*cx/(sx*sx)+cy*cy/(sy*sy)+(z-cz)**2/(sz*sz)-1;discriminant=bb*bb-4*aa*cc
+                if discriminant>=0:r=max(r,(-bb+math.sqrt(discriminant))/(2*aa))
+            ellipsoid('Apple',(dx*(r+.035),dy*(r+.035),z),(.10,.10,.11),'#df5735',fruitmat)
+    # One ordinary crown is approximately one 1.688-world-unit grid cell.
+    objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
+    radius=max(math.hypot(*(o.matrix_world@v.co)[:2]) for o in objects for v in o.data.vertices)
+    factor=(1.62 if not small else 1.48)/(radius*2)
+    for obj in objects:
+        obj.location.x*=factor;obj.location.y*=factor
+        for v in obj.data.vertices:v.co.x*=factor;v.co.y*=factor
+
+
+def oak():
+    rounded_tree('oak')
 
 
 def painted(obj, material, shade, variation=.06):
@@ -226,91 +275,11 @@ def ellipsoid(name,at,size,shade,material):
 
 
 def small_tree(kind='sapling'):
-    wood,foliage=mat('Warm bark'),mat('Layered broad leaves')
-    fruit=kind=='fruit'
-    pink=kind=='blossom'
-    parts=[]
-    if fruit:
-        tube([(0,0,0),(-.1,0,.6),(.1,.05,1.3),(.1,.1,2.15)],[.28,.22,.16,.025],parts)
-        tube([(-.05,0,.6),(-.55,0,1.2),(-1.05,.08,1.8)],[.21,.14,.025],parts)
-        tube([(.02,0,.9),(.6,-.12,1.35),(1.15,-.2,1.85)],[.18,.12,.025],parts)
-    elif pink:
-        tube([(0,0,0),(.2,0,.55),(.55,.05,1.4),(.85,.1,2.45)],[.25,.19,.14,.025],parts)
-        tube([(.2,0,.6),(-.3,0,1.5),(-1.1,.08,2.2)],[.17,.12,.025],parts)
-        tube([(.55,0,1.2),(1,-.15,1.9),(1.6,-.25,2.7)],[.15,.1,.025],parts)
-    else:
-        tube([(0,0,0),(.16,0,.6),(.03,.05,1.4),(.25,.1,2.6)],[.25,.19,.14,.025],parts)
-        tube([(.1,0,.85),(-.4,0,1.4),(-.9,.08,2)],[.17,.12,.025],parts)
-        tube([(.08,0,1.3),(.52,-.15,1.7),(.9,-.25,2.25)],[.15,.1,.025],parts)
-    for i in range(5):
-        a=TAU*i/5
-        tube([(0,0,.3),(math.cos(a)*.35,math.sin(a)*.35,.08),(math.cos(a)*.65,math.sin(a)*.65,.01)],[.12,.08,.012],parts)
-    fused_wood(parts,kind+' · slender forked trunk',wood,.045)
-    leaves=Leaves(foliage)
-    palette=['#638b35','#8cb23e','#b3ca5b'] if not pink else ['#c66b8a','#e690a2','#f2b1bc']
-    lobes=[(-.7,.08,2.1,.65),(.78,-.23,2.3,.72),(.05,.65,2.4,.7),(.2,.05,2.8,.83)]
-    if fruit:lobes=[(-.9,.08,1.9,.83),(1,-.23,2,.87),(.1,.65,2.2,.83),(.1,.05,2.55,.92)]
-    if pink:lobes=[(-1,.08,2.2,.85),(1.5,-.23,2.75,.83),(.5,.65,2.8,.8),(.55,.05,3.2,.9)]
-    for j,(x,y,z,s) in enumerate(lobes):
-        leaves.spray((x,y,z),s*.65,palette,170+j)
-        for i in range(6):
-            a=TAU*i/6
-            leaves.spray((x+math.cos(a)*s*.48,y+math.sin(a)*s*.48,z-.24),s*.62,palette,180+j*7+i,count=8)
-    leaves.finish(kind+' · airy crown')
-    if fruit:
-        fruitmat=mat('Warm red fruit')
-        for i in range(12):
-            x,y,z,s=lobes[i//3]
-            a=i*2.4;r=s*.64
-            at=(x+math.cos(a)*r,y+math.sin(a)*r,z-.34)
-            ellipsoid('Apple',at,(.115,.115,.135),['#db5630','#df7932','#b93e27'][i%3],fruitmat)
-            stem=[]
-            tube([at,(at[0]-.025,at[1],at[2]+.19)],[.012,.009],stem)
-            painted(stem[0],wood,'#725130',0)
+    rounded_tree(kind)
 
 
 def pine():
-    wood,foliage=mat('Conifer bark'),mat('Conifer matte needles')
-    parts=[]
-    tube([(0,0,0),(.04,0,1.6),(-.08,.03,3.5),(.02,0,5.9)],[.27,.21,.12,.012],parts)
-    for i in range(5):
-        a=TAU*i/5
-        tube([(0,0,.3),(math.cos(a)*.5,math.sin(a)*.5,.03)],[.12,.02],parts)
-    fused_wood(parts,'Conifer · tapered trunk',wood,.052)
-    needles=Leaves(foliage)
-    # Dense overlapping drooping branch fans form the stepped silhouette.
-    for level in range(6):
-        z=1.15+level*.75
-        radius=1.5-level*.23
-        # A shallow irregular leafy core joins the fans into a continuous mass,
-        # avoiding empty rings around the trunk at the top of the silhouette.
-        vertices,faces,colors=[],[],[]
-        segments,rings=48,8
-        for j in range(rings):
-            t=j/(rings-1)
-            for k in range(segments):
-                a=k*TAU/segments
-                r=radius*max(.018,(1-t)**.72)*(1+.10*math.sin(a*5+level*1.7))
-                zz=z+.12+t*1.55-.15*math.sin(a*5+level*1.7)*(1-t)
-                vertices.append((math.cos(a)*r,math.sin(a)*r,zz))
-                colors.append(blend(color('#356b46'),color('#63934c'),.25+t*.6))
-        for j in range(rings-1):
-            for k in range(segments):
-                a=j*segments+k;b=j*segments+(k+1)%segments
-                faces.append((a,b,b+segments,a+segments))
-        mesh('Conifer · soft connected branch mass',vertices,faces,colors,foliage)
-        for ring in range(2):
-            count=10 if ring==0 else 7
-            for i in range(count):
-                a=TAU*i/count+level*.38+ring*.2
-                r=radius*(.58 if ring==0 else .25)*(1+.11*math.sin(a*5+level))
-                p=Vector((math.cos(a)*r,math.sin(a)*r,z+.38+ring*.28+math.sin(a*5+level*1.7)*.16))
-                for j in range(7):
-                    angle=a+(j-3)*.19
-                    needles.leaf(p,(math.cos(angle),math.sin(angle),-.16),radius*(.71 if ring==0 else .62)*(1+.08*math.cos(i*2+j)),radius*.18,
-                        color(['#326746','#3a7850','#508a4e','#689b50'][(i+j+level)%4]),curl=.23)
-    needles.spray((.01,0,5.94),.23,['#50854a','#65974e','#80ac55'],39,count=7)
-    needles.finish('Conifer · six drooping branch tiers')
+    rounded_tree('pine')
 
 
 def bush():

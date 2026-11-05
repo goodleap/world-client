@@ -59,7 +59,7 @@ function frame(view='game') {
   camera.beta=view==='game'?(sample==='oak'?1.08:sample==='trees'?1.25:.85):1.38;
   fit();scene.render();
 }
-function fit(){engine.resize();const minWidth=(sample==='oak'?6.6:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
+function fit(){engine.resize();const minWidth=(sample==='oak'?3.2:sample==='trees'?11.4:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
 document.querySelector('#game')!.addEventListener('click',()=>frame());
 document.querySelector('#side')!.addEventListener('click',()=>frame('side'));
 document.querySelector('#rotate')!.addEventListener('click',e=>{rotating=!rotating;(e.currentTarget as HTMLButtonElement).setAttribute('aria-pressed',String(rotating));});

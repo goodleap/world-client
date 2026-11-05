@@ -2,7 +2,8 @@ import { terrainHeight } from './terrain-height.ts';
 import type { Point, Obstacle } from './movement.ts';
 import { isBlocked } from './movement.ts';
 import { BUILDINGS, GRID_SIZE, WORLD_BOUNDS, LANDSCAPE, WATER_OBSTACLES } from './world-data.ts';
-import { economyObstacles } from './economy-config.ts';
+import { TREE_CANOPY_DIAMETER } from './landscape-layout.ts';
+import { RESOURCE_NODES, economyObstacles } from './economy-config.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 import { TOWER_SHAPE } from './tower-shape.ts';
 
@@ -42,6 +43,7 @@ export function placementReason(site: BuildingSite, state: { depleted: string[];
   if (LANDSCAPE.bridges.some(b=>overlaps({kind:'polygon',...b.area}))) return '桥面不能承载建筑地基';
   if (WATER_OBSTACLES.some(overlaps)) return '建筑占地不能进入水域';
   if (obstacles.some(o => o.kind === 'polygon' && overlaps(o))) return '建筑占地超出可建设地面';
+  if (RESOURCE_NODES.some(n=>n.kind==='wood'&&!state.depleted.includes(n.id)&&overlaps({...n,kind:'circle',radius:TREE_CANOPY_DIAMETER/2*n.scale}))) return '此处有建筑或资源';
   if (obstacles.some(o => o.kind !== 'polygon' && overlaps(o))) return '此处有建筑或资源';
   // Farmland may share cell edges so players can extend an existing field.
   const fieldMargin = -1e-6;

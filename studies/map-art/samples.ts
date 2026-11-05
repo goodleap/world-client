@@ -8,8 +8,8 @@ import type { AssetName, XYZ } from './models.ts';
 import { terrain, matte, block, beam, random, riverX } from './terrain.ts';
 
 export const samples={
-  oak:{title:'阔叶树 · 造型样板',description:'弯曲分叉与根系 / 分层叶簇 / 无高光的哑光表面',height:7.4,target:[0,2.2,0],assets:['oak']},
-  trees:{title:'树木 · 五种轮廓',description:'阔叶古树、针叶树、林缘小树、果树与花树',height:12,target:[0,2.2,0],assets:['oak','pine','sapling','fruit','blossom']},
+  oak:{title:'阔叶树 · 造型样板',description:'卡通、圆润、饱满 / 一格左右的树冠 / 柔和哑光',height:3.9,target:[0,1.4,0],assets:['oak']},
+  trees:{title:'树木 · 五种轮廓',description:'普通树冠约一格：阔叶树、针叶树、小树、果树和花树',height:5.2,target:[0,1.4,0],assets:['oak','pine','sapling','fruit','blossom']},
   forest:{title:'01 · 阔叶林与林缘',description:'主树、幼树与灌木形成高低层次，树下由落叶、根系和碎石衔接',height:17.6,target:[0,.6,.1],assets:['oak','sapling','bush','grass','flowers','stone']},
   conifers:{title:'02 · 针叶林与山麓',description:'下垂枝层、冷暖绿对比，搭配苔石和低矮林下植物',height:17.6,target:[0,.8,.1],assets:['pine','bush','grass','stone']},
   orchard:{title:'03 · 花野与果林',description:'低矮果树、花树、成簇野花与暖色土路，保留开阔活动空间',height:17.6,target:[0,.4,.1],assets:['fruit','blossom','bush','grass','flowers','stone']},
@@ -24,13 +24,13 @@ export type SampleName=keyof typeof samples;
 export async function buildSample(name:SampleName,scene:Scene,shadows:ShadowGenerator){
   const info=samples[name],library=new ModelLibrary(scene,shadows);
   await library.load(info.assets);
-  if(name==='oak'){library.place('oak');return info;}
+  if(name==='oak'){library.place('oak');const cell=MeshBuilder.CreateGround('one-cell-scale',{width:1.688,height:1.688},scene);cell.position.y=.006;cell.material=matte(scene,'one-cell-reference','#d9c89f');cell.receiveShadows=true;return info;}
   if(name==='trees'){
-    library.place('oak',[-6.1,0,.25],1,0);
-    library.place('pine',[-1.6,0,.9],.96,.4);
-    library.place('sapling',[1.65,0,-.1],1,-.3);
-    library.place('fruit',[4.8,0,.15],1,1.5);
-    library.place('blossom',[7.7,0,.75],.95,-.5);
+    library.place('oak',[-4.2,0,0],1,0);
+    library.place('pine',[-2.1,0,0],1,.4);
+    library.place('sapling',[0,0,0],1,-.3);
+    library.place('fruit',[2.1,0,0],1,1.5);
+    library.place('blossom',[4.2,0,0],1,-.5);
     return info;
   }
   const style=name==='creek'?'river':name==='wetland'?'marsh':name==='quarry'?'rock':name==='orchard'?'meadow':name==='ruins'?'ruins':name==='camp'?'camp':'forest';

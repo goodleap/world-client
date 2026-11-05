@@ -20,7 +20,7 @@ function clearCamp(e: Economy, id: string) {
   new Combat(e.state.combat, e, () => economyObstacles(e.state.depleted)).update(.05);
 }
 
-test('every clearing has a swept route for infantry and cavalry; authored woodland and water stay inaccessible', () => {
+test('every clearing has a swept route for infantry and cavalry; permanent cliffs and water stay inaccessible', () => {
   const solids = economyObstacles([]), start = { x: -4, z: -4 };
   for (const radius of [.4, .6]) for (const region of LANDSCAPE.regions) {
     const route = findPath(start, region, radius, WORLD_BOUNDS, solids);
@@ -30,19 +30,15 @@ test('every clearing has a swept route for infantry and cavalry; authored woodla
   }
   for (const actor of [...RESIDENTS,...ENEMIES]) assert.equal(isBlocked(actor.spawn, actor.bodyRadius, solids), false, actor.id);
   for(const wolf of WILD_WOLF_SPAWNS)assert.equal(isBlocked(wolf,.4,solids),false);
-  let solid = 0, sampled = 0;
-  for (let x = WORLD_BOUNDS.minX + 1; x < WORLD_BOUNDS.maxX; x += 3) for (let z = WORLD_BOUNDS.minZ + 1; z < WORLD_BOUNDS.maxZ; z += 3) {
-    sampled++; if (!LANDSCAPE.contains({ x, z })) solid++;
-  }
-  assert.ok(solid / sampled > .45 && solid / sampled < .7);
-  assert.equal(findPath(start, { x: -64, z: -45 }, .4, WORLD_BOUNDS, solids), undefined);
+  assert.equal(LANDSCAPE.contains({x:-71,z:28}),false, 'the permanent mountain remains impassable');
+  assert.equal(findPath(start, { x: -71, z: 28 }, .4, WORLD_BOUNDS, solids), undefined);
 });
 
 test('passages and uncleared camps allow construction while physical wildland and guarded gathering remain restricted', () => {
   const e = new Economy(); e.setLeadership(false);
   e.state.inventory = { wood: 200, stone: 200, food: 0, iron: 0 };
   assert.ok(e.placeBuilding('house', { x: -28, z: 0 }).ok);
-  assert.match(e.placeBuilding('house', { x: -64, z: -45 }).message, /地面/);
+  assert.match(e.placeBuilding('house', { x: -71, z: 28 }).message, /地面/);
   const mine = LANDSCAPE.regions.find(r => r.id === 'quarry')!;
   e.state.depleted = RESOURCE_NODES.filter(n=>insidePolygon(n,mine.area)).map(n=>n.id);
   const placed = e.placeBuilding('campfire', { x: mine.x + 5, z: mine.z });

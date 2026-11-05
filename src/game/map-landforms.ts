@@ -64,7 +64,6 @@ export function createLandforms(grid:number,paths:readonly (readonly Point[])[])
   const approaches=clipping.union(roadPieces[0],...roadPieces.slice(1));
   const solids:MultiPolygon[]=[];
   for(const f of forms)if(f.kind!=='basin')solids.push(clipping.difference(f.kind==='ridge'?clipping.union(polygon(f.area.points),contourBand(f.area.points,.9)):contourBand(f.area.points,1.5),approaches));
-  for(const f of forests)solids.push(clipping.difference(polygon(f.area.points),approaches));
   const landSolid=clipping.union(solids[0],...solids.slice(1));
   const naturalGround=(x:number,z:number)=>{
     const p={x,z};let y=0;

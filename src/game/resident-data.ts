@@ -1,6 +1,6 @@
 import { BODY_RADIUS } from './body-shape.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
-import { OUTPOST, ENCOUNTERS } from './combat-config.ts';
+import { ENCOUNTERS } from './combat-config.ts';
 import { WORLD_BOUNDS, OBSTACLES, LANDSCAPE } from './world-data.ts';
 import { isBlocked, type Obstacle, type Point } from './movement.ts';
 import type { WanderSettings } from './wander.ts';
@@ -31,7 +31,7 @@ export const RESIDENTS=STANDARD_RESIDENTS.filter(r=>!MAP_DEVELOPMENT||r.role==='
 // Deterministic camp slots avoid actual terrain/resources and each other.
 const campSolids:Obstacle[]=[...OBSTACLES,...[...LANDSCAPE.rocks,...LANDSCAPE.iron].map(p=>({kind:'circle' as const,...p,radius:.85*p.scale})),
   ...LANDSCAPE.forage.map(p=>({kind:'circle' as const,...p,radius:.65}))];
-function campSlots(c:typeof ENCOUNTERS[number]):Point[]{
+function campSlots(c:Point&{id:string;members?:number}):Point[]{
   const count=c.members??0,slots:Point[]=[],choices:Point[]=[];
   for(let z=-4;z<=4;z++)for(let x=-4;x<=4;x++)choices.push({x:c.x+x*1.65,z:c.z+z*1.65});
   choices.sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z)||b.z-a.z||a.x-b.x);
@@ -40,15 +40,16 @@ function campSlots(c:typeof ENCOUNTERS[number]):Point[]{
   return slots.sort((a,b)=>b.z-a.z||a.x-b.x);
 }
 const campSpawns=new Map((MAP_DEVELOPMENT?[]:ENCOUNTERS).filter(c=>c.members).map(c=>[c.id,campSlots(c)]));
+const quarrySpawns=MAP_DEVELOPMENT?[]:campSlots({...ENCOUNTERS[0],members:3});
 const campArcher=(c:typeof ENCOUNTERS[number],i:number)=>!!c.members&&i>=c.members-Math.ceil(c.members*.3);
 const campCavalry=(c:typeof ENCOUNTERS[number],i:number)=>!!c.members&&i>=(c.members>=12?2:1)&&i<(c.members>=12?2:1)+Math.ceil(c.members/8);
 const campRole=(c:typeof ENCOUNTERS[number],i:number):ResidentRole=>campCavalry(c,i)?'cavalry':c.members?campArcher(c,i)?'archer':'infantry':c.id==='pass'&&i>0?'archer':'infantry';
 
 /** All soldiers use shared assets; allegiance is gameplay data. */
 export const ENEMIES: readonly ResidentDefinition[] = MAP_DEVELOPMENT?[]:[
-  { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x + 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
-  { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, home: { x: OUTPOST.x - 2, z: OUTPOST.z + 1 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
-  { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { x: OUTPOST.x, z: OUTPOST.z - 2 }, home: { x: OUTPOST.x, z: OUTPOST.z - 2 }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1, labelHeight: 2.15 },
+  { id: 'enemy-guard', role: 'infantry', camp: 'quarry', name: '矿谷守卫', spawn: { ...quarrySpawns[0] }, home: { ...quarrySpawns[0] }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
+  { id: 'enemy-sentry', role: 'infantry', camp: 'quarry', name: '矿谷哨兵', spawn: { ...quarrySpawns[1] }, home: { ...quarrySpawns[1] }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1.1, labelHeight: 2.4 },
+  { id: 'enemy-archer', role: 'archer', camp: 'quarry', name: '矿谷弓手', spawn: { ...quarrySpawns[2] }, home: { ...quarrySpawns[2] }, areaRadius: 0, bodyRadius: BODY_RADIUS.infantry, speed: 1, labelHeight: 2.15 },
   ...ENCOUNTERS.filter(c => c.id !== 'quarry').flatMap(c => Array.from({ length: c.members ?? (c.id === 'pass' ? 3 : 2) }, (_, i): ResidentDefinition => ({
     id: `enemy-${c.id}-${i}`, role: campRole(c,i), camp: c.id,
     variant: (c.members?i<(c.members>=12?2:1):c.id === 'pass' && i === 0) ? 'heavy' : c.id === 'patrol' ? 'patrol' : undefined,

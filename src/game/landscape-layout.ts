@@ -10,6 +10,8 @@ import { createMapLandmarks } from './map-landmarks.ts';
 import { isBlocked } from './movement.ts';
 import { createMapWater } from './map-water.ts';
 export type TreeSpecies = 'oak' | 'pine' | 'sapling' | 'fruit' | 'blossom';
+export const TREE_COLLISION_RADIUS = .32;
+export const TREE_CANOPY_DIAMETER = 1.62;
 export const LANDSCAPE_SEED = MAP_CONFIG.seed;
 export function seededRandom(seed: number) {
   return () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -41,9 +43,9 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
   const terrain = createRegions(gridSize, paths, water.water, water.waterSolidPolygons,geography);
   type Tree = Point & { scale: number; tone: number; rotation: number; species: TreeSpecies };
   type Rock = Point & { scale: number; rotation: number };
-  const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 5), scale: 1, tone: 0, species: 'oak', rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), scale: 1.1, tone: 1, species: 'sapling', rotation: 2.3 }];
+  const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 5), scale: 1, tone: 0, species: 'oak', rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), scale: 1, tone: 1, species: 'sapling', rotation: 2.3 }];
   const rocks: Rock[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 + 9, MAP_CONFIG.rows / 2 + 6), scale: 1, rotation: .5 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 10, MAP_CONFIG.rows / 2 - 4), scale: 1.2, rotation: 2.1 }];
-  const iron: Rock[] = [], forage: Rock[] = [], sceneryTrees: Tree[] = [];
+  const iron: Rock[] = [], forage: Rock[] = [];
   const roadDistance = (p: Point) => Math.sqrt(Math.min(...paths.flatMap(path => path.slice(1).map((b, i) => pathDistanceSquared(p, path[i], b)))));
   const placementSolids=[...landmarks.obstacles,...terrain.obstacles.map(a=>({kind:'polygon' as const,...a})),...water.waterSolids.map(a=>({kind:'polygon' as const,...a}))];
   const crowded = (p: Point) => [...trees, ...rocks, ...iron, ...forage].some(t => Math.hypot(p.x - t.x, p.z - t.z) < 3.25);
@@ -60,24 +62,26 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
       if (region.id === 'quarry' && placed % 2 === 0 || region.id === 'pass' && placed % 3 === 0) iron.push(common);
       else if (region.id === 'orchard' && placed % 4 === 0 || region.id === 'woodland' && placed % 4 === 0 || region.id === 'home' && placed === 0) forage.push({ ...common, scale: 1 });
       else if (region.id === 'quarry' || region.id === 'stone-hollow' || placed % 4 === 2) rocks.push(common);
-      else trees.push({ ...common, tone: Math.floor(random() * 3), species: treeSpecies(region.biome) });
+      else trees.push({ ...common, scale: .94+(common.scale-.9)*.2, tone: Math.floor(random() * 3), species: treeSpecies(region.biome) });
       placed++;
     }
   }
-  // Authored forest masses define the enclosure. Jittered rows form dense
-  // canopies within each patch; tree scale tapers into its shrub edge.
+  // Ordinary woodland trees are individual renewable resources, with room
+  // for workers between trunks. Permanent barriers belong to landforms only.
+  const occupied=(p:Point)=>trees.some(t=>Math.hypot(p.x-t.x,p.z-t.z)<gridSize*1.2)
+    || [...rocks,...iron,...forage].some(n=>Math.hypot(p.x-n.x,p.z-n.z)<n.scale*.85+1);
   for(const patch of geography.forests){
-    const b=patch.area.bounds,spacing=patch.spacing;
+    const b=patch.area.bounds,spacing=gridSize*1.5;
     let row=0;
     for(let z=b.minZ;z<b.maxZ;z+=spacing*.86,row++)for(let x=b.minX+(row%2)*spacing/2;x<b.maxX;x+=spacing){
-      const point={x:x+(random()-.5)*spacing*.5,z:z+(random()-.5)*spacing*.5};
+      const point={x:x+(random()-.5)*spacing*.28,z:z+(random()-.5)*spacing*.28};
       const edge=polygonDistance(point,patch.area);
-      if(edge>-.6||roadDistance(point)<4.3||water.waterAreas.some(a=>polygonDistance(point,a)<2.3)||!geography.inside(point))continue;
+      if(edge>-.6||roadDistance(point)<3||occupied(point)||isBlocked(point,.95,placementSolids)||!terrain.contains(point))continue;
       const slope=Math.max(...[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dz])=>Math.abs(geography.heightAt(point.x+dx,point.z+dz)-geography.heightAt(point.x,point.z))));
-      if(slope>1.25)continue;
+      if(slope>.45)continue;
       const species=patch.species==='oak'&&edge>-2.5?'sapling':patch.species==='fruit'&&random()<.2?'blossom':patch.species;
-      sceneryTrees.push({...point,scale:(edge>-2.5?.9:1.3)+random()*.3,tone:Math.floor(random()*3),species,rotation:random()*Math.PI*2});
+      trees.push({...point,scale:.94+random()*.08,tone:Math.floor(random()*3),species,rotation:random()*Math.PI*2});
     }
   }
-  return { seed, geography, ...water, trees, rocks, iron, forage, sceneryTrees, roadControls, ...terrain };
+  return { seed, geography, ...water, trees, rocks, iron, forage, roadControls, ...terrain };
 }

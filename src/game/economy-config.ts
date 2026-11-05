@@ -2,6 +2,7 @@ import { OBSTACLES, TREES, LANDSCAPE, gridPoint, MAP_CELLS, MAP_ROWS } from './w
 import type { Obstacle } from './movement.ts';
 import type { BuildingSite } from './construction.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
+import { TREE_COLLISION_RADIUS } from './landscape-layout.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
@@ -28,7 +29,7 @@ export const FARM_PLOTS = Array.from({ length: MAP_DEVELOPMENT?0:12 }, (_, i) =>
   id: `plot-${i}`, ...gridPoint(MAP_CELLS / 2 + 1.5 + i % 4, MAP_ROWS / 2 + 2.5 + Math.floor(i / 4)),
 }));
 export const RESOURCE_NODES = [
-  ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, scale: tree.scale, rotation: tree.rotation, x: tree.x, z: tree.z, radius: .5 * tree.scale, yield: 16, renew: 240 })),
+  ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, scale: tree.scale, rotation: tree.rotation, x: tree.x, z: tree.z, radius: TREE_COLLISION_RADIUS * tree.scale, yield: 16, renew: 240 })),
   ...LANDSCAPE.rocks.map((rock, i) => ({ ...rock, id: `rock-${i}`, kind: 'stone' as const, radius: .85 * rock.scale, yield: 12, renew: 360 })),
   ...LANDSCAPE.iron.map((node, i) => ({ ...node, id: `iron-${i}`, kind: 'iron' as const, radius: .85 * node.scale, yield: 6, renew: 180 })),
   ...LANDSCAPE.forage.map((node, i) => ({ ...node, id: `forage-${i}`, kind: 'food' as const, radius: .65, yield: 6, renew: 90 })),
