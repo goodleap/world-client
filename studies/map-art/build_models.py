@@ -239,6 +239,17 @@ def rounded_tree(kind='oak', size='medium'):
     painted(trunk,wood,'#bf8a51',.025);trunk['treePart']='wood'
     round_crown('Tree · independent spherical crown',lobes,foliage)
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
+    # L review adjustment: lift the intact crown and forks by .10 authored
+    # units, extending just the lower stem instead of stretching the foliage.
+    if kind!='pine' and size=='large':
+        for obj in objects:
+            if obj.get('treePart')=='crown':
+                obj.location.z+=.10
+                continue
+            for vertex in obj.data.vertices:
+                weight=min(1,max(0,vertex.co.z/fork_height))
+                vertex.co.z+=.10*weight
+            obj.data.update()
     bpy.context.view_layer.update()
     radius=max(math.hypot(*(o.matrix_world@v.co)[:2]) for o in objects for v in o.data.vertices)
     factor={'small':1,'medium':1.5,'large':2}[size]/(radius*2)

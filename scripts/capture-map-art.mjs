@@ -41,8 +41,15 @@ try {
           }
           const find=id=>{while(parent[id]!==id){parent[id]=parent[parent[id]];id=parent[id];}return id;};
           for(let i=0;i<indices.length;i+=3){const first=find(vertexIds[indices[i]]);parent[find(vertexIds[indices[i+1]])]=first;parent[find(vertexIds[indices[i+2]])]=first;}
+          crown.computeWorldMatrix(true);
+          const matrix=crown.getWorldMatrix().m;
           let radius=0,top=0,bottom=Infinity;
-          for(let i=0;i<p.length;i+=3){radius=Math.max(radius,Math.hypot(p[i],p[i+2]));top=Math.max(top,p[i+1]);bottom=Math.min(bottom,p[i+1]);}
+          for(let i=0;i<p.length;i+=3){
+            const x=p[i]*matrix[0]+p[i+1]*matrix[4]+p[i+2]*matrix[8]+matrix[12]-root.position.x;
+            const y=p[i]*matrix[1]+p[i+1]*matrix[5]+p[i+2]*matrix[9]+matrix[13]-root.position.y;
+            const z=p[i]*matrix[2]+p[i+1]*matrix[6]+p[i+2]*matrix[10]+matrix[14]-root.position.z;
+            radius=Math.max(radius,Math.hypot(x,z));top=Math.max(top,y);bottom=Math.min(bottom,y);
+          }
           const size=root.name.includes('small')?'small':root.name.includes('large')?'large':'medium';
           return{size,lobes:new Set(parent.map((_,i)=>find(i))).size,diameter:radius*2,bareTrunkFraction:bottom/top};
         });
