@@ -169,7 +169,7 @@ def fused_wood(parts, name, material, voxel=.055):
 
 # Approved 2026-11-05 sphere-cluster reference. Coordinates are authored in
 # grid units; each crown is normalized to its size's 1 / 1.5 / 2 cell diameter.
-# Broadleaf revision: 5 / 9 / 14 lobes, shorter exposed trunk and less overlap.
+# Broadleaf revision: 5 / 9 / 14 main lobes plus small recessed infill lobes.
 # These review assets are NOT published to the map until the user approves.
 TREE_LOBES={
  'small': [(.015,-.01,1.23,.30),(-.265,-.20,.68,.24),(.28,-.18,.74,.25),(.23,.235,.89,.225),(-.23,.27,.88,.235)],
@@ -177,6 +177,11 @@ TREE_LOBES={
  'large': [(.015,.02,1.78,.44),(-.52,.29,1.64,.26),(.48,.29,1.58,.25),(-.32,-.41,1.58,.23),(.34,-.39,1.62,.24),
            (.66,-.10,1.18,.34),(.24,.64,1.25,.33),(-.52,.43,1.17,.35),(-.61,-.32,1.25,.32),(.13,-.67,1.22,.34),
            (.62,.38,.82,.24),(-.27,.70,.78,.25),(-.60,-.37,.79,.23),(.42,-.55,.84,.25)]
+}
+TREE_INFILL={
+ 'small': [(-.025,.07,.95,.17)],
+ 'medium': [(-.06,.05,.96,.18),(.08,.08,1.23,.17)],
+ 'large': [(-.12,.06,1.14,.20),(.13,.05,1.42,.18),(.04,-.24,1.18,.19)],
 }
 PINE_LOBES={
  'small': [(0,.03,1.66,.28),(-.24,.03,1.20,.31),(.25,.08,1.16,.33),(.05,-.28,.98,.30)],
@@ -193,7 +198,7 @@ def balanced_lobes(lobes):
     return [(x-cx,y-cy,z,r) for x,y,z,r in lobes]
 
 
-def round_crown(name, lobes, material):
+def round_crown(name, lobes, material, primary_count):
     """Separate smooth spherical lobes retain their own contours and normals."""
     parts=[]
     # Gentle hue/value variation inside one tree's palette. The sequence is
@@ -217,13 +222,18 @@ def round_crown(name, lobes, material):
     bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join()
     obj=bpy.context.object;obj.name=name;obj['treePart']='crown'
     obj['lobeCount']=len(lobes)
+    obj['primaryLobeCount']=primary_count
+    obj['infillLobeCount']=len(lobes)-primary_count
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
     return obj
 
 
 def rounded_tree(kind='oak', size='medium'):
     wood,foliage=mat('Warm branching wood'),mat('Separate round crown clusters')
-    lobes=balanced_lobes((PINE_LOBES if kind=='pine' else TREE_LOBES)[size])
+    authored=(PINE_LOBES if kind=='pine' else TREE_LOBES)[size]
+    lobes=balanced_lobes(authored)
+    cx,cy=authored[0][0]-lobes[0][0],authored[0][1]-lobes[0][1]
+    infill=[] if kind=='pine' else [(x-cx,y-cy,z,r) for x,y,z,r in TREE_INFILL[size]]
     parts=[];top_x,top_y,main_height,_=lobes[0]
     crown_bottom=min(z-r for x,y,z,r in lobes)
     fork_height=crown_bottom*.65
@@ -237,7 +247,8 @@ def rounded_tree(kind='oak', size='medium'):
              [base*.52,base*.36,.018],parts)
     trunk=fused_wood(parts,'Tree · visible rounded forks',wood,.022)
     painted(trunk,wood,'#bf8a51',.025);trunk['treePart']='wood'
-    round_crown('Tree · independent spherical crown',lobes,foliage)
+    # Recessed infill shares the crown mesh and needs no extra exposed forks.
+    round_crown('Tree · independent spherical crown',lobes+infill,foliage,len(lobes))
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
     # L review adjustment: lift the intact crown and forks by .10 authored
     # units, extending just the lower stem instead of stretching the foliage.
@@ -445,6 +456,8 @@ for name in requested:
     if crowns:
         points=[o.matrix_world@v.co for o in crowns for v in o.data.vertices]
         metrics['crown']={'lobes':sum(o['lobeCount'] for o in crowns),
+                         'primary_lobes':sum(o['primaryLobeCount'] for o in crowns),
+                         'infill_lobes':sum(o['infillLobeCount'] for o in crowns),
                          'diameter':round(2*max(math.hypot(p.x,p.y) for p in points),5),
                          'height':round(max(p.z for p in points),5),
                          'bare_trunk_fraction':round(min(p.z for p in points)/max(p.z for p in points),4)}

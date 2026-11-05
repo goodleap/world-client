@@ -51,12 +51,13 @@ try {
             radius=Math.max(radius,Math.hypot(x,z));top=Math.max(top,y);bottom=Math.min(bottom,y);
           }
           const size=root.name.includes('small')?'small':root.name.includes('large')?'large':'medium';
-          return{size,lobes:new Set(parent.map((_,i)=>find(i))).size,diameter:radius*2,bareTrunkFraction:bottom/top};
+          const extras=(crown.metadata??crown.sourceMesh?.metadata).gltf.extras;
+          return{size,lobes:new Set(parent.map((_,i)=>find(i))).size,primaryLobes:extras.primaryLobeCount,infillLobes:extras.infillLobeCount,diameter:radius*2,bareTrunkFraction:bottom/top};
         });
       });
       for(const tree of measured){
-        const [lobes,diameter]=({small:[5,1],medium:[9,1.5],large:[14,2]})[tree.size];
-        if(tree.lobes!==lobes||Math.abs(tree.diameter-diameter)>.0001||tree.bareTrunkFraction>.32)throw new Error(`Tree dimensions differ from the review brief: ${JSON.stringify(tree)}`);
+        const [primary,infill,diameter]=({small:[5,1,1],medium:[9,2,1.5],large:[14,3,2]})[tree.size];
+        if(tree.lobes!==primary+infill||tree.primaryLobes!==primary||tree.infillLobes!==infill||Math.abs(tree.diameter-diameter)>.0001||tree.bareTrunkFraction>.32)throw new Error(`Tree dimensions differ from the review brief: ${JSON.stringify(tree)}`);
       }
       if(measured.length!==3)throw new Error('Three tree sizes must be visible in the review');
       results.at(-1).trees=measured;

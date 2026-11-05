@@ -1,10 +1,12 @@
 {
   "asset": "oak-small",
-  "triangles": 9392,
-  "vertices": 4708,
+  "triangles": 10480,
+  "vertices": 5254,
   "materials": 2,
   "crown": {
-    "lobes": 5,
+    "lobes": 6,
+    "primary_lobes": 5,
+    "infill_lobes": 1,
     "diameter": 1.0,
     "height": 1.3015,
     "bare_trunk_fraction": 0.2833
