@@ -48,13 +48,22 @@ export function createLandforms(grid:number,paths:readonly (readonly Point[])[])
   forest('south-border','oak',4.7,[[-27,-43],[-20,-39],[-12,-41],[-7,-45],[-18,-47]]);
   forest('east-wetland','sapling',4.9,[[39,-38],[44,-30],[46,-22],[43,-17],[40,-22],[37,-32]]);
   forest('creek-grove','oak',4.5,[[8,2],[10,10],[17,12],[20,8],[17,3],[13,0]]);
+  forest('flower-wood-edge','blossom',4.1,[[-43,-34],[-39,-39],[-32,-40],[-28,-36],[-31,-30],[-37,-29]]);
+  forest('orchard-border','fruit',4.5,[[1,-40],[8,-36],[17,-37],[26,-40],[33,-39],[36,-43],[23,-46],[10,-44]]);
+  forest('highland-front','oak',4.0,[[-15,7],[-13,10],[-6,11],[1,9],[-2,7],[-8,6.5]]);
+  forest('highland-crown-grove','oak',4.3,[[-13,21],[-13,28],[-8,31],[-5,28],[-7,23]]);
+  forest('highland-east-grove','oak',4.2,[[7,25],[7,30],[11,32],[13,27],[11,23]]);
+  forest('northern-backwoods','pine',4.0,[[-35,38],[-34,44],[-24,46],[-19,43],[-23,38],[-29,37]]);
+  forest('camp-backwoods','pine',4.2,[[4,40],[9,44],[18,45],[22,42],[17,39],[10,38]]);
+  forest('ruin-canopy','oak',4.2,[[28,31],[30,36],[36,36],[39,31],[35,28],[31,29]]);
+  forest('home-east-grove','sapling',3.6,[[23,-2],[22,3],[25,8],[29,7],[29,2],[26,-2]]);
   // Corridors through actual solid landforms are visible cuts/ramps. Rounded
   // joints make the physical openings agree with the rendered approaches.
   const roadPieces=paths.flatMap(p=>strips(p,3.05));
   for(const path of paths)for(const p of path)roadPieces.push([Array.from({length:12},(_,i)=>[p.x+Math.cos(i*Math.PI/6)*3.05,p.z+Math.sin(i*Math.PI/6)*3.05])]);
   const approaches=clipping.union(roadPieces[0],...roadPieces.slice(1));
   const solids:MultiPolygon[]=[];
-  for(const f of forms)if(f.kind!=='basin')solids.push(clipping.difference(f.kind==='ridge'?[polygon(f.area.points)]:contourBand(f.area.points,1.5),approaches));
+  for(const f of forms)if(f.kind!=='basin')solids.push(clipping.difference(f.kind==='ridge'?clipping.union(polygon(f.area.points),contourBand(f.area.points,.9)):contourBand(f.area.points,1.5),approaches));
   for(const f of forests)solids.push(clipping.difference(polygon(f.area.points),approaches));
   const landSolid=clipping.union(solids[0],...solids.slice(1));
   const naturalGround=(x:number,z:number)=>{

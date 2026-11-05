@@ -33,6 +33,7 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
         const reach=Math.max(2,form.edge*.85),base=terrainHeight(x+nx*reach,z+nz*reach),top=terrainHeight(x-nx*reach,z-nz*reach);
         if(top-base<1.4)continue;
         place('cliff',x,z,[.93+random()*.13,(top-base+.22)/3.7,.65+random()*.12],Math.atan2(nx,nz),base-.12);
+        if(random()<.45)place('bush',x+nx*1.2,z+nz*1.2,.65+random()*.35,random()*6.28,base-.05);
         if(random()<.35)place('stone',x-nx*.6,z-nz*.6,[.4+random()*.4,.25+random()*.3,.45+random()*.3],random()*6.28,top-.12);
       }
       carried=(carried-length)%4.7;if(carried<0)carried+=4.7;
@@ -51,17 +52,30 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
       place(i%5===0?'stone':'bush',x,z,.65+random()*.45,random()*6.28);
     }
   }
+  // Shore groups alternate reed pockets, gravel bars and larger creek stones;
+  // there is no evenly spaced decorative ring around the water.
   for(const area of LANDSCAPE.waterAreas){
     let distance=0;
     for(let i=0;i<area.points.length;i++){
       const p=area.points[i],q=area.points[(i+1)%area.points.length];distance+=Math.hypot(q.x-p.x,q.z-p.z);
-      if(distance<2.4)continue;distance=0;
-      if(LANDSCAPE.bridges.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<b.length/2+2))continue;
+      if(distance<2.0)continue;distance=0;
+      if(LANDSCAPE.bridges.some(b=>Math.hypot(p.x-b.x,p.z-b.z)<b.length/2+1.7))continue;
+      const pocket=Math.sin(p.x*.24+p.z*.19)+.55*Math.cos(p.z*.36-p.x*.11);
+      if(pocket<-.2)continue;
       const dx=q.x-p.x,dz=q.z-p.z,len=Math.hypot(dx,dz)||1;
-      let side=1;
-      if(!insidePolygon({x:p.x-dz/len*.4,z:p.z+dx/len*.4},area))side=-1;
-      const x=p.x-dz/len*.38*side,z=p.z+dx/len*.38*side;
-      place(random()<.55?'reeds':'stone',x,z,.3+random()*.4,random()*6.28,LANDSCAPE.waterLevel({x,z})-.06);
+      let nx=-dz/len,nz=dx/len;
+      if(!insidePolygon({x:p.x+nx*.3,z:p.z+nz*.3},area)){nx=-nx;nz=-nz;}
+      const wet=area.z<0,reed=wet||pocket>.7;
+      for(let j=0;j<(reed?5:2);j++){
+        const along=(random()-.5)*3.3,depth=.4+random()*.8;
+        const x=p.x+dx/len*along+nx*depth,z=p.z+dz/len*along+nz*depth;
+        if(polygonDistance({x,z},area)>-.2)continue;
+        place(reed?'reeds':'stone',x,z,reed?.7+random()*.5:.2+random()*.3,random()*6.28,LANDSCAPE.waterLevel({x,z})-.08);
+      }
+      if(!wet&&pocket>1.1&&random()<.65){
+        const x=p.x+nx*1.4,z=p.z+nz*1.4;
+        if(polygonDistance({x,z},area)<-1.2)place('stone',x,z,[.85+random()*.4,.65+random()*.5,.8+random()*.3],random()*6.28,LANDSCAPE.waterLevel({x,z})-.18);
+      }
     }
   }
 }

@@ -26,9 +26,14 @@ export function createGroundCover(scene: Scene, environment:EnvironmentLibrary) 
   for (let z = -MAP_DEPTH / 2 + SPACING; z < MAP_DEPTH / 2 - SPACING; z += SPACING) {
     for (let x = -MAP_WIDTH / 2 + SPACING; x < MAP_WIDTH / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
-        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: random() < (z < -20 && x < 15 ? .30 : .07) };
-      if (random() > .23 + .28 * Math.max(0, Math.sin(plant.x * .31) * Math.cos(plant.z * .27))) continue;
-      if (!LANDSCAPE.contains(plant) || random() < .22 || footprints.some(b => inFootprint(plant, b))
+        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: false };
+      const region=LANDSCAPE.regions.reduce((a,b)=>Math.hypot((plant.x-a.x)/a.rx,(plant.z-a.z)/a.rz)<Math.hypot((plant.x-b.x)/b.rx,(plant.z-b.z)/b.rz)?a:b);
+      const drift=Math.max(0,Math.sin(plant.x*.24+plant.z*.1)*Math.cos(plant.z*.29));
+      const meadow=region.biome==='meadow',grove=region.biome==='orchard',rocky=region.biome==='rock'||region.biome==='camp';
+      plant.flower=random()<(meadow?.78:grove?.38:.08);
+      if(plant.flower)plant.size*=1.25;
+      if(random()>(rocky?.1:meadow?.45:grove?.28:.18)+drift*(meadow?.5:.25))continue;
+      if (!LANDSCAPE.geography.inside(plant) || Math.abs(surfaceHeight(plant.x+1,plant.z)-surfaceHeight(plant.x-1,plant.z))+Math.abs(surfaceHeight(plant.x,plant.z+1)-surfaceHeight(plant.x,plant.z-1))>1.2 || random() < .12 || footprints.some(b => inFootprint(plant, b))
         || LANDSCAPE.waterAreas.some(a=>polygonDistance(plant,a)<.8)
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
         || nearRoad(plant, MARGIN)) continue;

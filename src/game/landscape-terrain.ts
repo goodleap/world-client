@@ -45,13 +45,31 @@ export function createLandscapeTerrain(scene: Scene, _palette: Palette) {
     }
     for (let i = 0; i < 150; i++) patch((random() - .5) * MAP_WIDTH, (random() - .5) * MAP_DEPTH,
       2 + random() * 7, ['#c0d77c38', '#49793b30', '#abca6235'][i % 3], .5 + random() * .6);
+    const paintedArea=(points:readonly {x:number;z:number}[],tint:string,softness=18)=>{
+      ctx.save();ctx.filter=`blur(${softness}px)`;ctx.fillStyle=tint;ctx.beginPath();
+      points.forEach((p,i)=>i?ctx.lineTo(p.x,p.z):ctx.moveTo(p.x,p.z));ctx.closePath();ctx.fill();ctx.restore();
+    };
     for (const region of layout.regions) {
-      patch(region.x, region.z, Math.max(region.rx, region.rz) * GRID_SIZE,
-        BIOME_COLORS[region.biome]+'dd', region.rz/region.rx);
+      paintedArea(region.area.points,BIOME_COLORS[region.biome]+'bf',32);
+      patch(region.x,region.z,Math.min(region.rx,region.rz)*GRID_SIZE*.8,BIOME_COLORS[region.biome]+'b0');
     }
-    // Forest soil follows the generated vegetation rather than a repeated tile.
-    for (const tree of layout.trees) patch(tree.x, tree.z, tree.scale * 3.5, '#536f3848', .85);
-    for (const rock of layout.rocks) patch(rock.x, rock.z, rock.scale * 1.7, '#66734f65', .8);
+    for(const form of layout.geography.forms)if(form.kind==='ridge')paintedArea(form.area.points,'#8d9870a0',18);
+    for(const forest of layout.geography.forests){
+      paintedArea(forest.area.points,forest.species==='pine'?'#526b4cb8':forest.species==='fruit'?'#82934e90':'#617c43b0',25);
+    }
+    // Tree groups and flower drifts remain legible from the overview. Individual
+    // grass and blossom geometry supplies detail when the camera approaches.
+    for (const tree of [...layout.trees,...layout.sceneryTrees]) patch(tree.x,tree.z,tree.scale*2.5,'#536d3830',.85);
+    for (const rock of layout.rocks) patch(rock.x,rock.z,rock.scale*1.7,'#92947c55',.8);
+    const flowerField=layout.regions.find(r=>r.id==='meadow')!;
+    for(let cluster=0;cluster<7;cluster++){
+      const a=cluster*2.4,x=flowerField.x+Math.cos(a)*(5+cluster),z=flowerField.z+Math.sin(a)*(4+cluster*.6);
+      patch(x,z,2.5+random()*2,['#c0c97f70','#c8b3a04a','#c8ca8a65'][cluster%3],.6);
+      for(let i=0;i<50;i++){
+        const angle=random()*Math.PI*2,r=Math.sqrt(random())*3.8;
+        ctx.fillStyle=['#e5ddaf99','#c8a9c08a','#eef1c59a'][i%3];ctx.beginPath();ctx.arc(x+Math.cos(angle)*r,z+Math.sin(angle)*r*.55,.07+random()*.08,0,Math.PI*2);ctx.fill();
+      }
+    }
     for (let i = 0; i < 14000; i++) {
       const x = (random() - .5) * MAP_WIDTH, z = (random() - .5) * MAP_DEPTH;
       const length = .09 + random() * .23;
@@ -124,21 +142,23 @@ export function createLandscapeWater(scene: Scene) {
         [new Vector3(a.x,area.level+.05,a.z),new Vector3(b.x,area.level+.05,b.z)],
         [new Vector3(a.x,lower+.04,a.z-.35),new Vector3(b.x,lower+.04,b.z-.35)]
       ],sideOrientation:Mesh.DOUBLESIDE},scene);
-      fall.setVerticesData('color',Array.from({length:fall.getTotalVertices()},(_,j)=>j<2?[.64,.87,.84,1]:[.25,.66,.7,1]).flat());meshes.push(fall);
+      fall.setVerticesData('color',Array.from({length:fall.getTotalVertices()},(_,j)=>j%4<2?[.70,.91,.88,1]:[.42,.77,.79,1]).flat());meshes.push(fall);
       const foam=MeshBuilder.CreateRibbon('cascade-foam',{pathArray:[-.38,-.8].map(d=>[new Vector3(a.x,lower+.06,a.z+d),new Vector3(b.x,lower+.06,b.z+d)]),sideOrientation:Mesh.DOUBLESIDE},scene);
       foam.setVerticesData('color',Array.from({length:foam.getTotalVertices()},()=>[.72,.9,.83,1]).flat());meshes.push(foam);
     }
   }
   for(const area of LANDSCAPE.waterAreas){
-    const bands=[[-1.0,'#8a9d5b'],[-.5,'#beb186'],[0,'#a5b79c'],[.4,'#69b5af']] as const;
-    const directions=area.points.map((p,i)=>{const a=area.points[(i-1+area.points.length)%area.points.length],b=area.points[(i+1)%area.points.length],d=Math.hypot(b.x-a.x,b.z-a.z)||1;
+    const line=area.points.flatMap((p,i)=>{const q=area.points[(i+1)%area.points.length],n=Math.max(1,Math.ceil(Math.hypot(q.x-p.x,q.z-p.z)/.25));return Array.from({length:n},(_,j)=>({x:p.x+(q.x-p.x)*j/n,z:p.z+(q.z-p.z)*j/n}));});
+    const wet=area.z<0;
+    const bands=[[-1.8,wet?'#7b916c':'#8c9d65'],[-.8,wet?'#879b7e':'#b8b58d'],[0,'#91bdb0'],[.7,'#6cb6b1'],[1.2,'#51a5ac']] as const;
+    const directions=line.map((p,i)=>{const a=line[(i-1+line.length)%line.length],b=line[(i+1)%line.length],d=Math.hypot(b.x-a.x,b.z-a.z)||1;
       let nx=-(b.z-a.z)/d,nz=(b.x-a.x)/d;if(!insidePolygon({x:p.x+nx*.1,z:p.z+nz*.1},area)){nx=-nx;nz=-nz;}return{x:nx,z:nz};});
-    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset],row)=>area.points.map((p,i)=>{
-      const width=1+.25*Math.sin(p.x*.8+p.z*.35),x=p.x+directions[i].x*offset*width,z=p.z+directions[i].z*offset*width,water=LANDSCAPE.waterLevel(p);
-      const y=row===0?terrainHeight(x,z)+.025:row===1?water*.5+terrainHeight(x,z)*.5+.06:water+.05;
+    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset],row)=>line.map((p,i)=>{
+      const width=Math.max(.55,1+.5*Math.sin(p.x*.27+p.z*.21)+.3*Math.cos(p.z*.43-p.x*.13)),x=p.x+directions[i].x*offset*width,z=p.z+directions[i].z*offset*width,water=LANDSCAPE.waterLevel(p);
+      const y=row===0?terrainHeight(x,z)+.06:row===1?water*.25+terrainHeight(x,z)*.75+.06:water+.05-(row-2)*.004;
       return new Vector3(x,y,z);
     })),closePath:true,sideOrientation:Mesh.DOUBLESIDE},scene);
-    const data=shore.getVerticesData('position')!,tints:number[]=[],uvs:number[]=[],stride=area.points.length+1;
+    const data=shore.getVerticesData('position')!,tints:number[]=[],uvs:number[]=[],stride=line.length+1;
     for(let i=0;i<data.length/3;i++){const c=color(bands[Math.floor((i%(stride*bands.length))/stride)][1]);tints.push(c.r,c.g,c.b,1);uvs.push(data[i*3]/9,data[i*3+2]/9);}
     shore.setVerticesData('color',tints);shore.setVerticesData('uv',uvs);meshes.push(shore);
   }

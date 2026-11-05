@@ -1,6 +1,6 @@
 import { LANDSCAPE } from './world-data.ts';
 import type { Ray } from '@babylonjs/core/Culling/ray.js';
-import { polygonDistance } from './polygon.ts';
+import { insidePolygon } from './polygon.ts';
 
 /** Native terrain-triangle interpolation from the cached authored heightfield. */
 export function terrainHeight(x:number,z:number) {
@@ -18,8 +18,7 @@ export function surfaceHeight(x:number,z:number) {
 /** Static mesh/scenery sampling only; never used by the simulation loop. */
 export function groundHeight(x:number,z:number) {
   const p={x,z},base=terrainHeight(x,z);
-  const water=Math.min(...LANDSCAPE.waterAreas.map(a=>polygonDistance(p,a)));
-  if(water<0)return LANDSCAPE.waterLevel(p)-1.8;
+  if(LANDSCAPE.waterAreas.some(a=>insidePolygon(p,a)))return LANDSCAPE.waterLevel(p)-1.8;
   return base;
 
 }

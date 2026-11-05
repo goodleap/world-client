@@ -35,15 +35,16 @@ test('every clearing has a swept route for infantry and cavalry; authored woodla
     sampled++; if (!LANDSCAPE.contains({ x, z })) solid++;
   }
   assert.ok(solid / sampled > .45 && solid / sampled < .7);
-  assert.equal(findPath(start, { x: 0, z: 30 }, .4, WORLD_BOUNDS, solids), undefined);
+  assert.equal(findPath(start, { x: -64, z: -45 }, .4, WORLD_BOUNDS, solids), undefined);
 });
 
 test('passages and uncleared camps allow construction while physical wildland and guarded gathering remain restricted', () => {
   const e = new Economy(); e.setLeadership(false);
   e.state.inventory = { wood: 200, stone: 200, food: 0, iron: 0 };
   assert.ok(e.placeBuilding('house', { x: -28, z: 0 }).ok);
-  assert.match(e.placeBuilding('house', { x: 0, z: 30 }).message, /地面/);
+  assert.match(e.placeBuilding('house', { x: -64, z: -45 }).message, /地面/);
   const mine = LANDSCAPE.regions.find(r => r.id === 'quarry')!;
+  e.state.depleted = RESOURCE_NODES.filter(n=>insidePolygon(n,mine.area)).map(n=>n.id);
   const placed = e.placeBuilding('campfire', { x: mine.x + 5, z: mine.z });
   assert.ok(placed.ok, placed.message);
   clearCamp(e, 'quarry');

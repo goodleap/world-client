@@ -18,7 +18,7 @@ for (const name of ['decoder-license.md', 'license.md', 'NOTICE.md']) {
   const text = await readFile(`${vendor}/${name}`, 'utf8');
   await writeFile(`${vendor}/${name}`, text.replace(/\r\n/g, '\n').replace(/[\t ]+$/gm, ''));
 }
-const names = ['woodland-ground-colors', 'woodland-meadow-strokes', 'woodland-road-grain', 'woodland-water-ripples'];
+const names = ['woodland-ground-colors', 'woodland-meadow-strokes', 'woodland-water-ripples'];
 for (const name of names) {
   await copyFile(`${source}/${name}.png`, `${output}/${name}.png`);
   const result = spawnSync(basisu, ['-file', `${source}/${name}.png`, '-output_file', `${output}/${name}.ktx2`, '-ktx2', '-uastc', '-uastc_level', '3', '-mipmap', '-mip_filter', 'box', '-mip_linear', '-y_flip', '-max_threads', '2'], { encoding: 'utf8' });

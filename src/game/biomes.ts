@@ -1,2 +1,6 @@
 import type { Biome } from './map-regions.ts';
-export const BIOME_COLORS:Record<Biome,string>={home:'#91b957',meadow:'#a2bd58',orchard:'#8eb24d',woodland:'#719844',conifers:'#698b4b',rock:'#b3a27e',highland:'#a3b66c',ruins:'#a5aa7c',creek:'#89ad60',lake:'#a7bb7a',wetland:'#799a71',camp:'#ac9c6b'};
+export const BIOME_COLORS:Record<Biome,string>={
+  home:'#91b657',meadow:'#b2bf66',orchard:'#98b157',woodland:'#728d4b',
+  conifers:'#6e8b69',rock:'#b4a78a',highland:'#9eb36a',ruins:'#b1af88',
+  creek:'#82a06a',lake:'#b5b487',wetland:'#809b83',camp:'#b5a377',
+};

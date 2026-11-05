@@ -40,9 +40,13 @@ export function createMinimap(canvas: HTMLCanvasElement) {
     background = document.createElement('canvas'); background.width = width; background.height = height;
     const ctx = background.getContext('2d', { alpha: false });
     if (!ctx) { background = undefined; return; }
-    ctx.fillStyle = '#455e42'; ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = '#a5b879'; for (const a of LANDSCAPE.playable) area(ctx, a);
+    ctx.fillStyle = '#667b55'; ctx.fillRect(0,0,width,height);
+    ctx.fillStyle = '#91ac64'; area(ctx,LANDSCAPE.geography.outline);
+    ctx.save();ctx.beginPath();line(ctx,LANDSCAPE.geography.outline.points,true);ctx.clip();
     for(const r of LANDSCAPE.regions){ctx.fillStyle=BIOME_COLORS[r.biome];area(ctx,r.area);}
+    for(const f of LANDSCAPE.geography.forms){ctx.fillStyle=f.kind==='ridge'?'#9d9d82':f.kind==='basin'?'#aa9e80':'#9eb16b';area(ctx,f.area);ctx.beginPath();line(ctx,f.area.points,true);ctx.strokeStyle='#797d66';ctx.lineWidth=(f.kind==='ridge'?1.8:1.2)*width/320;ctx.stroke();}
+    for(const f of LANDSCAPE.geography.forests){ctx.fillStyle=f.species==='pine'?'#49654d':f.species==='blossom'?'#a0a36d':'#617f42';area(ctx,f.area);}
+    ctx.restore();
     ctx.strokeStyle = '#e3cf99'; ctx.lineWidth = 2.8 / MAP_WIDTH * (width - pad * 2); ctx.lineCap = ctx.lineJoin = 'round';
     for (const path of ROAD_PATHS) { ctx.beginPath(); line(ctx, path); ctx.stroke(); }
     ctx.fillStyle = '#62a8aa'; for(const a of LANDSCAPE.waterAreas)area(ctx,a);

@@ -10,7 +10,7 @@ import type { Point } from './movement.ts';
 export interface MapBridge extends Point { id:string; angle:number; length:number; width:number; area:PolygonArea }
 export function createMapWater(grid:number, roads:readonly (readonly Point[])[]) {
   const points=(pairs:number[][])=>pairs.map(([x,z])=>({x:x*grid,z:z*grid}));
-  const lakeShape=smoothPolygon(points([[36,24],[44,25],[48,18],[47,8],[44,0],[37,0],[32,5],[31,13]]),7);
+  const lakeShape=smoothPolygon(points([[35,23],[40,25],[44,23],[45,18],[47,14],[45,10],[46,7],[43,3],[40,1],[36,2],[34,5],[31,6],[30,10],[32,13],[31,17],[33,20]]),7);
   const lake=areas(clipping.union(lakeShape))[0];
   const stream=Curve3.CreateCatmullRomSpline(points([[15,31],[18,25],[19,20],[23,16],[24,10],[29,6],[35,8]]).map(p=>new Vector3(p.x,0,p.z)),9,false).getPoints();
   const riverWidth=(p:Point)=>grid*(.95+.16*Math.sin(p.z*.13));

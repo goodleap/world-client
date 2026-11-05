@@ -12,7 +12,7 @@ export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, m
   duration: 120, fearRadius: 6, fearSeconds: 3, acquire: 11, chase: 17, aidRadius: 10, loot: 2, feedSeconds: 1.1 };
 export const WILD_WOLF_SPAWNS: readonly Point[] = MAP_DEVELOPMENT?[]:[
   { x: -48, z: -1 }, { x: -48, z: 2 },
-  { x: -53, z: 40 }, { x: -53, z: 43 },
+  { x: -49, z: 40 }, { x: -49, z: 43 },
   { x: -33, z: -46 }, { x: -33, z: -43 },
 ];
 export interface Wolf extends Fighter {

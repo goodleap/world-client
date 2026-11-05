@@ -7,6 +7,7 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { LANDSCAPE, MAP_WIDTH, MAP_DEPTH } from './world-data.ts';
 import { BIOME_COLORS } from './biomes.ts';
+import { polygonDistance } from './polygon.ts';
 import { groundHeight, terrainHeight } from './terrain-height.ts';
 
 /** Native terrain geometry is shared by soil and exposed rock. Each triangle
@@ -20,13 +21,18 @@ export function createLandformMeshes(scene:Scene,grass:StandardMaterial){
   for(let i=0;i<original.length;i+=3){
     const ids=[original[i],original[i+1],original[i+2]],v=ids.map(j=>Vector3.FromArray(positions,j*3));
     const p={x:(v[0].x+v[1].x+v[2].x)/3,z:(v[0].z+v[1].z+v[2].z)/3};
-    if(!geography.inside(p))continue;
+    // The opaque water and continuous shore ribbon cover this cut. Keeping
+    // heightfield triangles across a high bank made sharp wedges pierce water.
+    if(!geography.inside(p)||LANDSCAPE.waterAreas.some(a=>p.x>=a.bounds.minX-.45&&p.x<=a.bounds.maxX+.45&&p.z>=a.bounds.minZ-.45&&p.z<=a.bounds.maxZ+.45&&polygonDistance(p,a)<.45))continue;
     const normal=Vector3.Cross(v[1].subtract(v[0]),v[2].subtract(v[0])).normalize();
     const exposed=Math.abs(normal.y)<.73&&Math.max(...v.map(p=>p.y))>.35&&geography.roadDistance(p)>1.7;
     (exposed?rockIndices:soil).push(...ids);all.push(...ids);
   }
   VertexData.ComputeNormals(positions,all,normals);
   ground.setVerticesData('position',positions);ground.setVerticesData('normal',normals);ground.setIndices(soil);ground.material=grass;
+  // Native submeshes let the camera cull terrain strips without changing the
+  // shared surface or adding a second terrain representation.
+  ground.subdivide(16);
   const low=Color3.FromHexString('#7b8274'),high=Color3.FromHexString('#b7b29b'),colors:number[]=[];
   for(let i=0;i<positions.length;i+=3){
     const x=positions[i],y=positions[i+1],z=positions[i+2];
@@ -38,7 +44,7 @@ export function createLandformMeshes(scene:Scene,grass:StandardMaterial){
     const tint=Color3.Lerp(c,moss,blend);colors.push(tint.r,tint.g,tint.b,1);
   }
   const rock=new Mesh('landform-exposed-rock',scene),data=new VertexData();
-  data.positions=positions;data.normals=normals;data.colors=colors;data.indices=rockIndices;data.applyToMesh(rock);
+  data.positions=positions;data.normals=normals;data.colors=colors;data.indices=rockIndices;data.applyToMesh(rock);rock.subdivide(12);
   const material=new StandardMaterial('landform-rock',scene);material.diffuseColor=Color3.White();material.specularColor=Color3.Black();rock.material=material;
   const outline=geography.outline.points;
   const side=MeshBuilder.CreateRibbon('landform-outer-bank',{pathArray:[0,1].map(row=>outline.map(p=>new Vector3(p.x,terrainHeight(p.x,p.z)-(row?3:.02),p.z))),closePath:true,sideOrientation:Mesh.DOUBLESIDE},scene);

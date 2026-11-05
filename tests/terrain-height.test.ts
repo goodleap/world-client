@@ -12,7 +12,8 @@ import type { Obstacle } from '../src/game/movement.ts';
 
 test('home stays flat and picking rays meet elevated ground and bridge decks',()=>{
   for(const [x,z] of [[0,0],[-10,-10],[12,9]])assert.equal(terrainHeight(x,z),0);
-  assert.equal(terrainHeight(-2*GRID_SIZE,27*GRID_SIZE),2.5);
+  assert.ok(terrainHeight(-2*GRID_SIZE,27*GRID_SIZE)>6,'the crown is above both terrace levels');
+  assert.ok(terrainHeight(-31*GRID_SIZE,12*GRID_SIZE)<-1,'the western ravine is below the home plain');
   const points=[{x:-2*GRID_SIZE,z:27*GRID_SIZE},{x:6*GRID_SIZE,z:24*GRID_SIZE},...LANDSCAPE.bridges];
   for(const p of points){
     const target=new Vector3(p.x,surfaceHeight(p.x,p.z),p.z);

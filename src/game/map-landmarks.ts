@@ -6,8 +6,11 @@ export function createMapLandmarks(grid:number) {
   const props=[
     {kind:'arch' as const,x:23*grid,z:29*grid},
     {kind:'wall' as const,x:26*grid,z:30*grid},
-    {kind:'mine' as const,x:-40*grid,z:-12*grid},
+    {kind:'arch' as const,x:30*grid,z:28*grid},
+    {kind:'wall' as const,x:31*grid,z:31*grid},
+    {kind:'mine' as const,x:-43*grid,z:-12*grid},
     {kind:'tent' as const,x:17*grid,z:35*grid},
+    {kind:'tent' as const,x:13*grid,z:36*grid},
     {kind:'lookout' as const,x:21*grid,z:35*grid},
     {kind:'palisade' as const,x:17*grid,z:37*grid},
   ];
