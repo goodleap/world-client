@@ -194,7 +194,7 @@ def balanced_lobes(lobes):
     return [(x-cx,y-cy,z,r) for x,y,z,r in lobes]
 
 
-def round_crown(name, lobes, material, primary_count):
+def round_crown(name, lobes, material, primary_count, shapes=None):
     """Separate smooth spherical lobes retain their own contours and normals."""
     parts=[]
     # Gentle hue/value variation inside one tree's palette. The sequence is
@@ -202,8 +202,18 @@ def round_crown(name, lobes, material, primary_count):
     tints=[(1,1,.94),(.78,.94,.96),(.96,1,.89),(.89,.95,1),(.84,.98,.92)]
     for i,(x,y,z,r) in enumerate(lobes):
         bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=18,location=(x,y,z))
-        obj=bpy.context.object;obj.scale=(r,r*.98,r*1.02)
-        bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+        obj=bpy.context.object
+        if shapes:
+            axes,rotation=shapes[i]
+            # Broad, gentle asymmetry changes the silhouette without adding
+            # leaf noise or altering the existing vertex-color/light setup.
+            for v in obj.data.vertices:
+                u=v.co.copy();phase=i*.71
+                v.co*=1+.027*(u.x*u.x-u.y*u.y)*u.z+.018*(3*u.x*u.x*u.y-u.y**3)*math.cos(phase)
+            obj.scale=tuple(r*a for a in axes)
+            obj.rotation_euler=tuple(math.radians(a) for a in rotation)
+        else:obj.scale=(r,r*.98,r*1.02)
+        bpy.ops.object.transform_apply(location=False,rotation=bool(shapes),scale=True)
         obj.data.materials.append(material)
         attr=obj.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
         tint=tints[i%len(tints)]
@@ -222,6 +232,65 @@ def round_crown(name, lobes, material, primary_count):
     obj['infillLobeCount']=len(lobes)-primary_count
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
     return obj
+
+
+def tree_form_study():
+    """Medium-only study from the approved reference, not a published map asset.
+
+    Keep the raised tree's height/canopy dimensions and the existing materials.
+    Three large lobes lead the silhouette; back lobes provide depth and small
+    infill stays recessed. Branches follow three curved, tapering main limbs.
+    """
+    wood,foliage=mat('Warm branching wood'),mat('Separate round crown clusters')
+    primary=[(0,.02,1.66,.39),(-.385,-.22,1.38,.34),(.405,-.095,1.42,.34),
+             (-.28,.30,1.52,.27),(.26,.34,1.61,.255),(-.39,.02,1.055,.245),
+             (.40,.19,1.10,.205),(.30,-.34,1.12,.18),(-.035,.28,1.39,.24)]
+    lobes=balanced_lobes(primary)
+    cx,cy=primary[0][0]-lobes[0][0],primary[0][1]-lobes[0][1]
+    lobes += [(-.025-cx,.03-cy,1.36,.17),(.04-cx,.11-cy,1.62,.16)]
+    shapes=[((1.03,.97,1.00),(2,-5,7)),((1.11,.99,.93),(-6,8,-9)),
+            ((1.02,.97,1.04),(5,-7,6)),((1.02,1.04,.96),(7,4,-11)),
+            ((.98,1.04,.98),(-4,6,13)),((1.07,1.04,.96),(-7,-5,8)),
+            ((1.05,1.00,.97),(4,9,-7)),((1.02,1.00,.98),(6,-8,12)),
+            ((1.04,.98,.98),(-6,5,-10)),((1,.97,1.02),(0,0,0)),((1.02,1,.98),(0,0,0))]
+    crown=round_crown('Tree study · softly varied main lobes',lobes,foliage,len(primary),shapes)
+    points=[v.co for v in crown.data.vertices]
+    xy=1.5/(2*max(math.hypot(p.x,p.y) for p in points))
+    bottom,top=min(p.z for p in points),max(p.z for p in points)
+    # Match the current raised M tree: 1.5-cell crown, 2.00041 total height,
+    # about .767 exposed trunk. This study changes form, not scale or lighting.
+    zscale=(2.00041-.767)/(top-bottom)
+    def at(p):return (p[0]*xy,p[1]*xy,.767+(p[2]-bottom)*zscale)
+    for v in crown.data.vertices:v.co=at(v.co)
+    crown.data.update();crown['treeSize']='medium';crown['study']='form-only-awaiting-review'
+    tips=[at(lobe[:3]) for lobe in lobes]
+    parts=[]
+    # Broad foot, slimmer curved waist, then three continuous main forks.
+    tube([(0,0,.018),(-.008,0,.12),(-.035,.008,.34),(-.03,.015,.55),
+          (0,.02,.78),(.04,.045,1.07),(.05,.035,1.35),tips[0]],
+         [.145,.131,.106,.100,.108,.085,.052,.018],parts)
+    tube([(-.025,.015,.56),(-.20,-.025,.77),(-.34,-.07,.95),tips[1]],
+         [.078,.062,.038,.018],parts)
+    tube([(-.01,.02,.64),(.18,.035,.80),(.34,.015,.96),tips[2]],
+         [.080,.063,.039,.018],parts)
+    # Secondary forks join the visible limbs rather than radiating from one hub.
+    for points,radii in [
+        ([(-.16,-.04,.84),(-.30,.0,.93),tips[5]],[.055,.041,.017]),
+        ([(-.20,-.065,.92),(-.29,.12,1.15),tips[3]],[.052,.037,.016]),
+        ([(.20,.02,.90),(.34,.12,1.02),tips[6]],[.051,.035,.016]),
+        ([(.11,.03,.80),(.23,-.15,.94),tips[7]],[.057,.040,.017]),
+        ([(.02,.035,.90),(.13,.22,1.15),tips[4]],[.060,.043,.017]),
+        ([(-.01,.025,.77),(-.07,.23,.98),tips[8]],[.061,.041,.018]),
+    ]:tube(points,radii,parts)
+    trunk=fused_wood(parts,'Tree study · curved continuous forks',wood,.018)
+    painted(trunk,wood,'#bf8a51',.025);trunk['treePart']='wood';trunk['treeSize']='medium'
+    trunk['study']='form-only-awaiting-review'
+    # Face the three main lobes toward the review camera; the opposite side is
+    # captured too, so the recessed back structure remains available to inspect.
+    for obj in (trunk,crown):
+        for vertex in obj.data.vertices:
+            vertex.co.x=-vertex.co.x;vertex.co.y=-vertex.co.y
+        obj.data.update()
 
 
 def rounded_tree(size='medium'):
@@ -510,6 +579,7 @@ def cliff():
 
 BUILDERS={'oak':oak,'sapling':small_tree,'fruit':lambda:small_tree('fruit'),
           'blossom':lambda:small_tree('blossom'),'pine':pine,'bush':bush,'reeds':reeds,'grass':grass,'flowers':flowers,'stone':stone,'cliff':cliff}
+BUILDERS['oak-study']=tree_form_study
 for size in ('small','large'):
     BUILDERS[f'oak-{size}']=lambda size=size:rounded_tree(size)
 requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(BUILDERS)

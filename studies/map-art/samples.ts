@@ -8,6 +8,8 @@ import type { AssetName, XYZ } from './models.ts';
 import { terrain, matte, block, beam, random, riverX } from './terrain.ts';
 
 export const samples={
+  'tree-form':{title:'中树 · 造型调整样板',description:'球团主次、轻微形变与弯曲枝干。保留树高、冠幅、配色及灯光，待审阅。',height:3.1,target:[0,.9,0],assets:['oak-study']},
+  'tree-compare':{title:'中树 · 造型对照',description:'左：当前地图版本　右：本次样板。相同灯光、配色、树高与冠幅。',height:3.3,target:[0,.95,0],assets:['oak','oak-study']},
   oak:{title:'树木 · 内部小球填充样板',description:'9 个主体球团 + 2 个内部小球，填补空位并保留外圈轮廓。已确认并应用到地图。',height:3.1,target:[0,.9,0],assets:['oak']},
   trees:{title:'球团树冠 · 内部小球填充样板',description:'小：5 + 1 球 · 中：9 + 2 球 · 大：14 + 4 球。冠幅 1 / 1.5 / 2 格，已确认并应用到地图。',height:4.2,target:[0,1,0],assets:['oak-small','oak','oak-large']},
   colors:{title:'树木 · 同色系变化样板',description:'每棵树内部有轻微色差，整体保持所属色系。已确认并应用到地图。',height:4.8,target:[0,1.2,0],assets:['oak']},
@@ -25,6 +27,14 @@ export type SampleName=keyof typeof samples;
 export async function buildSample(name:SampleName,scene:Scene,shadows:ShadowGenerator){
   const info=samples[name],library=new ModelLibrary(scene,shadows);
   await library.load(info.assets);
+  if(name==='tree-form'||name==='tree-compare'){
+    const assets:AssetName[]=name==='tree-form'?['oak-study']:['oak','oak-study'];
+    for(const [i,asset] of assets.entries()){
+      const x=assets.length===1?0:(i-.5)*2.25;library.place(asset,[x,0,0],1,0,'lime');
+      const cell=MeshBuilder.CreateGround('one-cell-scale',{width:1,height:1},scene);cell.position.set(x,.006,0);cell.material=matte(scene,`cell-${i}`,'#d9c89f');cell.receiveShadows=true;
+    }
+    return info;
+  }
   if(name==='oak'){library.place('oak');const cell=MeshBuilder.CreateGround('one-cell-scale',{width:1,height:1},scene);cell.position.y=.006;cell.material=matte(scene,'one-cell-reference','#d9c89f');cell.receiveShadows=true;return info;}
   if(name==='trees'){
     for(const [i,asset] of (['oak-small','oak','oak-large'] as const).entries()){

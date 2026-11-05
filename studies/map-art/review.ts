@@ -40,13 +40,19 @@ fill.intensity = .68; fill.diffuse = Color3.FromHexString('#eef5e7'); fill.groun
 const sun = new DirectionalLight('sun', new Vector3(.7,-1,-.45), scene);
 sun.position.set(-12,20,9); sun.diffuse = Color3.FromHexString('#fff1da'); sun.intensity=.72;
 sun.autoCalcShadowZBounds = true;
+if(sample==='tree-form'||sample==='tree-compare'){
+  // Auto Z bounds fit only casters and clip their ground projection in this
+  // close review. Include the receiving floor; keep light/material settings.
+  sun.autoCalcShadowZBounds=false;sun.shadowMinZ=0;sun.shadowMaxZ=50;
+}
 const shadows = new ShadowGenerator(2048, sun);
 shadows.usePercentageCloserFiltering=true;shadows.filteringQuality=ShadowGenerator.QUALITY_HIGH;
 shadows.bias=.0004; shadows.normalBias=.025; shadows.setDarkness(.18);
 const floor = MeshBuilder.CreateGround('neutral review floor', { width:200, height:200 }, scene);
 const floorMat = new StandardMaterial('neutral matte', scene);
 floorMat.diffuseColor=Color3.FromHexString('#bbc5ae'); floorMat.specularColor=Color3.Black();
-floor.material=floorMat;floor.receiveShadows=true;floor.position.y=['oak','trees','colors'].includes(sample)?-.025:-.285;
+const treeStudy=['oak','trees','colors','tree-form','tree-compare'].includes(sample);
+floor.material=floorMat;floor.receiveShadows=true;floor.position.y=treeStudy?-.025:-.285;
 const info=await buildSample(sample,scene,shadows);
 camera.target.set(info.target[0],info.target[1],info.target[2]);
 let height=info.height, rotating=false;
@@ -56,10 +62,10 @@ camera.onAfterCheckInputsObservable.add(()=>{const next=info.height*camera.radiu
 function frame(view='game') {
   camera.target.set(info.target[0],info.target[1],info.target[2]);camera.radius=45;height=info.height;
   camera.alpha=view==='side'?.15:-1.43;
-  camera.beta=view==='game'?(['oak','trees','colors'].includes(sample)?1.08:.85):1.38;
+  camera.beta=view==='game'?(treeStudy?1.08:.85):1.38;
   fit();scene.render();
 }
-function fit(){engine.resize();const minWidth=(sample==='oak'?3.2:sample==='trees'?8:sample==='colors'?12.4:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
+function fit(){engine.resize();const minWidth=(sample==='oak'||sample==='tree-form'?3.2:sample==='tree-compare'?5.2:sample==='trees'?8:sample==='colors'?12.4:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
 document.querySelector('#game')!.addEventListener('click',()=>frame());
 document.querySelector('#side')!.addEventListener('click',()=>frame('side'));
 document.querySelector('#rotate')!.addEventListener('click',e=>{rotating=!rotating;(e.currentTarget as HTMLButtonElement).setAttribute('aria-pressed',String(rotating));});
