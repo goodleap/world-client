@@ -9,11 +9,14 @@ import '@babylonjs/loaders/glTF/index.js';
 import '@babylonjs/core/Meshes/instancedMesh.js';
 import { TREE_COLORS, treeAsset, treeColor } from './tree-profile.ts';
 import type { TreeSpecies, TreeSize, TreeColor } from './tree-profile.ts';
+import environmentAsset from '../assets/environment/environment.glb?url';
 
 export type EnvironmentAsset = 'bush'|'reeds'|'grass'|'flowers'|'stone'|'cliff';
 type Detail='near'|'medium'|'far';
 export async function loadEnvironment(scene:Scene) {
-  const url=`${import.meta.env.BASE_URL}assets/environment/environment.glb`;
+  // Vite fingerprints the content, just like character GLBs. A fixed public
+  // URL can serve cached geometry whose parts no longer match this loader.
+  const url=environmentAsset;
   loadingProgress.register(url,'地形与植物模型','download');
   const data=await modelData(url);
   const container=await loadingProgress.run('environment:parse','地形与植物：解析',()=>LoadAssetContainerAsync(data,scene,modelOptions(url)));
