@@ -9,7 +9,7 @@ import { terrain, matte, block, beam, random, riverX } from './terrain.ts';
 
 export const samples={
   oak:{title:'阔叶树 · 内部小球填充样板',description:'9 个主体球团 + 2 个内部小球，填补空位并保留外圈轮廓。待确认后应用到地图。',height:3.1,target:[0,.9,0],assets:['oak']},
-  trees:{title:'球团树冠 · 内部小球填充样板',description:'小：5 + 1 球 · 中：9 + 2 球 · 大：14 + 3 球。冠幅 1 / 1.5 / 2 格，待确认后应用到地图。',height:4.2,target:[0,1,0],assets:['oak-small','oak','oak-large']},
+  trees:{title:'球团树冠 · 内部小球填充样板',description:'小：5 + 1 球 · 中：9 + 2 球 · 大：14 + 4 球。冠幅 1 / 1.5 / 2 格，待确认后应用到地图。',height:4.2,target:[0,1,0],assets:['oak-small','oak','oak-large']},
   colors:{title:'树木 · 同色系变化样板',description:'每棵树内部有轻微色差，整体保持所属色系。待确认后应用到地图。',height:4.8,target:[0,1.2,0],assets:['oak']},
   forest:{title:'01 · 阔叶林与林缘',description:'主树、幼树与灌木形成高低层次，树下由落叶、根系和碎石衔接',height:17.6,target:[0,.6,.1],assets:['oak','sapling','bush','grass','flowers','stone']},
   conifers:{title:'02 · 针叶林与山麓',description:'下垂枝层、冷暖绿对比，搭配苔石和低矮林下植物',height:17.6,target:[0,.8,.1],assets:['pine','bush','grass','stone']},
