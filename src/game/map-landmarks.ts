@@ -7,9 +7,9 @@ export function createMapLandmarks(grid:number) {
     {kind:'arch' as const,x:23*grid,z:29*grid},
     {kind:'wall' as const,x:26*grid,z:30*grid},
     {kind:'mine' as const,x:-40*grid,z:-12*grid},
-    {kind:'tent' as const,x:18*grid,z:44*grid},
-    {kind:'lookout' as const,x:20*grid,z:40*grid},
-    {kind:'palisade' as const,x:18*grid,z:46*grid},
+    {kind:'tent' as const,x:17*grid,z:35*grid},
+    {kind:'lookout' as const,x:21*grid,z:35*grid},
+    {kind:'palisade' as const,x:17*grid,z:37*grid},
   ];
   const obstacles:Obstacle[]=props.flatMap(p=>{
     const box=(x:number,z:number,halfWidth:number,halfDepth:number):Obstacle=>({kind:'box',x,z,halfWidth,halfDepth});

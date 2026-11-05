@@ -1,6 +1,5 @@
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
@@ -10,10 +9,9 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { Palette } from './models.ts';
 import { LANDSCAPE, MAP_SIZE, MAP_WIDTH, MAP_DEPTH, GRID_SIZE } from './world-data.ts';
 import { ROAD_PATHS, ROAD_HALF_WIDTH, roadHalfWidthAt } from './road-layout.ts';
-import { roundedBox } from './environment-shapes.ts';
+import { createLandformMeshes } from './landform-meshes.ts';
 import { seededRandom } from './landscape-layout.ts';
-import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
-import { terrainHeight, groundHeight } from './terrain-height.ts';
+import { terrainHeight } from './terrain-height.ts';
 import { insidePolygon } from './polygon.ts';
 import { BIOME_COLORS } from './biomes.ts';
 import { landscapeTexture } from './landscape-textures.ts';
@@ -24,9 +22,8 @@ const color = (hex: string) => Color3.FromHexString(hex);
 
 /** Native opaque terrain/ribbons and mipmapped painted color maps: no screen
  * filters, reflection pass, per-frame texture painting or tessellated grass. */
-export function createLandscapeTerrain(scene: Scene, palette: Palette) {
+export function createLandscapeTerrain(scene: Scene, _palette: Palette) {
   const layout = LANDSCAPE;
-  roundedBox(scene, 'earth-bank', [MAP_WIDTH, .85, MAP_DEPTH], [0, -.53, 0], palette.earth, .28);
   const random = seededRandom(layout.seed);
   function texture(name: string, size: number) {
     const t = new DynamicTexture(name, size, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
@@ -62,6 +59,22 @@ export function createLandscapeTerrain(scene: Scene, palette: Palette) {
       ctx.beginPath(); ctx.moveTo(x - .1, z); ctx.quadraticCurveTo(x - .06, z - length * .65, x - .14, z - length);
       ctx.moveTo(x, z); ctx.quadraticCurveTo(x + .06, z - length * .7, x + .03, z - length * 1.15); ctx.stroke();
     }
+    // Roads are paint on the native heightfield, so ramps cannot expose a
+    // different surface between the road's edge vertices. All layers share the
+    // same authored curves and widths used by placement and navigation.
+    for (const layer of [{width:1.12,color:'#8b9e52'},{width:1,color:'#b4a16e'},{width:.87,color:'#c4ac79'}]) {
+      ctx.fillStyle=layer.color;
+      for(const path of ROAD_PATHS){
+        const sides=[-1,1].map(side=>path.map((p,i)=>{
+          const t=path[Math.min(i+1,path.length-1)].subtract(path[Math.max(0,i-1)]).normalize();
+          const width=roadHalfWidthAt(p)*layer.width*(1+.045*Math.sin(p.x*1.1+p.z*.7));
+          return{x:p.x+t.z*width*side,z:p.z-t.x*width*side};
+        }));
+        ctx.beginPath();for(const [i,p] of [...sides[0],...sides[1].reverse()].entries())i?ctx.lineTo(p.x,p.z):ctx.moveTo(p.x,p.z);
+        ctx.closePath();ctx.fill();
+        for(const p of [path[0],path.at(-1)!]){ctx.beginPath();ctx.arc(p.x,p.z,roadHalfWidthAt(p)*layer.width,0,Math.PI*2);ctx.fill();}
+      }
+    }
     ctx.restore(); colors.update();
   }
   const meadow = new StandardMaterial('meadow', scene);
@@ -87,52 +100,8 @@ export function createLandscapeTerrain(scene: Scene, palette: Palette) {
   detail.wrapU = detail.wrapV = Texture.WRAP_ADDRESSMODE; detail.uScale = detail.vScale = MAP_SIZE / 7;
   meadow.detailMap.texture = detail; meadow.detailMap.isEnabled = true;
   meadow.detailMap.diffuseBlendLevel = .55; meadow.detailMap.bumpLevel = 0;
-  const ground = MeshBuilder.CreateGround('meadow', { width: MAP_WIDTH, height: MAP_DEPTH, subdivisions: 160 }, scene);
-  const vertices=ground.getVerticesData(VertexBuffer.PositionKind)!,normals:number[]=[];
-  for(let i=0;i<vertices.length;i+=3)vertices[i+1]=groundHeight(vertices[i],vertices[i+2])+.012;
-  VertexData.ComputeNormals(vertices,ground.getIndices()!,normals);
-  ground.setVerticesData(VertexBuffer.PositionKind,vertices);ground.setVerticesData(VertexBuffer.NormalKind,normals);
-  ground.material = meadow; ground.receiveShadows = true;
+  createLandformMeshes(scene,meadow);
 
-  const sand = landscapeTexture('woodland-road-grain', scene) ?? texture('woodland-road-grain', 256);
-  if (sand instanceof DynamicTexture) {
-    const grain = sand.getContext() as CanvasRenderingContext2D;
-    grain.fillStyle = '#ffffff'; grain.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 500; i++) {
-      const shade = Math.round(225 + random() * 26);
-      grain.fillStyle = `rgb(${shade},${shade},${shade})`;
-      grain.beginPath(); grain.ellipse(random() * 256, random() * 256, 1 + random() * 2, .7, 0, 0, Math.PI * 2); grain.fill();
-    }
-    sand.update();
-  }
-  sand.wrapU = sand.wrapV = Texture.WRAP_ADDRESSMODE;
-  for (const t of [colors, detail, sand]) t.anisotropicFilteringLevel = Math.min(8, scene.getEngine().getCaps().maxAnisotropy || 1);
-  const layers = [
-    { width: 1, color: '#94a65a', y: .023 },
-    { width: .93, color: '#bfac6d', y: .028 },
-    { width: .84, color: '#d7b780', y: .034 },
-  ];
-  for (const [index, layer] of layers.entries()) {
-    const mat = new StandardMaterial(`woodland-road-${index}`, scene);
-    mat.diffuseColor = color(layer.color); mat.specularColor = Color3.Black(); mat.diffuseTexture = sand;
-    for (const path of ROAD_PATHS) {
-      const rows = [-1, 1].map(side => path.map((p, i) => {
-        const tangent = path[Math.min(i + 1, path.length - 1)].subtract(path[Math.max(0, i - 1)]).normalize();
-        const half = roadHalfWidthAt(p) * layer.width;
-        return new Vector3(Math.max(-MAP_WIDTH / 2, Math.min(MAP_WIDTH / 2, p.x + tangent.z * half * side)), layer.y,
-          Math.max(-MAP_DEPTH / 2, Math.min(MAP_DEPTH / 2, p.z - tangent.x * half * side)));
-      }));
-      for(const row of rows)for(const v of row)v.y+=terrainHeight(v.x,v.z);
-      const road = MeshBuilder.CreateRibbon('woodland-road', { pathArray: rows, sideOrientation: Mesh.DOUBLESIDE }, scene);
-      const positions = road.getVerticesData(VertexBuffer.PositionKind)!, uvs: number[] = [];
-      for (let i = 0; i < positions.length; i += 3) uvs.push(positions[i] / 5, positions[i + 2] / 5);
-      road.setVerticesData(VertexBuffer.UVKind, uvs); road.material = mat; road.receiveShadows = true;
-    }
-    // A small rounded meeting place joins all approaches without a sharp notch.
-    const junction = MeshBuilder.CreateDisc('village-road-junction', { radius: 2.1 * layer.width, tessellation: 64 }, scene);
-    junction.rotation.x = Math.PI / 2; junction.position.set(0, layer.y + .001, GRID_SIZE);
-    junction.material = mat; junction.receiveShadows = true;
-  }
   return { paths: ROAD_PATHS, roadHalfWidth: ROAD_HALF_WIDTH };
 }
 
@@ -140,36 +109,38 @@ export function createLandscapeWater(scene: Scene) {
   // Native indexed polygons preserve concave bays, stream bends and holes.
   // Shore ribbons use the identical boundary used for movement/building tests.
   const meshes:Mesh[]=[];
+  for(const area of LANDSCAPE.reaches){
+    const mesh=MeshBuilder.CreatePolygon('water-reach',{shape:area.points.map(p=>new Vector3(p.x,0,p.z)),holes:area.holes?.map(h=>h.points.map(p=>new Vector3(p.x,0,p.z))),sideOrientation:Mesh.DOUBLESIDE},scene,earcut);
+    const positions=mesh.getVerticesData('position')!,colors:number[]=[],uvs:number[]=[];
+    for(let i=0;i<positions.length;i+=3){const x=positions[i],z=positions[i+2];positions[i+1]=area.level+.038;
+      const c=color(z<0?'#5b9d91':'#3e9ca6');colors.push(c.r,c.g,c.b,1);uvs.push(x/9,z/9);}
+    mesh.setVerticesData('position',positions);mesh.setVerticesData('color',colors);mesh.setVerticesData('uv',uvs);
+    mesh.setVerticesData('normal',Array.from({length:positions.length},(_,i)=>i%3===1?1:0));meshes.push(mesh);
+    if(area.level>0)for(let i=0;i<area.points.length;i++){
+      const a=area.points[i],b=area.points[(i+1)%area.points.length],cut=(area.level>2?26.8:17.3)*GRID_SIZE;
+      if(Math.abs(a.z-cut)>.0001||Math.abs(b.z-cut)>.0001)continue;
+      const lower=area.level>2?1.65:0;
+      const fall=MeshBuilder.CreateRibbon('creek-cascade',{pathArray:[
+        [new Vector3(a.x,area.level+.05,a.z),new Vector3(b.x,area.level+.05,b.z)],
+        [new Vector3(a.x,lower+.04,a.z-.35),new Vector3(b.x,lower+.04,b.z-.35)]
+      ],sideOrientation:Mesh.DOUBLESIDE},scene);
+      fall.setVerticesData('color',Array.from({length:fall.getTotalVertices()},(_,j)=>j<2?[.64,.87,.84,1]:[.25,.66,.7,1]).flat());meshes.push(fall);
+      const foam=MeshBuilder.CreateRibbon('cascade-foam',{pathArray:[-.38,-.8].map(d=>[new Vector3(a.x,lower+.06,a.z+d),new Vector3(b.x,lower+.06,b.z+d)]),sideOrientation:Mesh.DOUBLESIDE},scene);
+      foam.setVerticesData('color',Array.from({length:foam.getTotalVertices()},()=>[.72,.9,.83,1]).flat());meshes.push(foam);
+    }
+  }
   for(const area of LANDSCAPE.waterAreas){
-    const shape=area.points.map(p=>new Vector3(p.x,0,p.z));
-    const mesh=MeshBuilder.CreatePolygon('landscape-water',{shape,holes:area.holes?.map(h=>h.points.map(p=>new Vector3(p.x,0,p.z))),sideOrientation:Mesh.DOUBLESIDE},scene,earcut);
-    const positions=mesh.getVerticesData(VertexBuffer.PositionKind)!,colors:number[]=[],uvs:number[]=[];
-    for(let i=0;i<positions.length;i+=3){
-      const x=positions[i],z=positions[i+2];positions[i+1]=terrainHeight(x,z)+.038;
-      const c=color(z<0?'#62a99b':'#42a4aa');colors.push(c.r,c.g,c.b,1);uvs.push(x/9,z/9);
-    }
-    mesh.setVerticesData(VertexBuffer.PositionKind,positions);mesh.setVerticesData(VertexBuffer.ColorKind,colors);mesh.setVerticesData(VertexBuffer.UVKind,uvs);
-    mesh.setVerticesData(VertexBuffer.NormalKind,Array.from({length:positions.length},(_,i)=>i%3===1?1:0));
-    mesh.receiveShadows=true;meshes.push(mesh);
-    const bands=[[-.5,'#9aa56b'],[-.25,'#c0b88a'],[0,'#a7b99b'],[.32,'#69b5af']] as const;
-    const normals2=area.points.map((p,i)=>{
-      const a=area.points[(i-1+area.points.length)%area.points.length],b=area.points[(i+1)%area.points.length];
-      const d=Math.hypot(b.x-a.x,b.z-a.z)||1;let nx=-(b.z-a.z)/d,nz=(b.x-a.x)/d;
-      if(!insidePolygon({x:p.x+nx*.1,z:p.z+nz*.1},area)){nx=-nx;nz=-nz;}
-      return {x:nx,z:nz};
-    });
-    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset])=>area.points.map((p,i)=>{
-      const x=p.x+normals2[i].x*offset,z=p.z+normals2[i].z*offset;return new Vector3(x,terrainHeight(x,z)+.047,z);
+    const bands=[[-1.0,'#8a9d5b'],[-.5,'#beb186'],[0,'#a5b79c'],[.4,'#69b5af']] as const;
+    const directions=area.points.map((p,i)=>{const a=area.points[(i-1+area.points.length)%area.points.length],b=area.points[(i+1)%area.points.length],d=Math.hypot(b.x-a.x,b.z-a.z)||1;
+      let nx=-(b.z-a.z)/d,nz=(b.x-a.x)/d;if(!insidePolygon({x:p.x+nx*.1,z:p.z+nz*.1},area)){nx=-nx;nz=-nz;}return{x:nx,z:nz};});
+    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset],row)=>area.points.map((p,i)=>{
+      const width=1+.25*Math.sin(p.x*.8+p.z*.35),x=p.x+directions[i].x*offset*width,z=p.z+directions[i].z*offset*width,water=LANDSCAPE.waterLevel(p);
+      const y=row===0?terrainHeight(x,z)+.025:row===1?water*.5+terrainHeight(x,z)*.5+.06:water+.05;
+      return new Vector3(x,y,z);
     })),closePath:true,sideOrientation:Mesh.DOUBLESIDE},scene);
-    const data=shore.getVerticesData(VertexBuffer.PositionKind)!,tints:number[]=[],shoreUV:number[]=[];
-    const stride=area.points.length+1;
-    for(let i=0;i<data.length/3;i++){
-      const band=Math.floor((i%(stride*bands.length))/stride),c=color(bands[band][1]);tints.push(c.r,c.g,c.b,1);shoreUV.push(data[i*3]/9,data[i*3+2]/9);
-    }
-    shore.setVerticesData(VertexBuffer.ColorKind,tints);shore.setVerticesData(VertexBuffer.UVKind,shoreUV);
-    shore.setVerticesData(VertexBuffer.NormalKind,Array.from({length:data.length},(_,i)=>i%3===1?1:0));
-    shore.receiveShadows=true;meshes.push(shore);
-
+    const data=shore.getVerticesData('position')!,tints:number[]=[],uvs:number[]=[],stride=area.points.length+1;
+    for(let i=0;i<data.length/3;i++){const c=color(bands[Math.floor((i%(stride*bands.length))/stride)][1]);tints.push(c.r,c.g,c.b,1);uvs.push(data[i*3]/9,data[i*3+2]/9);}
+    shore.setVerticesData('color',tints);shore.setVerticesData('uv',uvs);meshes.push(shore);
   }
   const mat = new StandardMaterial('woodland-water', scene);
   mat.specularColor = Color3.Black(); mat.backFaceCulling = false;

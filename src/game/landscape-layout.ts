@@ -1,3 +1,4 @@
+import { createLandforms } from './map-landforms.ts';
 import { Curve3 } from '@babylonjs/core/Maths/math.path.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.pure.js';
 import { polygonDistance } from './polygon.ts';
@@ -35,8 +36,9 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
   const roadControls = ROUTE_LAYOUT.map(route => route.map(([x, z]) => local(x, z)));
   const paths = createCurvedRoadPaths(roadControls, gridSize, gridSize * 1.5);
   const landmarks = createMapLandmarks(gridSize);
+  const geography = createLandforms(gridSize,paths);
   const water = createMapWater(gridSize, paths);
-  const terrain = createRegions(gridSize, paths, water.water, water.waterSolidPolygons);
+  const terrain = createRegions(gridSize, paths, water.water, water.waterSolidPolygons,geography);
   type Tree = Point & { scale: number; tone: number; rotation: number; species: TreeSpecies };
   type Rock = Point & { scale: number; rotation: number };
   const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 5), scale: 1, tone: 0, species: 'oak', rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), scale: 1.1, tone: 1, species: 'sapling', rotation: 2.3 }];
@@ -48,10 +50,11 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
   for (const region of terrain.regions) {
     const count = region.id === 'home' ? 9 : ['woodland','conifers'].includes(region.id) ? 22 : region.id === 'orchard' ? 18 : region.id === 'quarry' ? 14 : region.id === 'pass' ? 9 : 7;
     for (let placed = 0, attempt = 0; placed < count && attempt < 800; attempt++) {
-      const a = random() * Math.PI * 2, r = .55 + random() * .3;
+      const cluster=attempt%3;
+      const a = cluster*Math.PI*2/3 + (random()-.5)*.8, r = .42 + random() * .4;
       const point = { x: region.x + Math.cos(a) * region.rx * gridSize * r, z: region.z + Math.sin(a) * region.rz * gridSize * r };
-      if (region.id === 'home' && point.x > -14 && point.x < 17 && point.z > -15 && point.z < 11 || roadDistance(point) < 4.7 || crowded(point)) continue;
-      if (isBlocked(point, 2, landmarks.obstacles) || polygonDistance(point, region.area) > -2.6 || !terrain.contains(point) || water.waterAreas.some(a => polygonDistance(point,a) < 2.4)) continue;
+      if (region.id === 'home' && point.x > -14 && point.x < 17 && point.z > -15 && point.z < 11 || roadDistance(point) < 3.0 || crowded(point)) continue;
+      if (Math.max(...[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dz])=>Math.abs(geography.heightAt(point.x+dx,point.z+dz)-geography.heightAt(point.x,point.z))))>.45 || isBlocked(point, 2, landmarks.obstacles) || polygonDistance(point, region.area) > -2.6 || !terrain.contains(point) || water.waterAreas.some(a => polygonDistance(point,a) < 2.4)) continue;
       const common = { ...point, scale: .9 + random() * .4, rotation: random() * Math.PI * 2 };
       if (region.id === 'quarry' && placed % 2 === 0 || region.id === 'pass' && placed % 3 === 0) iron.push(common);
       else if (region.id === 'orchard' && placed % 2 === 0 || region.id === 'woodland' && placed % 4 === 0 || region.id === 'home' && placed === 0) forage.push({ ...common, scale: 1 });
@@ -60,14 +63,20 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
       placed++;
     }
   }
-  // Static woodland is scenery backed by an unwalkable terrain bank. Cutting
-  // resource trees never erases the region boundary or opens a phantom shortcut.
-  for (let z = -MAP_CONFIG.rows / 2 + 3; z < MAP_CONFIG.rows / 2 - 3; z += 2.7) for (let x = -MAP_CONFIG.columns / 2 + 3; x < MAP_CONFIG.columns / 2 - 3; x += 2.7) {
-    const point = local(x + random() * 2, z + random() * 2);
-    if (terrain.contains(point) || water.waterAreas.some(a => polygonDistance(point,a) < 2.5) || roadDistance(point) < 5
-      || terrain.playable.some(a => Math.abs(polygonDistance(point, a)) < 2)) continue;
-    const region = terrain.regions.reduce((a,b) => Math.hypot(a.x-point.x,a.z-point.z) < Math.hypot(b.x-point.x,b.z-point.z) ? a : b);
-    sceneryTrees.push({ ...point, scale: .9 + random() * .6, tone: Math.floor(random() * 3), species: treeSpecies(region.biome), rotation: random() * Math.PI * 2 });
+  // Authored forest masses define the enclosure. Jittered rows form dense
+  // canopies within each patch; tree scale tapers into its shrub edge.
+  for(const patch of geography.forests){
+    const b=patch.area.bounds,spacing=patch.spacing;
+    let row=0;
+    for(let z=b.minZ;z<b.maxZ;z+=spacing*.86,row++)for(let x=b.minX+(row%2)*spacing/2;x<b.maxX;x+=spacing){
+      const point={x:x+(random()-.5)*spacing*.5,z:z+(random()-.5)*spacing*.5};
+      const edge=polygonDistance(point,patch.area);
+      if(edge>-.6||roadDistance(point)<4.3||water.waterAreas.some(a=>polygonDistance(point,a)<2.3)||!geography.inside(point))continue;
+      const slope=Math.max(...[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dz])=>Math.abs(geography.heightAt(point.x+dx,point.z+dz)-geography.heightAt(point.x,point.z))));
+      if(slope>1)continue;
+      const species=patch.species==='oak'&&edge>-2.5?'sapling':patch.species;
+      sceneryTrees.push({...point,scale:(edge>-2.5?.8:1.05)+random()*.35,tone:Math.floor(random()*3),species,rotation:random()*Math.PI*2});
+    }
   }
-  return { seed, ...water, trees, rocks, iron, forage, sceneryTrees, roadControls, ...terrain };
+  return { seed, geography, ...water, trees, rocks, iron, forage, sceneryTrees, roadControls, ...terrain };
 }

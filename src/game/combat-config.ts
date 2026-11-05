@@ -18,7 +18,7 @@ export const ENCOUNTERS = [
   { id:'ridge',name:'针叶林营地',x:-47,z:44,members:10,radius:7,leash:18,discover:20,repeat:0,reward:{wood:20,stone:12},patrol:[] },
   { id:'north-east',name:'遗迹据点',x:39,z:46,members:12,radius:7,leash:18,discover:20,repeat:0,reward:{food:20,iron:12},patrol:[] },
   { id:'east-slope',name:'高地营地',x:-3,z:46,members:12,radius:7,leash:18,discover:20,repeat:0,reward:{wood:20,food:16},patrol:[] },
-  { id:'fort',name:'边境营寨',x:25,z:71,members:16,radius:8,leash:20,discover:22,repeat:0,reward:{stone:24,iron:16},patrol:[] },
+  { id:'fort',name:'边境营寨',x:25,z:59,members:16,radius:8,leash:20,discover:22,repeat:0,reward:{stone:24,iron:16},patrol:[] },
 ];
 const soldierTiming = (contact: number) => ({ interval: SOLDIER_ATTACK_SECONDS,
   windup: SOLDIER_ATTACK_SECONDS * contact, recovery: SOLDIER_ATTACK_SECONDS * (1 - contact) });

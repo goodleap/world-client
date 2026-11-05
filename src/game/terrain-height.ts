@@ -1,15 +1,10 @@
-import { GRID_SIZE, LANDSCAPE } from './world-data.ts';
+import { LANDSCAPE } from './world-data.ts';
 import type { Ray } from '@babylonjs/core/Culling/ray.js';
 import { polygonDistance } from './polygon.ts';
 
-/** Compact smooth terraces leave the home exactly flat. Heights affect visual
- * placement only; navigation/combat retain their established XZ distances. */
+/** Native terrain-triangle interpolation from the cached authored heightfield. */
 export function terrainHeight(x:number,z:number) {
-  const terrace=(cx:number,cz:number,rx:number,rz:number,h:number)=>{
-    const r=Math.hypot((x/GRID_SIZE-cx)/rx,(z/GRID_SIZE-cz)/rz);
-    const t=Math.max(0,Math.min(1,(1-r)/.55));return h*t*t*(3-2*t);
-  };
-  return terrace(-2,27,15,13,2.5)+terrace(23,27,12,11,1.1)+terrace(-9,43,10,6,.9);
+  return LANDSCAPE.geography.heightAt(x,z);
 }
 export function surfaceHeight(x:number,z:number) {
   const base=terrainHeight(x,z);
@@ -24,20 +19,23 @@ export function surfaceHeight(x:number,z:number) {
 export function groundHeight(x:number,z:number) {
   const p={x,z},base=terrainHeight(x,z);
   const water=Math.min(...LANDSCAPE.waterAreas.map(a=>polygonDistance(p,a)));
-  if(water<0)return base-1.5;
-  if(LANDSCAPE.contains(p))return base;
-  const edge=Math.min(water,...LANDSCAPE.playable.map(a=>polygonDistance(p,a)));
-  const t=Math.max(0,Math.min(1,edge/3.5));
-  return base+t*t*(3-2*t)*1.45;
+  if(water<0)return LANDSCAPE.waterLevel(p)-1.8;
+  return base;
+
 }
-/** Native picking ray intersected with the same smooth heightfield. Fixed
- * iterations suffice for the bounded slopes and the game's top-down camera. */
+/** Find the first surface crossing, including steep terraces. A bracketed ray
+ * test cannot oscillate between the foot and top of a cliff like plane iteration. */
 export function terrainRayDistance(ray:Ray) {
   if(Math.abs(ray.direction.y)<1e-6)return null;
-  let distance=-ray.origin.y/ray.direction.y;
-  for(let i=0;i<8;i++){
-    const x=ray.origin.x+ray.direction.x*distance,z=ray.origin.z+ray.direction.z*distance;
-    distance=(surfaceHeight(x,z)-ray.origin.y)/ray.direction.y;
+  const a=(25-ray.origin.y)/ray.direction.y,b=(-5-ray.origin.y)/ray.direction.y;
+  const start=Math.max(0,Math.min(a,b)),end=Math.max(a,b);
+  if(!Number.isFinite(end)||end<=start)return null;
+  const above=(t:number)=>ray.origin.y+ray.direction.y*t-surfaceHeight(ray.origin.x+ray.direction.x*t,ray.origin.z+ray.direction.z*t);
+  let previous=start,sign=above(start);
+  for(let i=1;i<=64;i++){
+    const t=start+(end-start)*i/64,value=above(t);
+    if(sign>=0&&value<=0){let lo=previous,hi=t;for(let j=0;j<16;j++){const mid=(lo+hi)/2;if(above(mid)>0)lo=mid;else hi=mid;}return (lo+hi)/2;}
+    previous=t;sign=value;
   }
-  return distance>0&&Number.isFinite(distance)?distance:null;
+  return null;
 }

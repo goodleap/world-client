@@ -34,5 +34,10 @@ export function createMapWater(grid:number, roads:readonly (readonly Point[])[])
     bridgeShapes.push([corners.map(q=>[q.x,q.z])]);
   }
   const solids=bridgeShapes.length?clipping.difference(water,...bridgeShapes):water;
-  return {lake,water,waterAreas:areas(water),waterSolids:areas(solids),waterSolidPolygons:solids,bridges,stream};
+  const zone=(minZ:number,maxZ:number):Polygon=>[[[-50*grid,minZ*grid],[30*grid,minZ*grid],[30*grid,maxZ*grid],[-50*grid,maxZ*grid]]];
+  const high=clipping.intersection(water,zone(26.8,50)),middle=clipping.intersection(water,zone(17.3,26.8));
+  const low=clipping.difference(water,high,middle);
+  const reaches=[...areas(high).map(a=>({...a,level:3.4})),...areas(middle).map(a=>({...a,level:1.65})),...areas(low).map(a=>({...a,level:0}))];
+  const waterLevel=(p:Point)=>p.x<30*grid?(p.z>26.8*grid?3.4:p.z>17.3*grid?1.65:0):0;
+  return {lake,water,waterAreas:areas(water),reaches,waterLevel,waterSolids:areas(solids),waterSolidPolygons:solids,bridges,stream};
 }

@@ -1,7 +1,7 @@
 import type { Scene } from '@babylonjs/core/scene.js';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator.js';
 import type { EnvironmentLibrary, EnvironmentAsset } from './environment-library.ts';
-import { LANDSCAPE, MAP_WIDTH, MAP_DEPTH, MAP_LANDMARKS } from './world-data.ts';
+import { LANDSCAPE } from './world-data.ts';
 import { groundHeight, terrainHeight } from './terrain-height.ts';
 import { seededRandom } from './landscape-layout.ts';
 import { polygonDistance, insidePolygon } from './polygon.ts';
@@ -10,26 +10,46 @@ import { polygonDistance, insidePolygon } from './polygon.ts';
  * ground cover is passable; full-size rocks and trunks never straddle a road. */
 export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,library:EnvironmentLibrary) {
   const random=seededRandom(9037);let sequence=0;
-  const place=(asset:EnvironmentAsset,x:number,z:number,scale:number,angle:number,y=groundHeight(x,z))=>{
+  const place=(asset:EnvironmentAsset,x:number,z:number,scale:number|[number,number,number],angle:number,y=groundHeight(x,z))=>{
     const mesh=library.source(asset).createInstance(`map-scenery-${asset}-${sequence++}`);
-    mesh.position.set(x,y,z);mesh.scaling.setAll(scale);mesh.rotation.y=angle;
+    mesh.position.set(x,y,z);if(typeof scale==='number')mesh.scaling.setAll(scale);else mesh.scaling.set(...scale);mesh.rotation.y=angle;
     mesh.isPickable=false;mesh.receiveShadows=true;mesh.freezeWorldMatrix();
     if(asset!=='grass'&&asset!=='flowers'&&asset!=='reeds')shadows.addShadowCaster(mesh,false);
     return mesh;
   };
   for(const tree of LANDSCAPE.sceneryTrees)place(tree.species,tree.x,tree.z,tree.scale,tree.rotation);
-  for(const prop of MAP_LANDMARKS.props)if(prop.kind==='mine')place('cliff',prop.x,prop.z+1.7,.95,Math.PI,terrainHeight(prop.x,prop.z)-.1);
-  // A low, irregular shrub/root layer meets the walkable edge before tall
-  // crowns. This removes the former uniformly extruded vertical green wall.
-  for(let z=-MAP_DEPTH/2+2;z<MAP_DEPTH/2-2;z+=3.1)for(let x=-MAP_WIDTH/2+2;x<MAP_WIDTH/2-2;x+=3.1){
-    const p={x:x+(random()-.5),z:z+(random()-.5)};
-    if(LANDSCAPE.contains(p)||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<1.8))continue;
-    const d=Math.min(...LANDSCAPE.playable.map(a=>polygonDistance(p,a)));
-    if(d<1||d>4.8)continue;
-    const region=LANDSCAPE.regions.reduce((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)<Math.hypot(b.x-p.x,b.z-p.z)?a:b);
-    const rocky=region.biome==='rock'||region.biome==='highland'||region.biome==='ruins';
-    if(rocky&&d>3&&random()<.65)place('cliff',p.x,p.z,.8+random()*.3,Math.PI+(random()-.5)*.8);
-    else place(rocky&&random()<.5?'stone':'bush',p.x,p.z,.65+random()*.35,random()*Math.PI*2);
+  // The approved layered cliff model is set into the real terrace faces.
+  // It follows the whole rim, with explicit breaks at the road approaches.
+  for(const form of LANDSCAPE.geography.forms.filter(f=>f.kind!=='basin')){
+    const line=form.area.points;
+    let carried=0;
+    for(let i=0;i<line.length;i++){
+      const a=line[i],b=line[(i+1)%line.length],length=Math.hypot(b.x-a.x,b.z-a.z);
+      let nx=-(b.z-a.z)/length,nz=(b.x-a.x)/length;
+      if(insidePolygon({x:a.x+nx*.3,z:a.z+nz*.3},form.area)){nx=-nx;nz=-nz;}
+      for(let d=carried;d<length;d+=4.7){
+        const x=a.x+(b.x-a.x)*d/length,z=a.z+(b.z-a.z)*d/length,p={x,z};
+        if(LANDSCAPE.geography.roadDistance(p)<5.3||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<1.6))continue;
+        const reach=Math.max(2,form.edge*.85),base=terrainHeight(x+nx*reach,z+nz*reach),top=terrainHeight(x-nx*reach,z-nz*reach);
+        if(top-base<1.4)continue;
+        place('cliff',x,z,[.93+random()*.13,(top-base+.22)/3.7,.65+random()*.12],Math.atan2(nx,nz),base-.12);
+        if(random()<.35)place('stone',x-nx*.6,z-nz*.6,[.4+random()*.4,.25+random()*.3,.45+random()*.3],random()*6.28,top-.12);
+      }
+      carried=(carried-length)%4.7;if(carried<0)carried+=4.7;
+    }
+  }
+  // Bushes, smaller trees and stones make a continuous but uneven forest edge.
+  for(const patch of LANDSCAPE.geography.forests){
+    const line=patch.area.points;
+    for(let i=0;i<line.length;i++){
+      const p=line[i];
+      if(LANDSCAPE.geography.roadDistance(p)<3.5||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<1.5))continue;
+      const d=1.4,a=random()*Math.PI*2,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;
+      if(!insidePolygon({x,z},patch.area))continue;
+      const slope=Math.abs(terrainHeight(x+1,z)-terrainHeight(x-1,z))+Math.abs(terrainHeight(x,z+1)-terrainHeight(x,z-1));
+      if(slope>1.5)continue;
+      place(i%5===0?'stone':'bush',x,z,.65+random()*.45,random()*6.28);
+    }
   }
   for(const area of LANDSCAPE.waterAreas){
     let distance=0;
@@ -41,7 +61,7 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
       let side=1;
       if(!insidePolygon({x:p.x-dz/len*.4,z:p.z+dx/len*.4},area))side=-1;
       const x=p.x-dz/len*.38*side,z=p.z+dx/len*.38*side;
-      place(random()<.55?'reeds':'stone',x,z,.3+random()*.4,random()*6.28,terrainHeight(x,z)-.06);
+      place(random()<.55?'reeds':'stone',x,z,.3+random()*.4,random()*6.28,LANDSCAPE.waterLevel({x,z})-.06);
     }
   }
 }

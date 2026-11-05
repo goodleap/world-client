@@ -6,8 +6,8 @@ import { createCurvedRoadPaths } from './landscape-layout.ts';
 export const ROAD_HALF_WIDTH = GRID_SIZE * .95;
 /** Low-frequency width changes and a wider village junction, in world units. */
 export function roadHalfWidthAt(p: Point) {
-  return 1.15 + .20 * Math.sin(p.x * .16 + p.z * .11) + .12 * Math.cos(p.z * .27)
-    + .65 * Math.exp(-(p.x * p.x + (p.z - GRID_SIZE) ** 2) / 55);
+  return 1.05 + .22 * Math.sin(p.x * .16 + p.z * .11) + .14 * Math.cos(p.z * .27)
+    + .5 * Math.exp(-(p.x * p.x + (p.z - GRID_SIZE) ** 2) / 55);
 }
 export const ROAD_PATHS = createCurvedRoadPaths(ROADS, GRID_SIZE, GRID_SIZE / 4);
 

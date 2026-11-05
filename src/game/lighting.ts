@@ -68,7 +68,9 @@ export function createDaylight(scene: Scene, mobile = false, settings: LightingS
     shadows.usePercentageCloserFiltering = true;
     shadows.filteringQuality = ShadowGenerator.QUALITY_MEDIUM;
   } else shadows.usePoissonSampling = true;
-  shadows.bias = 0.0005; shadows.normalBias = 0.02;
+  // The map now includes tall terrain. Offset by roughly a shadow texel to
+  // prevent the sloped rock surface from shadowing itself in stripes.
+  shadows.bias = 0.002; shadows.normalBias = 0.35;
   shadows.setDarkness(.14);
   return shadows;
 }

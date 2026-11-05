@@ -1,3 +1,4 @@
+import type { createLandforms } from './map-landforms.ts';
 import { Curve3 } from '@babylonjs/core/Maths/math.path.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.pure.js';
 import clipping from 'polygon-clipping';
@@ -6,7 +7,7 @@ import { polygonArea, insidePolygon } from './polygon.ts';
 import type { PolygonArea } from './polygon.ts';
 import type { Point } from './movement.ts';
 
-export const MAP_CONFIG = { columns: 100, rows: 100, seed: 20261104 } as const;
+export const MAP_CONFIG = { columns: 100, rows: 100, seed: 20261105 } as const;
 export type Biome = 'home' | 'meadow' | 'orchard' | 'woodland' | 'conifers' | 'rock' | 'highland' | 'ruins' | 'creek' | 'lake' | 'wetland' | 'camp';
 const outlines = {
   clearing: [[-.95,-.65],[-.45,-1],[.4,-.94],[.9,-.5],[1,.3],[.55,.86],[-.25,1],[-.95,.5]],
@@ -23,27 +24,27 @@ export const REGION_LAYOUT: readonly RegionDefinition[] = [
   {id:'orchard',name:'果林',x:15,z:-24,rx:11,rz:10,biome:'orchard',shape:'grove'},
   {id:'woodland',name:'阔叶林',x:-25,z:2,rx:11,rz:10,biome:'woodland',shape:'grove'},
   {id:'conifers',name:'针叶林',x:-28,z:26,rx:12,rz:10,biome:'conifers',shape:'grove'},
-  {id:'stone-hollow',name:'岩谷',x:-39,z:12,rx:7.5,rz:11,biome:'rock',shape:'valley'},
+  {id:'stone-hollow',name:'岩谷',x:-31,z:12,rx:5.5,rz:12,biome:'rock',shape:'valley'},
   {id:'quarry',name:'矿场',x:-36,z:-12,rx:10,rz:8.5,biome:'rock',shape:'terrace',camp:'quarry'},
-  {id:'highland',name:'高地',x:-2,z:27,rx:13,rz:10,biome:'highland',shape:'terrace'},
+  {id:'highland',name:'高地',x:-2,z:25,rx:13,rz:10,biome:'highland',shape:'terrace'},
   {id:'ruins',name:'古遗迹',x:23,z:27,rx:10,rz:9,biome:'ruins',shape:'clearing'},
   {id:'pass',name:'山口',x:-9,z:43,rx:9,rz:5.5,biome:'rock',shape:'valley',camp:'pass'},
-  {id:'frontier',name:'边境营地',x:15,z:42,rx:10,rz:6,biome:'camp',shape:'terrace'},
+  {id:'frontier',name:'边境营地',x:15,z:35,rx:10,rz:6,biome:'camp',shape:'terrace'},
   {id:'creek',name:'溪谷',x:19,z:10,rx:10,rz:9,biome:'creek',shape:'valley'},
   {id:'lake-bay',name:'湖湾',x:36,z:-6,rx:11,rz:9,biome:'lake',shape:'shore'},
   {id:'wetland',name:'湿地',x:35,z:-28,rx:10,rz:11,biome:'wetland',shape:'shore'},
 ];
 export const ROUTE_LAYOUT = [
-  [[0,0],[-10,1],[-18,-1],[-25,2]], [[-25,2],[-21,13],[-24,20],[-28,26]],
-  [[-28,26],[-18,28],[-12,24],[-2,27]], [[-2,27],[7,20],[14,18],[19,10]],
-  [[19,10],[12,6],[8,0],[0,0]], [[0,0],[-6,-13],[-10,-19],[-16,-25]],
-  [[-16,-25],[-3,-28],[6,-26],[15,-24]], [[15,-24],[13,-15],[13,-4],[8,0],[0,0]],
-  [[15,-24],[24,-25],[28,-30],[35,-28]], [[35,-28],[39,-18],[36,-6]],
-  [[36,-6],[32,-1],[27,3],[19,10]], [[-25,2],[-34,3],[-39,12]],
-  [[-39,12],[-42,0],[-39,-7],[-36,-12]], [[-36,-12],[-27,-20],[-16,-25]],
-  [[-28,26],[-21,34],[-16,40],[-9,43]], [[-9,43],[-2,35],[-2,27]],
-  [[-9,43],[4,44],[15,42]], [[15,42],[24,36],[23,27]],
-  [[-2,27],[10,29],[16,26],[23,27]], [[23,27],[29,19],[25,14],[19,10]],
+  [[0,0],[-12,-2],[-20,0],[-25,2]], [[-25,2],[-30,9],[-31,16],[-28,26]],
+  [[-28,26],[-18,26],[-10,25],[-2,25]], [[-2,25],[6,21],[13,14],[10,7],[0,0]],
+  [[0,0],[-6,-12],[-11,-21],[-16,-25]], [[-16,-25],[-3,-30],[6,-27],[15,-24]],
+  [[15,-24],[13,-14],[15,-5],[8,0],[0,0]], [[15,-24],[25,-24],[29,-29],[35,-28]],
+  [[35,-28],[40,-18],[36,-6]], [[36,-6],[31,0],[25,4],[19,10]],
+  [[19,10],[14,6],[8,0]], [[-25,2],[-31,-1],[-36,-12]],
+  [[-36,-12],[-27,-20],[-16,-25]], [[-28,26],[-22,34],[-17,40],[-9,43]],
+  [[-9,43],[-4,36],[-2,25]], [[-9,43],[-2,36],[6,34],[15,35]],
+  [[15,35],[23,35],[27,30],[23,27]], [[-2,25],[9,25],[15,23],[23,27]],
+  [[23,27],[28,19],[25,14],[19,10]],
 ] as const;
 export function areas(polygons: MultiPolygon): PolygonArea[] {
   return polygons.map(rings => ({ ...polygonArea(rings[0].slice(0,-1).map(([x,z])=>({x,z}))),
@@ -63,11 +64,10 @@ export function corridor(path:readonly Point[], width:(p:Point)=>number):MultiPo
   }
   return clipping.union(strips[0],...strips.slice(1));
 }
-export function createRegions(grid:number,paths:readonly (readonly Point[])[],water:MultiPolygon=[],waterSolids:MultiPolygon=water) {
+export function createRegions(grid:number,_paths:readonly (readonly Point[])[],water:MultiPolygon,waterSolids:MultiPolygon,geography:ReturnType<typeof createLandforms>) {
   const shapes=REGION_LAYOUT.map(r=>smoothPolygon(outlines[r.shape].map(([x,z])=>({x:(r.x+x*r.rx)*grid,z:(r.z+z*r.rz)*grid}))));
   const regions=REGION_LAYOUT.map((r,i)=>({...r,x:r.x*grid,z:r.z*grid,area:areas(clipping.union(shapes[i]))[0]}));
-  const strips=paths.map(p=>corridor(p,q=>grid*(1.85+.22*Math.sin(q.x*.06+q.z*.09))));
-  const land=clipping.union(shapes[0],...shapes.slice(1),...strips);
+  const land=clipping.difference([geography.outline.points.map(p=>[p.x,p.z] as Pair)],geography.landSolid);
   const width=MAP_CONFIG.columns*grid,depth=MAP_CONFIG.rows*grid;
   const rect=(x:number,z:number,w:number,h:number):Polygon=>[[[x,z],[x+w,z],[x+w,z+h],[x,z+h]]];
   const blocked=clipping.difference(rect(-width/2,-depth/2,width,depth),clipping.union(land,water));
