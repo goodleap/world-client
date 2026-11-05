@@ -9,6 +9,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import type { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import type { Palette } from './models.ts';
 import type { Obstacle, Point } from './movement.ts';
+import { combineObstacles, immutableObstacles } from './navigation-geometry.ts';
 import type { WorldObject } from './world-selection.ts';
 import type { Economy } from './economy.ts';
 import { RESOURCE_NAMES } from './economy.ts';
@@ -105,8 +106,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     return sources;
   }
   let lastRevision = -1;
-  let obstacles: Obstacle[] = [];
-  let obstaclesWithFields: Obstacle[] = [];
+  let obstacles: readonly Obstacle[] = [], fields: readonly Obstacle[] = [];
+  let obstaclesWithFields: readonly Obstacle[] = [];
   function sync() {
     if (lastRevision === economy.revision) return false;
     lastRevision = economy.revision;
@@ -174,9 +175,10 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       if (built&&site.kind!=='tower') doors.add(site, site.kind === 'warehouse');
     }
     obstacles = economyObstacles(economy.state.depleted, economy.state.sites, economy.state.buildings);
-    obstaclesWithFields = [...obstacles, ...economy.state.plots.map(plot => ({
+    fields = immutableObstacles(economy.state.plots.map(plot => ({
       kind: 'box' as const, x: plot.x, z: plot.z, halfWidth: GRID_SIZE / 2, halfDepth: GRID_SIZE / 2,
-    }))];
+    })),fields);
+    obstaclesWithFields = combineObstacles(obstacles, fields);
     return true;
   }
   function workPoints(target: string, from?: Point, repair=false): { points: Point[]; target: Point } | undefined {

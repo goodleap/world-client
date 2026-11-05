@@ -1,4 +1,5 @@
 import { surfaceHeight } from './terrain-height.ts';
+import { combineObstacles } from './navigation-geometry.ts';
 import {bodyObstacle,turnTowards} from './body-shape.ts';
 import { createResidentPicking } from './picking-shapes.ts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -559,7 +560,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
         else {
-          const areas = wanderObstacles(), solids = [...obstaclesFor(actor.definition.role), ...areas];
+          const areas = wanderObstacles(), solids = combineObstacles(obstaclesFor(actor.definition.role), areas);
           velocity = stepWander(actor.state, actor.settings, seconds, [...solids, ...blockers], actor.random, (goal, dt, speed) => {
             const last = actor.wanderRoute.at(-1);
             const safe = actor.wanderRoute.every((p,i) => segmentIsClear(i ? actor.wanderRoute[i-1] : actor.state.position,

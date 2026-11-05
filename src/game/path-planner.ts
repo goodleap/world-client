@@ -3,6 +3,7 @@ import { isBlocked } from './movement.ts';
 import { findPathToGoals } from './pathfinding.ts';
 import { inBounds, segmentIsClear } from './wander.ts';
 import type { WorkNeighbour } from './work-navigation.ts';
+import { createGeometrySender, type GeometryMessage, type GeometrySnapshot } from './navigation-geometry.ts';
 
 /** null means still planning, undefined means a completed, unreachable search. */
 export type PlannedPath = Point[] | undefined | null;
@@ -28,38 +29,41 @@ export const planPath=(start:Point,goal:Point,radius:number,bounds:Bounds,obstac
  * the worker, including nearest-reachable fallback and arrival reservations. */
 export function planMoveInBackground(start:Point,goal:Point,radius:number,bounds:Bounds,obstacles:readonly Obstacle[],neighbours:readonly WorkNeighbour[]):PlannedPath|false {
   if(!background)return false;
-  return background({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours:neighbours.map(n=>({
-    position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined,
-  }))});
+  return background({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours});
 }
 
 export interface PathReply { serial:number; path?:Point[]; ms:number; error?:boolean }
+export interface PathRequest { serial:number; query:Omit<PathQuery,'obstacles'>; geometry:GeometryMessage }
 type Transport=Pick<Worker,'postMessage'|'terminate'> & {onmessage:((event:MessageEvent<PathReply>)=>void)|null;onerror:((event:ErrorEvent)=>void)|null};
-interface Entry { key:string; group:string; serial:number; query:PathQuery; touched:number; expires:number; done:boolean; path?:Point[] }
+interface Entry { key:string; group:string; serial:number; query:Omit<PathQuery,'obstacles'>; geometry:GeometrySnapshot; touched:number; expires:number; done:boolean; path?:Point[] }
 
 /** Bounded, deduplicated background work. Cache keys include exact geometry,
  * start and goals, so a demolition, new order or moved target cannot consume an
  * obsolete answer. Replies only become visible at the next active game frame. */
 export function createBackgroundPaths(worker:Transport,now=()=>performance.now()) {
-  let serial=0,active:Entry|undefined,ready:PathReply|undefined,failed=false,completed=0,hits=0,workMs=0;
+  let serial=0,active:Entry|undefined,failed=false,disposed=false,completed=0,hits=0,workMs=0;
+  const geometry=createGeometrySender(),ready:{entry:Entry;result:PathReply}[]=[];
   const cache=new Map<string,Entry>(),groups=new Map<string,Set<Entry>>(),queue:Entry[]=[];
-  const groupOf=(q:PathQuery)=>JSON.stringify([q.goals.map(p=>[p.x,p.z]),q.radius,q.bounds,q.obstacles,q.move,q.neighbours]);
+  const groupOf=(q:PathQuery,version:number)=>JSON.stringify([q.goals.map(p=>[p.x,p.z]),q.radius,
+    [q.bounds.minX,q.bounds.maxX,q.bounds.minZ,q.bounds.maxZ],version,q.move,
+    q.neighbours?.map(n=>[n.position.x,n.position.z,n.radius,n.destination?.x,n.destination?.z])]);
   function remove(entry:Entry){
     cache.delete(entry.key);const group=groups.get(entry.group);group?.delete(entry);if(!group?.size)groups.delete(entry.group);
     const queued=queue.indexOf(entry);if(queued>=0)queue.splice(queued,1);
+    const replyIndex=ready.findIndex(r=>r.entry===entry);if(replyIndex>=0)ready.splice(replyIndex,1);
   }
   function pump(){
-    if(active||ready||failed)return;
+    if(active||failed||disposed)return;
     while(queue.length){
       const entry=queue.shift()!;
       if(cache.get(entry.key)!==entry)continue;
       if(now()-entry.touched>5000){remove(entry);continue;}
-      active=entry;worker.postMessage({serial:entry.serial,query:entry.query});return;
+      active=entry;worker.postMessage({serial:entry.serial,query:entry.query,geometry:geometry.encode(entry.geometry)} satisfies PathRequest);return;
     }
   }
   const plan:Planner=query=>{
-    if(failed)return;
-    const group=groupOf(query),key=`${query.start.x},${query.start.z}/${group}`,time=now(),cached=cache.get(key);
+    if(failed||disposed)return;
+    const version=geometry.snapshot(query.obstacles),group=groupOf(query,version.id),key=`${query.start.x},${query.start.z}/${group}`,time=now(),cached=cache.get(key);
     if(cached&&(!cached.done||cached.expires>time)){
       cached.touched=time;hits++;
       return cached.done?cached.path?.map(p=>({...p})):null;
@@ -80,24 +84,35 @@ export function createBackgroundPaths(worker:Transport,now=()=>performance.now()
       for(const e of cache.values())if(e.done||e!==active&&time-e.touched>5000){remove(e);break;}
       if(cache.size>=128)return null;
     }
-    // Babylon vectors expose x/z through prototype accessors. Copy coordinates
-    // before structured cloning, which would otherwise preserve only _x/_z.
-    const snapshot=structuredClone({...query,start:{x:query.start.x,z:query.start.z},goals:query.goals.map(p=>({x:p.x,z:p.z}))});
-    const entry:Entry={key,group,serial:++serial,query:snapshot,touched:time,expires:0,done:false};
+    // Only mutable request data needs a snapshot. Geometry is shared until its
+    // producer publishes a new version, and uploaded once per Worker version.
+    const snapshot={start:{x:query.start.x,z:query.start.z},goals:query.goals.map(p=>({x:p.x,z:p.z})),
+      radius:query.radius,bounds:{...query.bounds},move:query.move,neighbours:query.neighbours?.map(n=>({
+        position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination?{x:n.destination.x,z:n.destination.z}:undefined,
+      }))};
+    const entry:Entry={key,group,serial:++serial,query:snapshot,geometry:version,touched:time,expires:0,done:false};
     cache.set(key,entry);if(!groups.has(group))groups.set(group,new Set());groups.get(group)!.add(entry);
     queue.push(entry);pump();return null;
   };
-  worker.onmessage=event=>{if(active?.serial===event.data.serial)ready=event.data;};
-  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=0;active=undefined;ready=undefined;};
+  worker.onmessage=event=>{
+    if(active?.serial!==event.data.serial||disposed)return;
+    ready.push({entry:active,result:event.data});active=undefined;
+    // These requests already own immutable snapshots. Calculation can continue
+    // between renders (or while paused); only flush publishes gameplay results.
+    pump();
+  };
+  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();};
   return {
     plan,
     flush(){
-      if(!ready||!active)return;
-      const entry=active,result=ready;active=undefined;ready=undefined;
-      entry.done=true;entry.path=result.error?undefined:result.path;entry.expires=now()+(entry.path?4000:2000);
-      completed++;workMs=result.ms;pump();
+      for(const {entry,result} of ready){
+        if(cache.get(entry.key)!==entry)continue;
+        entry.done=true;entry.path=result.error?undefined:result.path;entry.expires=now()+(entry.path?4000:2000);
+        completed++;workMs=result.ms;
+      }
+      ready.length=0;
     },
-    snapshot:()=>({pending:queue.length+Number(!!active),cached:cache.size,completed,hits,workMs:Math.round(workMs),failed}),
-    dispose(){cache.clear();groups.clear();queue.length=0;active=undefined;ready=undefined;worker.terminate();},
+    snapshot:()=>({pending:queue.length+Number(!!active)+ready.length,ready:ready.length,cached:cache.size,completed,hits,workMs:Math.round(workMs),geometryUploads:geometry.uploads,failed}),
+    dispose(){disposed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();worker.onmessage=worker.onerror=null;worker.terminate();},
   };
 }

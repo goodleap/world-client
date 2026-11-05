@@ -48,7 +48,7 @@ export class Raids {
   private visible: (point: Point) => boolean;
   private decisions = 0;
   private areaAt = -Infinity;
-  private areaSolids: Obstacle[] = [];
+  private areaSolids: readonly Obstacle[] = [];
   private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
   private escapePlans = new Map<string,NavigationInput>();
   private warningCandidate?:{origin:Point;count:number};
@@ -81,7 +81,7 @@ export class Raids {
     }
     // Do not add another protection polling interval after an area clears.
     if (updateDangerZones(this.economy.state.dangerZones,threats,now)) this.decisions = 0;
-    this.areaSolids=dangerObstacles(this.economy.state.dangerZones);
+    this.areaSolids=dangerObstacles(this.economy.state.dangerZones,this.areaSolids);
   }
   unsafePath(points:readonly Point[]){
     this.updateAreas();

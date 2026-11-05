@@ -4,6 +4,7 @@ import type { BuildingSite } from './construction.ts';
 import { CAMPFIRE_SHAPE } from './campfire-shape.ts';
 import { treeCanopyRadius, treeCollisionRadius } from './tree-profile.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
+import { immutableObstacles } from './navigation-geometry.ts';
 
 /** Trial parameters, not final balance or confirmed long-term design.
  * FIFO among executable jobs; reserve before work, spend on
@@ -34,12 +35,21 @@ export const RESOURCE_NODES = [
   ...LANDSCAPE.iron.map((node, i) => ({ ...node, id: `iron-${i}`, kind: 'iron' as const, radius: .85 * node.scale, yield: 6, renew: 180 })),
   ...LANDSCAPE.forage.map((node, i) => ({ ...node, id: `forage-${i}`, kind: 'food' as const, radius: .65 * node.scale, yield: 6, renew: 90 })),
 ];
-export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = [], built: readonly string[] = sites.map(s => s.id)): Obstacle[] {
-  return [
+const obstacleLayouts = new Map<string, readonly Obstacle[]>();
+export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = [], built: readonly string[] = sites.map(s => s.id)): readonly Obstacle[] {
+  // Growth, inventory, HP and task revisions do not change physical geometry.
+  // Include every footprint input, including the built campfire's round shape.
+  const key=JSON.stringify([depleted,sites.map(s=>[s.kind,s.x,s.z,s.width,s.depth,s.kind==='campfire'&&built.includes(s.id)])]);
+  const cached=obstacleLayouts.get(key);
+  if(cached){obstacleLayouts.delete(key);obstacleLayouts.set(key,cached);return cached;}
+  const result=immutableObstacles([
     ...OBSTACLES.filter(o => !TREES.some(t => t.x === o.x && t.z === o.z)),
     ...RESOURCE_NODES.filter(n => !depleted.includes(n.id)).map((n): Obstacle => ({ kind: 'circle', x: n.x, z: n.z, radius: n.radius })),
     ...sites.map((s): Obstacle => s.kind === 'campfire' && built.includes(s.id)
       ? { kind: 'circle', x: s.x, z: s.z, radius: CAMPFIRE_SHAPE.radius }
       : { kind: 'box', x: s.x, z: s.z, halfWidth: s.width / 2 + .12, halfDepth: s.depth / 2 + .12 }),
-  ];
+  ]);
+  obstacleLayouts.set(key,result);
+  if(obstacleLayouts.size>4)obstacleLayouts.delete(obstacleLayouts.keys().next().value!);
+  return result;
 }

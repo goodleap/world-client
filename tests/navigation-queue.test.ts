@@ -9,18 +9,22 @@ import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
 import { findPath } from '../src/game/pathfinding.ts';
 import { WORLD_BOUNDS } from '../src/game/world-data.ts';
+import { createGeometryReceiver } from '../src/game/navigation-geometry.ts';
+import type { NavigationRequest } from '../src/game/navigation-queue.ts';
 
 const input:NavigationInput={start:{x:0,z:0},goal:{x:5,z:0},radius:.4,bounds:{minX:-10,maxX:10,minZ:-10,maxZ:10},solids:[],neighbours:[]};
 test('worker orders wait for game flush, replace stale orders and snapshot each member after previous acceptance',()=>{
-  let tick=0;const sent:{serial:number;input:NavigationInput}[]=[],applied:string[]=[];
-  const worker={onmessage:null as ((e:MessageEvent)=>void)|null,onerror:null as ((e:ErrorEvent)=>void)|null,postMessage:(p:typeof sent[number])=>sent.push(p),terminate:()=>{}};
+  let tick=0;const sent:{serial:number;input:NavigationInput}[]=[],applied:string[]=[],geometry=createGeometryReceiver();
+  const worker={onmessage:null as ((e:MessageEvent)=>void)|null,onerror:null as ((e:ErrorEvent)=>void)|null,
+    postMessage:(p:NavigationRequest)=>{const copy=structuredClone(p);sent.push({...copy,input:{...copy.input,solids:geometry(copy.geometry)}});},terminate:()=>{}};
   const q=createNavigationQueue(worker,()=>++tick),reply=()=>worker.onmessage!({data:{serial:sent.at(-1)!.serial,path:[input.goal],ms:1}} as MessageEvent);
   q.request('a',()=>input,()=>applied.push('old'));q.request('b',()=>({...input,neighbours:applied.map(()=>({position:input.goal,radius:.4}))}),()=>applied.push('b'));
   q.request('a',()=>input,()=>applied.push('a'));reply();assert.deepEqual([...applied],[]);assert.equal(sent.length,1);
   q.flush();assert.equal(sent.length,2);reply();q.flush();assert.deepEqual([...applied],['b']);assert.equal(sent.at(-1)!.input.neighbours.length,0);
   q.cancel('a');reply();q.flush();assert.deepEqual([...applied],['b']);assert.equal(q.snapshot().pending,0);
   q.request('c',()=>({...input,neighbours:applied.map(()=>({position:input.goal,radius:.4}))}),()=>applied.push('c'));
-  assert.equal(sent.at(-1)!.input.neighbours.length,1);reply();assert.deepEqual(applied,['b']);q.flush();assert.deepEqual(applied,['b','c']);q.dispose();
+  assert.equal(sent.at(-1)!.input.neighbours.length,1);reply();assert.deepEqual(applied,['b']);q.flush();assert.deepEqual(applied,['b','c']);
+  assert.equal(q.snapshot().geometryUploads,1);q.dispose();
 });
 test('prepared routes reject new obstacles and occupied endpoints and join from the live position',()=>{
   const path=[{x:2,z:0},{x:5,z:0}];assert.deepEqual(validateNavigation({...input,start:{x:1,z:0}},path),[{x:5,z:0}]);

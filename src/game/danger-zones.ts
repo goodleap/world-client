@@ -1,5 +1,6 @@
 import type { Obstacle, Point } from './movement.ts';
 import { WORLD_BOUNDS } from './world-data.ts';
+import { immutableObstacles } from './navigation-geometry.ts';
 
 // The buffer only renews old area memory; it does not enlarge alert radii.
 export const DANGER_CONFIG = { interval: .5, safeSeconds: 10, buffer: 2, cellSize: 1 } as const;
@@ -49,7 +50,8 @@ export function pathInDanger(zones: readonly DangerZone[], points: readonly Poin
   }
   return false;
 }
-export const dangerObstacles = (zones: readonly DangerZone[]): Obstacle[] => zones.map(z => ({ kind:'circle', x:z.x, z:z.z, radius:z.radius }));
+export const dangerObstacles = (zones: readonly DangerZone[], previous?:readonly Obstacle[]): readonly Obstacle[] =>
+  immutableObstacles(zones.map(z => ({ kind:'circle', x:z.x, z:z.z, radius:z.radius })),previous);
 
 export function decodeDangerZones(raw: unknown, seconds: number): DangerZone[] {
   if (!Array.isArray(raw) || raw.length > 4096 || new Set(raw.map(z=>z?.id)).size!==raw.length

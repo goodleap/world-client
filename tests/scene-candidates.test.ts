@@ -34,3 +34,57 @@ test('native octree follows camera, moving children, LOD and static object lifec
     index.dispose();
   } finally { scene.dispose(); engine.dispose(); }
 });
+
+test('dynamic additions, removal, imports and delayed callbacks do not rebuild static geometry',async()=>{
+  const engine=new NullEngine(),scene=new Scene(engine);
+  try{
+    new ArcRotateCamera('camera',-Math.PI/2,.76,20,Vector3.Zero(),scene);
+    const ground=MeshBuilder.CreateBox('fixed',{},scene);ground.freezeWorldMatrix();
+    const index=createSceneCandidates(scene);scene.render();
+    const selected=()=>{scene.render();const result=scene.getActiveMeshCandidates();return result.data.slice(0,result.length);};
+    const count=index.snapshot().rebuilds;
+    for(let i=0;i<20;i++){
+      const actor=MeshBuilder.CreateBox('actor',{},scene);
+      scene.onMeshImportedObservable.notifyObservers(actor);
+      const arrow=MeshBuilder.CreateBox('arrow',{},scene);
+      assert(selected().includes(actor));assert(selected().includes(arrow));
+      actor.position.x=50;arrow.position.x=-50;
+      assert(selected().includes(actor),'dynamic imports are not frozen to their spawn bounds');
+      actor.dispose();arrow.dispose();
+      const replacement=MeshBuilder.CreateBox('replacement',{},scene);
+      assert(selected().includes(replacement),'same-frame replacement appears before the deferred event');
+      replacement.dispose();
+    }
+    await new Promise(resolve=>setTimeout(resolve,0));selected();
+    // Asset containers import meshes and remove them from the scene before the
+    // next render. Babylon's automatic tree insertion must be undone as well.
+    const template=MeshBuilder.CreateBox('detached-template',{},scene);
+    scene.onMeshImportedObservable.notifyObservers(template);scene.removeMesh(template);
+    assert(!selected().includes(template));
+    scene.onMeshImportedObservable.notifyObservers(template);
+    assert(!selected().includes(template),'an import notification for a detached template is not scene membership');
+    template.dispose();
+    assert.equal(index.snapshot().rebuilds,count);
+    assert.equal(index.snapshot().dynamic,0,'late add callbacks do not resurrect disposed actors');
+    assert.equal(index.snapshot().static,1);
+    index.dispose();
+  }finally{scene.dispose();engine.dispose();}
+});
+
+test('explicit refresh reclassifies moved geometry, LOD sources and empty scenes safely',()=>{
+  const engine=new NullEngine(),scene=new Scene(engine);
+  try{
+    const camera=new ArcRotateCamera('camera',-Math.PI/2,.76,20,Vector3.Zero(),scene);
+    const index=createSceneCandidates(scene);
+    scene.render();assert.equal(index.snapshot().static,0);
+    const box=MeshBuilder.CreateBox('box',{},scene);box.freezeWorldMatrix();scene.render();
+    assert.equal(index.snapshot().static,1);
+    box.unfreezeWorldMatrix();box.position.x=camera.target.x=100;index.refresh();scene.render();
+    assert.equal(index.snapshot().static,0);assert.equal(index.snapshot().dynamic,1);
+    const candidates=scene.getActiveMeshCandidates();assert(candidates.data.slice(0,candidates.length).includes(box));
+    const lod=MeshBuilder.CreateBox('lod',{},scene);box.addLODLevel(20,lod);index.refresh();scene.render();
+    assert.equal(index.snapshot().dynamic,1);
+    box.dispose();lod.dispose();scene.render();assert.equal(index.snapshot().dynamic,0);
+    index.dispose();
+  }finally{scene.dispose();engine.dispose();}
+});

@@ -1,4 +1,5 @@
 import {planPath} from './path-planner.ts';
+import {combineObstacles} from './navigation-geometry.ts';
 import {economyObstacles} from './economy-config.ts';
 import {WORLD_BOUNDS} from './world-data.ts';
 import { Economy } from './economy.ts';
@@ -27,7 +28,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       task.watchPath=[{x:target.x,z:target.z}];return pause();
     }
     if(unsafePath(task.watchPath)) {
-      const detour=zones.length?planPath(from,end,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      const detour=zones.length?planPath(from,end,.29,WORLD_BOUNDS,combineObstacles(solids,zones)):undefined;
       if(detour===null)return null;
       if(!detour||unsafePath([from,...detour])){return pause();}
       path.splice(0,path.length,...detour);
@@ -40,7 +41,7 @@ export function createEconomyController(economy: Economy, world: World, resident
       if(!candidate)continue;
       if(!unsafePath([end,...candidate])){back=candidate;break;}
       blockedBack??=candidate;
-      const detour=zones.length?planPath(end,door,.29,WORLD_BOUNDS,[...solids,...zones]):undefined;
+      const detour=zones.length?planPath(end,door,.29,WORLD_BOUNDS,combineObstacles(solids,zones)):undefined;
       if(detour===null)pending=true;
       if(detour&&!unsafePath([end,...detour])){back=detour;break;}
     }

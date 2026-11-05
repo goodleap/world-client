@@ -1,5 +1,6 @@
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
+import { combineObstacles } from './navigation-geometry.ts';
 import { towerHeight, assignedTower, garrisonAvailability, garrisonCandidate, updateTowers, requestGarrison, evictTower, TOWER_CONFIG } from './towers.ts';
 import { createTowerRange } from './tower-range.ts';
 import { SimulationClock, RenderCadence } from './simulation-clock.ts';
@@ -200,7 +201,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const needs = createNeedsController(economy, residents, combat, point => world.doors.useWarehouse(point), {
     plan(id, goal) {
       const p = combat.unit(id) ? combat.movementInput(id, goal) : residents.movementInput(id, goal);
-      return p && planWorkApproach(p.start, [goal], p.radius, p.bounds, [...p.solids, ...raids.workObstacles()], p.neighbours);
+      return p && planWorkApproach(p.start, [goal], p.radius, p.bounds, combineObstacles(p.solids, raids.workObstacles()), p.neighbours);
     },
     current: id => combat.unit(id)?.route ?? residents.routeFor(id),
   });

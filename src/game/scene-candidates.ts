@@ -2,16 +2,27 @@ import '@babylonjs/core/Culling/Octrees/octreeSceneComponent.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh.js';
 import type { Scene } from '@babylonjs/core/scene.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 
 /** Babylon owns spatial selection and LOD. Only immutable world geometry goes
  * in the tree; rigs, doors, pooled objects and mutable thin-instance bounds
  * stay in dynamicContent. LOD proxies never need an independent candidate. */
 export function createSceneCandidates(scene: Scene) {
   const tree = scene.createOrUpdateSelectionOctree(32, 4);
-  let dirty = true, candidates = 0, staticCount = 0, rebuilds = 0, knownCount = -1;
-  const changed = () => { dirty = true; };
-  const added = scene.onNewMeshAddedObservable.add(changed);
-  const removed = scene.onMeshRemovedObservable.add(changed);
+  let reconcile = true, staticDirty = true, dynamicDirty = true, candidates = 0, rebuilds = 0;
+  const known = new Set<AbstractMesh>(), fixed = new Set<AbstractMesh>(), moving = new Set<AbstractMesh>();
+  const pending = new Set<AbstractMesh>(), imported = new Set<AbstractMesh>();
+  const changed = () => { reconcile = true; staticDirty = true; };
+  const added = scene.onNewMeshAddedObservable.add(mesh => pending.add(mesh));
+  // Babylon inserts imported meshes into its tree automatically. Reclassify
+  // those entries as well, so animated imports never retain static bounds.
+  const loaded = scene.onMeshImportedObservable.add(mesh => { pending.add(mesh); imported.add(mesh); });
+  const removed = scene.onMeshRemovedObservable.add(mesh => {
+    known.delete(mesh); pending.delete(mesh);
+    if (imported.delete(mesh)) tree.removeMesh(mesh);
+    if (fixed.delete(mesh)) staticDirty = true;
+    if (moving.delete(mesh)) dynamicDirty = true;
+  });
   const nativeCandidates = scene.getActiveMeshCandidates.bind(scene);
   scene.getActiveMeshCandidates = () => {
     const result = nativeCandidates(); candidates = result.length; return result;
@@ -19,28 +30,41 @@ export function createSceneCandidates(scene: Scene) {
   function refresh() {
     // Babylon defers onNewMeshAdded until a later task. Same-frame construction
     // must already be visible to the next render.
-    if (!dirty && knownCount === scene.meshes.length) return;
-    const fixed: AbstractMesh[] = [], moving: AbstractMesh[] = [];
-    for (const mesh of scene.meshes) {
-      if (mesh.isBlocked || mesh.isDisposed()) continue;
-      // Hidden templates must remain available to Babylon's instance batches.
-      const immutable = mesh.isWorldMatrixFrozen && !mesh.skeleton && !mesh.morphTargetManager
-        && mesh.isVisible && !mesh.alwaysSelectAsActiveMesh && !(mesh as Mesh).hasThinInstances;
-      (immutable ? fixed : moving).push(mesh);
+    if (reconcile || known.size !== scene.meshes.length) {
+      for (const mesh of scene.meshes) if (reconcile || !known.has(mesh)) { known.add(mesh); pending.add(mesh); }
+      reconcile = false;
     }
-    const bounds = Mesh.MinMax(fixed.length ? fixed : moving);
-    tree.update(bounds.min.subtractFromFloats(1, 1, 1), bounds.max.subtractFromFloats(-1, -1, -1), fixed);
-    tree.dynamicContent = moving;
-    staticCount = fixed.length; knownCount = scene.meshes.length; rebuilds++; dirty = false;
+    for (const mesh of pending) {
+      if (imported.has(mesh)) { tree.removeMesh(mesh); if (fixed.has(mesh)) staticDirty = true; }
+      if (!known.has(mesh)) continue; // A deferred add can arrive after removal.
+      const eligible = !mesh.isBlocked && !mesh.isDisposed();
+      // Hidden templates must remain available to Babylon's instance batches.
+      const immutable = eligible && mesh.isWorldMatrixFrozen && !mesh.skeleton && !mesh.morphTargetManager
+        && mesh.isVisible && !mesh.alwaysSelectAsActiveMesh && !(mesh as Mesh).hasThinInstances;
+      if (immutable !== fixed.has(mesh)) { if (immutable) fixed.add(mesh); else fixed.delete(mesh); staticDirty = true; }
+      const dynamic = eligible && !immutable;
+      if (dynamic !== moving.has(mesh)) { if (dynamic) moving.add(mesh); else moving.delete(mesh); dynamicDirty = true; }
+    }
+    pending.clear(); imported.clear();
+    if (staticDirty) {
+      const entries = [...fixed];
+      const bounds = entries.length ? Mesh.MinMax(entries) : { min:Vector3.Zero(), max:Vector3.Zero() };
+      tree.update(bounds.min.subtractFromFloats(1, 1, 1), bounds.max.subtractFromFloats(-1, -1, -1), entries);
+      rebuilds++; staticDirty = false;
+    }
+    if (dynamicDirty) { tree.dynamicContent = [...moving]; dynamicDirty = false; }
   }
   const before = scene.onBeforeRenderObservable.add(refresh);
   refresh();
   return {
     refresh: changed,
-    snapshot: () => ({ candidates, static: staticCount, dynamic: tree.dynamicContent.length, rebuilds }),
+    snapshot: () => ({ candidates, static: fixed.size, dynamic: tree.dynamicContent.length, rebuilds }),
     dispose() {
       scene.onNewMeshAddedObservable.remove(added); scene.onMeshRemovedObservable.remove(removed);
+      scene.onMeshImportedObservable.remove(loaded);
       scene.onBeforeRenderObservable.remove(before);
+      scene.getActiveMeshCandidates = nativeCandidates;
+      known.clear(); fixed.clear(); moving.clear(); pending.clear(); imported.clear();
     },
   };
 }
