@@ -17,8 +17,6 @@ import { createGroundGoodsModel, groundGoodsKind } from './ground-goods-model.ts
 import { ECONOMY_CONFIG as C, RESOURCE_NODES, economyObstacles } from './economy-config.ts';
 import { TREES, GRID_SIZE, BUILDINGS } from './world-data.ts';
 import type { EnvironmentLibrary } from './environment-library.ts';
-import { TREE_CANOPY_DIAMETER } from './landscape-layout.ts';
-import type { TreeSpecies } from './landscape-layout.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { BUILDING_TYPES } from './construction.ts';
 import { referenceHouse } from './buildings.ts';
@@ -61,7 +59,6 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
     });
     templates.set(name, sources); return sources;
   }
-  const treeTemplate = (species:TreeSpecies) => [environment.source(species)];
   function remove(id: string) {
     doors.remove(id); fires.remove(id);
     for (const mesh of instances.get(id)?.meshes ?? []) { shadows.removeShadowCaster(mesh, false); mesh.dispose(); }
@@ -116,9 +113,10 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
       if (economy.state.depleted.includes(node.id)) { remove(node.id); continue; }
       if (node.kind === 'wood') {
         const tree = TREES[Number(node.id.slice(5))];
-        show({ id: node.id, kind: 'tree', name: ({oak:'阔叶树',pine:'针叶树',sapling:'林缘小树',fruit:'果树',blossom:'花树'})[tree.species], x: tree.x, z: tree.z, radius: TREE_CANOPY_DIAMETER / 2 * tree.scale,
-          anchor: { x: tree.x, y: environment.source(tree.species).getBoundingInfo().boundingBox.maximum.y * tree.scale, z: tree.z - .45 * tree.scale } }, 'tree',
-        () => treeTemplate(tree.species), tree.scale, tree.rotation);
+        const sources=environment.tree(tree.species,tree.size,tree.tone),scale=GRID_SIZE*tree.scale;
+        show({ id: node.id, kind: 'tree', name: ({oak:'阔叶树',pine:'针叶树',sapling:'林缘小树',fruit:'果树',blossom:'花树'})[tree.species], x: tree.x, z: tree.z, radius: node.canopyRadius,
+          anchor: { x: tree.x, y: Math.max(...sources.map(s=>s.getBoundingInfo().boundingBox.maximum.y))*scale, z: tree.z - .45 * tree.scale } }, 'tree',
+        () => sources, scale, tree.rotation);
       } else if (node.kind === 'food') {
         show({ id: node.id, kind: 'rock', name: '林间果丛', x: node.x, z: node.z, radius: .9,
           anchor: { x: node.x, y: 1.1, z: node.z } }, 'forage', () => [environment.source('bush')], node.scale*.7, node.rotation);

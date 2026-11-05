@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LANDSCAPE, TREES, GRID_SIZE, WORLD_BOUNDS } from '../src/game/world-data.ts';
-import { TREE_CANOPY_DIAMETER } from '../src/game/landscape-layout.ts';
 import { RESOURCE_NODES, economyObstacles } from '../src/game/economy-config.ts';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
 import { insidePolygon } from '../src/game/polygon.ts';
@@ -9,13 +8,17 @@ import { isBlocked } from '../src/game/movement.ts';
 import { findPath } from '../src/game/pathfinding.ts';
 import { buildingAt, placementReason } from '../src/game/construction.ts';
 
-test('ordinary woodland trees fit a cell and expose reachable individual wood resources', () => {
+test('all three tree sizes expose reachable individual wood resources', () => {
   const wood=RESOURCE_NODES.filter(n=>n.kind==='wood'),solids=economyObstacles([]);
   assert.equal(wood.length,TREES.length);
+  assert.deepEqual([...new Set(TREES.map(t=>t.size))].sort(),['large','medium','small']);
   assert.ok(wood.filter(n=>LANDSCAPE.geography.forests.some(f=>insidePolygon(n,f.area))).length>100);
   for(const tree of TREES){
-    assert.ok(TREE_CANOPY_DIAMETER*tree.scale<=GRID_SIZE);
     assert.ok(LANDSCAPE.contains(tree),'ordinary trees cannot be planted inside permanent cliffs');
+  }
+  for(const node of wood){
+    assert.ok(node.canopyRadius>=GRID_SIZE/2&&node.canopyRadius<=GRID_SIZE);
+    assert.ok(node.radius<node.canopyRadius/2,'workers can stand below the crown to chop the trunk');
   }
   for(const forest of LANDSCAPE.geography.forests){
     const tree=wood.find(n=>insidePolygon(n,forest.area));if(!tree)continue;
@@ -42,4 +45,19 @@ test('felling a woodland tree releases its collision and building footprint and 
   const restored=decodeEconomy(encodeEconomy(e));
   assert.ok(restored.state.depleted.includes(tree.id));
   assert.equal(isBlocked(tree,.1,economyObstacles(restored.state.depleted)),false);
+});
+
+test('a large tree cannot regrow through construction at the edge of its crown', () => {
+  const e=new Economy();e.setLeadership(false);
+  const candidate=RESOURCE_NODES.filter(n=>n.kind==='wood').filter(n=>n.canopyRadius===GRID_SIZE)
+    .map(tree=>({tree,site:buildingAt('farm',{x:tree.x+tree.canopyRadius+GRID_SIZE/2-.05,z:tree.z})}))
+    .find(({tree,site})=>Math.abs(site.x-tree.x)-site.width/2>tree.radius+1&&Math.abs(site.x-tree.x)-site.width/2<tree.canopyRadius);
+  assert.ok(candidate,'a snapped cell intersects only the outer crown');
+  const {tree,site}=candidate;
+  e.state.depleted.push(tree.id);e.state.regrowth[tree.id]=0;
+  e.state.sites.push(site);
+  e.advance(1);
+  assert.ok(e.state.depleted.includes(tree.id),'construction overlaps the canopy, although it clears the trunk');
+  e.state.sites=[];e.advance(11);
+  assert.ok(!e.state.depleted.includes(tree.id));
 });

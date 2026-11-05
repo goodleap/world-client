@@ -9,9 +9,8 @@ import { MAP_CONFIG, ROUTE_LAYOUT, createRegions, pathDistanceSquared } from './
 import { createMapLandmarks } from './map-landmarks.ts';
 import { isBlocked } from './movement.ts';
 import { createMapWater } from './map-water.ts';
-export type TreeSpecies = 'oak' | 'pine' | 'sapling' | 'fruit' | 'blossom';
-export const TREE_COLLISION_RADIUS = .32;
-export const TREE_CANOPY_DIAMETER = 1.62;
+import { treeCanopyRadius } from './tree-profile.ts';
+import type { TreeSpecies, TreeSize } from './tree-profile.ts';
 export const LANDSCAPE_SEED = MAP_CONFIG.seed;
 export function seededRandom(seed: number) {
   return () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -41,9 +40,9 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
   const geography = createLandforms(gridSize,paths);
   const water = createMapWater(gridSize, paths);
   const terrain = createRegions(gridSize, paths, water.water, water.waterSolidPolygons,geography);
-  type Tree = Point & { scale: number; tone: number; rotation: number; species: TreeSpecies };
+  type Tree = Point & { size: TreeSize; scale: number; tone: number; rotation: number; species: TreeSpecies };
   type Rock = Point & { scale: number; rotation: number };
-  const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 5), scale: 1, tone: 0, species: 'oak', rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), scale: 1, tone: 1, species: 'sapling', rotation: 2.3 }];
+  const trees: Tree[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 - 6, MAP_CONFIG.rows / 2 - 5), size:'small', scale: 1, tone: 0, species: 'oak', rotation: .7 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 7, MAP_CONFIG.rows / 2 + 3), size:'small', scale: 1, tone: 1, species: 'sapling', rotation: 2.3 }];
   const rocks: Rock[] = [{ ...gridPoint(MAP_CONFIG.columns / 2 + 9, MAP_CONFIG.rows / 2 + 6), scale: 1, rotation: .5 }, { ...gridPoint(MAP_CONFIG.columns / 2 - 10, MAP_CONFIG.rows / 2 - 4), scale: 1.2, rotation: 2.1 }];
   const iron: Rock[] = [], forage: Rock[] = [];
   const roadDistance = (p: Point) => Math.sqrt(Math.min(...paths.flatMap(path => path.slice(1).map((b, i) => pathDistanceSquared(p, path[i], b)))));
@@ -62,7 +61,7 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
       if (region.id === 'quarry' && placed % 2 === 0 || region.id === 'pass' && placed % 3 === 0) iron.push(common);
       else if (region.id === 'orchard' && placed % 4 === 0 || region.id === 'woodland' && placed % 4 === 0 || region.id === 'home' && placed === 0) forage.push({ ...common, scale: 1 });
       else if (region.id === 'quarry' || region.id === 'stone-hollow' || placed % 4 === 2) rocks.push(common);
-      else trees.push({ ...common, scale: .94+(common.scale-.9)*.2, tone: Math.floor(random() * 3), species: treeSpecies(region.biome) });
+      else trees.push({ ...common, size:'small', scale: 1, tone: Math.floor(random() * 3), species: treeSpecies(region.biome) });
       placed++;
     }
   }
@@ -80,7 +79,21 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
       const slope=Math.max(...[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dz])=>Math.abs(geography.heightAt(point.x+dx,point.z+dz)-geography.heightAt(point.x,point.z))));
       if(slope>.45)continue;
       const species=patch.species==='oak'&&edge>-2.5?'sapling':patch.species==='fruit'&&random()<.2?'blossom':patch.species;
-      trees.push({...point,scale:.94+random()*.08,tone:Math.floor(random()*3),species,rotation:random()*Math.PI*2});
+      random(); // Preserve the existing layout's random sequence and resource IDs.
+      trees.push({...point,size:'small',scale:1,tone:Math.floor(random()*3),species,rotation:random()*Math.PI*2});
+    }
+  }
+  // Choose from three authored silhouettes, retaining the existing resource
+  // positions. Crowns may touch lightly; trunks and access paths remain clear.
+  const sizes=seededRandom(seed^0x53a67b);
+  for(const [i,tree] of trees.entries()){
+    const choice=sizes(),preferred:TreeSize=i===0?'medium':tree.species==='sapling'?(choice<.75?'small':'medium'):choice<.2?'small':choice<.7?'medium':'large';
+    const candidates:TreeSize[]=preferred==='large'?['large','medium','small']:preferred==='medium'?['medium','small']:['small'];
+    for(const size of candidates){
+      const radius=treeCanopyRadius({...tree,size},gridSize);
+      if(isBlocked(tree,radius+.05,placementSolids))continue;
+      if(trees.some(other=>other!==tree&&Math.hypot(tree.x-other.x,tree.z-other.z)<radius+treeCanopyRadius(other,gridSize)-gridSize*.15))continue;
+      tree.size=size;break;
     }
   }
   return { seed, geography, ...water, trees, rocks, iron, forage, roadControls, ...terrain };

@@ -1,28 +1,33 @@
 {
+  "oak-small": {
+    "near": 7524,
+    "medium": 1532,
+    "far": 360
+  },
   "oak": {
-    "near": 26684,
-    "medium": 3734,
-    "far": 666
+    "near": 14612,
+    "medium": 2882,
+    "far": 668
   },
-  "sapling": {
-    "near": 22600,
-    "medium": 3164,
-    "far": 564
+  "oak-large": {
+    "near": 21960,
+    "medium": 4150,
+    "far": 940
   },
-  "fruit": {
-    "near": 28096,
-    "medium": 3932,
-    "far": 702
-  },
-  "blossom": {
-    "near": 26064,
-    "medium": 3648,
-    "far": 650
+  "pine-small": {
+    "near": 7692,
+    "medium": 1554,
+    "far": 364
   },
   "pine": {
-    "near": 24076,
-    "medium": 3370,
-    "far": 600
+    "near": 14472,
+    "medium": 2862,
+    "far": 664
+  },
+  "pine-large": {
+    "near": 21480,
+    "medium": 4084,
+    "far": 928
   },
   "bush": {
     "near": 10764,

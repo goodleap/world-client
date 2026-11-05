@@ -1,9 +1,8 @@
 """Author the map-redesign review assets; never writes production game assets.
 
-Reference: the map + creek/forest concept images approved in the conversation
-on 2026-11-04. Native Blender curves/remesh fuse the trunk forks. Foliage is
-rounded, connected full crowns with broad matte color gradients. Ordinary
-trees follow the one-cell canopy size requested on 2026-11-05.
+Reference: the approved sphere-cluster tree sheet (2026-11-05), alongside the
+map/creek studies (2026-11-04). Curves/remesh fuse wood forks only. Crowns keep
+separate round lobes, with small / medium / large diameters of 1 / 1.5 / 2 cells.
 Run: blender -b -t 2 --factory-startup --python studies/map-art/build_models.py -- oak
 """
 import bpy
@@ -168,85 +167,68 @@ def fused_wood(parts, name, material, voxel=.055):
     return obj
 
 
-def round_crown(name, lobes, material, palette):
-    """Connected cloud-like crown with broad rounded lobes and soft color depth."""
-    parts=[]
-    for at,size in lobes:
-        bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=20,location=at)
-        obj=bpy.context.object;obj.scale=size
+# Approved 2026-11-05 sphere-cluster reference. Coordinates are authored in
+# grid units; each crown is normalized to its size's 1 / 1.5 / 2 cell diameter.
+TREE_LOBES={
+ 'small': [(-.06,.04,1.38,.32),(-.30,-.02,1.04,.24),(.28,-.10,1.16,.29),(.23,.22,1.33,.22)],
+ 'medium': [(-.04,.10,1.78,.44),(-.44,-.14,1.38,.36),(.43,.09,1.43,.38),(-.48,-.16,.99,.27),(.27,-.48,1.21,.25),(.32,.46,1.60,.29),(-.25,.45,1.62,.30)],
+ 'large': [(-.03,.15,2.10,.56),(-.56,.07,1.72,.42),(.57,.07,1.76,.45),(-.64,-.12,1.20,.31),(.64,-.13,1.27,.30),(-.12,-.63,1.53,.34),(-.43,.58,2.00,.32),(.45,.58,2.03,.33),(.12,.53,1.38,.37)]
+}
+PINE_LOBES={
+ 'small': [(0,.03,1.66,.28),(-.24,.03,1.20,.31),(.25,.08,1.16,.33),(.05,-.28,.98,.30)],
+ 'medium': [(0,.06,2.13,.31),(-.26,.08,1.74,.34),(.30,.10,1.66,.35),(-.40,-.03,1.18,.40),(.41,.03,1.15,.41),(.03,-.42,1.32,.36),(-.04,.43,1.33,.36)],
+ 'large': [(0,.07,2.60,.37),(-.30,.10,2.15,.39),(.35,.08,2.05,.41),(-.51,.06,1.55,.47),(.53,.07,1.48,.49),(-.08,-.48,1.68,.40),(.02,.53,1.72,.41),(-.45,-.32,1.05,.38),(.43,.36,1.08,.41)],
+}
+
+
+def round_crown(name, lobes, material):
+    """Separate smooth spherical lobes retain their own contours and normals."""
+    parts=[];top=max(z+r for x,y,z,r in lobes);bottom=min(z-r for x,y,z,r in lobes)
+    for i,(x,y,z,r) in enumerate(lobes):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=18,location=(x,y,z))
+        obj=bpy.context.object;obj.scale=(r,r*.98,r*1.02)
         bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+        obj.data.materials.append(material)
+        attr=obj.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
+        warmth=(z-bottom)/(top-bottom)
+        tone=.86+.14*warmth
+        for v in obj.data.vertices:
+            g=min(1,tone*(.96+.04*(v.co.z/r)))
+            # Neutral vertex shading allows native shared-material color variants.
+            attr.data[v.index].color=(*[srgb(g*(.76+.24*warmth)),srgb(g),srgb(g*.94)],1)
+        for f in obj.data.polygons:f.use_smooth=True
         parts.append(obj)
     bpy.ops.object.select_all(action='DESELECT')
     for obj in parts:obj.select_set(True)
     bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join()
-    obj=bpy.context.object;obj.name=name
+    obj=bpy.context.object;obj.name=name;obj['treePart']='crown'
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
-    remesh=obj.modifiers.new('Joined full crown','REMESH');remesh.mode='VOXEL';remesh.voxel_size=.04
-    bpy.ops.object.modifier_apply(modifier=remesh.name)
-    smooth=obj.modifiers.new('Rounded lobe junctions','SMOOTH');smooth.factor=.85;smooth.iterations=4
-    bpy.ops.object.modifier_apply(modifier=smooth.name)
-    obj.data.materials.append(material)
-    attr=obj.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
-    low,mid,high=map(color,palette)
-    floor=min(v.co.z for v in obj.data.vertices);height=max(v.co.z for v in obj.data.vertices)-floor
-    for v in obj.data.vertices:
-        x,y,z=v.co;t=max(0,min(1,(z-floor)/height))
-        # Broad gradients keep the surface matte, without tiny leaf tessellation.
-        c=blend(low,mid,min(1,t/.52)) if t<.52 else blend(mid,high,(t-.52)/.48)
-        warmth=1+.025*math.sin(x*3+y*2)
-        attr.data[v.index].color=(*[min(1,a*warmth) for a in c],1)
-    for face in obj.data.polygons:face.use_smooth=True
     return obj
 
 
-def rounded_tree(kind='oak'):
-    wood,foliage=mat('Warm rounded bark'),mat('Full matte foliage')
-    pine=kind=='pine';pink=kind=='blossom';fruit=kind=='fruit';small=kind=='sapling'
-    parts=[]
-    tube([(0,0,.03),(-.06,.02,.5),(.03,0,1.1),(-.02,.03,1.8),(.03,.01,2.4)],
-         [.18,.145,.115,.08,.018],parts)
-    if not pine:
-        tube([(-.02,0,.8),(-.19,.02,1.15),(-.42,.05,1.52)], [.12,.09,.02],parts)
-        tube([(.02,0,1.02),(.23,-.04,1.28),(.42,-.1,1.68)], [.105,.075,.02],parts)
-        tube([(.02,0,1.3),(.05,.25,1.6),(.12,.35,1.9)], [.08,.05,.015],parts)
-    for i in range(5):
-        a=i*TAU/5+.3
-        tube([(0,0,.22),(math.cos(a)*.19,math.sin(a)*.19,.07),(math.cos(a)*.32,math.sin(a)*.32,.025)], [.10,.075,.012],parts)
-    fused_wood(parts,kind+' · rounded rooted trunk',wood,.025)
-    if pine:
-        # Plump, overlapping branch tiers keep the conifer silhouette soft.
-        lobes=[]
-        for level,(z,r,h) in enumerate([(1.05,.75,.48),(1.57,.60,.47),(2.05,.45,.44),(2.47,.29,.42)]):
-            lobes.append(((.025*math.sin(level),0,z),(r,r*.94,h)))
-            for i in range(5):
-                a=i*TAU/5+level*.5
-                lobes.append(((math.cos(a)*r*.62,math.sin(a)*r*.62,z-.08),(r*.43,r*.42,h*.69)))
-        palette=['#357349','#579747','#87b656']
-    else:
-        lobes=[((-.43,.02,1.75),(.49,.48,.51)),((.43,-.05,1.88),(.49,.47,.54)),
-               ((-.04,.34,2.03),(.53,.45,.59)),((-.04,-.30,2.10),(.53,.48,.59)),
-               ((-.23,.0,2.40),(.49,.46,.54)),((.26,.08,2.35),(.48,.45,.52))]
-        if small:lobes=[((x*.84,y*.84,z*.90),(a*.84,b*.84,c*.91)) for (x,y,z),(a,b,c) in lobes]
-        if fruit:lobes=[((x,y,z*.88),(a,b,c*.90)) for (x,y,z),(a,b,c) in lobes]
-        if pink:lobes=[((x,y,z*.94),(a,b,c*.94)) for (x,y,z),(a,b,c) in lobes]
-        palette=['#477b35','#78a83e','#a8c956'] if not pink else ['#bf628d','#e08eac','#efb4c8']
-    round_crown(kind+' · full rounded crown',lobes,foliage,palette)
-    if fruit:
-        fruitmat=mat('Matte red apples')
-        for i in range(9):
-            a=i*TAU/9+.2;dx,dy=math.cos(a),math.sin(a);z=1.43+(i%3)*.24;r=0
-            for (cx,cy,cz),(sx,sy,sz) in lobes:
-                aa=dx*dx/(sx*sx)+dy*dy/(sy*sy);bb=-2*(dx*cx/(sx*sx)+dy*cy/(sy*sy))
-                cc=cx*cx/(sx*sx)+cy*cy/(sy*sy)+(z-cz)**2/(sz*sz)-1;discriminant=bb*bb-4*aa*cc
-                if discriminant>=0:r=max(r,(-bb+math.sqrt(discriminant))/(2*aa))
-            ellipsoid('Apple',(dx*(r+.035),dy*(r+.035),z),(.10,.10,.11),'#df5735',fruitmat)
-    # One ordinary crown is approximately one 1.688-world-unit grid cell.
+def rounded_tree(kind='oak', size='medium'):
+    wood,foliage=mat('Warm branching wood'),mat('Separate round crown clusters')
+    lobes=(PINE_LOBES if kind=='pine' else TREE_LOBES)[size]
+    parts=[];main_height=lobes[0][2]-.10
+    base={'small':.082,'medium':.105,'large':.13}[size]
+    tube([(0,0,.025),(-.025,0,.2),(0,.01,.48),(0,.06,main_height*.65),(-.04,.1,main_height)],
+         [base*1.2,base,base*.83,base*.60,.025],parts)
+    for i,(x,y,z,r) in enumerate(lobes):
+        if i==0:continue
+        origin=max(.40,z*.48)
+        tube([(0,.02,origin),(x*.48,y*.42,origin+(z-origin)*.4),(x*.94,y*.94,z-.07)],
+             [base*.52,base*.36,.018],parts)
+    trunk=fused_wood(parts,'Tree · visible rounded forks',wood,.025)
+    painted(trunk,wood,'#bf8a51',.025);trunk['treePart']='wood'
+    round_crown('Tree · independent spherical crown',lobes,foliage)
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
+    bpy.context.view_layer.update()
     radius=max(math.hypot(*(o.matrix_world@v.co)[:2]) for o in objects for v in o.data.vertices)
-    factor=(1.62 if not small else 1.48)/(radius*2)
+    factor={'small':1,'medium':1.5,'large':2}[size]/(radius*2)
     for obj in objects:
-        obj.location.x*=factor;obj.location.y*=factor
-        for v in obj.data.vertices:v.co.x*=factor;v.co.y*=factor
+        obj.location*=factor
+        for v in obj.data.vertices:v.co*=factor
+        obj['treeSize']=size
 
 
 def oak():
@@ -275,7 +257,7 @@ def ellipsoid(name,at,size,shade,material):
 
 
 def small_tree(kind='sapling'):
-    rounded_tree(kind)
+    rounded_tree(kind,'small' if kind=='sapling' else 'medium')
 
 
 def pine():
@@ -416,6 +398,9 @@ def cliff():
 
 BUILDERS={'oak':oak,'sapling':small_tree,'fruit':lambda:small_tree('fruit'),
           'blossom':lambda:small_tree('blossom'),'pine':pine,'bush':bush,'reeds':reeds,'grass':grass,'flowers':flowers,'stone':stone,'cliff':cliff}
+for family in ('oak','pine'):
+    for size in ('small','large'):
+        BUILDERS[f'{family}-{size}']=lambda family=family,size=size:rounded_tree(family,size)
 requested=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(BUILDERS)
 for name in requested:
     bpy.ops.object.select_all(action='SELECT')
@@ -423,7 +408,7 @@ for name in requested:
     BUILDERS[name]()
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.export_scene.gltf(filepath=str(OUT/f'{name}.glb'),export_format='GLB',
-        use_selection=True,export_animations=False,export_vertex_color='ACTIVE',export_normals=True,
+        use_selection=True,export_extras=True,export_animations=False,export_vertex_color='ACTIVE',export_normals=True,
         export_materials='EXPORT',export_yup=True)
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
     metrics={'asset':name,'triangles':sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in objects),

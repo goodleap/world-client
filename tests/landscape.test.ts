@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createLandscapeLayout, createCurvedRoadPaths, TREE_COLLISION_RADIUS } from '../src/game/landscape-layout.ts';
+import { createLandscapeLayout, createCurvedRoadPaths } from '../src/game/landscape-layout.ts';
+import { treeCollisionRadius } from '../src/game/tree-profile.ts';
 import { polygonArea, polygonDistance, insidePolygon, segmentDistanceSquared } from '../src/game/polygon.ts';
 import { isBlocked, sweepIsBlocked } from '../src/game/movement.ts';
 import type { Obstacle } from '../src/game/movement.ts';
@@ -28,7 +29,7 @@ test('landscape seeds are reproducible, mixed resources have clearance and start
   assert.equal(JSON.stringify(createLandscapeLayout(gridPoint, GRID_SIZE)), JSON.stringify(layout));
   assert.notDeepEqual(createLandscapeLayout(gridPoint, GRID_SIZE, 20261103).trees, layout.trees);
   assert.ok(layout.trees.length >= 30 && layout.rocks.length >= 20 && layout.iron.length >= 8 && layout.forage.length >= 8);
-  const nodes = [...layout.trees.map(n => ({ ...n, radius: n.scale * TREE_COLLISION_RADIUS })), ...layout.rocks.map(n => ({ ...n, radius: n.scale * .85 }))];
+  const nodes = [...layout.trees.map(n => ({ ...n, radius: treeCollisionRadius(n,GRID_SIZE) })), ...layout.rocks.map(n => ({ ...n, radius: n.scale * .85 }))];
   const roads = createCurvedRoadPaths(layout.roadControls, GRID_SIZE);
   for (const [i, node] of nodes.entries()) {
     assert.ok(polygonDistance(node, layout.lake) > node.scale + .65);

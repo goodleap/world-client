@@ -7,8 +7,11 @@ import { loadingProgress } from '../loading-progress.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import '@babylonjs/loaders/glTF/index.js';
 import '@babylonjs/core/Meshes/instancedMesh.js';
+import { TREE_COLORS, treeAsset, treeColor } from './tree-profile.ts';
+import type { TreeSpecies, TreeSize, TreeColor } from './tree-profile.ts';
 
-export type EnvironmentAsset = 'oak'|'pine'|'sapling'|'fruit'|'blossom'|'bush'|'reeds'|'grass'|'flowers'|'stone'|'cliff';
+export type EnvironmentAsset = 'bush'|'reeds'|'grass'|'flowers'|'stone'|'cliff';
+type Detail='near'|'medium'|'far';
 export async function loadEnvironment(scene:Scene) {
   const url=`${import.meta.env.BASE_URL}assets/environment/environment.glb`;
   loadingProgress.register(url,'地形与植物模型','download');
@@ -37,19 +40,40 @@ export async function loadEnvironment(scene:Scene) {
     }
     mesh.material=material;mesh.isVisible=false;mesh.isPickable=false;mesh.receiveShadows=true;
     mesh._instanceDataStorage.useMonoDataStorageRenderPass=false;
-    scene.addMesh(mesh);mesh.freezeWorldMatrix();meshes.set(`${extras.asset}-${extras.detail}`,mesh);
+    scene.addMesh(mesh);mesh.freezeWorldMatrix();meshes.set(`${extras.asset}${extras.treePart?`-${extras.treePart}`:''}-${extras.detail}`,mesh);
   }
+  const get=(name:string,detail:Detail)=>{
+    const mesh=meshes.get(`${name}-${detail}`);if(!mesh)throw new Error(`环境模型缺失：${name}/${detail}`);return mesh;
+  };
+  const attachLOD=(source:Mesh,medium:Mesh,far:Mesh,coverage:number)=>{
+    source.useLODScreenCoverage=true;source.addLODLevel(coverage,medium);source.addLODLevel(.012,far);
+  };
   for(const [key,source] of meshes)if(key.endsWith('-near')){
     const name=key.slice(0,-5);
-    source.useLODScreenCoverage=true;
-    source.addLODLevel(['oak','pine','sapling','fruit','blossom'].includes(name)?.22:.055,meshes.get(`${name}-medium`)!);
-    source.addLODLevel(.012,meshes.get(`${name}-far`)!);
+    // Crown LODs are attached to their palette clones below.
+    if(name.endsWith('-crown'))continue;
+    attachLOD(source,get(name,'medium'),get(name,'far'),name.endsWith('-wood')?.22:.055);
   }
   material.freeze();
-  // Imported PBR materials/textures are replaced by one opaque matte material.
+  const colors=new Map<TreeColor,StandardMaterial>(),crowns=new Map<string,Mesh>();
+  function crown(asset:string,color:TreeColor){
+    const key=`${asset}-${color}`,cached=crowns.get(key);if(cached)return cached;
+    let palette=colors.get(color);
+    if(!palette){palette=new StandardMaterial(`tree-${color}`,scene);palette.diffuseColor=Color3.FromHexString(TREE_COLORS[color]);palette.specularColor=Color3.Black();palette.freeze();colors.set(color,palette);}
+    const levels=(['near','medium','far'] as const).map(detail=>{
+      // Babylon Mesh.clone shares Geometry; only the material and native
+      // instance batches differ. No per-tree geometry/material allocations.
+      const mesh=get(`${asset}-crown`,detail).clone(`${key}-${detail}`,null,true);
+      mesh.material=palette;mesh.isVisible=false;mesh.isPickable=false;
+      mesh._instanceDataStorage.useMonoDataStorageRenderPass=false;mesh.freezeWorldMatrix();return mesh;
+    });
+    attachLOD(levels[0],levels[1],levels[2],.22);crowns.set(key,levels[0]);return levels[0];
+  }
+  // Imported PBR materials are replaced by shared opaque matte materials.
   for(const original of container.materials)original.dispose();
-  return {source(name:EnvironmentAsset,detail:'near'|'medium'|'far'='near'){
-    const mesh=meshes.get(`${name}-${detail}`);if(!mesh)throw new Error(`环境模型缺失：${name}/${detail}`);return mesh;
-  }};
+  return {source:(name:EnvironmentAsset,detail:Detail='near')=>get(name,detail),
+    tree(species:TreeSpecies,size:TreeSize,tone:number){
+      const asset=treeAsset(species,size);return [get(`${asset}-wood`,'near'),crown(asset,treeColor(species,tone))];
+    }};
 }
 export type EnvironmentLibrary=Awaited<ReturnType<typeof loadEnvironment>>;

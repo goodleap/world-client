@@ -1,7 +1,8 @@
 import { createMapLandmarks } from './map-landmarks.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
-import { createLandscapeLayout, TREE_COLLISION_RADIUS } from './landscape-layout.ts';
+import { createLandscapeLayout } from './landscape-layout.ts';
+import { treeCollisionRadius } from './tree-profile.ts';
 import { MAP_CONFIG } from './map-regions.ts';
 import { insidePolygon } from './polygon.ts';
 
@@ -39,7 +40,7 @@ export interface Landmark { id: string; name: string; label: string; description
 export const LANDMARKS: readonly Landmark[] = [];
 export const OBSTACLES: readonly Obstacle[] = [
   ...BUILDINGS.map((b): Obstacle => ({ kind: 'box', x: b.x, z: b.z, halfWidth: b.width / 2 + .08, halfDepth: b.depth / 2 + .08 })),
-  ...TREES.map((t): Obstacle => ({ kind: 'circle', x: t.x, z: t.z, radius: TREE_COLLISION_RADIUS * t.scale })),
+  ...TREES.map((t): Obstacle => ({ kind: 'circle', x: t.x, z: t.z, radius: treeCollisionRadius(t,GRID_SIZE) })),
   ...LANDSCAPE.obstacles.map((area): Obstacle => ({ kind: 'polygon', ...area })),
   ...WATER_OBSTACLES,
   ...MAP_LANDMARKS.obstacles,

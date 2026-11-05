@@ -50,7 +50,7 @@ export interface EconomyState {
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
   buildingHealth:Record<string,number>; autoRepair: boolean; dangerZones: DangerZone[];
-  version: 28; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 29; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -74,7 +74,7 @@ export const DEBUG_RESOURCES = 100_000;
 export const debugRequested = (search: string) => new URLSearchParams(search).has('debug');
 export function initialEconomy(seed?: number, debug = false): EconomyState {
   return {
-    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 28, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: !MAP_DEVELOPMENT, nextDecision: 0, reason: MAP_DEVELOPMENT?'手动安排作业':'正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : MAP_DEVELOPMENT?{wood:120,stone:80,food:120,iron:40}:{ ...C.initialInventory },
+    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 29, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: !MAP_DEVELOPMENT, nextDecision: 0, reason: MAP_DEVELOPMENT?'手动安排作业':'正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : MAP_DEVELOPMENT?{wood:120,stone:80,food:120,iron:40}:{ ...C.initialInventory },
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -455,8 +455,9 @@ export class Economy {
     this.state.seconds += seconds;
     for (const [id, at] of Object.entries(this.state.regrowth)) if (this.state.seconds >= at) {
       const node = RESOURCE_NODES.find(n => n.id === id)!;
-      const occupied = this.state.sites.some(s => Math.abs(s.x - node.x) < s.width / 2 + node.radius + 1 && Math.abs(s.z - node.z) < s.depth / 2 + node.radius + 1)
-        || this.state.plots.some(p => Math.abs(p.x - node.x) < GRID_SIZE / 2 + node.radius + 1 && Math.abs(p.z - node.z) < GRID_SIZE / 2 + node.radius + 1)
+      const footprint=node.kind==='wood'?node.canopyRadius:node.radius+1;
+      const occupied = this.state.sites.some(s => Math.abs(s.x - node.x) < s.width / 2 + footprint && Math.abs(s.z - node.z) < s.depth / 2 + footprint)
+        || this.state.plots.some(p => Math.abs(p.x - node.x) < GRID_SIZE / 2 + footprint && Math.abs(p.z - node.z) < GRID_SIZE / 2 + footprint)
         || [...(this.liveOccupants?.() ?? []), ...Object.values(this.state.residents).map(r => r.position), ...this.state.combat.units.filter(u => u.life !== 'defeated').map(u => u.position)]
           .some(p => Math.hypot(p.x - node.x, p.z - node.z) < node.radius + 2);
       if (occupied) { this.state.regrowth[id] = this.state.seconds + 10; continue; }
@@ -578,7 +579,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 28) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 29) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   if(raw.opening!==OPENING_PROFILE)throw new Error('存档开局配置不匹配，请开始新游戏');
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;

@@ -17,7 +17,7 @@ const CHUNK_SIZE = 12, SPACING = 1.8, MARGIN = .42;
 const inFootprint = (p: Point, b: Footprint) => Math.abs(p.x - b.x) < b.width / 2 + MARGIN && Math.abs(p.z - b.z) < b.depth / 2 + MARGIN;
 /** Shared native thin instances: rounded silhouettes, one draw per visible
  * patch/type, no individual meshes, animation callbacks or shadow-map draws. */
-export function createGroundCover(scene: Scene, environment:EnvironmentLibrary) {
+export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibrary,'source'>) {
   const templates=[environment.source('grass','far'),environment.source('flowers','medium')];
   const chunks = new Map<string, { mesh: Mesh; plants: Plant[]; visible?: Plant[] }>();
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
