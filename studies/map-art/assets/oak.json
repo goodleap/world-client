@@ -1,6 +1,12 @@
 {
   "asset": "oak",
-  "triangles": 14612,
-  "vertices": 7322,
-  "materials": 2
+  "triangles": 19012,
+  "vertices": 9526,
+  "materials": 2,
+  "crown": {
+    "lobes": 9,
+    "diameter": 1.5,
+    "height": 1.74479,
+    "bare_trunk_fraction": 0.293
+  }
 }

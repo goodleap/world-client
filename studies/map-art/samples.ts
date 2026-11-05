@@ -8,9 +8,9 @@ import type { AssetName, XYZ } from './models.ts';
 import { terrain, matte, block, beam, random, riverX } from './terrain.ts';
 
 export const samples={
-  oak:{title:'阔叶树 · 造型样板',description:'确认原型：独立球团、错落层次、可见分叉',height:3.3,target:[0,1,0],assets:['oak']},
-  trees:{title:'球团树冠 · 三档尺寸',description:'从左到右：小 1 格 · 中 1.5 格 · 大 2 格。每块浅色地面代表 1 格。',height:4.5,target:[0,1.1,0],assets:['oak-small','oak','oak-large']},
-  colors:{title:'树木 · 区域配色',description:'嫩绿、叶绿、冷绿、金黄、橙红、粉色；共享球团形体与哑光材质',height:4.8,target:[0,1.2,0],assets:['oak','pine']},
+  oak:{title:'阔叶树 · 调整样板',description:'9 个错落球团 · 减少重叠 · 缩短树干 · 同色系变化。待确认后应用到地图。',height:3.1,target:[0,.9,0],assets:['oak']},
+  trees:{title:'球团树冠 · 调整样板',description:'小：1 格 / 5 球 · 中：1.5 格 / 9 球 · 大：2 格 / 14 球。待确认后应用到地图。',height:4.2,target:[0,1,0],assets:['oak-small','oak','oak-large']},
+  colors:{title:'树木 · 同色系变化样板',description:'每棵树内部有轻微色差，整体保持所属色系。待确认后应用到地图。',height:4.8,target:[0,1.2,0],assets:['oak']},
   forest:{title:'01 · 阔叶林与林缘',description:'主树、幼树与灌木形成高低层次，树下由落叶、根系和碎石衔接',height:17.6,target:[0,.6,.1],assets:['oak','sapling','bush','grass','flowers','stone']},
   conifers:{title:'02 · 针叶林与山麓',description:'下垂枝层、冷暖绿对比，搭配苔石和低矮林下植物',height:17.6,target:[0,.8,.1],assets:['pine','bush','grass','stone']},
   orchard:{title:'03 · 花野与果林',description:'低矮果树、花树、成簇野花与暖色土路，保留开阔活动空间',height:17.6,target:[0,.4,.1],assets:['fruit','blossom','bush','grass','flowers','stone']},
@@ -34,7 +34,7 @@ export async function buildSample(name:SampleName,scene:Scene,shadows:ShadowGene
     return info;
   }
   if(name==='colors'){
-    for(const [i,color] of (['lime','leaf','pine','gold','orange','pink'] as const).entries())library.place(i===2?'pine':'oak',[(i-2.5)*1.9,0,0],1,0,color);
+    for(const [i,color] of (['lime','leaf','pine','gold','orange','pink'] as const).entries())library.place('oak',[(i-2.5)*1.9,0,0],1,0,color);
     return info;
   }
   const style=name==='creek'?'river':name==='wetland'?'marsh':name==='quarry'?'rock':name==='orchard'?'meadow':name==='ruins'?'ruins':name==='camp'?'camp':'forest';

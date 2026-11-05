@@ -169,10 +169,14 @@ def fused_wood(parts, name, material, voxel=.055):
 
 # Approved 2026-11-05 sphere-cluster reference. Coordinates are authored in
 # grid units; each crown is normalized to its size's 1 / 1.5 / 2 cell diameter.
+# Broadleaf revision: 5 / 9 / 14 lobes, shorter exposed trunk and less overlap.
+# These review assets are NOT published to the map until the user approves.
 TREE_LOBES={
- 'small': [(-.06,.04,1.38,.32),(-.30,-.02,1.04,.24),(.28,-.10,1.16,.29),(.23,.22,1.33,.22)],
- 'medium': [(-.04,.10,1.78,.44),(-.44,-.14,1.38,.36),(.43,.09,1.43,.38),(-.48,-.16,.99,.27),(.27,-.48,1.21,.25),(.32,.46,1.60,.29),(-.25,.45,1.62,.30)],
- 'large': [(-.03,.15,2.10,.56),(-.56,.07,1.72,.42),(.57,.07,1.76,.45),(-.64,-.12,1.20,.31),(.64,-.13,1.27,.30),(-.12,-.63,1.53,.34),(-.43,.58,2.00,.32),(.45,.58,2.03,.33),(.12,.53,1.38,.37)]
+ 'small': [(.015,-.01,1.23,.30),(-.265,-.20,.68,.24),(.28,-.18,.74,.25),(.23,.235,.89,.225),(-.23,.27,.88,.235)],
+ 'medium': [(0,.02,1.46,.36),(-.35,-.27,1.13,.30),(.36,-.27,1.19,.31),(.33,.29,1.16,.28),(-.34,.32,1.22,.29),(-.55,.015,.77,.23),(.52,.035,.83,.24),(.22,-.50,.84,.22),(-.22,.50,.90,.21)],
+ 'large': [(.015,.02,1.78,.44),(-.52,.29,1.64,.26),(.48,.29,1.58,.25),(-.32,-.41,1.58,.23),(.34,-.39,1.62,.24),
+           (.66,-.10,1.18,.34),(.24,.64,1.25,.33),(-.52,.43,1.17,.35),(-.61,-.32,1.25,.32),(.13,-.67,1.22,.34),
+           (.62,.38,.82,.24),(-.27,.70,.78,.25),(-.60,-.37,.79,.23),(.42,-.55,.84,.25)]
 }
 PINE_LOBES={
  'small': [(0,.03,1.66,.28),(-.24,.03,1.20,.31),(.25,.08,1.16,.33),(.05,-.28,.98,.30)],
@@ -181,44 +185,57 @@ PINE_LOBES={
 }
 
 
+def balanced_lobes(lobes):
+    """Center foliage volume on the trunk without mirroring the authored lobes."""
+    volume=sum(r**3 for x,y,z,r in lobes)
+    cx=sum(x*r**3 for x,y,z,r in lobes)/volume
+    cy=sum(y*r**3 for x,y,z,r in lobes)/volume
+    return [(x-cx,y-cy,z,r) for x,y,z,r in lobes]
+
+
 def round_crown(name, lobes, material):
     """Separate smooth spherical lobes retain their own contours and normals."""
-    parts=[];top=max(z+r for x,y,z,r in lobes);bottom=min(z-r for x,y,z,r in lobes)
+    parts=[]
+    # Gentle hue/value variation inside one tree's palette. The sequence is
+    # spatially interleaved, not a mechanical light-top / dark-bottom gradient.
+    tints=[(1,1,.94),(.78,.94,.96),(.96,1,.89),(.89,.95,1),(.84,.98,.92)]
     for i,(x,y,z,r) in enumerate(lobes):
         bpy.ops.mesh.primitive_uv_sphere_add(segments=32,ring_count=18,location=(x,y,z))
         obj=bpy.context.object;obj.scale=(r,r*.98,r*1.02)
         bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
         obj.data.materials.append(material)
         attr=obj.data.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
-        warmth=(z-bottom)/(top-bottom)
-        tone=.86+.14*warmth
+        tint=tints[i%len(tints)]
         for v in obj.data.vertices:
-            g=min(1,tone*(.96+.04*(v.co.z/r)))
+            g=.96+.04*(v.co.z/r)
             # Neutral vertex shading allows native shared-material color variants.
-            attr.data[v.index].color=(*[srgb(g*(.76+.24*warmth)),srgb(g),srgb(g*.94)],1)
+            attr.data[v.index].color=(*[srgb(min(1,g*c)) for c in tint],1)
         for f in obj.data.polygons:f.use_smooth=True
         parts.append(obj)
     bpy.ops.object.select_all(action='DESELECT')
     for obj in parts:obj.select_set(True)
     bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join()
     obj=bpy.context.object;obj.name=name;obj['treePart']='crown'
+    obj['lobeCount']=len(lobes)
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
     return obj
 
 
 def rounded_tree(kind='oak', size='medium'):
     wood,foliage=mat('Warm branching wood'),mat('Separate round crown clusters')
-    lobes=(PINE_LOBES if kind=='pine' else TREE_LOBES)[size]
-    parts=[];main_height=lobes[0][2]-.10
+    lobes=balanced_lobes((PINE_LOBES if kind=='pine' else TREE_LOBES)[size])
+    parts=[];top_x,top_y,main_height,_=lobes[0]
+    crown_bottom=min(z-r for x,y,z,r in lobes)
+    fork_height=crown_bottom*.65
     base={'small':.082,'medium':.105,'large':.13}[size]
-    tube([(0,0,.025),(-.025,0,.2),(0,.01,.48),(0,.06,main_height*.65),(-.04,.1,main_height)],
+    tube([(0,0,.025),(-.015,0,fork_height*.5),(0,.01,fork_height),(top_x*.4,top_y*.4,main_height*.65),(top_x,top_y,main_height)],
          [base*1.2,base,base*.83,base*.60,.025],parts)
     for i,(x,y,z,r) in enumerate(lobes):
         if i==0:continue
-        origin=max(.40,z*.48)
+        origin=fork_height+(z-crown_bottom)*.12
         tube([(0,.02,origin),(x*.48,y*.42,origin+(z-origin)*.4),(x*.94,y*.94,z-.07)],
              [base*.52,base*.36,.018],parts)
-    trunk=fused_wood(parts,'Tree · visible rounded forks',wood,.025)
+    trunk=fused_wood(parts,'Tree · visible rounded forks',wood,.022)
     painted(trunk,wood,'#bf8a51',.025);trunk['treePart']='wood'
     round_crown('Tree · independent spherical crown',lobes,foliage)
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
@@ -413,5 +430,12 @@ for name in requested:
     objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
     metrics={'asset':name,'triangles':sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in objects),
              'vertices':sum(len(o.data.vertices) for o in objects),'materials':len({m.name for o in objects for m in o.data.materials})}
+    crowns=[o for o in objects if o.get('treePart')=='crown']
+    if crowns:
+        points=[o.matrix_world@v.co for o in crowns for v in o.data.vertices]
+        metrics['crown']={'lobes':sum(o['lobeCount'] for o in crowns),
+                         'diameter':round(2*max(math.hypot(p.x,p.y) for p in points),5),
+                         'height':round(max(p.z for p in points),5),
+                         'bare_trunk_fraction':round(min(p.z for p in points)/max(p.z for p in points),4)}
     (OUT/f'{name}.json').write_text(json.dumps(metrics,indent=2)+'\n')
     print(json.dumps(metrics))

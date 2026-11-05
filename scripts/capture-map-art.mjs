@@ -27,6 +27,40 @@ try {
       await page.screenshot({path:`${output}/oak-mobile.png`});
       await page.setViewportSize({width:1400,height:1000});
     }
+    if(sample==='trees'){
+      const measured=await page.evaluate(()=>{
+        const roots=window.mapArt.scene.transformNodes.filter(root=>/^oak(?:-small|-large)?-\d+$/.test(root.name));
+        return roots.map(root=>{
+          const crown=root.getChildMeshes().find(mesh=>(mesh.metadata??mesh.sourceMesh?.metadata)?.gltf?.extras?.treePart==='crown');
+          const p=crown.getVerticesData('position'),indices=crown.getIndices(),vertices=new Map(),parent=[];
+          const vertexIds=[];
+          for(let i=0;i<p.length;i+=3){
+            const key=p.slice(i,i+3).map(value=>Math.round(value*100000)).join(',');
+            if(!vertices.has(key)){vertices.set(key,parent.length);parent.push(parent.length);}
+            vertexIds.push(vertices.get(key));
+          }
+          const find=id=>{while(parent[id]!==id){parent[id]=parent[parent[id]];id=parent[id];}return id;};
+          for(let i=0;i<indices.length;i+=3){const first=find(vertexIds[indices[i]]);parent[find(vertexIds[indices[i+1]])]=first;parent[find(vertexIds[indices[i+2]])]=first;}
+          let radius=0,top=0,bottom=Infinity;
+          for(let i=0;i<p.length;i+=3){radius=Math.max(radius,Math.hypot(p[i],p[i+2]));top=Math.max(top,p[i+1]);bottom=Math.min(bottom,p[i+1]);}
+          const size=root.name.includes('small')?'small':root.name.includes('large')?'large':'medium';
+          return{size,lobes:new Set(parent.map((_,i)=>find(i))).size,diameter:radius*2,bareTrunkFraction:bottom/top};
+        });
+      });
+      for(const tree of measured){
+        const [lobes,diameter]=({small:[5,1],medium:[9,1.5],large:[14,2]})[tree.size];
+        if(tree.lobes!==lobes||Math.abs(tree.diameter-diameter)>.0001||tree.bareTrunkFraction>.32)throw new Error(`Tree dimensions differ from the review brief: ${JSON.stringify(tree)}`);
+      }
+      if(measured.length!==3)throw new Error('Three tree sizes must be visible in the review');
+      results.at(-1).trees=measured;
+      for(const [suffix,angle] of [['quarter',Math.PI/4],['side',Math.PI/2],['back',Math.PI]]){
+        await page.evaluate(angle=>{
+          for(const root of window.mapArt.scene.transformNodes)if(/^oak(?:-small|-large)?-\d+$/.test(root.name))root.rotation.y=angle;
+          window.mapArt.scene.render();
+        },angle);
+        await page.screenshot({path:`${output}/trees-${suffix}.png`});
+      }
+    }
     if(sample==='creek'){
       await page.evaluate(()=>window.mapArt.focus([-.1,1,-.4],11.5));
       await page.screenshot({path:`${output}/creek-detail.png`});
