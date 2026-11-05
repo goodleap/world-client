@@ -75,7 +75,7 @@ export async function buildWorld(scene: Scene, p: Palette, shadows: ShadowGenera
       for (const mesh of batch) mesh.computeWorldMatrix(true);
       // Preserve the original caster membership when splitting a batch. A
       // short piece must keep its shadow if the old material batch cast one.
-      const castsShadow = !['earth','forest-bank','meadow','woodland-water','landform-earth'].includes(material.name) && !material.name.startsWith('woodland-road-') && batch.some(mesh => mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24);
+      const castsShadow = !['earth','forest-bank','meadow','woodland-water','landform-earth','landform-shore'].includes(material.name) && !material.name.startsWith('woodland-road-') && batch.some(mesh => mesh.getBoundingInfo().boundingBox.maximumWorld.y > .24);
       const triangles = batch.reduce((sum, mesh) => sum + mesh.getTotalIndices() / 3, 0);
       // Small batches already cost little vertex work; splitting them would
       // add draw calls without a useful reduction in submitted geometry.

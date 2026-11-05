@@ -11,7 +11,6 @@ import { LANDSCAPE, MAP_SIZE, MAP_WIDTH, MAP_DEPTH, GRID_SIZE } from './world-da
 import { ROAD_PATHS, ROAD_HALF_WIDTH, roadHalfWidthAt } from './road-layout.ts';
 import { createLandformMeshes } from './landform-meshes.ts';
 import { seededRandom } from './landscape-layout.ts';
-import { terrainHeight } from './terrain-height.ts';
 import { insidePolygon } from './polygon.ts';
 import { BIOME_COLORS } from './biomes.ts';
 import { landscapeTexture } from './landscape-textures.ts';
@@ -149,13 +148,12 @@ export function createLandscapeWater(scene: Scene) {
   }
   for(const area of LANDSCAPE.waterAreas){
     const line=area.points.flatMap((p,i)=>{const q=area.points[(i+1)%area.points.length],n=Math.max(1,Math.ceil(Math.hypot(q.x-p.x,q.z-p.z)/.25));return Array.from({length:n},(_,j)=>({x:p.x+(q.x-p.x)*j/n,z:p.z+(q.z-p.z)*j/n}));});
-    const wet=area.z<0;
-    const bands=[[-1.8,wet?'#7b916c':'#8c9d65'],[-.8,wet?'#879b7e':'#b8b58d'],[0,'#91bdb0'],[.7,'#6cb6b1'],[1.2,'#51a5ac']] as const;
+    const bands=[[0,'#91bdb0'],[.7,'#6cb6b1'],[1.2,'#51a5ac']] as const;
     const directions=line.map((p,i)=>{const a=line[(i-1+line.length)%line.length],b=line[(i+1)%line.length],d=Math.hypot(b.x-a.x,b.z-a.z)||1;
       let nx=-(b.z-a.z)/d,nz=(b.x-a.x)/d;if(!insidePolygon({x:p.x+nx*.1,z:p.z+nz*.1},area)){nx=-nx;nz=-nz;}return{x:nx,z:nz};});
-    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset],row)=>line.map((p,i)=>{
+    const shore=MeshBuilder.CreateRibbon('natural-water-bank',{pathArray:bands.map(([offset])=>line.map((p,i)=>{
       const width=Math.max(.55,1+.5*Math.sin(p.x*.27+p.z*.21)+.3*Math.cos(p.z*.43-p.x*.13)),x=p.x+directions[i].x*offset*width,z=p.z+directions[i].z*offset*width,water=LANDSCAPE.waterLevel(p);
-      const y=row===0?terrainHeight(x,z)+.06:row===1?water*.25+terrainHeight(x,z)*.75+.06:water+.05-(row-2)*.004;
+      const y=water+.05-offset*.006;
       return new Vector3(x,y,z);
     })),closePath:true,sideOrientation:Mesh.DOUBLESIDE},scene);
     const data=shore.getVerticesData('position')!,tints:number[]=[],uvs:number[]=[],stride=line.length+1;
@@ -163,7 +161,9 @@ export function createLandscapeWater(scene: Scene) {
     shore.setVerticesData('color',tints);shore.setVerticesData('uv',uvs);meshes.push(shore);
   }
   const mat = new StandardMaterial('woodland-water', scene);
-  mat.specularColor = Color3.Black(); mat.backFaceCulling = false;
+  // DOUBLESIDE already provides both windings. Keep native backface culling so
+  // their opposite normals cannot compete at the same depth on sloped banks.
+  mat.specularColor = Color3.Black();
   const ripple = landscapeTexture('woodland-water-ripples', scene) ?? new DynamicTexture('woodland-water-ripples', 512, scene, true, Texture.TRILINEAR_SAMPLINGMODE);
   if (ripple instanceof DynamicTexture) {
 
