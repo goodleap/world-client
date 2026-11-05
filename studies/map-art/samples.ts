@@ -8,6 +8,7 @@ import type { AssetName, XYZ } from './models.ts';
 import { terrain, matte, block, beam, random, riverX } from './terrain.ts';
 
 export const samples={
+  wildflowers:{title:'低矮野花 · 造型样板',description:'圆润花瓣、短茎与贴地叶片；三种疏密组合。',height:2.1,target:[0,.12,0],assets:['flowers','flowers-cream','flowers-lilac']},
   oak:{title:'树木 · 内部小球填充样板',description:'9 个主体球团 + 2 个内部小球，填补空位并保留外圈轮廓。已确认并应用到地图。',height:3.1,target:[0,.9,0],assets:['oak']},
   trees:{title:'球团树冠 · 内部小球填充样板',description:'小：5 + 1 球 · 中：9 + 2 球 · 大：14 + 4 球。冠幅 1 / 1.5 / 2 格，已确认并应用到地图。',height:4.2,target:[0,1,0],assets:['oak-small','oak','oak-large']},
   colors:{title:'树木 · 同色系变化样板',description:'每棵树内部有轻微色差，整体保持所属色系。已确认并应用到地图。',height:4.8,target:[0,1.2,0],assets:['oak']},
@@ -25,6 +26,10 @@ export type SampleName=keyof typeof samples;
 export async function buildSample(name:SampleName,scene:Scene,shadows:ShadowGenerator){
   const info=samples[name],library=new ModelLibrary(scene,shadows);
   await library.load(info.assets);
+  if(name==='wildflowers'){
+    for(const [i,asset] of (['flowers','flowers-cream','flowers-lilac'] as const).entries())library.place(asset,[(i-1)*1.05,0,0]);
+    return info;
+  }
   if(name==='oak'){library.place('oak');const cell=MeshBuilder.CreateGround('one-cell-scale',{width:1,height:1},scene);cell.position.y=.006;cell.material=matte(scene,'one-cell-reference','#d9c89f');cell.receiveShadows=true;return info;}
   if(name==='trees'){
     for(const [i,asset] of (['oak-small','oak','oak-large'] as const).entries()){

@@ -9,7 +9,8 @@ import { MAP_CONFIG, ROUTE_LAYOUT, createRegions, pathDistanceSquared } from './
 import { createMapLandmarks } from './map-landmarks.ts';
 import { isBlocked } from './movement.ts';
 import { createMapWater } from './map-water.ts';
-import { treeCanopyRadius } from './tree-profile.ts';
+import { treeCanopyRadius, treeCollisionRadius } from './tree-profile.ts';
+import { createResourceDressing } from './landscape-dressing.ts';
 import type { TreeSpecies, TreeSize } from './tree-profile.ts';
 export const LANDSCAPE_SEED = MAP_CONFIG.seed;
 export function seededRandom(seed: number) {
@@ -96,5 +97,9 @@ export function createLandscapeLayout(gridPoint: (x: number, z: number) => Point
       tree.size=size;break;
     }
   }
-  return { seed, geography, ...water, trees, rocks, iron, forage, roadControls, ...terrain };
+  const dressing=createResourceDressing(geography,water.waterAreas,terrain.contains,placementSolids,
+    [...trees.map(t=>({...t,radius:treeCollisionRadius(t,gridSize)})),...rocks.map(n=>({...n,radius:n.scale*.85})),
+      ...iron.map(n=>({...n,radius:n.scale*.85})),...forage.map(n=>({...n,radius:n.scale*.65}))],seededRandom(seed^0x43b9));
+  rocks.push(...dressing.rocks);forage.push(...dressing.forage);
+  return { seed, geography, ...water, trees, rocks, iron, forage, decorations:dressing.decorations, roadControls, ...terrain };
 }

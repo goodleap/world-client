@@ -119,8 +119,8 @@ export function createEconomyWorld(scene: Scene, p: Palette, shadows: ShadowGene
           anchor: { x: tree.x, y: Math.max(...sources.map(s=>s.getBoundingInfo().boundingBox.maximum.y))*scale, z: tree.z - .45 * tree.scale } }, 'tree',
         () => sources, scale, tree.rotation);
       } else if (node.kind === 'food') {
-        show({ id: node.id, kind: 'rock', name: '林间果丛', x: node.x, z: node.z, radius: .9,
-          anchor: { x: node.x, y: 1.1, z: node.z } }, 'forage', () => [environment.source('bush')], node.scale*.7, node.rotation);
+        show({ id: node.id, kind: 'rock', name: '林间果丛', x: node.x, z: node.z, radius: .9 * node.scale,
+          anchor: { x: node.x, y: 1.1 * node.scale, z: node.z } }, 'forage', () => [environment.source('bush')], node.scale*.7, node.rotation);
       } else show({ id: node.id, kind: 'rock', name: node.kind === 'iron' ? '铁矿' : '石材', x: node.x, z: node.z, radius: .75 * node.scale,
         anchor: { x: node.x, y: .9, z: node.z } }, node.kind, () => node.kind==='stone' ? [environment.source('stone')] : template(node.kind, () => {
         createLandscapeRock(scene, rockMaterial, true);

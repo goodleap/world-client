@@ -46,7 +46,7 @@ shadows.bias=.0004; shadows.normalBias=.025; shadows.setDarkness(.18);
 const floor = MeshBuilder.CreateGround('neutral review floor', { width:200, height:200 }, scene);
 const floorMat = new StandardMaterial('neutral matte', scene);
 floorMat.diffuseColor=Color3.FromHexString('#bbc5ae'); floorMat.specularColor=Color3.Black();
-floor.material=floorMat;floor.receiveShadows=true;floor.position.y=['oak','trees','colors'].includes(sample)?-.025:-.285;
+floor.material=floorMat;floor.receiveShadows=true;floor.position.y=['oak','trees','colors','wildflowers'].includes(sample)?-.025:-.285;
 const info=await buildSample(sample,scene,shadows);
 camera.target.set(info.target[0],info.target[1],info.target[2]);
 let height=info.height, rotating=false;
@@ -59,7 +59,7 @@ function frame(view='game') {
   camera.beta=view==='game'?(['oak','trees','colors'].includes(sample)?1.08:.85):1.38;
   fit();scene.render();
 }
-function fit(){engine.resize();const minWidth=(sample==='oak'?3.2:sample==='trees'?8:sample==='colors'?12.4:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
+function fit(){engine.resize();const minWidth=(sample==='wildflowers'?3.7:sample==='oak'?3.2:sample==='trees'?8:sample==='colors'?12.4:20)*(height/info.height),h=Math.max(height,minWidth/engine.getAspectRatio(camera));camera.orthoTop=h/2;camera.orthoBottom=-h/2;camera.orthoRight=h/2*engine.getAspectRatio(camera);camera.orthoLeft=-camera.orthoRight;}
 document.querySelector('#game')!.addEventListener('click',()=>frame());
 document.querySelector('#side')!.addEventListener('click',()=>frame('side'));
 document.querySelector('#rotate')!.addEventListener('click',e=>{rotating=!rotating;(e.currentTarget as HTMLButtonElement).setAttribute('aria-pressed',String(rotating));});

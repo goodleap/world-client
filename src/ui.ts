@@ -72,7 +72,6 @@ export function createUI(app: HTMLElement) {
       <div class="stops"><span data-stop="cottage">${icon('home')}小屋</span><span data-stop="garden">${icon('leaf')}菜园</span><span data-stop="well">${icon('compass')}水井</span></div>
       <div class="progress-track"><span id="progress-bar"></span></div>
     </aside>
-    <div class="north" aria-hidden="true"><span>N</span><i></i></div>
     <section id="selection-info" class="selection-info" aria-label="选中信息" hidden>
       <section id="resident-selection" class="resident-selection" aria-label="当前单位信息" aria-describedby="resident-hint" hidden>
         <details id="unit-details"><summary aria-label="展开或收起单位详情">

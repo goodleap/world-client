@@ -6,65 +6,66 @@ import { Color3 } from '@babylonjs/core/Maths/math.color.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { LANDSCAPE, MAP_WIDTH, MAP_DEPTH } from './world-data.ts';
-import { BIOME_COLORS } from './biomes.ts';
 import { polygonDistance } from './polygon.ts';
 import { groundHeight, terrainHeight } from './terrain-height.ts';
+import { roadEdgeDistance } from './road-layout.ts';
+import { TerrainMaterialPlugin } from './terrain-material.ts';
 
-/** Native terrain geometry is shared by soil and exposed rock. Each triangle
- * belongs to exactly one material; there are no overlapping cliff/ground skins. */
+const smooth=(a:number,b:number,value:number)=>{const t=Math.max(0,Math.min(1,(value-a)/(b-a)));return t*t*(3-2*t);};
+/** One native heightfield owns soil, rock and shore. Static vertex weights
+ * interpolate across triangles; no material boundary follows triangle edges.
+ * The collision/picking heightfield and its resolution remain unchanged. */
 export function createLandformMeshes(scene:Scene,grass:StandardMaterial){
   const {geography}=LANDSCAPE;
   const ground=MeshBuilder.CreateGround('landform-ground',{width:MAP_WIDTH,height:MAP_DEPTH,subdivisions:geography.resolution},scene);
-  const positions=ground.getVerticesData('position')!,normals:number[]=[],soil:number[]=[],rockIndices:number[]=[],bankIndices:number[]=[],all:number[]=[];
+  const positions=ground.getVerticesData('position')!,normals:number[]=[],all:number[]=[];
   const shoreDistance=(p:{x:number;z:number})=>Math.min(4,...LANDSCAPE.waterAreas.map(a=>p.x>=a.bounds.minX-4&&p.x<=a.bounds.maxX+4&&p.z>=a.bounds.minZ-4&&p.z<=a.bounds.maxZ+4?polygonDistance(p,a):4));
   for(let i=0;i<positions.length;i+=3)positions[i+1]=groundHeight(positions[i],positions[i+2])+.012;
   const original=ground.getIndices()!;
   for(let i=0;i<original.length;i+=3){
     const ids=[original[i],original[i+1],original[i+2]],v=ids.map(j=>Vector3.FromArray(positions,j*3));
     const p={x:(v[0].x+v[1].x+v[2].x)/3,z:(v[0].z+v[1].z+v[2].z)/3};
-    const distance=shoreDistance(p);
-    if(!geography.inside(p)||distance< -1.5)continue;
-    const normal=Vector3.Cross(v[1].subtract(v[0]),v[2].subtract(v[0])).normalize();
-    const exposed=Math.abs(normal.y)<.73&&Math.max(...v.map(p=>p.y))>.35&&geography.roadDistance(p)>1.7;
-    (distance<2?bankIndices:exposed?rockIndices:soil).push(...ids);all.push(...ids);
+    if(geography.inside(p)&&shoreDistance(p)>=-1.5)all.push(...ids);
   }
   VertexData.ComputeNormals(positions,all,normals);
-  ground.setVerticesData('position',positions);ground.setVerticesData('normal',normals);ground.setIndices(soil);ground.material=grass;
-  // Native submeshes let the camera cull terrain strips without changing the
-  // shared surface or adding a second terrain representation.
-  ground.subdivide(16);
-  const low=Color3.FromHexString('#7b8274'),high=Color3.FromHexString('#b7b29b'),colors:number[]=[];
-  for(let i=0;i<positions.length;i+=3){
-    const x=positions[i],y=positions[i+1],z=positions[i+2];
-    const band=.43+.13*Math.sin(y*3.1+Math.sin(x*.22+z*.16)*.45)+.1*Math.sin(x*.24-z*.18);
-    const c=Color3.Lerp(low,high,Math.min(1,Math.max(0,band+y*.012)));
-    const region=LANDSCAPE.regions.reduce((a,b)=>Math.hypot(a.x-x,a.z-z)<Math.hypot(b.x-x,b.z-z)?a:b);
-    const moss=Color3.FromHexString(BIOME_COLORS[region.biome]);
-    const blend=Math.min(1,Math.max(0,(Math.abs(normals[i+1])-.6)/.28));
-    const tint=Color3.Lerp(c,moss,blend);colors.push(tint.r,tint.g,tint.b,1);
-  }
-  const rock=new Mesh('landform-exposed-rock',scene),data=new VertexData();
-  data.positions=positions;data.normals=normals;data.colors=colors;data.indices=rockIndices;data.applyToMesh(rock);rock.subdivide(12);
-  const material=new StandardMaterial('landform-rock',scene);material.diffuseColor=Color3.White();material.specularColor=Color3.Black();rock.material=material;
-  // Shore, grass and exposed rock own disjoint triangles of the same native
-  // heightfield. A separate interpolated bank skin cut through steep ground.
-  const bank=new Mesh('landform-shore',scene),bankData=new VertexData(),lookup=new Map<number,number>();
-  const bankPositions:number[]=[],bankNormals:number[]=[],bankColors:number[]=[],bankFaces:number[]=[];
-  for(const id of bankIndices){
-    let mapped=lookup.get(id);
-    if(mapped===undefined){
-      mapped=lookup.size;lookup.set(id,mapped);const i=id*3,x=positions[i],z=positions[i+2],d=shoreDistance({x,z});
-      bankPositions.push(x,positions[i+1],z);bankNormals.push(normals[i],normals[i+1],normals[i+2]);
-      const wet=z<0,outer=Color3.FromHexString(wet?'#82986d':'#94a76b'),sand=Color3.FromHexString(wet?'#94aa8c':'#c4bc96'),inner=Color3.FromHexString('#8fbdb0');
-      const tint=d>1?Color3.Lerp(sand,outer,Math.min(1,(d-1)/1.2)):Color3.Lerp(inner,sand,Math.max(0,d));
-      const cliff=Math.abs(normals[i+1])<.8?Math.min(1,Math.max(0,positions[i+1]-LANDSCAPE.waterLevel({x,z})-.4)):0;
-      const result=Color3.Lerp(tint,Color3.FromArray(colors,id*4),cliff);
-      bankColors.push(result.r,result.g,result.b,1);
+  const paintNormals=normals.slice(),stride=geography.resolution+1;
+  // Narrow, steep ramps expose the alternating grid diagonals in their
+  // lighting. Smooth only the shading normals over a small static stencil;
+  // positions, picking heights and slope/material classification stay exact.
+  for(let pass=0;pass<2;pass++){
+    const source=normals.slice();
+    for(let row=0;row<stride;row++)for(let col=0;col<stride;col++){
+      const i=(row*stride+col)*3;
+      let nx=0,ny=0,nz=0;
+      for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
+        const r=row+dz,c=col+dx;if(r<0||r>=stride||c<0||c>=stride)continue;
+        const j=(r*stride+c)*3,w=(dx===0?2:1)*(dz===0?2:1);
+        nx+=source[j]*w;ny+=source[j+1]*w;nz+=source[j+2]*w;
+      }
+      const length=Math.hypot(nx,ny,nz)||1;normals[i]=nx/length;normals[i+1]=ny/length;normals[i+2]=nz/length;
     }
-    bankFaces.push(mapped);
   }
-  bankData.positions=bankPositions;bankData.normals=bankNormals;bankData.colors=bankColors;bankData.indices=bankFaces;bankData.applyToMesh(bank);
-  const shore=new StandardMaterial('landform-shore',scene);shore.diffuseColor=Color3.White();shore.specularColor=Color3.Black();bank.material=shore;
+  const low=Color3.FromHexString('#838772'),high=Color3.FromHexString('#b7b29b'),colors:number[]=[],weights:number[]=[];
+  for(let i=0;i<positions.length;i+=3){
+    const x=positions[i],y=positions[i+1],z=positions[i+2],p={x,z},ny=Math.abs(paintNormals[i+1]);
+    const road=roadEdgeDistance(p),shore=shoreDistance(p);
+    const rock=smooth(.06,.34,1-ny)*smooth(.18,.65,y)*smooth(-.05,.75,road);
+    const bank=1-smooth(.35,2.7,shore);
+    // Broad, slightly wandering strata follow the real face continuously.
+    const band=.48+.12*Math.sin(y*2.1+Math.sin(x*.22+z*.16)*.55)+.07*Math.sin(x*.24-z*.18);
+    const stone=Color3.Lerp(low,high,Math.min(1,Math.max(0,band+y*.01)));
+    const wet=z<0,sand=Color3.FromHexString(wet?'#94aa8c':'#b9b58c'),inner=Color3.FromHexString('#8fbdb0');
+    const shoreColor=Color3.Lerp(inner,sand,smooth(-.3,1,shore));
+    const bankRock=smooth(.2,1.2,y-LANDSCAPE.waterLevel(p))*(1-smooth(.65,.9,ny));
+    const tint=Color3.Lerp(stone,Color3.Lerp(shoreColor,stone,bankRock),bank);
+    const weight=Math.max(rock,bank);
+    colors.push(tint.r,tint.g,tint.b,weight);
+    // UV2 is a static detail-strength channel, preserved by native batching.
+    weights.push(smooth(.05,.65,road)*(1-weight),0);
+  }
+  ground.setVerticesData('position',positions);ground.setVerticesData('normal',normals);
+  ground.setVerticesData('color',colors);ground.setVerticesData('uv2',weights);ground.hasVertexAlpha=false;
+  ground.setIndices(all);ground.material=grass;new TerrainMaterialPlugin(grass);ground.subdivide(16);
   const outline=geography.outline.points;
   const side=MeshBuilder.CreateRibbon('landform-outer-bank',{pathArray:[0,1].map(row=>outline.map(p=>new Vector3(p.x,terrainHeight(p.x,p.z)-(row?3:.02),p.z))),closePath:true,sideOrientation:Mesh.DOUBLESIDE},scene);
   const earth=new StandardMaterial('landform-earth',scene);earth.diffuseColor=Color3.FromHexString('#777f56');earth.specularColor=Color3.Black();side.material=earth;

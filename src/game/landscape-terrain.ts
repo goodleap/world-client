@@ -8,7 +8,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import type { Scene } from '@babylonjs/core/scene';
 import type { Palette } from './models.ts';
 import { LANDSCAPE, MAP_SIZE, MAP_WIDTH, MAP_DEPTH, GRID_SIZE } from './world-data.ts';
-import { ROAD_PATHS, ROAD_HALF_WIDTH, roadHalfWidthAt } from './road-layout.ts';
+import { ROAD_PATHS, ROAD_HALF_WIDTH, paintedRoadHalfWidthAt } from './road-layout.ts';
 import { createLandformMeshes } from './landform-meshes.ts';
 import { seededRandom } from './landscape-layout.ts';
 import { treeCanopyRadius } from './tree-profile.ts';
@@ -85,12 +85,12 @@ export function createLandscapeTerrain(scene: Scene, _palette: Palette) {
       for(const path of ROAD_PATHS){
         const sides=[-1,1].map(side=>path.map((p,i)=>{
           const t=path[Math.min(i+1,path.length-1)].subtract(path[Math.max(0,i-1)]).normalize();
-          const width=roadHalfWidthAt(p)*layer.width*(1+.045*Math.sin(p.x*1.1+p.z*.7));
+          const width=paintedRoadHalfWidthAt(p)*layer.width;
           return{x:p.x+t.z*width*side,z:p.z-t.x*width*side};
         }));
         ctx.beginPath();for(const [i,p] of [...sides[0],...sides[1].reverse()].entries())i?ctx.lineTo(p.x,p.z):ctx.moveTo(p.x,p.z);
         ctx.closePath();ctx.fill();
-        for(const p of [path[0],path.at(-1)!]){ctx.beginPath();ctx.arc(p.x,p.z,roadHalfWidthAt(p)*layer.width,0,Math.PI*2);ctx.fill();}
+        for(const p of [path[0],path.at(-1)!]){ctx.beginPath();ctx.arc(p.x,p.z,paintedRoadHalfWidthAt(p)*layer.width,0,Math.PI*2);ctx.fill();}
       }
     }
     ctx.restore(); colors.update();

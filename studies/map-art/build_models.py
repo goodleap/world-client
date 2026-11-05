@@ -414,22 +414,41 @@ def grass():
     leaves.finish('Grass · curved tuft')
 
 
-def flowers():
-    leafmat,petalmat=mat('Meadow leaves'),mat('Soft flower petals')
-    leaves=Leaves(leafmat)
-    petals=Leaves(petalmat)
-    for i in range(7):
-        a=i*2.4;r=.2+(i%3)*.12
-        x,y=math.cos(a)*r,math.sin(a)*r
-        h=.25+(i%3)*.08
+def flowers(variant=0):
+    """Low wildflowers: rounded petals, connected short stems, basal leaves.
+    Authored at their final ground-cover budget, never crushed into shards.
+    """
+    material=mat('Meadow wildflowers')
+    layouts=[[(0,.03,.28),(-.23,-.15,.20),(.23,-.06,.23)],
+             [(-.16,.08,.30),(.18,.15,.22),(.03,-.20,.26),(-.28,-.12,.18)],
+             [(-.25,.12,.24),(.16,.14,.29),(0,-.18,.21),(.30,-.10,.18),(-.26,-.18,.16)]]
+    def oval(name,at,size,shade,angle=0):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=5,location=at)
+        obj=bpy.context.object;obj.name=name;obj.scale=size;obj.rotation_euler.z=angle
+        bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
+        painted(obj,material,shade,.012)
+    for i,(x,y,h) in enumerate(layouts[variant]):
+        # A slightly bent, visible stem terminates inside the flower center.
+        bend=.025*math.sin(i*2.1+variant)
+        points=[(x-bend,y,.025),(x-bend*.4,y+.012,h*.55),(x,y,h)]
+        vertices=[];faces=[]
+        for j,p in enumerate(points):
+            for k in range(7):
+                a=k*TAU/7;r=.018-j*.002
+                vertices.append((p[0]+math.cos(a)*r,p[1]+math.sin(a)*r,p[2]))
+        for j in range(2):
+            for k in range(7):faces.append((j*7+k,j*7+(k+1)%7,(j+1)*7+(k+1)%7,(j+1)*7+k))
+        mesh('Wildflower short stem',vertices,faces,[color('#628d3f')]*len(vertices),material)
+        for side in (-1,1):
+            a=i*1.7+side*.7
+            oval('Wildflower basal leaf',(x+math.cos(a)*.065,y+math.sin(a)*.065,.045),(.105,.044,.026),'#719946',a)
+        shade=('#fff0cb' if variant!=2 else '#e1b6d5') if i!=len(layouts[variant])-1 else '#f0cd66'
+        r=.082 if i else .095
         for j in range(5):
-            angle=j*TAU/5
-            petals.leaf((x,y,h),(math.cos(angle),math.sin(angle),.2),.13,.066,
-                        color(['#fff1d1','#d49dd1','#eac359'][i%3]),curl=.25)
-        ellipsoid('Flower center',(x,y,h+.01),(.045,.045,.035),'#dcaa40',petalmat)
-        leaves.leaf((x,y,0),(math.cos(a),math.sin(a),.7),.3,.07,color('#729140'),curl=.1)
-    leaves.finish('Flower patch leaves')
-    petals.finish('Flower patch petals')
+            a=j*TAU/5+i*.7
+            oval('Rounded flower petal',(x+math.cos(a)*r*.64,y+math.sin(a)*r*.64,h),
+                 (r,.048,.025),shade,a)
+        oval('Warm flower heart',(x,y,h+.018),(.034,.034,.025),'#dfaf48')
 
 
 def stone():
@@ -470,7 +489,7 @@ def cliff():
     vertices=[]
     for j,(h,s)in enumerate(zip(heights,setbacks)):
         for i,(x,y)in enumerate(zip(xs,front)):
-            vertices.append((x+.12*math.sin(i*2+j),y+s,h+(math.sin(i*2.3)*(.42 if j==5 else .18) if j else 0)))
+            vertices.append((x+.12*math.sin(i*2+j),y+s,h+(math.sin(i*2.3)*(.08 if j==5 else .18) if j else 0)))
     faces=[]
     for j in range(len(heights)-1):
         for i in range(len(xs)-1):
@@ -487,11 +506,11 @@ def cliff():
     colors=[]
     for x,y,z in vertices:
         t=max(0,min(1,z/3.7));c=blend(color('#8a8a75'),color('#bdb6a0'),t*.85)
-        if z>3 and x<-.8:c=blend(c,color('#8b9b53'),.4)
+        if z>3.3:c=blend(c,color('#8b9b53'),.3+.06*math.sin(x*.8))
         colors.append(c)
     obj=mesh('Cliff · broken ledges and exposed strata',vertices,faces,colors,material)
     bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj
-    bevel=obj.modifiers.new('Eroded edges','BEVEL');bevel.width=.085;bevel.segments=3
+    bevel=obj.modifiers.new('Eroded edges','BEVEL');bevel.width=.13;bevel.segments=3
     bpy.ops.object.modifier_apply(modifier=bevel.name)
     normal=obj.modifiers.new('Rock face normals','WEIGHTED_NORMAL');normal.keep_sharp=True
     bpy.ops.object.modifier_apply(modifier=normal.name)
@@ -508,7 +527,7 @@ def cliff():
     for obj in cracks:painted(obj,material,'#777964',0)
 
 
-BUILDERS={'oak':oak,'sapling':small_tree,'fruit':lambda:small_tree('fruit'),
+BUILDERS={'flowers-cream':lambda:flowers(1),'flowers-lilac':lambda:flowers(2),'oak':oak,'sapling':small_tree,'fruit':lambda:small_tree('fruit'),
           'blossom':lambda:small_tree('blossom'),'pine':pine,'bush':bush,'reeds':reeds,'grass':grass,'flowers':flowers,'stone':stone,'cliff':cliff}
 for size in ('small','large'):
     BUILDERS[f'oak-{size}']=lambda size=size:rounded_tree(size)

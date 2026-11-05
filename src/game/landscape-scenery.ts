@@ -17,40 +17,29 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
     if(asset!=='grass'&&asset!=='flowers'&&asset!=='reeds')shadows.addShadowCaster(mesh,false);
     return mesh;
   };
-  // The approved layered cliff model is set into the real terrace faces.
-  // It follows the whole rim, with explicit breaks at the road approaches.
+  // The rock model keeps its ledges but has a low, rounded upper rim. Match
+  // that rim to the actual terrace and overlap variable-width pieces instead
+  // of repeating deep notches above the grass. The native terrain joins behind.
+  const cliffRandom=seededRandom(18319);
   for(const form of LANDSCAPE.geography.forms.filter(f=>f.kind!=='basin')){
-    const line=form.area.points;
-    let carried=0;
+    const line=form.area.points;let carried=0;
     for(let i=0;i<line.length;i++){
       const a=line[i],b=line[(i+1)%line.length],length=Math.hypot(b.x-a.x,b.z-a.z);
       let nx=-(b.z-a.z)/length,nz=(b.x-a.x)/length;
       if(insidePolygon({x:a.x+nx*.3,z:a.z+nz*.3},form.area)){nx=-nx;nz=-nz;}
-      for(let d=carried;d<length;d+=4.7){
+      let d=carried;
+      for(;d<length;){
         const x=a.x+(b.x-a.x)*d/length,z=a.z+(b.z-a.z)*d/length,p={x,z};
-        if(LANDSCAPE.geography.roadDistance(p)<5.3||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<1.6))continue;
-        const reach=Math.max(2,form.edge*.85),base=terrainHeight(x+nx*reach,z+nz*reach),top=terrainHeight(x-nx*reach,z-nz*reach);
-        if(top-base<1.4)continue;
-        place('cliff',x,z,[.93+random()*.13,(top-base+.22)/3.7,.65+random()*.12],Math.atan2(nx,nz),base-.12);
-        if(random()<.45)place('bush',x+nx*1.2,z+nz*1.2,.65+random()*.35,random()*6.28,base-.05);
-        if(random()<.35)place('stone',x-nx*.6,z-nz*.6,[.4+random()*.4,.25+random()*.3,.45+random()*.3],random()*6.28,top-.12);
+        const width=.9+cliffRandom()*.3,depth=.65+cliffRandom()*.15,reach=Math.max(2,form.edge*.85);
+        const base=terrainHeight(x+nx*reach,z+nz*reach),top=terrainHeight(x-nx*reach,z-nz*reach);
+        d+=width*(4.1+cliffRandom()*.3);
+        if(top-base<1.4||LANDSCAPE.geography.roadDistance(p)<6||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<2))continue;
+        place('cliff',x,z,[width,(top-base)/3.5,depth],Math.atan2(nx,nz),base-.16);
       }
-      carried=(carried-length)%4.7;if(carried<0)carried+=4.7;
+      carried=d-length;
     }
   }
-  // Bushes, smaller trees and stones make a continuous but uneven forest edge.
-  for(const patch of LANDSCAPE.geography.forests){
-    const line=patch.area.points;
-    for(let i=0;i<line.length;i++){
-      const p=line[i];
-      if(LANDSCAPE.geography.roadDistance(p)<3.5||LANDSCAPE.waterAreas.some(a=>polygonDistance(p,a)<1.5))continue;
-      const d=1.4,a=random()*Math.PI*2,x=p.x+Math.cos(a)*d,z=p.z+Math.sin(a)*d;
-      if(!insidePolygon({x,z},patch.area))continue;
-      const slope=Math.abs(terrainHeight(x+1,z)-terrainHeight(x-1,z))+Math.abs(terrainHeight(x,z+1)-terrainHeight(x,z-1));
-      if(slope>1.5)continue;
-      place(i%5===0?'stone':'bush',x,z,.65+random()*.45,random()*6.28);
-    }
-  }
+  for(const item of LANDSCAPE.decorations)place(item.asset,item.x,item.z,item.scale,item.rotation);
   // Shore groups alternate reed pockets, gravel bars and larger creek stones;
   // there is no evenly spaced decorative ring around the water.
   for(const area of LANDSCAPE.waterAreas){
@@ -73,7 +62,7 @@ export function createLandscapeScenery(_scene:Scene,shadows:ShadowGenerator,libr
       }
       if(!wet&&pocket>1.1&&random()<.65){
         const x=p.x+nx*1.4,z=p.z+nz*1.4;
-        if(polygonDistance({x,z},area)<-1.2)place('stone',x,z,[.85+random()*.4,.65+random()*.5,.8+random()*.3],random()*6.28,LANDSCAPE.waterLevel({x,z})-.18);
+        if(polygonDistance({x,z},area)<-1.2)place('stone',x,z,[.85+random()*.4,.28+random()*.18,.8+random()*.3],random()*6.28,LANDSCAPE.waterLevel({x,z})-.18);
       }
     }
   }

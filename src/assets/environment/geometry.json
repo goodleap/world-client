@@ -35,9 +35,19 @@
     "far": 1040
   },
   "flowers": {
-    "near": 5880,
-    "medium": 752,
-    "far": 134
+    "near": 1620,
+    "medium": 1620,
+    "far": 1620
+  },
+  "flowers-cream": {
+    "near": 2160,
+    "medium": 2160,
+    "far": 2160
+  },
+  "flowers-lilac": {
+    "near": 2700,
+    "medium": 2700,
+    "far": 2700
   },
   "stone": {
     "near": 338,
@@ -45,8 +55,8 @@
     "far": 338
   },
   "cliff": {
-    "near": 2686,
-    "medium": 1610,
-    "far": 858
+    "near": 2614,
+    "medium": 1568,
+    "far": 836
   }
 }

@@ -12,13 +12,13 @@ import { polygonDistance } from './polygon.ts';
 import { nearRoad } from './road-layout.ts';
 
 type Footprint = Pick<BuildingSite, 'x' | 'z' | 'width' | 'depth'>;
-type Plant = Point & { size: number; rotation: number; flower: boolean };
+type Plant = Point & { size: number; rotation: number; flower: boolean; variant:number };
 const CHUNK_SIZE = 12, SPACING = 1.8, MARGIN = .42;
 const inFootprint = (p: Point, b: Footprint) => Math.abs(p.x - b.x) < b.width / 2 + MARGIN && Math.abs(p.z - b.z) < b.depth / 2 + MARGIN;
 /** Shared native thin instances: rounded silhouettes, one draw per visible
  * patch/type, no individual meshes, animation callbacks or shadow-map draws. */
 export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibrary,'source'>) {
-  const templates=[environment.source('grass','far'),environment.source('flowers','medium')];
+  const templates=[environment.source('grass','far'),...(['flowers','flowers-cream','flowers-lilac'] as const).map(a=>environment.source(a,'medium'))];
   const chunks = new Map<string, { mesh: Mesh; plants: Plant[]; visible?: Plant[] }>();
   const footprints: Footprint[] = [...BUILDINGS, ...FARM_PLOTS.map(p => ({ ...p, width: GRID_SIZE, depth: GRID_SIZE }))];
   let seed = 19331;
@@ -26,26 +26,26 @@ export function createGroundCover(scene: Scene, environment:Pick<EnvironmentLibr
   for (let z = -MAP_DEPTH / 2 + SPACING; z < MAP_DEPTH / 2 - SPACING; z += SPACING) {
     for (let x = -MAP_WIDTH / 2 + SPACING; x < MAP_WIDTH / 2 - SPACING; x += SPACING) {
       const plant: Plant = { x: x + (random() - .5) * SPACING * .9, z: z + (random() - .5) * SPACING * .9,
-        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: false };
+        size: .45 + random() * .5, rotation: random() * Math.PI * 2, flower: false, variant:0 };
       const region=LANDSCAPE.regions.reduce((a,b)=>Math.hypot((plant.x-a.x)/a.rx,(plant.z-a.z)/a.rz)<Math.hypot((plant.x-b.x)/b.rx,(plant.z-b.z)/b.rz)?a:b);
       const drift=Math.max(0,Math.sin(plant.x*.24+plant.z*.1)*Math.cos(plant.z*.29));
       const meadow=region.biome==='meadow',grove=region.biome==='orchard',rocky=region.biome==='rock'||region.biome==='camp';
-      plant.flower=random()<(meadow?.78:grove?.38:.08);
-      if(plant.flower)plant.size*=1.25;
+      plant.flower=random()<(meadow?.6:grove?.3:.08);
+      if(plant.flower){plant.size*=1.25;plant.variant=1+(Math.abs(Math.floor(plant.x/8)+Math.floor(plant.z/8)*7)%3);}
       if(random()>(rocky?.1:meadow?.45:grove?.28:.18)+drift*(meadow?.5:.25))continue;
       if (!LANDSCAPE.geography.inside(plant) || Math.abs(surfaceHeight(plant.x+1,plant.z)-surfaceHeight(plant.x-1,plant.z))+Math.abs(surfaceHeight(plant.x,plant.z+1)-surfaceHeight(plant.x,plant.z-1))>1.2 || random() < .12 || footprints.some(b => inFootprint(plant, b))
         || LANDSCAPE.waterAreas.some(a=>polygonDistance(plant,a)<.8)
         || RESOURCE_NODES.some(n => Math.hypot(plant.x - n.x, plant.z - n.z) < n.radius + MARGIN)
-        || nearRoad(plant, MARGIN)) continue;
+        || nearRoad(plant, (plant.flower?.65:.6)*plant.size+.16)) continue;
       const cx = Math.floor(plant.x / CHUNK_SIZE), cz = Math.floor(plant.z / CHUNK_SIZE);
-      const key = `${cx},${cz}:${plant.flower ? 'flowers' : 'grass'}`;
+      const key = `${cx},${cz}:${plant.variant}`;
       let chunk = chunks.get(key);
       if (!chunk) {
         const mesh = new Mesh(`meadow-cover-${key}`, scene);
         // Babylon attaches instance attributes to Geometry. Patches need their
         // own native geometry copy or the last patch's matrices replace all
         // earlier buffers; every plant inside a patch still shares one mesh.
-        templates[Number(plant.flower)].geometry!.copy(mesh.name).applyToMesh(mesh); mesh.material = templates[Number(plant.flower)].material;
+        templates[plant.variant].geometry!.copy(mesh.name).applyToMesh(mesh); mesh.material = templates[plant.variant].material;
         mesh.position.set(cx * CHUNK_SIZE, .025, cz * CHUNK_SIZE);
         mesh.isPickable = false; mesh.receiveShadows = true;
         mesh.freezeWorldMatrix();

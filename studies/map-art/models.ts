@@ -9,7 +9,7 @@ import '@babylonjs/loaders/glTF/index.js';
 import { TREE_COLORS, treeColor } from '../../src/game/tree-profile.ts';
 import type { TreeColor, TreeSpecies } from '../../src/game/tree-profile.ts';
 
-export const assetNames=['oak','oak-small','oak-large','sapling','fruit','blossom','pine','bush','reeds','grass','flowers','stone','cliff'] as const;
+export const assetNames=['oak','oak-small','oak-large','sapling','fruit','blossom','pine','bush','reeds','grass','flowers','flowers-cream','flowers-lilac','stone','cliff'] as const;
 export type AssetName=typeof assetNames[number];
 export type XYZ=[number,number,number];
 

@@ -32,7 +32,7 @@ export const RESOURCE_NODES = [
   ...TREES.map((tree, i) => ({ id: `tree-${i}`, kind: 'wood' as const, scale: tree.scale, rotation: tree.rotation, x: tree.x, z: tree.z, radius: treeCollisionRadius(tree,GRID_SIZE), canopyRadius:treeCanopyRadius(tree,GRID_SIZE), yield: 16, renew: 240 })),
   ...LANDSCAPE.rocks.map((rock, i) => ({ ...rock, id: `rock-${i}`, kind: 'stone' as const, radius: .85 * rock.scale, yield: 12, renew: 360 })),
   ...LANDSCAPE.iron.map((node, i) => ({ ...node, id: `iron-${i}`, kind: 'iron' as const, radius: .85 * node.scale, yield: 6, renew: 180 })),
-  ...LANDSCAPE.forage.map((node, i) => ({ ...node, id: `forage-${i}`, kind: 'food' as const, radius: .65, yield: 6, renew: 90 })),
+  ...LANDSCAPE.forage.map((node, i) => ({ ...node, id: `forage-${i}`, kind: 'food' as const, radius: .65 * node.scale, yield: 6, renew: 90 })),
 ];
 export function economyObstacles(depleted: readonly string[], sites: readonly BuildingSite[] = [], built: readonly string[] = sites.map(s => s.id)): Obstacle[] {
   return [

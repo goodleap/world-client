@@ -11,7 +11,7 @@ import { TREE_COLORS, treeAsset, treeColor } from './tree-profile.ts';
 import type { TreeSpecies, TreeSize, TreeColor } from './tree-profile.ts';
 import environmentAsset from '../assets/environment/environment.glb?url';
 
-export type EnvironmentAsset = 'bush'|'reeds'|'grass'|'flowers'|'stone'|'cliff';
+export type EnvironmentAsset = 'bush'|'reeds'|'grass'|'flowers'|'flowers-cream'|'flowers-lilac'|'stone'|'cliff';
 type Detail='near'|'medium'|'far';
 export async function loadEnvironment(scene:Scene) {
   // Vite fingerprints the content, just like character GLBs. A fixed public
