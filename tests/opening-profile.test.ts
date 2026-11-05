@@ -6,9 +6,10 @@ import { execFileSync } from 'node:child_process';
 test('map development starts clean, stays peaceful, and supports building, recruitment and reload', () => {
   execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
-    import { BUILDINGS, WAREHOUSE, createLandGrid } from './src/game/world-data.ts';
+    import { BUILDINGS, HOME_CENTER, GRID_SIZE, createLandGrid } from './src/game/world-data.ts';
     import { RESIDENTS, ENEMIES } from './src/game/resident-data.ts';
-    import { FARM_PLOTS } from './src/game/economy-config.ts';
+    import { FARM_PLOTS, economyObstacles } from './src/game/economy-config.ts';
+    import { isBlocked } from './src/game/movement.ts';
     import { Economy, encodeEconomy, decodeEconomy } from './src/game/economy.ts';
     import { Combat } from './src/game/combat.ts';
     import { Raids } from './src/game/raids.ts';
@@ -16,6 +17,15 @@ test('map development starts clean, stays peaceful, and supports building, recru
     import { buildingOperational } from './src/game/building-state.ts';
     const e = new Economy();
     assert.deepEqual(BUILDINGS.map(b => b.id), ['home-center']);
+    assert.equal(HOME_CENTER.x, -.5*GRID_SIZE);
+    assert.equal(HOME_CENTER.z, 4.5*GRID_SIZE);
+    const solids=economyObstacles([],[],[]);
+    assert(!isBlocked(e.state.recruitment.rally,.6,solids));
+    for(const r of RESIDENTS)assert(!isBlocked(r.spawn,r.bodyRadius,solids));
+    // Check the relocated footprint against resources, water and landforms.
+    const otherSolids=solids.filter(o=>!(o.kind==='box'&&o.x===HOME_CENTER.x&&o.z===HOME_CENTER.z));
+    for(let x=-1.5;x<=1.5;x+=.25)for(let z=-1.5;z<=1.5;z+=.25)
+      assert(!isBlocked({x:HOME_CENTER.x+x*GRID_SIZE,z:HOME_CENTER.z+z*GRID_SIZE},.08,otherSolids));
     assert.deepEqual(RESIDENTS.map(r => r.id), ['farmer', 'farmer-2', 'farmer-leader']);
     assert.equal(RESIDENTS.find(r => r.id === 'farmer-leader').effects[0], 'leader');
     assert.equal(ENEMIES.length, 0);
@@ -38,7 +48,7 @@ test('map development starts clean, stays peaceful, and supports building, recru
     assert.equal(e.state.goods.length, 0);
     assert.equal(e.state.tasks.length, 0);
     const fresh = new Economy();
-    const result = fresh.placeBuilding('warehouse', WAREHOUSE);
+    const result = fresh.placeBuilding('warehouse', {x:6.5*GRID_SIZE,z:4.5*GRID_SIZE});
     assert.equal(result.ok, true, result.message);
     assert.ok(result.task);
     fresh.assign(result.task.id, 'farmer'); fresh.arrive(result.task.id); fresh.advance(120);

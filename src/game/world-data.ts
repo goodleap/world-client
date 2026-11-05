@@ -23,7 +23,9 @@ export const PLAYER_RADIUS = 0.28;
 export const STANDARD_BUILDINGS = [
   { id: 'cottage', ...gridPoint(MAP_CELLS / 2 - 2, MAP_ROWS / 2 - 3), width: 2 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.65, roof: 'terracotta' },
   { id: 'warehouse', ...gridPoint(MAP_CELLS / 2 + 2.5, MAP_ROWS / 2 - 3), width: 3 * GRID_SIZE, depth: 2 * GRID_SIZE, height: 2.9, roof: 'terracotta' },
-  { id: 'home-center', ...gridPoint(MAP_CELLS / 2 + 6.5, MAP_ROWS / 2 - 4.5), width: 3 * GRID_SIZE, depth: 3 * GRID_SIZE, height: 3.1, roof: 'terracotta' },
+  // The current map opening places the center on the grass west of the fork.
+  // Keep the optional standard opening's cottage/warehouse footprint intact.
+  { id: 'home-center', ...gridPoint(MAP_CELLS / 2 + (MAP_DEVELOPMENT ? -.5 : 6.5), MAP_ROWS / 2 - 4.5), width: 3 * GRID_SIZE, depth: 3 * GRID_SIZE, height: 3.1, roof: 'terracotta' },
 ] as const;
 export const BUILDINGS = STANDARD_BUILDINGS.filter(b=>!MAP_DEVELOPMENT||b.id==='home-center');
 export const WAREHOUSE = STANDARD_BUILDINGS[1];

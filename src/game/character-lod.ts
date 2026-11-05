@@ -69,7 +69,9 @@ function addLevel(source: Mesh, data: VertexData | Geometry, area: number, suffi
   const coverage=Math.PI*radius*radius;
   source.addLODLevel(coverage/(area*(quality.get(scene)??1)),detail);
   if(!levels.has(scene))levels.set(scene,new Set());
-  levels.get(scene)!.add({source,detail,area,coverage});
+  const registered=levels.get(scene)!,level={source,detail,area,coverage};
+  registered.add(level);
+  source.onDisposeObservable.addOnce(()=>registered.delete(level));
   return detail;
 }
 

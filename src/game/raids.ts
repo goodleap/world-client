@@ -20,6 +20,7 @@ import { resetRouteState, stepRoute } from './route-following.ts';
 import type { Neighbour } from './route-following.ts';
 import { segmentIsClear } from './wander.ts';
 import { chooseTarget } from './targeting.ts';
+import { DebugRaids, RAID_DESTINATION } from './debug-raids.ts';
 
 export interface RaidResidents {
   status(id: string): { position: Point; moving: boolean };
@@ -30,7 +31,7 @@ export interface RaidResidents {
   neighbours(): Neighbour[];
 }
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
-const home = { x: 0, z: -3 };
+const home = RAID_DESTINATION;
 const circle = (p: Point, radius: number) => Array.from({ length: 8 }, (_, i) => ({ x: p.x + Math.cos(i * Math.PI / 4) * radius, z: p.z + Math.sin(i * Math.PI / 4) * radius }));
 
 const spawnSpots = (origin: Point, count: number) => count <= 8 ? circle(origin, 2.5).slice(0, count)
@@ -51,8 +52,10 @@ export class Raids {
   private planning = new Map<string,{intent:string;start:Point;points:Point[]}>();
   private escapePlans = new Map<string,NavigationInput>();
   private warningCandidate?:{origin:Point;count:number};
+  private debug: DebugRaids;
   constructor(economy: Economy, combat: Combat, people: RaidResidents, solids: () => readonly Obstacle[], visible: (point: Point) => boolean) {
     this.economy = economy; this.combat = combat; this.people = people; this.solids = solids; this.visible = visible;
+    this.debug = new DebugRaids(economy,combat,solids);
     combat.setResidentPositions(id => people.status(id).position);
     this.syncThreats();
   }
@@ -262,15 +265,16 @@ export class Raids {
     }
   }
   update(seconds: number) {
-    if(MAP_DEVELOPMENT)return;
+    if(MAP_DEVELOPMENT&&!this.economy.state.debug)return;
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const dt = Math.min(seconds, .25), now = this.economy.state.seconds;
+    if(this.economy.state.debug)this.debug.update();
     this.updateAreas();
-    if(this.state.phase==='peace'){
+    if(!this.economy.state.debug&&this.state.phase==='peace'){
       if(!this.state.pendingOrigin&&now>=this.state.nextAt-C.warning)this.warn();
       if(this.state.pendingOrigin&&now>=this.state.nextAt)this.spawn();
     }
-    for(const id of this.state.soldiers){const u=this.combat.unit(id);if(!u||u.life!=='active'||u.departed)continue;
+    if(!this.economy.state.debug)for(const id of this.state.soldiers){const u=this.combat.unit(id);if(!u||u.life!=='active'||u.departed)continue;
       if(now-this.state.startedAt<C.duration&&!u.target&&!u.attack&&!u.goal){u.order='guard';u.goal={...home};}
       if(now-this.state.startedAt>=C.duration){
         if(u.order!=='retreat'){u.route=[];u.attackApproach=undefined;u.planIn=0;resetRouteState(u.navigation);}
@@ -282,7 +286,7 @@ export class Raids {
     if (this.decisions <= 0) { this.decisions = .35; this.protect(); }
     let remaining = dt;
     while (remaining > 1e-8) { const step = Math.min(.05, remaining); for (const w of this.wolves) this.tick(w, step); remaining -= step; }
-    if (this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')
+    if (!this.economy.state.debug && this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')
       && this.state.soldiers.every(id=>{const u=this.combat.unit(id);return !u||u.life==='defeated'||u.departed;})) {
       this.state.phase = 'peace'; this.state.nextAt = now + C.intervalMin + raidRandom(this.state) * (C.intervalMax - C.intervalMin);
       const stolen = this.state.wolves.filter(w => w.mode === 'gone').reduce((n, w) => n + w.carried, 0);

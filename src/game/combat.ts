@@ -1,6 +1,6 @@
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { surfaceHeight } from './terrain-height.ts';
-import { RAID_CONFIG } from './raid-state.ts';
+import { RAID_CONFIG, DEBUG_RAID_CONFIG } from './raid-state.ts';
 import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
 import { assignedTower, occupiedTower, towerHeight, towerExit, releaseTower, damageTower, TOWER_CONFIG } from './towers.ts';
 import type { Point, Obstacle } from './movement.ts';
@@ -176,6 +176,7 @@ export class Combat {
     }
     this.state.projectiles = this.state.projectiles.filter(p => this.target(p.target) && this.units.has(p.source));
     for (const id of this.statCache.keys()) if (!this.units.has(id)) this.statCache.delete(id);
+    for (const id of this.planning.keys()) if (!this.units.has(id)) this.planning.delete(id);
   }
   hurt(id: string, damage: number, source: string) { const target = this.target(id); if (target) this.damage(target, damage, source); }
   private awardDamage(sourceId: string, damage: number) {
@@ -703,9 +704,9 @@ export class Combat {
 
 /** Strict fixed-unit and external-target save validation. Reject malformed state instead of silently healing,
  * resetting cooldowns, or minting another outpost reward. */
-export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly {id:string}[]=[]): CombatState {
+export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [], residents:readonly ResidentDefinition[]=RESIDENTS,towers:readonly {id:string}[]=[],debug=false): CombatState {
   const raiders=(Array.isArray(raw?.units)?raw.units:[]).filter(u=>u.id?.startsWith('enemy-raid-'));
-  if(raiders.length>RAID_CONFIG.maxSoldiers||raiders.some(u=>!/^enemy-raid-(infantry|archer|cavalry)-[1-9]\d*-(?:[0-9]|1[01])$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
+  if(raiders.length>(debug?DEBUG_RAID_CONFIG.maxSoldiers:RAID_CONFIG.maxSoldiers)||raiders.some(u=>!/^enemy-raid-(infantry|archer|cavalry)-[1-9]\d*-(?:[0-9]|1[01])$/.test(u.id)||u.id.split('-')[2]!==u.role||!u.home))throw new Error('敌袭人物存档无效');
   const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer'|'cavalry',u.id,u.home))]);
   const opponents = [...initial.units, ...threats, ...(Array.isArray(towers)?towers:[]).map(t=>({id:t.id,team:'home' as const})), ...residents.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;

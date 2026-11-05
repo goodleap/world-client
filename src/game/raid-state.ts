@@ -10,6 +10,8 @@ import type { Point } from './movement.ts';
 /** Trial pacing; game time only. No wall clock or refresh-time random rolls. */
 export const RAID_CONFIG = { protection: 60, intervalMin: 45, intervalMax: 75, maxWolves: 6, maxSoldiers: 12, warning: 8,
   duration: 120, fearRadius: 6, fearSeconds: 3, acquire: 11, chase: 17, aidRadius: 10, loot: 2, feedSeconds: 1.1 };
+/** Debug pressure test: continuous mixed soldiers, on the same game clock. */
+export const DEBUG_RAID_CONFIG = { firstAt: 5, interval: 8, batch: 12, spawnInterval: .25, maxSoldiers: 72 } as const;
 export const WILD_WOLF_SPAWNS: readonly Point[] = MAP_DEVELOPMENT?[]:[
   { x: -48, z: -1 }, { x: -48, z: 2 },
   { x: -49, z: 40 }, { x: -49, z: 43 },
@@ -25,8 +27,8 @@ export interface RaidState {
   evading: Record<string, { planAt: number; attacker?:string }>;
   soldiers: string[]; warningAt: number; pendingCount:number; pendingOrigin?: Point;
 }
-export function initialRaids(seconds = 0, seed = 0x59a31b): RaidState {
-  return { seed: seed >>> 0 || 1, wave: 0, phase: 'peace', nextAt: seconds + RAID_CONFIG.protection,
+export function initialRaids(seconds = 0, seed = 0x59a31b, debug = false): RaidState {
+  return { seed: seed >>> 0 || 1, wave: 0, phase: 'peace', nextAt: seconds + (debug ? DEBUG_RAID_CONFIG.firstAt : RAID_CONFIG.protection),
     startedAt: 0, notice: '', noticeUntil: 0, wolves: [], wildWolves: WILD_WOLF_SPAWNS.map((p, i) => newWolf(`wolf-wild-${i}`, p)), evading: {},soldiers:[],warningAt:0,pendingCount:0 };
 }
 export const allWolves = (state: RaidState) => [...state.wolves, ...state.wildWolves];
@@ -39,7 +41,7 @@ export function newWolf(id: string, position: Point): Wolf {
     life: 'active', order: 'guard', facing: 0, speed: 0, cooldown: 0, route: [], navigation: createRouteState(), planIn: 0,
     mode: 'approach', fear: 0, carried: 0, settled: false, feeding: 0, gait: 0 };
 }
-export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonly ResidentDefinition[]=RESIDENTS,towerIds:readonly string[]=[]): RaidState {
+export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonly ResidentDefinition[]=RESIDENTS,towerIds:readonly string[]=[],debug=false): RaidState {
   const n = (x: number, max = 1e12) => Number.isFinite(x) && x >= 0 && x <= max;
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && p.x >= WORLD_BOUNDS.minX && p.x <= WORLD_BOUNDS.maxX && p.z >= WORLD_BOUNDS.minZ && p.z <= WORLD_BOUNDS.maxZ;
   if (!raw || !Number.isInteger(raw.seed) || !n(raw.seed, 0xffffffff) || !raw.seed || !Number.isSafeInteger(raw.wave) || !n(raw.wave)
@@ -48,8 +50,11 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
     || !Array.isArray(raw.wolves) || raw.wolves.length > RAID_CONFIG.maxWolves || new Set(raw.wolves.map(w => w.id)).size !== raw.wolves.length
     || !Array.isArray(raw.wildWolves) || raw.wildWolves.length !== WILD_WOLF_SPAWNS.length
     || raw.wildWolves.some((w, i) => w.id !== `wolf-wild-${i}` || !point(w.home) || Math.hypot(w.home.x - WILD_WOLF_SPAWNS[i].x, w.home.z - WILD_WOLF_SPAWNS[i].z) > .001 || w.mode === 'gone')
-    || !Array.isArray(raw.soldiers)||raw.soldiers.length>RAID_CONFIG.maxSoldiers||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>!new RegExp(`^enemy-raid-(infantry|archer|cavalry)-${raw.wave}-(?:[0-9]|1[01])$`).test(id))
-    ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,raw.wave%2 ? RAID_CONFIG.maxSoldiers : RAID_CONFIG.maxWolves)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
+    || !Array.isArray(raw.soldiers)||raw.soldiers.length>(debug?DEBUG_RAID_CONFIG.maxSoldiers:RAID_CONFIG.maxSoldiers)||new Set(raw.soldiers).size!==raw.soldiers.length||raw.soldiers.some(id=>{
+      const match=/^enemy-raid-(infantry|archer|cavalry)-([1-9]\d*)-(?:[0-9]|1[01])$/.exec(id);
+      return !match || !Number.isSafeInteger(Number(match[2])) || (debug ? Number(match[2])>raw.wave : Number(match[2])!==raw.wave);
+    })
+    ||!n(raw.warningAt)||!Number.isInteger(raw.pendingCount)||!n(raw.pendingCount,debug?DEBUG_RAID_CONFIG.batch:raw.wave%2 ? RAID_CONFIG.maxSoldiers : RAID_CONFIG.maxWolves)||raw.pendingOrigin&&(!point(raw.pendingOrigin)||!raw.pendingCount)
     || !raw.evading || typeof raw.evading !== 'object') throw new Error('狼群袭击存档无效');
   for (const [id, e] of Object.entries(raw.evading)) {
     if (!residents.some(r => r.id === id) || !e || !n(e.planAt) || e.attacker!==undefined&&(typeof e.attacker!=='string'||e.attacker.length>100)) throw new Error('避险存档无效');
@@ -74,6 +79,6 @@ export function decodeRaids(raw: RaidState, nextAttack: number,residents:readonl
     if (w.attack) attackIds.add(w.attack.id);
     w.navigation = createRouteState(); w.speed = 0; w.planIn = .2;
   }
-  if (raw.phase === 'raid' && (!raw.origin || !raw.wolves.length&&!raw.soldiers.length) || raw.phase === 'peace' && raw.wolves.some(w => w.life === 'active' ? w.mode !== 'gone' : !w.settled)) throw new Error('袭击阶段无效');
+  if (raw.phase === 'raid' && (!raw.origin || !raw.wolves.length&&!raw.soldiers.length&&!(debug&&raw.pendingCount)) || raw.phase === 'peace' && raw.wolves.some(w => w.life === 'active' ? w.mode !== 'gone' : !w.settled)) throw new Error('袭击阶段无效');
   return structuredClone(raw);
 }

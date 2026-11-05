@@ -232,6 +232,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         for(const mesh of actor.root.getChildMeshes())shadows.removeShadowCaster(mesh,false);
         actor.elevationRoot.dispose();for(const skeleton of skeletons)skeleton.dispose();ui.removeResidentLabel(id);actorById.delete(id);actors.splice(actors.indexOf(actor),1);
         for(const map of [locomotion,characterModels,characterBones,characterLODs,combatClips,fallPostures,bowPoses,visualMeshes,combatPoses,playingAttack])map.delete(id);
+        for(const stage of ['attach','geometry','death'])loadingProgress.items.delete(`${id}:${stage}`);
       }
       const added=definitions.filter(d=>!actorById.has(d.id));
       if(!added.length)return attaching;

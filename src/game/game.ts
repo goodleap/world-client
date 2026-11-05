@@ -39,7 +39,7 @@ import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
 import { MovementInput } from './input.ts';
 import { pinchMapCamera } from './pinch-zoom.ts';
-import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE } from './world-data.ts';
+import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE, HOME_CENTER } from './world-data.ts';
 import { createSelectionFeedback } from './selection-feedback.ts';
 import '@babylonjs/core/Culling/ray';
 import type { GameUI } from '../ui.ts';
@@ -83,7 +83,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let meshRevision = 0, selectionRevision = '';
   scene.onNewMeshAddedObservable.add(() => meshRevision++);
   scene.onMeshRemovedObservable.add(() => meshRevision++);
-  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, new Vector3(GRID_SIZE, 0.5, -2), scene);
+  const homeCenter = new Vector3(HOME_CENTER.x, surfaceHeight(HOME_CENTER.x, HOME_CENTER.z) + HOME_CENTER.height / 2, HOME_CENTER.z);
+  const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, homeCenter.clone(), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
   const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -135,6 +136,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       }
       return world;
     });
+    // The picking box is built at the model bounds' center. Its transform is
+    // ready before the first render, unlike the lazily updated world bounds.
+    const centerHit=scene.getMeshByName('home-center-building-hit');
+    if(centerHit)homeCenter.copyFrom(centerHit.position);
     residents = createResidents(scene, palette, shadows, ui, world.obstacles, economy.state.vitals, definitions(),id=>towerHeight(economy.state,id),
       id=>economy.state.combat.units.find(u=>u.id===id)?.position??economy.state.residents[id]?.position);
 
@@ -365,7 +370,6 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   });
   refreshEconomy();
   const projectionIdentity = Matrix.Identity();
-  const homeCenter = new Vector3(GRID_SIZE, .5, -2);
   const defaultZoom = () => 5 * GRID_SIZE / Math.min(1, engine.getRenderWidth() / engine.getRenderHeight());
   let zoom = defaultZoom();
   let overview = false;
