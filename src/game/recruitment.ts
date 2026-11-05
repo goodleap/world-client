@@ -18,13 +18,14 @@ export const RECRUIT_CONFIG = {
   dog: { name: '田园犬', seconds: 8, cost: { food: 4 } },
 } satisfies Record<ResidentRole, { name: string; seconds: number; cost: Partial<Inventory> }>;
 export const POPULATION_LIMIT = 200, DOG_LIMIT = 4, RECRUIT_QUEUE_LIMIT = 20;
+export const recruitSeconds = (state: Pick<EconomyState, 'debug'>, role: ResidentRole) => state.debug ? 1 : RECRUIT_CONFIG[role].seconds;
 export interface RecruitOrder { serial: number; role: ResidentRole; elapsed: number }
 export interface RecruitmentState { nextId: number; roster: ResidentDefinition[]; queue: RecruitOrder[]; rally: Point }
 export const initialRecruitment = (): RecruitmentState => ({ nextId: 1, roster: [], queue: [],
   rally: { x: HOME_CENTER.x, z: HOME_CENTER.z - HOME_CENTER.depth / 2 - 3.5 } });
 export const homeResidents = (state: Pick<EconomyState, 'recruitment'>) => [...RESIDENTS, ...state.recruitment.roster];
 export const livingResidents = (state: EconomyState) => homeResidents(state).filter(r => health(state, r.id) > 0);
-export function decodeRecruitment(raw:RecruitmentState):RecruitmentState {
+export function decodeRecruitment(raw:RecruitmentState, debug=false):RecruitmentState {
   const point=(p:Point)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&inBounds(p,0,WORLD_BOUNDS);
   if(!raw||!Number.isSafeInteger(raw.nextId)||raw.nextId<1||!point(raw.rally)||!Array.isArray(raw.roster)||raw.roster.length>1000
     ||!Array.isArray(raw.queue)||raw.queue.length>RECRUIT_QUEUE_LIMIT)throw new Error('招募存档无效');
@@ -36,7 +37,7 @@ export function decodeRecruitment(raw:RecruitmentState):RecruitmentState {
   });
   const queue=raw.queue.map((q,i)=>{
     if(!q||!Object.hasOwn(RECRUIT_CONFIG,q.role)||!Number.isSafeInteger(q.serial)||q.serial<1||q.serial>=raw.nextId||ids.has(q.serial)
-      ||!Number.isFinite(q.elapsed)||q.elapsed<0||q.elapsed>RECRUIT_CONFIG[q.role].seconds||i>0&&q.elapsed!==0)throw new Error('招募队列存档无效');
+      ||!Number.isFinite(q.elapsed)||q.elapsed<0||q.elapsed>recruitSeconds({debug},q.role)||i>0&&q.elapsed!==0)throw new Error('招募队列存档无效');
     ids.add(q.serial);return {...q};
   });
   return {nextId:raw.nextId,roster,queue,rally:{...raw.rally}};
@@ -71,8 +72,9 @@ export function advanceRecruitment(e: Economy, seconds: number, occupants: reado
   if(!Number.isFinite(seconds)||seconds<=0)return;
   if(!buildingOperational(e.state,'home-center'))return;
   const state=e.state, order=state.recruitment.queue[0];if(!order)return;
-  order.elapsed=Math.min(RECRUIT_CONFIG[order.role].seconds,order.elapsed+seconds);
-  if(order.elapsed<RECRUIT_CONFIG[order.role].seconds)return;
+  const duration=recruitSeconds(state,order.role);
+  order.elapsed=Math.min(duration,order.elapsed+seconds);
+  if(order.elapsed<duration)return;
   const id=`recruit-${order.role}-${order.serial}`, radius=STANDARD_RESIDENTS.find(r=>r.role===order.role)!.bodyRadius;
   const solids=[...economyObstacles(state.depleted,state.sites,state.buildings),...occupants];
   const door={x:HOME_CENTER.x-.35,z:HOME_CENTER.z-HOME_CENTER.depth/2-1.25};

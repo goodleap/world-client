@@ -5,8 +5,8 @@
   "materials": 2,
   "crown": {
     "diameter": 1.5,
-    "height": 2.50959,
-    "bare_trunk_fraction": 0.1655,
+    "height": 2.71721,
+    "bare_trunk_fraction": 0.2292,
     "shape": "tiered-conifer",
     "branch_tiers": 6
   }

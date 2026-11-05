@@ -590,7 +590,7 @@ export function decodeEconomy(text: string): Economy {
   // Explicitly taking over held work may briefly exceed the new-order limit.
   if (raw.tasks.filter(t => !pending(t)).length > 12) throw new Error('作业队列超出上限');
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
-  state.recruitment=decodeRecruitment(raw.recruitment);
+  state.recruitment=decodeRecruitment(raw.recruitment,state.debug);
   const residents=homeResidents(state),residentIds=new Set(residents.map(r=>r.id));
   if(!Array.isArray(raw.groups)||raw.groups.length!==GROUP_COUNT||raw.groups.some(g=>!Array.isArray(g)||g.length>GROUP_SIZE||g.some(id=>!residentIds.has(id)))
     ||new Set(raw.groups.flat()).size!==raw.groups.flat().length)throw new Error('编队存档无效');

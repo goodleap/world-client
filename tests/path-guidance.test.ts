@@ -45,3 +45,24 @@ test('consuming a bend retains arrow positions, while a real replan or another s
     view.update('farmer',{x:4,z:4},[]);assert(!view.snapshot().visible);
   }finally{scene.dispose();engine.dispose()}
 });
+
+test('route symbols retain their surface dimensions on cross, uphill and diagonal slopes',()=>{
+  const engine=new NullEngine(),scene=new Scene(engine);
+  try {
+    const points=(height:(x:number,z:number)=>number)=>{
+      const view=createPathGuidance(scene,height),endpoint={x:0,z:8};
+      view.update('farmer',{x:0,z:0},[endpoint]);assert.deepEqual(view.snapshot().endpoint,endpoint);
+      return Array.from(scene.meshes.at(-1)!.getVerticesData(VertexBuffer.PositionKind)!);
+    };
+    const flat=points(()=>0),distance=(p:number[],a:number,b:number)=>Math.hypot(...[0,1,2].map(k=>p[a*3+k]-p[b*3+k]));
+    for(const [hx,hz] of [[2,0],[0,2],[1.5,-1]]){
+      const slope=points((x,z)=>hx*x+hz*z);assert.equal(slope.length,flat.length);
+      // First arrow: all vertex pairs must retain the same shape, not merely its XZ footprint.
+      for(let a=0;a<90;a++)for(let b=a+1;b<90;b++)assert(Math.abs(distance(flat,a,b)-distance(slope,a,b))<1e-5);
+      // The destination diamond's four border strips keep their thickness too.
+      const end=flat.length/3-16;
+      for(let a=end;a<flat.length/3;a++)for(let b=a+1;b<flat.length/3;b++)assert(Math.abs(distance(flat,a,b)-distance(slope,a,b))<1e-5);
+      for(let i=0;i<slope.length;i+=3)assert(Math.abs(slope[i+1]-hx*slope[i]-hz*slope[i+2]-.095)<1e-5);
+    }
+  }finally{scene.dispose();engine.dispose();}
+});

@@ -78,7 +78,7 @@ export function createUI(app: HTMLElement) {
         <details id="unit-details"><summary aria-label="展开或收起单位详情">
           <div class="resident-card-heading"><strong id="resident-name"></strong><small id="resident-level" hidden></small><span id="resident-activity"></span></div>
           <div id="resident-vitals" class="resident-vitals"></div>
-        </summary><div id="unit-attributes" class="unit-attributes"></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></details>
+        </summary><div class="unit-details-body"><div id="unit-attributes" class="unit-attributes"></div><label id="leader-command-control" class="leader-command" hidden><span>指挥</span><input id="leader-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></div></details>
         <span id="resident-hint" class="sr-only"></span>
       </section>
       <section id="selection-card" class="selection-card" aria-label="对象信息" hidden><strong id="selection-name"></strong><small id="selection-kind"></small><p id="selection-hint" role="status"></p></section>
@@ -130,7 +130,7 @@ export function createUI(app: HTMLElement) {
         <p id="building-notice" class="dialog-note" role="status"></p>
       </section>
       <section id="population-panel" role="tabpanel" aria-labelledby="population-tab" hidden>
-        <p id="population-summary"></p>
+        <div class="population-heading"><p id="population-summary"></p><label id="population-command-control" class="leader-command" hidden><span>领头指挥</span><input id="population-command-enabled" type="checkbox" role="switch" aria-label="开启领头指挥"></label></div>
         <div class="population-tools"><div id="group-editor-tabs" class="home-tabs" aria-label="选择要编辑的编队"></div><div class="group-edit-actions"><button id="clear-group">清空本队</button></div></div>
         <nav id="population-filters" class="population-filters" aria-label="按人物类型筛选"></nav>
         <div class="population-scroll">
@@ -454,6 +454,9 @@ export function createUI(app: HTMLElement) {
     bindLeadership(callback: (enabled: boolean) => void) {
       const toggle = get<HTMLInputElement>('leader-command-enabled');
       toggle.addEventListener('change', () => { callback(toggle.checked); focusGame(); }, options);
+    },
+    setLeadership(enabled: boolean) {
+      for(const id of ['leader-command-enabled','population-command-enabled'])get<HTMLInputElement>(id).checked=enabled;
     },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
     bindDiagnostics(callback: () => unknown) { diagnostics = callback; },

@@ -3,6 +3,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { Color3 } from '@babylonjs/core/Maths/math.color.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
 import earcut from 'earcut';
 import type { Scene } from '@babylonjs/core/scene.js';
@@ -11,7 +12,7 @@ import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 
 /** Draw only the authoritative remaining route. No second path search, timer,
  * particles, extra render pass or mesh per waypoint. Idle wandering is omitted. */
-export function createPathGuidance(scene: Scene) {
+export function createPathGuidance(scene: Scene, heightAt=surfaceHeight) {
   const mesh = new Mesh('selected-route', scene), material = new StandardMaterial('selected-route-ink', scene);
   material.disableLighting = true; material.emissiveColor = Color3.White();
   material.backFaceCulling = false; material.disableDepthWrite = true;
@@ -29,6 +30,16 @@ export function createPathGuidance(scene: Scene) {
   const outer = round([[0,.38],[.42,-.04],[.26,-.20],[0,.06],[-.26,-.20],[-.42,-.04]], .10);
   const inset = round([[0,.3234],[.3634,-.04],[.26,-.1434],[0,.1166],[-.26,-.1434],[-.3634,-.04]], .07);
   const fillIndices=earcut(inset.flat()), sides=outer.length;
+  // An orthonormal terrain frame keeps the symbol's physical width on slopes.
+  // Sampling is done only when route geometry changes, never on camera motion.
+  const terrainFrame=(center:Point,direction:Point)=>{
+    const d=.2, hx=(heightAt(center.x+d,center.z)-heightAt(center.x-d,center.z))/(2*d);
+    const hz=(heightAt(center.x,center.z+d)-heightAt(center.x,center.z-d))/(2*d);
+    const normal=new Vector3(-hx,1,-hz).normalize();
+    const forward=new Vector3(direction.x,hx*direction.x+hz*direction.z,direction.z).normalize();
+    const right=Vector3.Cross(normal,forward).normalize();
+    return ([r,f]:number[]):Point=>({x:center.x+right.x*r+forward.x*f,z:center.z+right.z*r+forward.z*f});
+  };
   type RouteSymbol = { x: number; z: number; station: number; first: number; count: number; alpha: number; arrow: boolean };
   let points: Point[] = [], anchors: Point[] = [], stations: number[] = [], symbols: RouteSymbol[] = [];
   let selected: string | undefined, activeId: string | undefined, progress = 0, revision = 0, colors = new Float32Array();
@@ -54,13 +65,13 @@ export function createPathGuidance(scene: Scene) {
         const positions: number[] = [], indices: number[] = [], tint: number[] = [];
         const vertices = (corners: Point[], color: Color3) => {
           const base = positions.length / 3;
-          for (const p of corners) { positions.push(p.x, surfaceHeight(p.x,p.z)+.095, p.z); tint.push(color.r, color.g, color.b, 1); }
+          for (const p of corners) { positions.push(p.x, heightAt(p.x,p.z)+.095, p.z); tint.push(color.r, color.g, color.b, 1); }
           return base;
         };
-        const strip = (a: Point, b: Point, width: number) => {
+        const strip = (a: Point, b: Point, width: number, orient:(p:number[])=>Point) => {
           const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < .001) return;
           const x = (b.z - a.z) / d * width, z = (a.x - b.x) / d * width;
-          const base = vertices([{ x: a.x + x, z: a.z + z }, { x: b.x + x, z: b.z + z }, { x: b.x - x, z: b.z - z }, { x: a.x - x, z: a.z - z }], outline);
+          const base = vertices([[a.x+x,a.z+z],[b.x+x,b.z+z],[b.x-x,b.z-z],[a.x-x,a.z-z]].map(orient), outline);
           indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
         };
         // Anchor spacing at the destination. Even when a detour replans the
@@ -75,7 +86,7 @@ export function createPathGuidance(scene: Scene) {
             // Leave breathing room around sharp navigation bends and the goal.
             if (offset < .32 || length - offset < .42) continue;
             const x = a.x + dx * offset, z = a.z + dz * offset;
-            const orient = ([right, forward]: number[]): Point => ({ x: x + dz * right + dx * forward, z: z - dx * right + dz * forward });
+            const orient = terrainFrame({x,z},{x:dx,z:dz});
             const border = vertices([...outer, ...inset].map(orient), outline);
             for (let k = 0; k < sides; k++) {
               const n = (k + 1) % sides;
@@ -86,9 +97,10 @@ export function createPathGuidance(scene: Scene) {
             symbols.push({x,z,station,first:border,count:positions.length/3-border,alpha:-1,arrow:true});
           }
         }
-        const end = next.at(-1)!, diamond = [{ x: end.x, z: end.z + .28 }, { x: end.x + .28, z: end.z }, { x: end.x, z: end.z - .28 }, { x: end.x - .28, z: end.z }];
+        const end = next.at(-1)!, diamond = [{ x: 0, z: .28 }, { x: .28, z: 0 }, { x: 0, z: -.28 }, { x: -.28, z: 0 }];
+        const endFrame=terrainFrame(end,{x:0,z:1});
         const first=positions.length/3;
-        diamond.forEach((p, i) => strip(p, diamond[(i + 1) % 4], .035));
+        diamond.forEach((p, i) => strip(p, diamond[(i + 1) % 4], .035,endFrame));
         symbols.push({...end,station:total,first,count:positions.length/3-first,alpha:-1,arrow:false});
         colors = new Float32Array(tint);
         const data = new VertexData(); data.positions = positions; data.indices = indices; data.colors = colors;

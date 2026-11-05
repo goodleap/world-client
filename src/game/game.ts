@@ -345,7 +345,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (ui.paused || suspended) return;
     if (economy.cancel(id)) { world.sync(); refreshEconomy(); save(); }
   });
+  const setLeadership=(enabled:boolean)=>{
+    economy.setLeadership(enabled);
+    ui.setLeadership(enabled);
+    if (!enabled && farmerLeader) ui.clearResidentSpeech(farmerLeader.id);
+    refreshEconomy(); save();
+  };
   const management=createHomeManagement(economy,ui,{
+    leadership:setLeadership,
     save:()=>{refreshEconomy();return save();},demolish:requestDemolition,
     select:index=>{
       if(ui.paused||suspended)return;
@@ -574,9 +581,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   });
   ui.bindLeadership(enabled => {
     if (ui.paused || suspended || residents.selectedId() !== farmerLeader?.id) return;
-    economy.setLeadership(enabled);
-    if (!enabled && farmerLeader) ui.clearResidentSpeech(farmerLeader.id);
-    refreshEconomy(); save();
+    setLeadership(enabled);
   });
   ui.bindLighting(lighting, value => {
     lighting = value; applyDaylight(scene, lighting);

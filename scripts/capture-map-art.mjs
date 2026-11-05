@@ -57,7 +57,8 @@ try {
       });
       for(const tree of measured){
         const [primary,infill,diameter]=({small:[5,1,1],medium:[9,2,1.5],large:[14,4,2]})[tree.size];
-        if(tree.lobes!==primary+infill||tree.primaryLobes!==primary||tree.infillLobes!==infill||Math.abs(tree.diameter-diameter)>.0001||tree.bareTrunkFraction>.32)throw new Error(`Tree dimensions differ from the review brief: ${JSON.stringify(tree)}`);
+        // Approved crown retained; exposed trunk raised by 50% on 2026-11-05.
+        if(tree.lobes!==primary+infill||tree.primaryLobes!==primary||tree.infillLobes!==infill||Math.abs(tree.diameter-diameter)>.0001||tree.bareTrunkFraction<.36||tree.bareTrunkFraction>.40)throw new Error(`Tree dimensions differ from the review brief: ${JSON.stringify(tree)}`);
       }
       if(measured.length!==3)throw new Error('Three tree sizes must be visible in the review');
       results.at(-1).trees=measured;

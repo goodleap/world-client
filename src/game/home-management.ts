@@ -2,7 +2,7 @@ import {effectiveFighterStats} from './combat.ts';
 import type { GameUI } from '../ui.ts';
 import type { Economy } from './economy.ts';
 import { RESOURCE_NAMES } from './economy.ts';
-import { recruit, cancelRecruit, RECRUIT_CONFIG, livingResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
+import { recruit, cancelRecruit, recruitSeconds, RECRUIT_CONFIG, livingResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
 import { GROUP_COUNT, GROUP_SIZE, groupMembers, saveGroup } from './groups.ts';
 import { populationInfo } from './unit-info.ts';
 import type { ResidentRole } from './resident-data.ts';
@@ -10,7 +10,7 @@ import { buildingList, buildingOperational, repairQuote } from './building-state
 import { ECONOMY_CONFIG } from './economy-config.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
-export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void}) {
+export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void;leadership:(enabled:boolean)=>void}) {
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
   let editing=0,filter='all',shortcutKey='',recruitKey='',populationKey='',buildingKey='';
@@ -25,6 +25,8 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     populationKey='';renderPopulation();
   }
   function renderPopulation() {
+    get('population-command-control').hidden=!livingResidents(e.state).some(r=>r.role==='farmer'&&r.effects?.includes('leader'));
+    (get('population-command-enabled') as HTMLInputElement).checked=e.state.steward.enabled;
     const rows=populationInfo(e.state), key=JSON.stringify([rows,editing,filter]);
     if(key===populationKey)return;populationKey=key;
     notice();
@@ -91,6 +93,10 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     get('building-notice').textContent=e.state.autoRepair?'自动维修已开启，材料不足或区域危险时等待':'自动维修已关闭，已安排的任务可单独取消';
     callbacks.save();renderBuildings();
   },options);
+  get('population-command-enabled').addEventListener('change',()=>{
+    callbacks.leadership((get('population-command-enabled') as HTMLInputElement).checked);
+    renderPopulation();
+  },options);
   get('population-filters').replaceChildren(...Object.entries({all:'全部',farmer:'农民',infantry:'步兵',archer:'弓兵',cavalry:'骑兵',dog:'狗'}).map(([role,name])=>{
     const b=button(name,()=>{filter=role;for(const child of get('population-filters').children)child.setAttribute('aria-pressed',String((child as HTMLElement).dataset.role===role));renderPopulation();});
     b.dataset.role=role;b.setAttribute('aria-pressed',String(role===filter));return b;
@@ -117,7 +123,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     const alive=livingResidents(e.state),queue=e.state.recruitment.queue;
     const humans=alive.filter(r=>r.role!=='dog').length,dogs=alive.length-humans;
     const centerOpen=buildingOperational(e.state,'home-center');
-    const nextKey=JSON.stringify([e.available(),e.state.upgrades.arms,humans,dogs,centerOpen,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
+    const nextKey=JSON.stringify([e.available(),e.state.debug,e.state.upgrades.arms,humans,dogs,centerOpen,queue.map(q=>[q.serial,q.role,Math.floor(q.elapsed)])]);
     if(nextKey===recruitKey)return;recruitKey=nextKey;
     get('recruit-capacity').textContent=`人口 ${humans} / ${POPULATION_LIMIT} · 田园犬 ${dogs} / ${DOG_LIMIT} · 排队 ${queue.length}`;
     get('recruit-options').replaceChildren(...Object.entries(RECRUIT_CONFIG).map(([role,config])=>{
@@ -127,7 +133,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       const title=document.createElement('strong'),stats=document.createElement('small');title.textContent=config.name;
       const combat=role==='infantry'||role==='archer'||role==='cavalry'?effectiveFighterStats({role,team:'home',experience:0},e.state.upgrades.arms):undefined;
       stats.textContent=`生命 ${combat?.hp??(role==='dog'?80:100)} · 攻 ${combat?.attack??'—'} · 防 ${combat?.armor??0}`;name.append(title,stats);
-      const detail=document.createElement('small');detail.className='recruit-cost';detail.textContent=`${cost} · ${config.seconds} 秒`;
+      const detail=document.createElement('small');detail.className='recruit-cost';detail.textContent=`${cost} · ${recruitSeconds(e.state,role as ResidentRole)} 秒`;
       const count=document.createElement('span');count.className='recruit-count';count.textContent=`排队 ${queue.filter(q=>q.role===role).length}`;
       const b=button('招募',()=>{const result=recruit(e,role as ResidentRole);get('recruit-notice').textContent=result.message;callbacks.save();refresh(selected);});
       b.setAttribute('aria-label',`招募${config.name}`);b.disabled=!centerOpen;
@@ -135,8 +141,9 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     }));
     get('recruit-queue').replaceChildren(...queue.map((q,i)=>{
       const row=document.createElement('li'),text=document.createElement('span'),progress=document.createElement('progress'),config=RECRUIT_CONFIG[q.role];
-      text.textContent=`${config.name} · ${i?'等待':q.elapsed===config.seconds?'等待出口空位':`${Math.floor(q.elapsed)} / ${config.seconds} 秒`}`;
-      progress.max=config.seconds;progress.value=q.elapsed;
+      const duration=recruitSeconds(e.state,q.role);
+      text.textContent=`${config.name} · ${i?'等待':q.elapsed===duration?'等待出口空位':`${Math.floor(q.elapsed)} / ${duration} 秒`}`;
+      progress.max=duration;progress.value=q.elapsed;
       row.append(text,progress,button('取消',()=>{cancelRecruit(e,q.serial);get('recruit-notice').textContent='已取消招募，材料已退还';callbacks.save();refresh(selected);}));return row;
     }));
   }

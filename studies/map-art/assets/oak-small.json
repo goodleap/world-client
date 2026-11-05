@@ -4,11 +4,11 @@
   "vertices": 5254,
   "materials": 2,
   "crown": {
+    "diameter": 1.0,
+    "height": 1.48588,
+    "bare_trunk_fraction": 0.3723,
     "lobes": 6,
     "primary_lobes": 5,
-    "infill_lobes": 1,
-    "diameter": 1.0,
-    "height": 1.3015,
-    "bare_trunk_fraction": 0.2833
+    "infill_lobes": 1
   }
 }

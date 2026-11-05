@@ -257,7 +257,26 @@ def rounded_tree(size='medium'):
                 weight=min(1,max(0,vertex.co.z/fork_height))
                 vertex.co.z+=.10*weight
             obj.data.update()
+    raise_tree_trunk()
     normalize_tree(size)
+
+
+def raise_tree_trunk():
+    """Extend exposed wood by 50%; translate the approved crown intact."""
+    objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
+    bpy.context.view_layer.update()
+    bottom=min((o.matrix_world@v.co).z for o in objects if o.get('treePart')=='crown' for v in o.data.vertices)
+    lift=bottom*.5
+    for obj in objects:
+        if obj.get('treePart')=='crown':
+            obj.location.z+=lift
+        elif obj.get('treePart')=='wood':
+            inverse=obj.matrix_world.inverted()
+            for vertex in obj.data.vertices:
+                world=obj.matrix_world@vertex.co
+                world.z+=lift*min(1,max(0,world.z/bottom))
+                vertex.co=inverse@world
+            obj.data.update()
 
 
 def normalize_tree(size):
@@ -353,6 +372,7 @@ def pine():
     bpy.ops.object.join()
     crown=bpy.context.object;crown.name='Pine · original pointed tiers'
     crown['treePart']='crown';crown['crownShape']='tiered-conifer';crown['branchTiers']=6
+    raise_tree_trunk()
     normalize_tree('medium')
 
 

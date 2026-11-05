@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
-import { recruit, cancelRecruit, advanceRecruitment, homeResidents } from '../src/game/recruitment.ts';
+import { recruit, cancelRecruit, advanceRecruitment, homeResidents, RECRUIT_CONFIG, recruitSeconds } from '../src/game/recruitment.ts';
+import type { ResidentRole } from '../src/game/resident-data.ts';
 import { groupMembers, saveGroup, pruneGroups, groupInfo } from '../src/game/groups.ts';
 import { groupDestinations } from '../src/game/group-orders.ts';
 import { CommandGuidance } from '../src/game/command-guidance.ts';
@@ -12,6 +13,18 @@ import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
 
 function funded(){const e=new Economy();e.state.inventory={wood:40,stone:24,food:60,iron:40};return e;}
+test('debug recruits every role in one game second, including saved partial progress',()=>{
+  for(const role of Object.keys(RECRUIT_CONFIG) as ResidentRole[]){
+    const e=funded();e.state.debug=true;
+    assert.equal(recruitSeconds(e.state,role),1);assert(recruit(e,role).ok);
+    advanceRecruitment(e,.4);assert.equal(e.state.recruitment.roster.length,0);
+    const resumed=decodeEconomy(encodeEconomy(e));assert.equal(resumed.state.debug,true);
+    assert.equal(advanceRecruitment(resumed,.59),undefined);
+    assert.equal(advanceRecruitment(resumed,.01)?.role,role);
+    const normal=funded();assert.equal(recruitSeconds(normal.state,role),RECRUIT_CONFIG[role].seconds);
+    assert(recruit(normal,role).ok);assert.equal(advanceRecruitment(normal,1),undefined);
+  }
+});
 test('recruitment reserves real inventory, sequences work, refunds and waits for an unobstructed exit',()=>{
   const e=funded(),initial={...e.state.inventory};
   assert(recruit(e,'infantry').ok);assert(recruit(e,'dog').ok);

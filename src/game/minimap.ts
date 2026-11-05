@@ -33,24 +33,28 @@ export function createMinimap(canvas: HTMLCanvasElement) {
     for (const hole of a.holes ?? []) line(ctx, hole.points, true);
     ctx.fill('evenodd');
   };
-  function prepare() {
+  function prepare(full: boolean) {
     canvas.width = width; canvas.height = height;
-    context = canvas.getContext('2d', { alpha: false });
+    context = canvas.getContext('2d', { alpha: true });
     if (!context) return;
     background = document.createElement('canvas'); background.width = width; background.height = height;
-    const ctx = background.getContext('2d', { alpha: false });
+    const ctx = background.getContext('2d', { alpha: true });
     if (!ctx) { background = undefined; return; }
-    ctx.fillStyle = '#667b55'; ctx.fillRect(0,0,width,height);
-    ctx.fillStyle = '#91ac64'; area(ctx,LANDSCAPE.geography.outline);
+    ctx.fillStyle = full?'#667b55':'#15151566'; ctx.fillRect(0,0,width,height);
+    ctx.fillStyle = full?'#91ac64':'#d0d0d026'; area(ctx,LANDSCAPE.geography.outline);
     ctx.save();ctx.beginPath();line(ctx,LANDSCAPE.geography.outline.points,true);ctx.clip();
-    for(const r of LANDSCAPE.regions){ctx.fillStyle=BIOME_COLORS[r.biome];area(ctx,r.area);}
-    for(const f of LANDSCAPE.geography.forms){ctx.fillStyle=f.kind==='ridge'?'#9d9d82':f.kind==='basin'?'#aa9e80':'#9eb16b';area(ctx,f.area);ctx.beginPath();line(ctx,f.area.points,true);ctx.strokeStyle='#797d66';ctx.lineWidth=(f.kind==='ridge'?1.8:1.2)*width/320;ctx.stroke();}
-    for(const f of LANDSCAPE.geography.forests){ctx.fillStyle=f.species==='pine'?'#49654d':f.species==='blossom'?'#a0a36d':'#617f42';area(ctx,f.area);}
+    if(full)for(const r of LANDSCAPE.regions){ctx.fillStyle=BIOME_COLORS[r.biome];area(ctx,r.area);}
+    for(const f of LANDSCAPE.geography.forms){
+      if(!full&&f.kind!=='ridge')continue;
+      ctx.fillStyle=full?(f.kind==='ridge'?'#9d9d82':f.kind==='basin'?'#aa9e80':'#9eb16b'):'#20202066';area(ctx,f.area);
+      if(full){ctx.beginPath();line(ctx,f.area.points,true);ctx.strokeStyle='#797d66';ctx.lineWidth=(f.kind==='ridge'?1.8:1.2)*width/320;ctx.stroke();}
+    }
+    if(full)for(const f of LANDSCAPE.geography.forests){ctx.fillStyle=f.species==='pine'?'#49654d':f.species==='blossom'?'#a0a36d':'#617f42';area(ctx,f.area);}
     ctx.restore();
-    ctx.strokeStyle = '#e3cf99'; ctx.lineWidth = 2.8 / MAP_WIDTH * (width - pad * 2); ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.strokeStyle = full?'#e3cf99':'#eeeeee66'; ctx.lineWidth = 2.8 / MAP_WIDTH * (width - pad * 2); ctx.lineCap = ctx.lineJoin = 'round';
     for (const path of ROAD_PATHS) { ctx.beginPath(); line(ctx, path); ctx.stroke(); }
-    ctx.fillStyle = '#62a8aa'; for(const a of LANDSCAPE.waterAreas)area(ctx,a);
-    ctx.fillStyle='#bd9059';for(const bridge of LANDSCAPE.bridges)area(ctx,bridge.area);
+    ctx.fillStyle = full?'#62a8aa':'#eeeeee88'; for(const a of LANDSCAPE.waterAreas)area(ctx,a);
+    ctx.fillStyle=full?'#bd9059':'#bbbbbb';for(const bridge of LANDSCAPE.bridges)area(ctx,bridge.area);
     terrainBuilds++;
     map = document.createElement('canvas'); map.width = width; map.height = height;
     markers = document.createElement('canvas'); markers.width = width; markers.height = height;
@@ -66,7 +70,7 @@ export function createMinimap(canvas: HTMLCanvasElement) {
       const started=performance.now();
       const refresh = !visible || time >= nextAt;
       visible = true;
-      if (!background) prepare();
+      if (!background) prepare(full);
       if (!context || !background || !map || !markers) return;
       const view = readView();
       if (!refresh && last?.view.length === view.length && view.every((p,i)=>Math.abs(p.x-last!.view[i].x)<1e-6 && Math.abs(p.z-last!.view[i].z)<1e-6)) return;
@@ -75,30 +79,33 @@ export function createMinimap(canvas: HTMLCanvasElement) {
         const state = read(), key = JSON.stringify([state.plots.map(p=>[p.x,p.z]),state.buildings]);
         if (key !== mapKey) {
           const ctx = map.getContext('2d')!;
-          ctx.drawImage(background,0,0); ctx.fillStyle = '#b87943';
+          ctx.clearRect(0,0,width,height);ctx.drawImage(background,0,0); ctx.fillStyle = full?'#b87943':'#999999';
           const plotSize = GRID_SIZE / MAP_WIDTH * (width - pad * 2);
           for (const p of state.plots) { const q = point(p); ctx.fillRect(q.x - plotSize / 2, q.y - plotSize / 2, plotSize, plotSize); }
           for (const b of state.buildings) {
             const q = point(b), w = Math.max(3, (b.width ?? b.radius * 2) / MAP_WIDTH * (width - pad * 2));
             const h = Math.max(3, (b.depth ?? b.radius * 2) / MAP_DEPTH * (height - pad * 2));
-            ctx.fillStyle = b.site ? '#d4c9a3' : '#f5db9c'; ctx.strokeStyle = '#6d503a'; ctx.lineWidth = 1;
+            ctx.fillStyle = full?(b.site?'#d4c9a3':'#f5db9c'):(b.site?'#aaaaaa':'#eeeeee'); ctx.strokeStyle = full?'#6d503a':'#333333'; ctx.lineWidth = 1;
             ctx.fillRect(q.x - w / 2, q.y - h / 2, w, h); ctx.strokeRect(q.x - w / 2, q.y - h / 2, w, h);
           }
           mapKey = key; mapBuilds++;
         }
         const ctx = markers.getContext('2d')!; ctx.clearRect(0,0,width,height);
         for (const unit of state.units) {
-          const q = point(unit); ctx.beginPath(); ctx.arc(q.x, q.y, (unit.selected ? 3.8 : 2.3)*width/320, 0, Math.PI * 2);
-          ctx.fillStyle = unit.enemy ? '#e46b51' : '#63def0'; ctx.fill();
-          ctx.strokeStyle = unit.selected ? '#ffffff' : '#344c3c'; ctx.lineWidth = unit.selected ? 1.8 : .65; ctx.stroke();
+          const q = point(unit),r=(unit.selected?3.8:2.3)*width/320; ctx.beginPath();
+          if(!full&&unit.enemy){ctx.moveTo(q.x,q.y-r);ctx.lineTo(q.x+r,q.y);ctx.lineTo(q.x,q.y+r);ctx.lineTo(q.x-r,q.y);ctx.closePath();}
+          else ctx.arc(q.x,q.y,r,0,Math.PI*2);
+          ctx.fillStyle = full?(unit.enemy?'#e46b51':'#63def0'):(unit.enemy?'#333333':'#eeeeee'); ctx.fill();
+          ctx.strokeStyle = unit.selected?'#ffffff':full?'#344c3c':unit.enemy?'#eeeeee':'#333333'; ctx.lineWidth = unit.selected ? 1.8 : .65; ctx.stroke();
         }
         markerDraws++; last = { units: state.units.length, buildings: state.buildings.length, view };
       }
       const ctx = context;
-      ctx.drawImage(map,0,0);
+      // Translucent layers must start from a clean frame, including camera-only redraws.
+      ctx.clearRect(0,0,width,height);ctx.drawImage(map,0,0);
       if (view.length === 4) {
-        ctx.beginPath(); line(ctx, view, true); ctx.fillStyle = '#fffbe723'; ctx.fill();
-        ctx.strokeStyle = '#fffbe7'; ctx.lineWidth = 1.8; ctx.stroke();
+        ctx.beginPath(); line(ctx, view, true); ctx.fillStyle = full?'#fffbe723':'#ffffff18'; ctx.fill();
+        ctx.strokeStyle = full?'#fffbe7':'#ffffff'; ctx.lineWidth = 1.8; ctx.stroke();
       }
       ctx.drawImage(markers,0,0); draws++;
       if(last)last.view=view;
