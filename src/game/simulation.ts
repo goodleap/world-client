@@ -5,7 +5,7 @@ import { createResidentSimulation } from './resident-simulation.ts';
 import { createEconomyController } from './economy-controller.ts';
 import type { UnitCommand } from './economy-controller.ts';
 import { createNeedsController } from './needs-controller.ts';
-import { Combat, fighterRadius, fighterStats } from './combat.ts';
+import { Combat, fighterRadius, fighterMovementSpeed } from './combat.ts';
 import { Raids } from './raids.ts';
 import { homeResidents, advanceRecruitment } from './recruitment.ts';
 import { ENEMIES, newResident, roleLeader } from './resident-data.ts';
@@ -125,7 +125,7 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
   function step(dt:number){
     const begin=performance.now();world.sync();paths.flush();
     metrics.run('crowd',()=>motion.prepare([...residents.crowdBodies(),...[...combat.state.units,...raids.wolves].filter(u=>u.life==='active'&&!u.departed&&!occupiedTower(state,u.id)).map(u=>({
-      id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterStats(u).speed*(u.order==='guard'&&!u.target?.length? .65:1),
+      id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterMovementSpeed(u),
       route:combat.movementRoute(u),solids:world.obstacles(true),moveIdle:(p:Point)=>{u.position=p;},
     }))],dt));
     metrics.run('economy',()=>controller.update(dt));metrics.run('raids',()=>raids.update(dt));

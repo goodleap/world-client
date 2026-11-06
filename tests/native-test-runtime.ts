@@ -19,7 +19,7 @@ const restore=installNavigationRuntime({plan:q=>testNavigation.plan(q),
 afterEach(()=>{motion?.dispose();motion=undefined;geometry='';});
 after(()=>{restore();testNavigation.dispose();});
 
-import { fighterRadius, fighterStats, type Combat } from '../src/game/combat.ts';
+import { fighterRadius, fighterMovementSpeed, type Combat } from '../src/game/combat.ts';
 import { WORLD_BOUNDS } from '../src/game/world-data.ts';
 import { occupiedTower } from '../src/game/towers.ts';
 import type { Economy } from '../src/game/economy.ts';
@@ -30,7 +30,7 @@ afterEach(()=>{for(const m of battleCrowds.values())m.dispose();battleCrowds.cle
 export function withCrowdStep(e:Economy,c:Combat,solids:()=>readonly Obstacle[],dt:number,advance:()=>void,extra:CrowdBody[]=[]){
   let m=battleCrowds.get(c);if(!m){m=createNativeMotion(testNavigation,WORLD_BOUNDS,solids);battleCrowds.set(c,m);}
   const bodies=c.targets().flatMap(t=>{const u=c.unit(t.id);return u&&u.life==='active'&&!u.departed&&!occupiedTower(e.state,u.id)?[{
-    id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterStats(u).speed*(u.order==='guard'&&!u.target? .65:1),
+    id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterMovementSpeed(u),
     route:c.movementRoute(u),solids:solids(),moveIdle:(p:{x:number;z:number})=>{u.position=p;},
   }]:[];});
   const release=installNavigationRuntime(m.runtime);

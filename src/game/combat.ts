@@ -52,6 +52,12 @@ const campConfigs = new Map(ENCOUNTERS.map(c => [c.id,c]));
 export function fighterStats(u: Pick<Fighter, 'role' | 'team'> & { id?: string }) {
   return u.role === 'wolf' ? C.wolf : u.team === 'home' ? C[u.role] : u.role === 'cavalry' ? C.enemyCavalry : enemyDefinitions.get(u.id ?? '')?.variant === 'heavy' ? C.enemyHeavy : u.role === 'infantry' ? C.enemyMelee : C.enemyArcher;
 }
+/** Share movement intent with Crowd. An assault without a current target is
+ * still a march; only an actual camp patrol uses the slower patrol pace. */
+export function fighterMovementSpeed(u:Fighter) {
+  const patrolling=u.team==='enemy'&&enemyDefinitions.has(u.id)&&u.order==='guard'&&!u.target&&!u.goal;
+  return fighterStats(u).speed*(patrolling?.65:1);
+}
 /** One effective-stat calculation for combat and inspection panels. */
 export function effectiveFighterStats(u: Parameters<typeof fighterStats>[0] & { experience?: number }, arms: number) {
   const base = fighterStats(u), equipment = u.team === 'home' ? arms : 0;
@@ -403,12 +409,12 @@ export class Combat {
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
   }
   movementRoute(u:Fighter):readonly Point[]{return u.attackApproach?u.route.slice(0,-1):u.route;}
-  private travel(u: Fighter, dt: number, speed: number) {
+  private travel(u: Fighter, dt: number) {
     // One route includes the target anchor, but its occupied feet are not a
     // walking destination. Replan/yield along the same reachable prefix, then
     // restore the anchor before rendering. Range/LOS can stop movement earlier.
     const anchor = u.attackApproach ? u.route.pop() : undefined;
-    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), navigationRuntime()?.batched?[]:this.neighbours(u));
+    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, fighterMovementSpeed(u), fighterRadius(u), WORLD_BOUNDS, this.solids(), navigationRuntime()?.batched?[]:this.neighbours(u));
     if (anchor) u.route.push(anchor);
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
@@ -513,7 +519,7 @@ export class Combat {
     }
     // The normal strike test stops us early on this shared route; its target
     // anchor also works when the feet are on a tower or across a river.
-    this.travel(u, dt, stats.speed);
+    this.travel(u, dt);
   }
   update(seconds: number) {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
@@ -621,7 +627,7 @@ export class Combat {
       if (u.order === 'move' || u.order === 'retreat' || u.order === 'rest' || returning && !returnStrike) {
         if (u.goal && distance(u.position, u.goal) > .15) {
           if (!u.route.length && u.planIn <= 0) this.plan(u, [u.goal],u.order==='move'?u.goal:undefined);
-          this.travel(u, dt, stats.speed);
+          this.travel(u, dt);
         } else { this.stop(u); u.goal = undefined; u.order = 'guard'; if (returning) { u.defendFrom = undefined; u.target = undefined; u.pursuitQuiet = undefined; u.provoked = undefined; } }
         continue;
       }
@@ -654,7 +660,7 @@ export class Combat {
       if (!target || target.life !== 'active') {
         u.target = undefined;
         if(u.id.startsWith('enemy-raid-')&&u.goal) {
-          if(distance(u.position,u.goal)>.2){if(!u.route.length&&u.planIn<=0)this.plan(u,[u.goal]);this.travel(u,dt,stats.speed);}
+          if(distance(u.position,u.goal)>.2){if(!u.route.length&&u.planIn<=0)this.plan(u,[u.goal]);this.travel(u,dt);}
           else {this.stop(u);u.goal=undefined;}
           continue;
         }
@@ -664,18 +670,24 @@ export class Combat {
           const index = Math.floor(this.economy.state.seconds / 12) % patrol.length;
           const goal = { x: patrol[index].x + offset, z: patrol[index].z };
           if (distance(u.position, goal) > .5 && u.planIn <= 0 && !u.route.length) { this.plan(u, [goal]); u.planIn = 3; }
-          this.travel(u, dt, stats.speed * .65);
+          this.travel(u, dt);
         } else this.stop(u);
         if (u.order === 'attack'&&!u.commandTarget) u.order = 'guard'; continue;
       }
       // Plant the feet only when the target is expected to remain within reach
       // at contact, including only the bounded committed-swing allowance.
-      if (this.canStrike(u, target)) {
+      let canStrike=this.canStrike(u,target);
+      if(!canStrike&&!stationary&&!returning){
+        this.pursue(u,target,dt);
+        // The target may already have advanced this tick (wolves update
+        // before soldiers). Test again from our accepted Crowd position;
+        // otherwise a reachable runner can stay one simulation step ahead.
+        canStrike=this.canStrike(u,target);
+      }
+      if (canStrike) {
         this.stop(u); this.face(u,target.position,dt);
         if (!u.cooldown) { u.cooldown = stats.interval; u.attack = { id: this.state.nextAttack++, target: target.id, elapsed: 0, released: false }; }
-      } else if(stationary || returning){this.stop(u);u.target=undefined;} else {
-        this.pursue(u, target, dt);
-      }
+      } else if(stationary || returning){this.stop(u);u.target=undefined;}
     }
     // Later units in the simulation order may have moved since pursuit was
     // planned. Keep the shared terminal anchor at this step's target position.

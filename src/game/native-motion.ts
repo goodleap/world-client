@@ -14,11 +14,12 @@ const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
  * consumes one shared crowd update per simulation step, never per actor. */
 export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[],plan:NavigationRuntime['plan']=q=>nav.plan(q)){
   const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode}>();
-  const results=new Map<string,Point>();let tickMs=0,steps=0,rejected=0;
+  const results=new Map<string,{position:Point;target?:Point}>();let tickMs=0,steps=0,rejected=0;
   function prepare(bodies:readonly CrowdBody[],dt:number){
     const started=performance.now();nav.profile(0,bounds,solids());results.clear();
     const ids=new Set(bodies.map(b=>b.id));
     for(const [id,a]of agents)if(!ids.has(id)){crowd.removeAgent(a.index);a.node.dispose();agents.delete(id);}
+    const targets=new Map<string,Point>();
     for(const b of bodies){
       let entry=agents.get(b.id);
       if(!entry){const node=new TransformNode(`crowd:${b.id}`,nav.scene);
@@ -30,7 +31,14 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
       const agent=crowd.recastCrowd.getAgent(entry.index)!;
       if(distance(agent.position(),b.position)>.002)agent.teleport({x:b.position.x,y:.2,z:b.position.z});
       agent.updateParameters({radius:b.radius,maxSpeed:b.speed});
-      const target=b.route.find(p=>distance(p,b.position)>.015),d=target?distance(target,b.position):0;
+      let index=b.route.findIndex(p=>distance(p,b.position)>.015);
+      // Crowd may take us around or past a shared intermediate point. Feed it
+      // the next reachable leg instead of asking every body to touch that
+      // exact point. Reuse the game's radius/terrain validation; Detour still
+      // owns all neighbour avoidance and velocity selection.
+      while(index>=0&&index+1<b.route.length&&segmentIsClear(b.position,b.route[index+1],b.radius,bounds,b.solids))index++;
+      const target=b.route[index],d=target?distance(target,b.position):0;
+      if(target)targets.set(b.id,target);
       const speed=Math.min(b.speed,d/dt);
       agent.requestMoveVelocity(target&&d>0?{x:(target.x-b.position.x)*speed/d,y:0,z:(target.z-b.position.z)*speed/d}:{x:0,y:0,z:0});
     }
@@ -38,7 +46,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     for(const b of bodies){
       const p=crowd.getAgentPosition(agents.get(b.id)!.index),next={x:p.x,z:p.z};
       if(!segmentIsClear(b.position,next,b.radius,bounds,b.solids)){rejected++;continue;}
-      results.set(b.id,next);
+      results.set(b.id,{position:next,target:targets.get(b.id)});
       if(!b.route.length&&distance(b.position,next)>.00001)b.moveIdle?.(next);
     }
     tickMs=performance.now()-started;steps++;
@@ -47,8 +55,13 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     step(id,position,route,state,seconds,speed,radius,area,obstacles):MotionStep{
       const dt=Math.max(0,Math.min(seconds,.05));
       if(!dt)return {position,velocity:{x:0,z:0},distance:0,path:[{...position}],unreachable:false,facing:undefined};
-      let next=results.get(id)??position;
+      const result=results.get(id);
+      let next=result?.position??position;
       if(!dt||speed<=0||!route.length)next=position;
+      // Only consume the route used by this Crowd step. Combat or a fresh
+      // command can have replaced it since prepare; keep that new intent.
+      const index=result?.target?route.indexOf(result.target):-1;
+      if(index>0)route.splice(0,index);
       // A newly issued command may precede the next shared Crowd update.
       // Retain its route instead of resetting intent or starting another solver.
       while(route.length&&distance(position,route[0])<.015)route.shift();
