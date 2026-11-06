@@ -19,12 +19,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Generate build version
+        run: echo "VITE_APP_VERSION=v0.0.$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
       - run: npm run build
+      - name: Write version metadata
+        run: |
+          printf '{"version":"%s"}\n' "$VITE_APP_VERSION" > dist/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
