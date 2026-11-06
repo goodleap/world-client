@@ -1,4 +1,5 @@
 import { combineObstacles } from './navigation-geometry.ts';
+import { navigationRuntime } from './navigation-runtime.ts';
 import { bodyObstacle } from './body-shape.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { isBlocked } from './movement.ts';
@@ -21,6 +22,8 @@ export const routeMotion = (state: RouteState) => motionPaths.get(state);
  * with a navmesh. This follower shares the current collision/planning geometry. */
 export function stepRoute(id: string, position: Point, route: Point[], state: RouteState, seconds: number,
   speed: number, radius: number, bounds: Bounds, solids: readonly Obstacle[], neighbours: readonly Neighbour[]) {
+  const native=navigationRuntime();
+  if(native){const result=native.step(id,position,route,state,seconds,speed,radius,bounds,solids);motionPaths.set(state,result.path);return result;}
   const dt = Math.max(0, Math.min(seconds, .05));
   const path: Point[] = [{ x: position.x, z: position.z }];
   motionPaths.set(state, path);

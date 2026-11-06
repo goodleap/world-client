@@ -22,7 +22,8 @@
     "@recast-navigation/generators": "0.43.0",
     "comlink": "4.4.2",
     "earcut": "^3.0.2",
-    "polygon-clipping": "^0.15.7"
+    "polygon-clipping": "^0.15.7",
+    "rfc6902": "5.4.0"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.32.1",

@@ -13,7 +13,8 @@ import type { BuildingSite, BuildingKind } from './construction.ts';
 
 /** Both pointer workflows share the same snap, validation and commit operation. */
 export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI, economy: Economy,
-  occupants: () => Obstacle[], blocked: () => boolean, onBegin: () => void, onPlaced: (id: string) => void, controls:PlacementControls) {
+  occupants: () => Obstacle[], blocked: () => boolean, onBegin: () => void, onPlaced: (id: string) => void, controls:PlacementControls,
+  commit?:(kind:BuildingKind,point:{x:number;z:number})=>Promise<{ok:boolean;message:string;id?:string}>) {
   let paletteShown=false;
   const fillMaterial = new StandardMaterial('placement-fill', scene);
   fillMaterial.disableLighting = true; fillMaterial.alpha = .25;
@@ -74,18 +75,21 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (reason || warning) ui.targetHint(reason || warning, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z }, true);
     else ui.clearTargetHint(true);
   }
-  function place(x: number, y: number,overCanvas=true) {
+  let placing=false;
+  async function place(x: number, y: number,overCanvas=true) {
+    if(placing)return;
     if (!active || blocked()) return;
     preview(x, y,overCanvas);
     if (!candidate) return;
     if (reason) return;
-    const result = economy.placeBuilding(kind, candidate, occupants());
+    const selected=candidate;placing=true;
+    let result:Awaited<ReturnType<NonNullable<typeof commit>>>;
+    try{if(commit)result=await commit(kind,selected);else{const local=economy.placeBuilding(kind,selected,occupants());result={ok:local.ok,message:local.warning??local.message,id:local.task?.target};}}
+    finally{placing=false;}
     if (result.ok) {
-      const at = { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z };
-      cancel(); onPlaced(result.task!.target);
-      if (result.warning) ui.targetHint(result.warning, at);
+      cancel(); onPlaced(result.id!);
     }
-    else ui.targetHint(result.message, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z });
+    else ui.targetHint(result.message, { x: selected.x, y: surfaceHeight(selected.x,selected.z)+.2, z: selected.z });
   }
   controls.bind({begin,cancel,preview,place,toggle(){if(blocked())return;const show=!paletteShown;cancel();showPalette(show);}});
   return {

@@ -1,4 +1,5 @@
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
+import { navigationRuntime } from './navigation-runtime.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { RAID_CONFIG, DEBUG_RAID_CONFIG } from './raid-state.ts';
 import { BODY_RADIUS, bodyObstacle, turnTowards } from './body-shape.ts';
@@ -401,7 +402,7 @@ export class Combat {
     // walking destination. Replan/yield along the same reachable prefix, then
     // restore the anchor before rendering. Range/LOS can stop movement earlier.
     const anchor = u.attackApproach ? u.route.pop() : undefined;
-    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), this.neighbours(u));
+    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), navigationRuntime()?[]:this.neighbours(u));
     if (anchor) u.route.push(anchor);
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);

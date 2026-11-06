@@ -70,7 +70,7 @@ channel.handle(async(method,args)=>{
           if(!view.paused&&key===previous)return;previous=key;
           callUI('$managementState',e.state,selected);
         };
-        callUI('$managementBind',{...callbacks,action:async(a:HomeAction)=>{const message=applyHomeAction(e,a);previous='';refresh();flush();return message;}});
+        callUI('$managementBind',{...callbacks,action:async(a:HomeAction)=>{const message=callbacks.action?await callbacks.action(a):applyHomeAction(e,a);previous='';refresh();flush();return message;}});
         return {refresh,open(){previous='';refresh();view.openRecruitment();},dispose:()=>callUI('$managementDispose')};
       },
       flush(){flush();if(game){channel.notify('frame',[game.frameSnapshot()]);}},

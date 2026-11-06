@@ -8,10 +8,14 @@ import { Scene } from '@babylonjs/core/scene.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData.js';
 import type { IObstacle } from '@babylonjs/core/Navigation/INavigationEngine.js';
+import type { RecastJSCrowd } from '@babylonjs/addons/navigation/plugin/RecastJSCrowd.js';
 import clipping from 'polygon-clipping';
 import earcut,{flatten} from 'earcut';
 import type { Bounds,Obstacle,Point } from './movement.ts';
 import { sweepIsBlocked,isBlocked } from './movement.ts';
+import type { PathQuery } from './path-planner.ts';
+import { occupiedApproach, MOVE_DESTINATION_RADIUS } from './work-navigation.ts';
+import { inBounds } from './wander.ts';
 
 let initialization:Promise<void>|undefined;
 export async function initializeNativeNavigation(){await (initialization??=core.init());}
@@ -63,7 +67,7 @@ export async function createNativeNavigation(){
       InjectGenerators(plugin);
       plugin.createNavMesh([ground(description.terrain,bounds,solids)],{cs:CELL,ch:.2,walkableSlopeAngle:45,
         walkableHeight:10,walkableClimb:1,walkableRadius:Math.ceil((radius+CLEARANCE)/CELL),maxEdgeLen:80,maxSimplificationError:1.3,
-        minRegionArea:8,mergeRegionArea:20,maxVertsPerPoly:6,detailSampleDist:6,detailSampleMaxError:1,tileSize:32,maxObstacles:2048});
+        minRegionArea:8,mergeRegionArea:20,maxVertsPerPoly:6,detailSampleDist:6,detailSampleMaxError:1,tileSize:64,maxObstacles:2048});
       record={plugin,obstacles:new Map()};profiles.set(key,record);stats.builds++;stats.buildMs+=performance.now()-started;
     }
     const {plugin,obstacles}=record;
@@ -77,8 +81,36 @@ export async function createNativeNavigation(){
     }
     return plugin;
   }
-  return {
+  const api={
     profile,
+    createCrowd(bounds:Bounds,solids:readonly Obstacle[],capacity=1024){
+      const plugin=profile(0,bounds,solids);plugin.setTimeStep(.05);
+      return plugin.createCrowd(capacity,.72,scene) as RecastJSCrowd;
+    },
+    scene,
+    plan(q:PathQuery){
+      if(!q.move)return api.path(q.start,q.goals,q.radius,q.bounds,q.obstacles);
+      const goal=q.goals[0],valid=(p:Point)=>inBounds(p,q.radius,q.bounds)&&!isBlocked(p,q.radius,q.obstacles)&&!occupiedApproach(p,q.radius,q.neighbours??[]);
+      const exact=valid(goal)?api.path(q.start,[goal],q.radius,q.bounds,q.obstacles):undefined;
+      if(exact)return exact;
+      const query=profile(q.radius,q.bounds,q.obstacles).navMeshQuery;
+      const polygons=query.queryPolygons(xyz(goal),{x:MOVE_DESTINATION_RADIUS,y:2,z:MOVE_DESTINATION_RADIUS},{maxPolys:2048});
+      const candidates:Point[]=[];
+      for(const ref of polygons.polyRefs){const point=query.closestPointOnPoly(ref,xyz(goal));if(point.success)candidates.push({x:point.closestPoint.x,z:point.closestPoint.z});}
+      // Endpoint spacing is a game rule. Detour still projects and searches
+      // every alternative; there is no secondary grid or local A*.
+      for(const n of q.neighbours??[])for(const p of [n.position,...(n.destination?[n.destination]:[])]){
+        if(dist(p,goal)>MOVE_DESTINATION_RADIUS+q.radius+n.radius)continue;
+        for(let i=0;i<8;i++){const angle=i*Math.PI/4,d=q.radius+n.radius+.12;
+          const near=query.findClosestPoint(xyz({x:p.x+Math.cos(angle)*d,z:p.z+Math.sin(angle)*d}),{halfExtents:{x:1,y:2,z:1}});
+          if(near.success)candidates.push({x:near.point.x,z:near.point.z});
+        }
+      }
+      const seen=new Set<string>();
+      const goals=candidates.filter(p=>{const key=`${p.x.toFixed(3)},${p.z.toFixed(3)}`;if(seen.has(key))return false;seen.add(key);return dist(p,goal)<=MOVE_DESTINATION_RADIUS&&valid(p);})
+        .sort((a,b)=>dist(a,goal)-dist(b,goal)||dist(a,q.start)-dist(b,q.start));
+      return api.path(q.start,goals,q.radius,q.bounds,q.obstacles);
+    },
     path(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,solids:readonly Obstacle[]){
       const plugin=profile(radius,bounds,solids),begin=performance.now();stats.queries++;
       try{
@@ -100,5 +132,6 @@ export async function createNativeNavigation(){
     },
     snapshot:()=>({...stats,profiles:profiles.size}),
     dispose(){for(const p of profiles.values())p.plugin.dispose();profiles.clear();scene.dispose();engine.dispose();},
-  };
+  };return api;
 }
+export type NativeNavigation=Awaited<ReturnType<typeof createNativeNavigation>>;

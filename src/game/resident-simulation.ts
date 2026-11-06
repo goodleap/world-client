@@ -14,6 +14,8 @@ import { createWanderState,seededRandom,segmentIsClear,stepWander } from './wand
 import { createRouteState,resetRouteState,stepRoute,yieldPoint } from './route-following.ts';
 import { occupiedApproach,planMoveDestination,planWorkApproach } from './work-navigation.ts';
 import { validateNavigation } from './navigation-plan.ts';
+import type { CrowdBody } from './native-motion.ts';
+import { navigationRuntime } from './navigation-runtime.ts';
 
 export type ResidentMotion='idle'|'walk'|'run'|'work'|'attack';
 /** Authoritative resident jobs and locomotion; no scene, meshes or DOM. */
@@ -50,7 +52,7 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
     solids: readonly Obstacle[] = obstaclesFor(actor.definition.role)) => {
     const result = stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed, actor.settings.bodyRadius, actor.settings.bounds, solids,
-      [...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
+      navigationRuntime()?[]:[...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
         radius: groundRadius(other),heading: (() => {
           const next = combatPoses.get(other.definition.id)?.route[0] ?? other.route[0];
           return next ? Math.atan2(next.x-other.state.position.x,next.z-other.state.position.z) : other.facing;
@@ -70,6 +72,11 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
     return result;
   };
   const api={
+    crowdBodies:():CrowdBody[]=>actors.filter(a=>!combatPoses.has(a.definition.id)&&!dead(a.definition.id)).map(a=>({
+      id:a.definition.id,position:a.state.position,radius:groundRadius(a),speed:a.route.length?destinationSpeed(a):a.settings.speed,
+      route:a.route.length?a.route:a.wanderRoute,solids:a.route.length?obstaclesFor(a.definition.role):combineObstacles(obstaclesFor(a.definition.role),wanderObstacles()),
+      moveIdle:p=>{a.state.position=p;},
+    })),
     syncDefinitions(next:readonly ResidentDefinition[]){
       const ids=new Set(next.map(d=>d.id));
       for(const a of [...actors])if(a.definition.id.startsWith('enemy-raid-')&&!ids.has(a.definition.id)){
@@ -91,7 +98,7 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
       yield:(from:Point,toward:Point)=>yieldActor(a,from,toward),moving:a.movementSpeed>.08,purposeful:!!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id),waiting:a.navigation.waiting,destination:a.route.at(-1)})),
     occupancy:()=>actors.filter(a=>!dead(a.definition.id)&&!combatPoses.get(a.definition.id)?.departed).map(a=>bodyObstacle(a.state.position,a.definition.bodyRadius)),
     frame:()=>actors.map(a=>({id:a.definition.id,position:{...a.state.position},facing:a.facing,speed:a.movementSpeed,motion:a.motion,playbackSpeed:a.playbackSpeed,
-      route:a.route,path:a.stepPath,working:works.get(a.definition.id)?.status==='working',feeding:!!vitals[a.definition.id]?.meal})),
+      route:a.route,path:a.stepPath,navigation:{...a.navigation},work:works.get(a.definition.id),working:works.get(a.definition.id)?.status==='working',feeding:!!vitals[a.definition.id]?.meal})),
     farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
     setResting(id: string, yes: boolean) { if (yes) resting.add(id); else resting.delete(id); },
     needsStatus: (id: string) => {

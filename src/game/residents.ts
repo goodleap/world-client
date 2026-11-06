@@ -1,5 +1,6 @@
 import { surfaceHeight } from './terrain-height.ts';
 import { combineObstacles } from './navigation-geometry.ts';
+import type { ResidentFrame } from './resident-simulation.ts';
 import {bodyObstacle,turnTowards} from './body-shape.ts';
 import { createResidentPicking } from './picking-shapes.ts';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
@@ -348,6 +349,20 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     combatNeighbours: () => actors.filter(a => !combatPoses.has(a.definition.id) && !dead(a.definition.id)).map(a => ({ id: a.definition.id, position: a.state.position,
       radius: a.definition.bodyRadius, heading:a.route.length?Math.atan2(a.route[0].x-a.state.position.x,a.route[0].z-a.state.position.z):a.facing,yield:(from:Point,toward:Point)=>yieldActor(a,from,toward), moving: a.movementSpeed > .08, purposeful: !!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id), waiting: a.navigation.waiting, destination:a.route.at(-1) })),
+    applySimulation(frames:readonly ResidentFrame[],seconds:number){
+      for(const frame of frames){
+        const actor=actorById.get(frame.id);if(!actor)continue;
+        const before={...actor.state.position};actor.state.position={...frame.position};actor.state.target=undefined;
+        actor.route=frame.route;Object.assign(actor.navigation,frame.navigation);actor.stepPath=frame.path;
+        actor.movementSpeed=frame.speed;actor.facing=frame.facing;
+        actor.root.position.set(frame.position.x,surfaceHeight(frame.position.x,frame.position.z),frame.position.z);
+        actor.root.rotationQuaternion??=Quaternion.Identity();Quaternion.RotationYawPitchRollToRef(frame.facing,0,0,actor.root.rotationQuaternion);
+        if(frame.work)works.set(frame.id,frame.work);else works.delete(frame.id);
+        if(dead(frame.id))continue;
+        setMotion(frame.id,frame.motion,frame.playbackSpeed);
+        if(seconds>0)actor.animal?.update(seconds,(frame.position.x-before.x)/seconds,(frame.position.z-before.z)/seconds,frame.motion==='run',frame.feeding);
+      }
+    },
     syncCombat(units: Fighter[]) {
       for (const u of units) {
         combatPoses.set(u.id, u);

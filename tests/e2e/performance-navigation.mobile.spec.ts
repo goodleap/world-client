@@ -21,7 +21,7 @@ test('debug farmers sow and the minimap footprint follows every rendered camera 
     return s.residents.some(r=>r.role==='farmer'&&r.motion==='run');
   },{timeout:30000}).toBe(true);
   await expect.poll(async()=>(await snapshot(page)).economy.tasks.some(t=>t.kind==='sow'&&t.status==='done'),{timeout:30000}).toBe(true);
-  await expect.poll(async()=>(await snapshot(page)).navigation.automatic.completed,{timeout:30000}).toBeGreaterThan(0);
+  await expect.poll(async()=>(await snapshot(page)).navigation.queries,{timeout:30000}).toBeGreaterThan(0);
   await page.locator('#map-toggle').click();
   await page.evaluate(()=>{
     const review={running:true,frames:[] as Frame[]};window.__MAP_REVIEW__=review;
@@ -76,7 +76,7 @@ test('debug farmers sow and the minimap footprint follows every rendered camera 
   await page.keyboard.down('ArrowRight');await nextFrame(hiddenFrame);await page.keyboard.up('ArrowRight');
   expect((await page.evaluate(()=>window.__DEMO__!.frameSnapshot().minimap)).draws).toBe(closed.draws);
   const state=await snapshot(page);
-  expect(state.economy.debug).toBe(true);expect(state.navigation.automatic.failed).toBe(false);
+  expect(state.economy.debug).toBe(true);expect(state.navigation.backend).toBe('Babylon Navigation Plugin V2');
   expect(errors).toEqual([]);
 });
 

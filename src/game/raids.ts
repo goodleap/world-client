@@ -1,4 +1,5 @@
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
+import { navigationRuntime } from './navigation-runtime.ts';
 import { Combat, fighterRadius, fighterDestination, createFighter } from './combat.ts';
 import { COMBAT_CONFIG } from './combat-config.ts';
 import { RAID_CONFIG as C, newWolf, raidRandom, allWolves } from './raid-state.ts';
@@ -105,7 +106,7 @@ export class Raids {
     w.route=path?validateNavigation({start:w.position,goal:path.at(-1)!,radius,bounds:WORLD_BOUNDS,solids,neighbours:reservations},path)??[]:[];
   }
   private travel(w: Wolf, dt: number) {
-    const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), this.neighboursFor(w));
+    const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), navigationRuntime()?[]:this.neighboursFor(w));
     w.position = result.position;
     const moved = result.distance; w.speed = moved / dt; w.gait = (w.gait + moved / 1.26) % 1;
     if (result.facing !== undefined) w.facing = result.facing;
