@@ -6,7 +6,6 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import { Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { RenderMotion, interpolateAngle, interpolateCycle } from '../src/game/render-motion.ts';
 import { SimulationClock } from '../src/game/simulation-clock.ts';
-import { stepRoute, createRouteState } from '../src/game/route-following.ts';
 
 test('20 Hz movement renders every 60 Hz frame while gameplay and saves retain exact authoritative positions', () => {
   const engine = new NullEngine(), scene = new Scene(engine), root = new TransformNode('unit', scene);
@@ -50,9 +49,8 @@ test('turns use shortest quaternion arc without orbiting a nonzero position or c
 test('a completed multi-leg step renders through its corner without cutting or slowing the gait', () => {
   const engine=new NullEngine(),scene=new Scene(engine),root=new TransformNode('farmer',scene);
   try {
-    const motion=new RenderMotion(root),route=[{x:.01,z:0},{x:.01,z:4}],navigation=createRouteState();
-    const step=stepRoute('farmer',{x:0,z:0},route,navigation,.05,5,.29,{minX:-5,maxX:5,minZ:-5,maxZ:5},[],[]);
-    assert(Math.abs(step.distance-.25)<1e-8);
+    const motion=new RenderMotion(root);
+    const step={position:{x:.01,z:.24},path:[{x:0,z:0},{x:.01,z:0},{x:.01,z:.24}]};
     motion.beginStep();root.position.set(step.position.x,0,step.position.z);motion.endStep(step.path);
     motion.sample(.02);assert(Math.abs(motion.position.x-.005)<1e-8);assert.equal(motion.position.z,0);
     motion.sample(.5);assert(Math.abs(motion.position.x-.01)<1e-8);assert(Math.abs(motion.position.z-.115)<1e-8);

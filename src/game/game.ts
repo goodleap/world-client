@@ -537,7 +537,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   let keyboardPanning = false;
   const renderCadence=new RenderCadence();
   const simulationClock={get alpha(){return simulation.alpha;},get pendingSeconds(){return simulation.backlogMs/1000;}};
-  let renderElapsed=0,cpuSinceFrame=0,fixedSteps=0;
+  let renderElapsed=0,cpuSinceFrame=0,fixedSteps=0,lastViewKey='';
   residents.resetPresentation();
   // Babylon owns scheduling. A paused panel needs one final frame (for example
   // to clear a building preview), then no animation, culling or GPU submissions.
@@ -574,11 +574,11 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     scene.animationTimeScale=ui.paused||resuming?0:1;
     scene.animationsEnabled=!ui.paused&&!resuming;
     if(!scene.animationsEnabled)scene.resetLastAnimationTimeFrame();
-    const motion = residents.present(simulationClock.alpha, economy.state.seconds);
+    const motion = residents.present(simulationClock.alpha, economy.state.seconds,simulation.duration);
     // These are visual-only tracks; transactions and fuel stay in fixed steps.
     world.doors.update(dt);
     world.fires.update(economy.state.campfires, dt, mapCenter);
-    combatView.update(combat.state, (1 - simulationClock.alpha) * SimulationClock.step);
+    combatView.update(combat.state, (1 - simulationClock.alpha) * simulation.duration);
     const worldStart = performance.now(); world.sync(); frameWork.worldMs += performance.now() - worldStart;
     const aspect = engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
     const desiredZoom = previewRole === 'leader' ? Math.max(1.55, 0.81 / aspect) * previewZoom : previewRole === 'farmer' ? 2.2 * previewZoom : overview ? Math.max(MAP_SIZE * .5, MAP_SIZE * .52 / aspect) : zoom;
@@ -601,7 +601,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       selectionRevision = selectionKey;
     }
     towerRange.update(economy.state.towers.find(t=>t.id===selectedWorld?.id&&t.hp>0));
-    wolves?.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha);
+    wolves?.update(raids.wolves, economy.state.seconds, camera, simulationClock.alpha,simulation.duration);
     if (selectedEnemy) {
       const enemy = combat.unit(selectedEnemy);
       if (!enemy || enemy.life !== 'active' || enemy.hp <= 0 || enemy.departed) clearEnemy();
@@ -644,6 +644,15 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
     }
     renderedFrames++;
+      // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
+      const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();
+      const view = [[0, 0], [width, 0], [width, height], [0, height]].flatMap(([x, y]) => {
+        const ray = scene.createPickingRay(x, y, projectionIdentity, camera), distance = terrainRayDistance(ray);
+        if (distance === null) return [];
+        const p = ray.origin.add(ray.direction.scale(distance)); return [{ x: p.x, z: p.z }];
+      });
+      const viewKey=view.map(p=>`${p.x.toFixed(2)},${p.z.toFixed(2)}`).join(';');
+      if(view.length&&viewKey!==lastViewKey){lastViewKey=viewKey;simulation.setView({minX:Math.min(...view.map(p=>p.x)),maxX:Math.max(...view.map(p=>p.x)),minZ:Math.min(...view.map(p=>p.z)),maxZ:Math.max(...view.map(p=>p.z))});}
     minimap.update(cpuStart, ui.minimapOpen, () => {
       const selected = new Set(residents.selectedIds());
       if (selectedEnemy) selected.add(selectedEnemy);
@@ -659,14 +668,6 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       return { units, plots: economy.state.plots,
         buildings: [...world.objects.values()].filter(o => o.kind === 'building' || o.kind === 'site').map(o => ({ x:o.x,z:o.z,width:o.width,depth:o.depth,radius:o.radius,site:o.kind==='site' })) };
     }, () => {
-      // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
-      const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();
-      const view = [[0, 0], [width, 0], [width, height], [0, height]].flatMap(([x, y]) => {
-        const ray = scene.createPickingRay(x, y, projectionIdentity, camera), distance = terrainRayDistance(ray);
-        if (distance === null) return [];
-        const p = ray.origin.add(ray.direction.scale(distance)); return [{ x: p.x, z: p.z }];
-      });
-      if(view.length)simulation.setView({minX:Math.min(...view.map(p=>p.x)),maxX:Math.max(...view.map(p=>p.x)),minZ:Math.min(...view.map(p=>p.z)),maxZ:Math.max(...view.map(p=>p.z))});
       return mapDestination?view.map(p=>({x:p.x+mapDestination!.x-camera.target.x,z:p.z+mapDestination!.z-camera.target.z})):view;
     },ui.fullMapOpen);
     const sample = !ui.paused && !resuming ? metrics.record(cpuStart-cpuSinceFrame, performance.now()) : undefined;
@@ -691,7 +692,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     if(dt>0){residents.beginStep();wolves?.beginStep(raids.wolves);fixedSteps++;ui.advanceSpeech(dt);}
     combat.syncUnits();combat.setThreats(raids.wolves);
     residents.applySimulation(Object.values(view.residents),dt);residents.syncCombat(combat.state.units);
-    if(dt>0)residents.endStep();
+    if(dt>0)residents.endStep();else residents.resetPresentation();
     simulationSeconds=packet.seconds;uiElapsed+=dt;autosave.advance(dt);
     const next=definitions(),key=next.map(r=>r.id).join(',');
     if(key!==definitionKey){definitionKey=key;void residents.syncDefinitions(next).then(()=>{

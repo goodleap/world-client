@@ -4,7 +4,6 @@ import { createBackgroundPaths, usePathPlanner, type PathQuery, type PathReply, 
 import { createGeometryReceiver, immutableObstacles } from '../src/game/navigation-geometry.ts';
 import { planWorkApproach } from '../src/game/work-navigation.ts';
 import { findPathToGoals } from '../src/game/pathfinding.ts';
-import { createRouteState, stepRoute } from '../src/game/route-following.ts';
 import type { Obstacle } from '../src/game/movement.ts';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { Combat } from '../src/game/combat.ts';
@@ -92,15 +91,6 @@ test('failed paths are briefly reused, while changed geometry and targets cannot
     assert.equal(f.planner.plan({...query,goals:[{x:3,z:2}]}),null);
     f.reply();f.planner.flush();f.advance(2001);
     assert.equal(f.planner.plan(query),null,'completed failures expire');
-  }finally{f.dispose();}
-});
-test('a route blocked by new solids waits for background planning before declaring it unreachable',()=>{
-  const f=setup(),state=createRouteState(),position={x:-.6,z:0},route=[{x:2,z:0}];
-  try{
-    const step=()=>stepRoute('farmer',position,route,state,.05,5,.29,bounds,walls,[]);
-    assert.equal(step().unreachable,false);assert.equal(route.length,1);assert(state.waiting);
-    f.reply();f.planner.flush();
-    assert.equal(step().unreachable,true);
   }finally{f.dispose();}
 });
 test('engine vector coordinates cross the worker boundary and exact orders remain accepted while planning',()=>{

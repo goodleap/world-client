@@ -1,7 +1,6 @@
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { navigationRuntime } from './navigation-runtime.ts';
 import { isBlocked } from './movement.ts';
-import { findPathToGoals } from './pathfinding.ts';
 import { inBounds, segmentIsClear } from './wander.ts';
 import type { WorkNeighbour } from './work-navigation.ts';
 import { createGeometrySender, type GeometryMessage, type GeometrySnapshot } from './navigation-geometry.ts';
@@ -16,23 +15,21 @@ export function usePathPlanner(planner:Planner) {
   return ()=>{if(background===planner)background=undefined;};
 }
 
-/** Cheap direct travel stays immediate. Only the grid search crosses threads.
- * Tests and the navigation worker use the same pure planner without a backend. */
+/** A proven direct segment stays immediate. Native Detour handles other
+ * routes, with pending results only for exclusion-area builds. */
 export function planPaths(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,obstacles:readonly Obstacle[]):PlannedPath {
   const valid=goals.filter(p=>inBounds(p,radius,bounds)&&!isBlocked(p,radius,obstacles));
   if(!valid.length)return;
   if(segmentIsClear(start,valid[0],radius,bounds,obstacles))return [{x:valid[0].x,z:valid[0].z}];
   const query={start,goals:valid,radius,bounds,obstacles};
-  if(navigationRuntime())return navigationRuntime()!.plan(query);
-  return background?background(query):findPathToGoals(start,valid,radius,bounds,obstacles);
+  return background?background(query):navigationRuntime()?.plan(query);
 }
 export const planPath=(start:Point,goal:Point,radius:number,bounds:Bounds,obstacles:readonly Obstacle[])=>planPaths(start,[goal],radius,bounds,obstacles);
 /** Move-destination enumeration is part of the heavy search too. Keep it in
  * the worker, including nearest-reachable fallback and arrival reservations. */
 export function planMoveInBackground(start:Point,goal:Point,radius:number,bounds:Bounds,obstacles:readonly Obstacle[],neighbours:readonly WorkNeighbour[]):PlannedPath|false {
-  if(navigationRuntime())return navigationRuntime()!.plan({start,goals:[goal],radius,bounds,obstacles,move:true,neighbours});
-  if(!background)return false;
-  return background({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours});
+  const planner=background??navigationRuntime()?.plan;
+  return planner?planner({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours}):false;
 }
 
 export interface PathReply { serial:number; path?:Point[]; ms:number; error?:boolean }

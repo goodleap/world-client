@@ -61,13 +61,15 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   const point = new Vector3(), projected = new Vector3(), identity = Matrix.Identity();
   const planes = Frustum.GetPlanes(Matrix.Identity());
   const previous = new Map<string, { x: number; z: number; facing: number; gait: number }>();
+  const committed = new Map<string, { x: number; z: number; facing: number; gait: number }>();
   return {
     beginStep(wolves: readonly Wolf[]) {
       previous.clear();
-      for (const w of wolves) previous.set(w.id, { ...w.position, facing: w.facing, gait: w.gait });
+      for(const [id,pose] of committed)previous.set(id,pose);
+      committed.clear();for (const w of wolves) committed.set(w.id, { ...w.position, facing: w.facing, gait: w.gait });
     },
-    update(wolves: readonly Wolf[], seconds: number, camera: Camera, alpha = 1) {
-      const lag = (1 - alpha) * SimulationClock.step;
+    update(wolves: readonly Wolf[], seconds: number, camera: Camera, alpha = 1, duration=SimulationClock.step) {
+      const lag = (1 - alpha) * duration;
       const visualSeconds=seconds-lag;
       Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes);
       // A wave-size change shifts the fixed wolves between slots. Remove old

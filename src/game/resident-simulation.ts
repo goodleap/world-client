@@ -11,11 +11,10 @@ import type { Obstacle,Point } from './movement.ts';
 import { canResidentWork,wanderSettings } from './resident-data.ts';
 import { destinationSpeed as commandedSpeed } from './locomotion.ts';
 import { createWanderState,seededRandom,segmentIsClear,stepWander } from './wander.ts';
-import { createRouteState,resetRouteState,stepRoute,yieldPoint } from './route-following.ts';
+import { createRouteState,resetRouteState,stepRoute } from './route-following.ts';
 import { occupiedApproach,planMoveDestination,planWorkApproach } from './work-navigation.ts';
 import { validateNavigation } from './navigation-plan.ts';
 import type { CrowdBody } from './native-motion.ts';
-import { navigationRuntime } from './navigation-runtime.ts';
 
 export type ResidentMotion='idle'|'walk'|'run'|'work'|'attack';
 /** Authoritative resident jobs and locomotion; no scene, meshes or DOM. */
@@ -38,27 +37,13 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
   const setMotion=(id:string,motion:ResidentMotion,speed=0)=>{const a=actorById.get(id);if(a){a.motion=motion;a.playbackSpeed=speed;}};
   let extraNeighbours: () => Neighbour[] = () => [];
   let wanderObstacles: () => readonly Obstacle[] = () => [];
-  let combatYield:(id:string,from:Point,toward:Point)=>boolean=()=>false;
   const groundRadius=(a:typeof actors[number])=>a.settings.bodyRadius;
-  const yieldActor=(actor:typeof actors[number],from:Point,toward:Point)=>{
-    const id=actor.definition.id;if(combatPoses.has(id))return combatYield(id,from,toward);
-    if(dead(id)||actor.route.length||works.has(id)||resting.has(id)||actor.definition.id.startsWith('enemy-'))return false;
-    const crowd=[...extraNeighbours(),...actors.filter(a=>a!==actor&&!dead(a.definition.id)).map(a=>({id:a.definition.id,position:a.state.position,radius:groundRadius(a),moving:false,purposeful:false,waiting:false}))];
-    const point=yieldPoint(actor.state.position,from,toward,groundRadius(actor),actor.settings.bounds,obstaclesFor(actor.definition.role),crowd);
-    if(!point)return false;actor.route=[point];actor.state.target=undefined;resetRouteState(actor.navigation);return true;
-  };
   const destinationSpeed = (actor: typeof actors[number]) => commandedSpeed(actor.settings.speed, actor.definition.role!=='dog');
   const navigate = (actor: typeof actors[number], route: Point[], navigation: typeof actor.navigation, seconds: number, speed: number,
     solids: readonly Obstacle[] = obstaclesFor(actor.definition.role)) => {
     const result = stepRoute(actor.definition.id, actor.state.position, route, navigation, seconds,
       speed, actor.settings.bodyRadius, actor.settings.bounds, solids,
-      navigationRuntime()?[]:[...extraNeighbours(), ...actors.filter(other => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => ({ id: other.definition.id, position: other.state.position,
-        radius: groundRadius(other),heading: (() => {
-          const next = combatPoses.get(other.definition.id)?.route[0] ?? other.route[0];
-          return next ? Math.atan2(next.x-other.state.position.x,next.z-other.state.position.z) : other.facing;
-        })(),
-        yield:!other.definition.id.startsWith('enemy-')?(from:Point,toward:Point)=>yieldActor(other,from,toward):undefined, moving: other.movementSpeed > .08, purposeful: !!(combatPoses.get(other.definition.id)?.route.length||other.route.length) || works.has(other.definition.id) || resting.has(other.definition.id),
-        waiting: combatPoses.get(other.definition.id)?.navigation.waiting ?? (other.route.length ? other.navigation : other.wanderNavigation).waiting }))]);
+      []);
     actor.stepPath = result.path; actor.stepFacing = result.facing;
     return result;
   };
@@ -93,9 +78,8 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
     },
     setExtraNeighbours(value:()=>Neighbour[]){extraNeighbours=value;},
     setWanderObstacles(value:()=>readonly Obstacle[]){wanderObstacles=value;},
-    setCombatYield(value:typeof combatYield){combatYield=value;},
     combatNeighbours:()=>actors.filter(a=>!combatPoses.has(a.definition.id)&&!dead(a.definition.id)).map(a=>({id:a.definition.id,position:a.state.position,radius:a.definition.bodyRadius,heading:a.facing,
-      yield:(from:Point,toward:Point)=>yieldActor(a,from,toward),moving:a.movementSpeed>.08,purposeful:!!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id),waiting:a.navigation.waiting,destination:a.route.at(-1)})),
+      moving:a.movementSpeed>.08,purposeful:!!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id),waiting:a.navigation.waiting,destination:a.route.at(-1)})),
     occupancy:()=>actors.filter(a=>!dead(a.definition.id)&&!combatPoses.get(a.definition.id)?.departed).map(a=>bodyObstacle(a.state.position,a.definition.bodyRadius)),
     frame:()=>actors.map(a=>({id:a.definition.id,position:{...a.state.position},facing:a.facing,speed:a.movementSpeed,motion:a.motion,playbackSpeed:a.playbackSpeed,
       route:a.route,path:a.stepPath,navigation:{...a.navigation},work:works.get(a.definition.id),working:works.get(a.definition.id)?.status==='working',feeding:!!vitals[a.definition.id]?.meal})),

@@ -12,7 +12,7 @@ const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 /** Official V2 Crowd owns neighbourhood lookup, velocity sampling and collision
  * separation. The adapter supplies already planned role-specific routes and
  * consumes one shared crowd update per simulation step, never per actor. */
-export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[]){
+export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[],plan:NavigationRuntime['plan']=q=>nav.plan(q)){
   const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode}>();
   const results=new Map<string,Point>();let tickMs=0,steps=0,rejected=0;
   function prepare(bodies:readonly CrowdBody[],dt:number){
@@ -22,8 +22,8 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     for(const b of bodies){
       let entry=agents.get(b.id);
       if(!entry){const node=new TransformNode(`crowd:${b.id}`,nav.scene);
-        const index=crowd.addAgent({x:b.position.x,y:.2,z:b.position.z},{radius:b.radius,height:2,maxSpeed:b.speed,maxAcceleration:80,
-          collisionQueryRange:Math.max(3,b.radius*12),pathOptimizationRange:12,separationWeight:2,updateFlags:7,obstacleAvoidanceType:0,queryFilterType:0,userData:null},node);
+        const index=crowd.addAgent({x:b.position.x,y:.2,z:b.position.z},{radius:b.radius,height:2,maxSpeed:b.speed,maxAcceleration:300,
+          collisionQueryRange:Math.max(3,b.radius*12),pathOptimizationRange:12,separationWeight:1,updateFlags:3,obstacleAvoidanceType:0,queryFilterType:0,userData:null},node);
         if(index<0){node.dispose();throw new Error('Native crowd capacity exceeded');}
         entry={index,node};agents.set(b.id,entry);
       }
@@ -43,9 +43,11 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     }
     tickMs=performance.now()-started;steps++;
   }
-  const runtime:NavigationRuntime={plan:q=>nav.plan(q),
+  const runtime:NavigationRuntime={plan,
     step(id,position,route,state,seconds,speed,radius,area,obstacles):MotionStep{
-      const dt=Math.max(0,Math.min(seconds,.05));let next=results.get(id)??position;
+      const dt=Math.max(0,Math.min(seconds,.05));
+      if(!dt)return {position,velocity:{x:0,z:0},distance:0,path:[{...position}],unreachable:false,facing:undefined};
+      let next=results.get(id)??position;
       if(!dt||speed<=0||!route.length)next=position;
       // A newly issued command may precede the next shared Crowd update.
       // Retain its route instead of resetting intent or starting another solver.
@@ -54,7 +56,15 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
         next={...route.shift()!};
       }
       const moved=distance(position,next);state.waiting=!!route.length&&moved<.001;
-      state.waited=state.waiting?state.waited+dt:0;state.retryIn=0;
+      state.waited=state.waiting?state.waited+dt:0;state.retryIn=0;state.replanIn=Math.max(0,state.replanIn-dt);
+      // A placed building can invalidate a previously accepted path. Ask the
+      // same native planner again; crowd-only delays never trigger searches.
+      if(state.waited>=.4&&!state.replanIn&&route.length&&!segmentIsClear(position,route[0],radius,area,obstacles)){
+        state.replanIn=.5;state.searches++;
+        const path=plan({start:position,goals:[route.at(-1)!],radius,bounds:area,obstacles});
+        if(path){route.splice(0,route.length,...path);state.replans++;state.waited=0;}
+        else if(path===undefined)return {position:next,velocity:{x:0,z:0},distance:0,path:[{...position},{...next}],unreachable:true,facing:undefined};
+      }
       return {position:next,velocity:dt?{x:(next.x-position.x)/dt,z:(next.z-position.z)/dt}:{x:0,z:0},distance:moved,
         path:[{...position},{...next}],unreachable:false,facing:moved>.00001?Math.atan2(next.x-position.x,next.z-position.z):undefined};
     },

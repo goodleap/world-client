@@ -10,7 +10,7 @@ import { RESIDENTS, ENEMIES, newResident } from './resident-data.ts';
 import type { ResidentDefinition } from './resident-data.ts';
 import { homeResidents } from './recruitment.ts';
 import { segmentIsClear } from './wander.ts';
-import { createRouteState, resetRouteState, stepRoute, yieldPoint } from './route-following.ts';
+import { createRouteState, resetRouteState, stepRoute } from './route-following.ts';
 import type { RouteState, Neighbour } from './route-following.ts';
 import { occupiedApproach, planMoveDestination, planWorkApproach } from './work-navigation.ts';
 import { validateNavigation } from './navigation-plan.ts';
@@ -206,10 +206,9 @@ export class Combat {
       list=[...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units,...this.threats].map(n=>{
         let views=this.neighbourViews.get(n);if(!views){views=new Map();this.neighbourViews.set(n,views);}
         let view=views.get(u.team);if(view)return view;
-        const team=u.team,yieldUnit=(from:Point,toward:Point)=>this.yieldUnit(n,from,toward);
+        const team=u.team;
         view={id:n.id,get position(){return n.position;},get radius(){return fighterRadius(n);},
           get heading(){return n.route.length?Math.atan2(n.route[0].x-n.position.x,n.route[0].z-n.position.z):n.facing;},get team(){return n.team;},
-          get yield(){return n.team===team?yieldUnit:undefined;},
           get moving(){return n.speed>.08;},get purposeful(){return !!n.route.length;},get waiting(){return n.navigation.waiting;}};
         views.set(team,view);return view;
       })];
@@ -217,11 +216,7 @@ export class Combat {
     }
     return list.filter(n=>{const other=this.unit(n.id);return n.id!==u.id&&(!other||other.life!=='defeated'&&!other.departed&&!occupiedTower(this.economy.state,n.id));});
   }
-  yieldUnit(u:Fighter,from:Point,toward:Point){
-    if(u.life!=='active'||u.goal||u.route.length||u.attack||u.target||this.economy.active(u.id)||this.economy.state.vitals[u.id]?.rest||assignedTower(this.economy.state,u.id))return false;
-    const point=yieldPoint(u.position,from,toward,fighterRadius(u),WORLD_BOUNDS,this.solids(),this.neighbours(u));
-    if(!point)return false;u.route=[point];u.goal=point;u.order='move';resetRouteState(u.navigation);return true;
-  }
+
   private face(u:Fighter,point:Point,dt:number){
     u.facing = turnTowards(u.facing, Math.atan2(point.x-u.position.x, point.z-u.position.z), dt, u.role === 'cavalry' ? 7 : 14);
   }

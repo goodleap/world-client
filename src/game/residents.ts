@@ -420,7 +420,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     resetPresentation() { for (const a of actors) a.renderMotion.reset(); },
     beginStep() { for (const a of actors) { a.stepPath = undefined; a.stepFacing = undefined; a.renderMotion.beginStep(); } },
     endStep() { for (const a of actors) a.renderMotion.endStep(a.stepPath); },
-    present(alpha: number, seconds: number) {
+    present(alpha: number, seconds: number, duration=SimulationClock.step) {
       let moving = 0, advanced = 0;
       for (const actor of actors) {
         if (!actor.ready || combatPoses.get(actor.definition.id)?.departed) { actor.renderMotion.reset(); continue; }
@@ -430,7 +430,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
           const meshes=actor.definition.role==='dog'?[actor.animal!.mesh]:(characterLODs.get(id)??[]).map(p=>p.source);
           // Death remains authoritative at 20 Hz. Only native visual tracks use
           // the same interpolated game time as movement and sampled attacks.
-          actor.death.sample(deathAge(u?.diedAt??vitals[id].diedAt,seconds-(1-alpha)*SimulationClock.step),u?.facing??actor.facing,meshes,()=>{
+          actor.death.sample(deathAge(u?.diedAt??vitals[id].diedAt,seconds-(1-alpha)*duration),u?.facing??actor.facing,meshes,()=>{
             if(actor.definition.role==='dog'){actor.animal!.freezePose();return;}
             setMotion(id,'idle');bowPoses.get(id)?.();const clips=locomotion.get(id)!;
             for(const group of [clips.walk,clips.run,clips.idle,clips.work,combatClips.get(id)])group?.stop();
@@ -442,7 +442,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         if (actor.movementSpeed > .08) { moving++; if (changed) advanced++; }
         const u = combatPoses.get(actor.definition.id), clip = combatClips.get(actor.definition.id);
         if (u?.attack && clip) {
-          const stats = fighterStats(u), elapsed = Math.max(0, u.attack.elapsed - (1 - alpha) * SimulationClock.step);
+          const stats = fighterStats(u), elapsed = Math.max(0, u.attack.elapsed - (1 - alpha) * duration);
           const phase = attackAnimationPhase(u.role, elapsed, stats.windup, stats.recovery);
           clip.goToFrame(clip.from + phase * (clip.to - clip.from)); bowPoses.get(u.id)?.(phase);
         }

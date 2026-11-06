@@ -87,7 +87,7 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     try{if(commit)result=await commit(kind,selected);else{const local=economy.placeBuilding(kind,selected,occupants());result={ok:local.ok,message:local.warning??local.message,id:local.task?.target};}}
     finally{placing=false;}
     if (result.ok) {
-      cancel(); onPlaced(result.id!);
+      cancel(); onPlaced(result.id!);if(result.message)ui.toast(result.message);
     }
     else ui.targetHint(result.message, { x: selected.x, y: surfaceHeight(selected.x,selected.z)+.2, z: selected.z });
   }

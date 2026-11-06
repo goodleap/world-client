@@ -43,9 +43,9 @@ export interface CommandResult{ok:boolean;message:string;count?:number;point?:Po
 export async function createSimulation(state:EconomyState,emit:(event:SimulationEvent)=>void=()=>{}){
   const economy=new Economy(state),world=createEconomyNavigation(economy),metrics=new SystemMetrics();
   const nav=await createNativeNavigation();
-  const motion=createNativeMotion(nav,WORLD_BOUNDS,()=>world.obstacles());
   const areaPaths=createNativeAreaPlanner(nav);
-  const releaseNavigation=installNavigationRuntime({...motion.runtime,plan:q=>requiresAreaBuild(q.obstacles)?areaPaths.plan(q):nav.plan(q)});
+  const motion=createNativeMotion(nav,WORLD_BOUNDS,()=>world.obstacles(),q=>requiresAreaBuild(q.obstacles)?areaPaths.plan(q):nav.plan(q));
+  const releaseNavigation=installNavigationRuntime(motion.runtime);
   // First movement must not pay for a new Recast build during combat.
   for(const radius of [.29,.4,.54,.6,.72])nav.profile(radius,WORLD_BOUNDS,world.obstacles(radius!==.29));
   const definitions=()=>[...homeResidents(state),...ENEMIES,...state.combat.units.filter(u=>u.id.startsWith('enemy-raid-'))
