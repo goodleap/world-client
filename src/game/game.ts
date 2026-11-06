@@ -1,3 +1,5 @@
+import { SystemMetrics } from './system-metrics.ts';
+import { collisionMetrics } from './obstacle-index.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
 import { combineObstacles } from './navigation-geometry.ts';
@@ -109,6 +111,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let canSave = false;
   let renderReady = false;
   const autosave = new Autosave();
+  const systemMetrics=new SystemMetrics();
   const frameWork = { logicMs: 0, worldMs: 0, saveMs: 0, sceneMs: 0 };
   const saves = { count: 0, failures: 0, lastMs: 0, maxMs: 0, totalMs: 0, chars: 0 };
   const save = () => {
@@ -640,9 +643,9 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if(canSave&&!resuming&&!ui.paused) simulationClock.advance(elapsed,dt=>{
         residents.beginStep(); wolves?.beginStep(raids.wolves); fixedSteps++;
         ui.advanceSpeech(dt);
-        controller.update(dt);
-        raids.update(dt);
-        const recruited=advanceRecruitment(economy,dt,occupancy());
+        systemMetrics.run('economy',()=>controller.update(dt));
+        systemMetrics.run('raids',()=>raids.update(dt));
+        const recruited=systemMetrics.run('recruitment',()=>advanceRecruitment(economy,dt,occupancy()));
         const nextKey=definitions().map(r=>r.id).join(',');
         if(nextKey!==definitionKey){definitionKey=nextKey;void residents.syncDefinitions(definitions()).then(()=>requestRender()).catch(error=>{console.error(error);ui.toast('单位模型加载失败，请保存并刷新重试');});}
         if(recruited){
@@ -654,10 +657,10 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
             if(combat.unit(id))combat.move([id],point,false,false,false,false,path);else controller.command(id,{kind:'move',point,path});
           });
         }
-        updateTowers(economy,combat);
-        combat.update(dt); residents.syncCombat(combat.state.units);
-        residents.update(dt, previewRole, dt);
-        needs.update(dt);
+        systemMetrics.run('towers',()=>updateTowers(economy,combat));
+        systemMetrics.run('combat',()=>combat.update(dt)); residents.syncCombat(combat.state.units);
+        systemMetrics.run('residents',()=>residents.update(dt, previewRole, dt));
+        systemMetrics.run('needs',()=>needs.update(dt));
         residents.endStep();
         simulationSeconds += dt;
         uiElapsed += dt; autosave.advance(dt);
@@ -841,7 +844,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   return {
     save,
     diagnosticReport: () => roundLog({
-      schema: 2, loading: compactLoadingLog(loadingProgress.snapshot()),
+      schema: 3, systems:systemMetrics.snapshot(), collision:collisionMetrics(), actors:residents.resourceCounts(), loading: compactLoadingLog(loadingProgress.snapshot()),
       lighting: { ...lighting },
       graphics: { mode: performanceMode, ...PERFORMANCE_MODES[performanceMode], userShadows },
       selection: { units: residents.selectedIds(), object: selectedWorld?.id, ...selectionFeedback.snapshot() },

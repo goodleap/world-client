@@ -14,13 +14,13 @@ import { createVillageDog } from './dog-view.ts';
 export function createAnimal(scene: Scene, p: Palette, shadows: ShadowGenerator, kind: 'horse' | 'dog', id: string, modelOnly=false) {
   if (kind === 'dog') return createVillageDog(scene, shadows, id);
   const root = new TransformNode(id, scene);
-  const skeleton = new Skeleton(`${id}-rig`, `${id}-rig`, scene);
   if(modelOnly){
     const mesh=new Mesh(`${id}-anchor`,scene);mesh.parent=root;mesh.isPickable=false;
     root.rotationQuaternion=Quaternion.RotationYawPitchRoll(Math.PI,0,0);
-    return {root,skeleton,mesh,partNames:[] as string[],motion:'idle' as const,runPlaybackRate:undefined,runReferenceSpeed:undefined,
+    return {root,skeleton:undefined,mesh,partNames:[] as string[],motion:'idle' as const,runPlaybackRate:undefined,runReferenceSpeed:undefined,
       async loadModel(){},freezePose(){},lodInfo(){return undefined;},update(_seconds:number,_x:number,_z:number,_purposeful=false,_feeding=false){}};
   }
+  const skeleton = new Skeleton(`${id}-rig`, `${id}-rig`, scene);
   const body = new Bone('body', skeleton, null, Matrix.Identity());
   const head = new Bone('head', skeleton, body, Matrix.Translation(0, 1.82, 0.86));
   const legs: Bone[] = [];

@@ -18,6 +18,13 @@ export function createCharacter(scene: Scene, p: Palette, shadows: ShadowGenerat
   const style = HUMAN_STYLES[role];
   const root = new TransformNode(id, scene);
   root.scaling.set(style.scale[0], style.scale[1], style.scale[2]);
+  // Authored characters need a transform anchor only. A placeholder skeleton
+  // is never skinned and would outlive the actor because no mesh owns it.
+  if (options.modelOnly) {
+    const mesh=new Mesh(`${id}-anchor`,scene);mesh.parent=root;mesh.isPickable=false;
+    root.rotationQuaternion=Quaternion.RotationYawPitchRoll(Math.PI,0,0);
+    return {root,skeleton:undefined,mesh,role,partNames:[] as string[],update(_seconds:number,_x:number,_z:number){}};
+  }
   // Each actor owns its pose, but shares this rig definition, base body and animation code.
   const skeleton = new Skeleton(`${id}-rig`, `${id}-rig`, scene);
   const hips = new Bone('hips', skeleton, null, Matrix.Translation(0, 0.72, 0));
@@ -27,13 +34,6 @@ export function createCharacter(scene: Scene, p: Palette, shadows: ShadowGenerat
   const rightArm = new Bone('right-arm', skeleton, torso, Matrix.Translation(0.32, 0.2, 0));
   const leftLeg = new Bone('left-leg', skeleton, hips, Matrix.Translation(-0.16, -0.05, 0));
   const rightLeg = new Bone('right-leg', skeleton, hips, Matrix.Translation(0.16, -0.05, 0));
-  // The game waits for the authored GLB before showing actors. Keep its root
-  // and interface without building a second, permanently hidden character.
-  if (options.modelOnly) {
-    const mesh=new Mesh(`${id}-anchor`,scene);mesh.parent=root;mesh.isPickable=false;
-    root.rotationQuaternion=Quaternion.RotationYawPitchRoll(Math.PI,0,0);
-    return {root,skeleton,mesh,role,partNames:[] as string[],update(_seconds:number,_x:number,_z:number){}};
-  }
   const assembly = createSkinAssembly();
   const skin = assembly.add;
   skin(softBox(scene, 'shirt', [0.57, 0.62, 0.4], [0, 1.03, 0], p[style.shirt], 0.1), torso);

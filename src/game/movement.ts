@@ -1,3 +1,4 @@
+import { obstacleCandidates } from './obstacle-index.ts';
 import { insidePolygon, sweepHitsPolygon } from './polygon.ts';
 import type { PolygonArea } from './polygon.ts';
 export interface Point { x: number; z: number }
@@ -19,7 +20,7 @@ export function pointSegmentDistanceSquared(point: Point, from: Point, to: Point
 export function sweepIsBlocked(from: Point, to: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
   const left=Math.min(from.x,to.x)-radius,right=Math.max(from.x,to.x)+radius;
   const bottom=Math.min(from.z,to.z)-radius,top=Math.max(from.z,to.z)+radius;
-  return obstacles.some(obstacle => {
+  return obstacleCandidates(obstacles,{minX:left,maxX:right,minZ:bottom,maxZ:top}).some(obstacle => {
     if (obstacle.kind === 'polygon') return sweepHitsPolygon(from, to, radius, obstacle);
     const halfX=obstacle.kind==='circle'?obstacle.radius:obstacle.halfWidth;
     const halfZ=obstacle.kind==='circle'?obstacle.radius:obstacle.halfDepth;
@@ -57,7 +58,7 @@ export function normalizeInput(x: number, z: number): Point {
 }
 
 export function isBlocked(position: Point, radius: number, obstacles: readonly Obstacle[]): boolean {
-  return obstacles.some((obstacle) => {
+  return obstacleCandidates(obstacles,{minX:position.x-radius,maxX:position.x+radius,minZ:position.z-radius,maxZ:position.z+radius}).some((obstacle) => {
     if (obstacle.kind === 'polygon') return insidePolygon(position, obstacle) || sweepHitsPolygon(position, position, radius, obstacle);
     if (obstacle.kind === 'circle') {
       return Math.hypot(position.x - obstacle.x, position.z - obstacle.z) < radius + obstacle.radius;

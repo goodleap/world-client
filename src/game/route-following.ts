@@ -1,3 +1,4 @@
+import { combineObstacles } from './navigation-geometry.ts';
 import { bodyObstacle } from './body-shape.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { isBlocked } from './movement.ts';
@@ -36,7 +37,7 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
   const wait = (duration = .35) => { state.waiting = true; state.waited += dt; state.retryIn = duration; return stopped(); };
   const circles = neighbours.map(other => bodyObstacle(other.position, other.radius));
   const clear = segmentIsClear;
-  const obstacles = [...solids, ...circles];
+  const obstacles = combineObstacles(solids,circles);
   const move = (next: Point, travelled = distance(position, next), facing = Math.atan2(next.x-position.x, next.z-position.z)) => {
     state.waiting = false; state.waited = 0; state.retryIn = 0;
     // A corner is safe from the planned waypoint, not from a nearby point that
@@ -201,7 +202,7 @@ export function stepRoute(id: string, position: Point, route: Point[], state: Ro
 
 /** Idle units make a small, collision-checked move without abandoning work. */
 export function yieldPoint(position:Point,from:Point,toward:Point,radius:number,bounds:Bounds,solids:readonly Obstacle[],neighbours:readonly Neighbour[]){
-  const angle=Math.atan2(toward.x-from.x,toward.z-from.z),obstacles=[...solids,...neighbours.map(n=>bodyObstacle(n.position,n.radius))];
+  const angle=Math.atan2(toward.x-from.x,toward.z-from.z),obstacles=combineObstacles(solids,neighbours.map(n=>bodyObstacle(n.position,n.radius)));
   for(const amount of [1.2,2,3])for(const turn of [Math.PI/2,-Math.PI/2,Math.PI]){
     const p={x:position.x+Math.sin(angle+turn)*amount,z:position.z+Math.cos(angle+turn)*amount};
     if(segmentIsClear(position,p,radius,bounds,obstacles))return p;

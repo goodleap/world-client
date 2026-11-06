@@ -228,10 +228,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const ids=new Set(definitions.map(d=>d.id));
       for(const actor of [...actors]) {
         const id=actor.definition.id;if(!id.startsWith('enemy-raid-')||ids.has(id))continue;
-        for(const g of scene.animationGroups.filter(g=>g.targetedAnimations.some(t=>actor.root.getDescendants().includes(t.target))))g.dispose();
-        const skeletons=new Set(actor.root.getChildMeshes().flatMap(m=>m.skeleton?[m.skeleton]:[]));
         for(const mesh of actor.root.getChildMeshes())shadows.removeShadowCaster(mesh,false);
-        actor.elevationRoot.dispose();for(const skeleton of skeletons)skeleton.dispose();ui.removeResidentLabel(id);actorById.delete(id);actors.splice(actors.indexOf(actor),1);
+        actor.elevationRoot.dispose();ui.removeResidentLabel(id);actorById.delete(id);actors.splice(actors.indexOf(actor),1);
         for(const map of [locomotion,characterModels,characterBones,characterLODs,combatClips,fallPostures,bowPoses,visualMeshes,combatPoses,playingAttack])map.delete(id);
         for(const stage of ['attach','geometry','death'])loadingProgress.items.delete(`${id}:${stage}`);
       }
@@ -251,6 +249,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       for (const [index, actor] of farmers.entries()) {
         await nextPaint();
         const result = await library.instantiate('farmer', actor.root);
+        if(actor.root.isDisposed())continue;
         loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         if (actor === farmer) farmerBones = result.skeletons.flatMap((skeleton) => skeleton.bones);
         characterBones.set(actor.definition.id, result.skeletons.flatMap(skeleton => skeleton.bones));
@@ -267,6 +266,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         // Reuse the authored neutral Walk pose for a native blended rest state.
         // This is not another authored body/rig/action set.
         const rest = farmerWalk.clone('Farmer rest pose', undefined, true);
+        actor.root.onDisposeObservable.addOnce(()=>rest.dispose());
         for (const target of rest.targetedAnimations) {
           const first = target.animation.getKeys()[0];
           target.animation.setKeys([{ frame: 0, value: first.value.clone?.() ?? first.value }, { frame: 60, value: first.value.clone?.() ?? first.value }]);
@@ -291,6 +291,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
         const asset = soldierAssets.find(a => a.role === actor.definition.role)!;
         const roleProgress = (fraction: number) => report?.((index + fraction) / soldiers.length);
         const result = await library.instantiate(asset.role, actor.root);
+        if(actor.root.isDisposed())continue;
         loadingProgress.begin(actor.definition.id + ':attach', `${actor.definition.name}：共享材质与动作挂接`);
         result.animationGroups.forEach(group => group.stop());
         const { walk, run, idle } = result;
@@ -332,6 +333,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       const placeholders = actors.filter(entry => placeholderRoles.has(entry.definition.role));
       for (const [index, actor] of placeholders.entries()) {
         const instance = await library.instantiate('base', actor.root);
+        if(actor.root.isDisposed())continue;
         const { walk, run } = instance;
         registerLocomotion(actor.definition.id, walk, run);
         for (const root of instance.rootNodes) {
@@ -417,6 +419,7 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.root.position,
     sharedLibraryInfo: library.summary,
+    resourceCounts: library.resources,
     lodSummary: () => [...characterLODs].map(([id, pairs]) => ({ id, parts: pairs.length,
       mapParts: pairs.filter(({ source }) => scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) !== source).length,
       farParts: pairs.filter(({ source, far }) => far && scene.activeCamera && selectCharacterLOD(source, scene.activeCamera) === far).length })),
@@ -683,9 +686,9 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
       wanderNavigation: { ...actor.wanderNavigation },
       travelled: actor.state.distanceTravelled, reached: actor.state.destinationsReached,
       bodyRadius: actor.definition.bodyRadius,
-      humanBones: actor.human?.skeleton.bones.map((bone) => bone.name) ?? [],
+      humanBones: actor.human?.skeleton?.bones.map((bone) => bone.name) ?? [],
       animalBones: actor.animal?.skeleton?.bones.map((bone) => bone.name) ?? [],
-      humanRigId: actor.human?.skeleton.uniqueId,
+      humanRigId: actor.human?.skeleton?.uniqueId,
       parts: [...(actor.human?.partNames ?? []), ...(actor.animal?.partNames ?? [])],
       pose: (actor.human ?? actor.animal)?.skeleton?.bones.map((bone) => bone.getRotation().asArray()) ?? [],
     })),
