@@ -30,7 +30,10 @@ export function createWorkerChannel(port:ChannelTransport){
   interface Service{dispatch(packet:{method:string;args:unknown}):Promise<unknown>}
   expose({async dispatch(packet:{method:string;args:unknown}){
     if(closed)throw new Error('Worker channel closed');
-    const args=decode(packet.args) as unknown[];
+    // Only the batched DOM API contains callbacks. State patches, geometry and
+    // commands are already cloneable; let Comlink/browser transport copy them
+    // once, without recursively rebuilding every record at both endpoints.
+    const args=(packet.method==='ui'?decode(packet.args):packet.args) as unknown[];
     return packet.method==='$callback'?callbacks.get(args[0] as number)?.(...args.slice(1)):handler(packet.method,args);
   }} satisfies Service,endpoint as Endpoint);
   const remote=wrap<Service>(endpoint as Endpoint);
@@ -44,7 +47,7 @@ export function createWorkerChannel(port:ChannelTransport){
         const ids=new Set<number>(),values=encode(call.args,ids),old=scopes.get(call.method);
         if(old)for(const id of old)if(!ids.has(id))retired.add(id);scopes.set(call.method,ids);
         return {method:call.method,args:values};
-      })]:encode(args);
+      })]:args;
       const release=()=>{for(const id of retired)if(![...scopes.values()].some(ids=>ids.has(id)))callbacks.delete(id);};
       remote.dispatch(transfer({method,args:encoded},list)).then(value=>{release();finish(undefined,value);},error=>{release();finish(error);});
     });

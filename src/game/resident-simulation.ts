@@ -184,9 +184,6 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
             work.status === 'working' ? activeElapsed / seconds : moved / seconds);
           continue;
         }
-        const crowd: Obstacle[] = [...extraNeighbours().map(n => bodyObstacle(n.position,n.radius)), ...actors.filter((other) => other !== actor && !dead(other.definition.id) && !combatPoses.get(other.definition.id)?.departed).map(other => bodyObstacle(other.state.position,groundRadius(other)))];
-        const blockers = crowd.filter((other) => other.kind === 'circle'
-          && Math.hypot(other.x - actor.state.position.x, other.z - actor.state.position.z) >= other.radius + actor.settings.bodyRadius - 0.001);
         let velocity: Point;
         let travelSpeed: number | undefined;
         const commanded = actor.route.length > 0;
@@ -205,8 +202,12 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
           if (!actor.route.length) actor.state.pause = 3;
         } else if (actor.definition.role === 'farmer') velocity = { x: 0, z: 0 };
         else {
+          // Only an uncommanded wanderer chooses a new destination. Native
+          // Crowd already handles the neighbours of moving/idle farmers.
+          const crowd:Obstacle[]=[...extraNeighbours().map(n=>bodyObstacle(n.position,n.radius)),...actors.filter(other=>other!==actor&&!dead(other.definition.id)&&!combatPoses.get(other.definition.id)?.departed).map(other=>bodyObstacle(other.state.position,groundRadius(other)))];
+          const blockers=crowd.filter(other=>other.kind==='circle'&&Math.hypot(other.x-actor.state.position.x,other.z-actor.state.position.z)>=other.radius+actor.settings.bodyRadius-.001);
           const areas = wanderObstacles(), solids = combineObstacles(obstaclesFor(actor.definition.role), areas);
-          velocity = stepWander(actor.state, actor.settings, seconds, [...solids, ...blockers], actor.random, (goal, dt, speed) => {
+          velocity = stepWander(actor.state, actor.settings, seconds, combineObstacles(solids,blockers), actor.random, (goal, dt, speed) => {
             const last = actor.wanderRoute.at(-1);
             const safe = actor.wanderRoute.every((p,i) => segmentIsClear(i ? actor.wanderRoute[i-1] : actor.state.position,
               p, actor.settings.bodyRadius, actor.settings.bounds, areas));
