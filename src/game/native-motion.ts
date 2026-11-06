@@ -1,4 +1,5 @@
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
+import { Raw } from '@recast-navigation/core';
 import type { NativeNavigation } from './native-navigation.ts';
 import type { NavigationRuntime, MotionStep } from './navigation-runtime.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
@@ -9,11 +10,18 @@ export interface CrowdBody {
   solids:readonly Obstacle[];moveIdle?(point:Point):void;
 }
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
+// Detour exposes eight shared avoidance profiles. Keep profile zero unchanged;
+// shorter horizons stop the predictor looking through a nearby destination.
+const arrivalHorizons=[.05,.1,.2,.4,.8,1.6];
 /** Official V2 Crowd owns neighbourhood lookup, velocity sampling and collision
  * separation. The adapter supplies already planned role-specific routes and
  * consumes one shared crowd update per simulation step, never per actor. */
 export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[],plan:NavigationRuntime['plan']=q=>nav.plan(q)){
   const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode;goal?:Point;destination?:Point;constrained?:boolean;arriving?:boolean;solids?:readonly Obstacle[];speed?:number}>();
+  const native=crowd.recastCrowd.raw,defaults=native.getObstacleAvoidanceParams(0),params=new Raw.Module.dtObstacleAvoidanceParams();
+  for(const key of ['velBias','weightDesVel','weightCurVel','weightSide','weightToi','gridSize','adaptiveDivs','adaptiveRings','adaptiveDepth'] as const)params[key]=defaults[key];
+  for(const [index,horizon]of arrivalHorizons.entries()){params.horizTime=horizon;native.setObstacleAvoidanceParams(index+1,params);}
+  Raw.destroy(params);
   const results=new Map<string,{position:Point;target?:Point}>();let tickMs=0,steps=0,rejected=0,requests=0;
   function prepare(bodies:readonly CrowdBody[],dt:number){
     const started=performance.now();nav.profile(0,bounds,solids());results.clear();
@@ -44,13 +52,22 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
       // V2 owns the path corridor, turning and speed. Only role-specific
       // exclusions/clearance absent from the shared mesh need a legal subgoal.
       const goal=entry.constrained?target:destination;
+      let avoidance=0;
       if(goal){
         const remaining=distance(b.position,goal);
+        const clearApproach=remaining<=Math.max(3,b.radius*12)&&segmentIsClear(b.position,goal,b.radius,bounds,b.solids);
+        if(clearApproach&&b.speed>0){
+          const travelSeconds=Math.max(dt,remaining/b.speed);
+          if(travelSeconds<defaults.horizTime){
+            avoidance=1;
+            for(let i=1;i<arrivalHorizons.length;i++)if(arrivalHorizons[i]<=travelSeconds)avoidance=i+1;
+          }
+        }
         // Detour's target mode always brakes inside radius * 2, with no public
         // slowdown setting. Use its native velocity request only for the clear
         // final approach. Crowd still handles neighbours, avoidance and NavMesh
         // confinement; cap the last step so arrival does not overshoot.
-        if(dt>0&&b.speed>0&&remaining<=b.radius*2+b.speed*dt&&segmentIsClear(b.position,goal,b.radius,bounds,b.solids)){
+        if(dt>0&&b.speed>0&&clearApproach&&remaining<=b.radius*2+b.speed*dt){
           const scale=remaining>0?Math.min(b.speed,remaining/dt)/remaining:0;
           agent.requestMoveVelocity({x:(goal.x-b.position.x)*scale,y:0,z:(goal.z-b.position.z)*scale});
           entry.goal={...goal};entry.arriving=true;
@@ -58,7 +75,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
           crowd.agentGoto(entry.index,{x:goal.x,y:.2,z:goal.z});entry.goal={...goal};entry.arriving=false;requests++;
         }
       }else if(entry.goal){agent.resetMoveTarget();entry.goal=undefined;entry.arriving=false;}
-
+      if(agent.obstacleAvoidanceType!==avoidance)agent.obstacleAvoidanceType=avoidance;
     }
     crowd.update(dt);
     for(const b of bodies){

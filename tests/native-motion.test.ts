@@ -16,9 +16,10 @@ const roles=['infantry','archer','cavalry'] as const;
 const movers=[...(['home','enemy'] as const).flatMap(team=>roles.map(role=>({id:`${team}-${role}`,radius:BODY_RADIUS[role],speed:fighterStats({team,role}).speed}))),
   ...(['farmer','dog'] as const).map(role=>({id:role,radius:BODY_RADIUS[role],speed:destinationSpeed(wanderSettings(RESIDENTS.find(r=>r.role===role)!).speed,role!=='dog')}))];
 
-test('all movers keep cruising speed through a clear final approach and stop at the destination',async()=>{
-  const nav=await createNativeNavigation(),solids:Obstacle[]=[];
-  try{for(const config of movers){
+test('all movers arrive at speed in the open and at a warehouse door without predicting travel through the wall',async()=>{
+  const nav=await createNativeNavigation();
+  const layouts:Obstacle[][]=[[],[{kind:'box',x:0,z:7,halfWidth:2.65,halfDepth:1.37}]];
+  try{for(const solids of layouts)for(const config of movers){
     const motion=createNativeMotion(nav,bounds,()=>solids),state=createRouteState(),goal={x:0,z:5};
     const actor:CrowdBody&{route:Point[]}={...config,position:{x:0,z:0},route:[goal],solids};
     let ticks=0;
@@ -27,6 +28,7 @@ test('all movers keep cruising speed through a clear final approach and stop at 
         motion.prepare([actor],dt);
         const step=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,solids,[]);
         assert(step.position.z<=goal.z+.001,`${actor.id} must not overshoot`);
+        assert(segmentIsClear(actor.position,step.position,actor.radius,bounds,solids),'retain wall clearance');
         if(actor.route.length)assert(step.distance/dt>actor.speed*.95,`${actor.id} must not crawl towards a clear destination`);
         actor.position=step.position;ticks++;
       }
