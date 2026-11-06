@@ -1,3 +1,4 @@
+import { readJSHeapMB } from './heap-memory.ts';
 import type { GameUI } from '../ui.ts';
 import type { Game } from './game.ts';
 import { Economy } from './economy.ts';
@@ -32,6 +33,7 @@ function prepareWorker(){
         if(call.method.startsWith('$')){extra(call.method,call.args);continue;}
         const fn=ui[call.method as keyof GameUI];if(typeof fn!=='function')throw new Error(`Unknown UI method ${call.method}`);
         const safe=call.args.map(a=>typeof a==='function'? (...values:unknown[])=>{pushState();return Promise.resolve(a(...values)).catch(error=>{console.error(error);ui?.toast('操作未完成，请重试');});}:a);
+        if(call.method==='setPerformance')safe[2]=readJSHeapMB();
         (fn as (...values:unknown[])=>unknown)(...safe);
       }
       pushState();return;
@@ -56,6 +58,8 @@ export async function createGame(ui:GameUI,economy:Economy){
     return {...game,snapshot:async()=>game.snapshot(),diagnosticReport:async()=>game.diagnosticReport(),markPerformance:async()=>game.markPerformance()};
   }
   const runtime=prepared??=prepareWorker();await runtime.ready;
+  const memory=document.querySelector<HTMLElement>('.performance-memory');
+  if(memory){memory.firstChild!.textContent='界面 JS ';memory.title='浏览器提供的界面主线程 JS 堆内存，不含模拟与渲染 Worker、GPU 或页面进程总内存。';}
   const abort=new AbortController(),options={signal:abort.signal},labels=new Map<string,HTMLElement>(),overlays=new Map<number,OverlayLabel>();
   const overlay=createDOMOverlayHost(ui.canvas),placement=createPlacementControls(ui);
   let input:MovementInput|undefined,management:ReturnType<typeof createHomeManagement>|undefined;
@@ -102,7 +106,7 @@ export async function createGame(ui:GameUI,economy:Economy){
   try{await runtime.channel.call('start',[canvas,minimap,economy.state,browserState(ui.canvas),uiState(ui)],[canvas,minimap],120_000);}catch(error){abort.abort();observer.disconnect();runtime.close();throw error;}
   const invoke=<K extends keyof Game>(name:K)=>runtime.channel.call('game',[name]) as Promise<Awaited<ReturnType<Game[K]>>>;
   return {
-    save:()=>invoke('save'),diagnosticReport:()=>invoke('diagnosticReport'),markPerformance:()=>invoke('markPerformance'),snapshot:()=>invoke('snapshot'),
+    save:()=>invoke('save'),diagnosticReport:async()=>({...await invoke('diagnosticReport'),browser:{heapMB:readJSHeapMB(),heapScope:'browser-main-only',communication:runtime.channel.snapshot()}}),markPerformance:()=>invoke('markPerformance'),snapshot:()=>invoke('snapshot'),
     frameSnapshot:()=>runtime.frame!,
     async dispose(){abort.abort();observer.disconnect();input?.dispose();placement.dispose();management?.dispose();overlay.remove();
       ui.addResidentLabel=add;ui.removeResidentLabel=remove;runtime.preserve();try{await invoke('dispose');}finally{runtime.close();}},

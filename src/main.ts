@@ -11,7 +11,7 @@ import { trackModuleLoading } from './module-loading.ts';
 import { suppressBrowserGestures } from './page-gestures.ts';
 
 declare global {
-  interface Window { __DEMO__?: Pick<Game,'snapshot'|'frameSnapshot'> }
+  interface Window { __DEMO__?: Pick<Game,'snapshot'|'frameSnapshot'|'diagnosticReport'> }
 }
 
 const stopModuleTracking = trackModuleLoading();
@@ -83,7 +83,7 @@ async function start(createUI: typeof import('./ui.ts')['createUI'], mode: Start
     ui.bindDiagnostics(async () => ({ ...diagnosticContext(), ...await game?.diagnosticReport() }));
     if (disposed) { game.dispose(); return; }
     if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {
-      window.__DEMO__ = { snapshot: game.snapshot, frameSnapshot: game.frameSnapshot };
+      window.__DEMO__ = { snapshot: game.snapshot, frameSnapshot: game.frameSnapshot, diagnosticReport:game.diagnosticReport };
     }
     page.inert = false;
     launcher.ready(); ui.ready(); game.save();
