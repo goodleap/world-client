@@ -689,10 +689,11 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   let presentedSeconds=economy.state.seconds;
   simulation.subscribe((packet,view)=>{
     const dt=Math.max(0,packet.seconds-presentedSeconds);presentedSeconds=packet.seconds;
-    if(dt>0){residents.beginStep();wolves?.beginStep(raids.wolves);fixedSteps++;ui.advanceSpeech(dt);}
+    if(dt>0){residents.beginStep();wolves?.beginStep(raids.wolves,packet.paths,packet.resetMotion);fixedSteps++;ui.advanceSpeech(dt);}
     combat.syncUnits();combat.setThreats(raids.wolves);
     residents.applySimulation(Object.values(view.residents),dt);residents.syncCombat(combat.state.units);
-    if(dt>0)residents.endStep();else residents.resetPresentation();
+    if(dt>0)residents.endStep(packet.paths);else residents.reconcilePresentation();
+    if(packet.resetMotion)residents.resetPresentation();
     simulationSeconds=packet.seconds;uiElapsed+=dt;autosave.advance(dt);
     const next=definitions(),key=next.map(r=>r.id).join(',');
     if(key!==definitionKey){definitionKey=key;void residents.syncDefinitions(next).then(()=>{

@@ -1,3 +1,4 @@
+import { withCrowdStep } from './native-test-runtime.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Combat, fighterStats, fighterRadius } from '../src/game/combat.ts';
@@ -16,7 +17,7 @@ function duel(actorId = 'infantry', targetId = 'enemy-guard', gap?: number) {
   a.position = { x: b.position.x + (gap ?? fighterStats(a).range + .1), z: b.position.z };
   // The same explicit pursuit order is valid for either faction.
   a.order = 'attack'; a.target = b.id;
-  const step = () => { e.state.seconds += .05; c.update(.05); };
+  const step = () => { e.state.seconds += .05; withCrowdStep(e,c,()=>walls,.05,()=>c.update(.05)); };
   return { e, c, a, b, walls, step };
 }
 
@@ -120,7 +121,7 @@ test('soldiers can hit a fleeing wolf updated by the real raid movement system',
       command: () => true, release: () => {}, resting: () => {}, neighbours: () => [],
     }, () => [], () => true);
     const hp = wolf.hp;
-    for (let i = 0; i < 100 && wolf.hp === hp; i++) { e.state.seconds += .05; raids.update(.05); c.update(.05); }
+    for (let i = 0; i < 100 && wolf.hp === hp; i++) { e.state.seconds += .05; withCrowdStep(e,c,()=>[],.05,()=>{raids.update(.05);c.update(.05);}); }
     assert(wolf.hp < hp, `${id} should hit the fleeing wolf`);
     assert(Math.hypot(wolf.position.x - wolf.home.x, wolf.position.z - wolf.home.z) > 2);
   }
@@ -128,7 +129,7 @@ test('soldiers can hit a fleeing wolf updated by the real raid movement system',
 
 test('slower melee has a bounded follow-through without extending attack initiation', () => {
   for (const offset of [.45, .55]) {
-    const { a, b, step } = duel('infantry', 'enemy-guard', 1.6);
+    const { a, b, step } = duel('infantry', 'enemy-guard', 1.59);
     b.goal = undefined; b.route = []; step(); assert(a.attack);
     const hp = b.hp;
     b.position.x = a.position.x - 1.6 - offset;

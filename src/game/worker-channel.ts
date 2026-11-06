@@ -9,14 +9,15 @@ export function createWorkerChannel(port:ChannelTransport){
   const pending=new Set<(error:Error)=>void>(),listeners=new Set<(event:MessageEvent)=>void>();
   const endpoint:ChannelTransport={postMessage:(data,list)=>port.postMessage(data,list),start:()=>port.start?.(),
     addEventListener(type,listener){listeners.add(listener);port.addEventListener(type,listener);},removeEventListener(type,listener){listeners.delete(listener);port.removeEventListener(type,listener);}};
+  const scopes=new Map<string,Set<number>>();
   const callbacks=new Map<number,(...args:unknown[])=>unknown>(),known=new WeakMap<(...args:never[])=>unknown,number>();
   let handler:(method:string,args:unknown[])=>unknown=()=>{throw new Error('Worker not initialized');};
-  const encode=(value:unknown):unknown=>{
+  const encode=(value:unknown,ids?:Set<number>):unknown=>{
     if(typeof value==='function'){
-      let id=known.get(value as (...args:never[])=>unknown);if(id===undefined){id=++callbackId;known.set(value as (...args:never[])=>unknown,id);callbacks.set(id,value as (...args:unknown[])=>unknown);}return {$callback:id};
+      let id=known.get(value as (...args:never[])=>unknown);if(id===undefined){id=++callbackId;known.set(value as (...args:never[])=>unknown,id);callbacks.set(id,value as (...args:unknown[])=>unknown);}else if(!callbacks.has(id))callbacks.set(id,value as (...args:unknown[])=>unknown);ids?.add(id);return {$callback:id};
     }
-    if(Array.isArray(value))return value.map(encode);
-    if(value&&typeof value==='object'&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,encode(v)]));
+    if(Array.isArray(value))return value.map(v=>encode(v,ids));
+    if(value&&typeof value==='object'&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,encode(v,ids)]));
     return value;
   };
   const decode=(value:unknown):unknown=>{
@@ -38,12 +39,20 @@ export function createWorkerChannel(port:ChannelTransport){
     return new Promise((resolve,reject)=>{
       const finish=(error?:Error,value?:unknown)=>{clearTimeout(timer);pending.delete(cancel);if(error)reject(error);else resolve(value);};
       const cancel=(error:Error)=>finish(error),timer=setTimeout(()=>finish(new Error(`Worker timeout: ${method}`)),timeout);pending.add(cancel);
-      remote.dispatch(transfer({method,args:encode(args)},list)).then(value=>finish(undefined,value),error=>finish(error));
+      const retired=new Set<number>();
+      const encoded=method==='ui'?[((args[0]??[]) as {method:string;args:unknown[]}[]).map(call=>{
+        const ids=new Set<number>(),values=encode(call.args,ids),old=scopes.get(call.method);
+        if(old)for(const id of old)if(!ids.has(id))retired.add(id);scopes.set(call.method,ids);
+        return {method:call.method,args:values};
+      })]:encode(args);
+      const release=()=>{for(const id of retired)if(![...scopes.values()].some(ids=>ids.has(id)))callbacks.delete(id);};
+      remote.dispatch(transfer({method,args:encoded},list)).then(value=>{release();finish(undefined,value);},error=>{release();finish(error);});
     });
   }
   return {call,notify(method:string,args:unknown[]=[],list:Transferable[]=[]){if(!closed)void call(method,args,list).catch(error=>{if(!closed)console.error(error);});},
+    snapshot:()=>({callbacks:callbacks.size,pending:pending.size}),
     handle(value:typeof handler){handler=value;},close(reason='Worker disposed'){
-      if(closed)return;closed=true;for(const cancel of pending)cancel(new Error(reason));callbacks.clear();remote[releaseProxy]();
+      if(closed)return;closed=true;for(const cancel of pending)cancel(new Error(reason));callbacks.clear();scopes.clear();remote[releaseProxy]();
       for(const listener of listeners)port.removeEventListener('message',listener);listeners.clear();
     }};
 }

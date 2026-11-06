@@ -92,7 +92,7 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
     saveResidents: (): Record<string, SavedResident> => Object.fromEntries(actors.filter(a=>!a.definition.id.startsWith('enemy-')).map(actor => [actor.definition.id, {
       position: { ...actor.state.position }, manualGoal: !works.has(actor.definition.id) && actor.route.length ? { ...actor.route.at(-1)! } : undefined,
     }])),
-    restoreResidents(saved: Record<string, SavedResident>) {
+    async restoreResidents(saved: Record<string, SavedResident>,resolve:(read:()=>import('./path-planner.ts').PlannedPath)=>Promise<import('./path-planner.ts').PlannedPath>=read=>Promise.resolve(read())) {
       for (const actor of actors) {
         const data = saved[actor.definition.id]; if (!data) continue;
         if (!isBlocked(data.position, actor.settings.bodyRadius, obstaclesFor(actor.definition.role))) {
@@ -101,11 +101,12 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
         }
       }
       // Resolve reservations after every saved position is restored, including
-      // older saves that assigned several units an identical destination.
+      // several units that share a destination.
       for (const actor of actors) {
         const goal = saved[actor.definition.id]?.manualGoal;
-        if (goal) actor.route = planMoveDestination(actor.state.position, goal, actor.settings.bodyRadius, actor.settings.bounds,
-          obstaclesFor(actor.definition.role), workNeighbours(actor)) ?? [];
+        if (goal){const start={...actor.state.position},neighbours=workNeighbours(actor);
+          actor.route = await resolve(()=>planMoveDestination(start, goal, actor.settings.bodyRadius, actor.settings.bounds,
+            obstaclesFor(actor.definition.role), neighbours)) ?? [];}
       }
     },
     farmerPosition: (id = farmer.definition.id) => actors.find(a => a.definition.id === id)!.state.position,

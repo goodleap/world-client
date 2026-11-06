@@ -43,7 +43,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     }
     tickMs=performance.now()-started;steps++;
   }
-  const runtime:NavigationRuntime={plan,
+  const runtime:NavigationRuntime={batched:true,plan,
     step(id,position,route,state,seconds,speed,radius,area,obstacles):MotionStep{
       const dt=Math.max(0,Math.min(seconds,.05));
       if(!dt)return {position,velocity:{x:0,z:0},distance:0,path:[{...position}],unreachable:false,facing:undefined};

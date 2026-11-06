@@ -1,3 +1,4 @@
+import type { Point } from './movement.ts';
 import { surfaceHeight } from './terrain-height.ts';
 import { DeathView } from './death-view.ts';
 import { prepareRenderTemplates } from './render-mesh-memory.ts';
@@ -21,7 +22,6 @@ import type { GameUI } from '../ui.ts';
 import { loadingProgress } from '../loading-progress.ts';
 import { interpolateAngle, interpolateCycle } from './render-motion.ts';
 import { sampleMotionPath } from './motion-path.ts';
-import { routeMotion } from './route-following.ts';
 import { SimulationClock } from './simulation-clock.ts';
 import { createWolfPicking } from './picking-shapes.ts';
 
@@ -62,10 +62,12 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
   const planes = Frustum.GetPlanes(Matrix.Identity());
   const previous = new Map<string, { x: number; z: number; facing: number; gait: number }>();
   const committed = new Map<string, { x: number; z: number; facing: number; gait: number }>();
+  let traces:Record<string,readonly Point[]>|undefined;
   return {
-    beginStep(wolves: readonly Wolf[]) {
+    beginStep(wolves: readonly Wolf[],paths?:Record<string,readonly Point[]>,reset=false) {
+      traces=paths;
       previous.clear();
-      for(const [id,pose] of committed)previous.set(id,pose);
+      if(!reset)for(const [id,pose] of committed)previous.set(id,pose);
       committed.clear();for (const w of wolves) committed.set(w.id, { ...w.position, facing: w.facing, gait: w.gait });
     },
     update(wolves: readonly Wolf[], seconds: number, camera: Camera, alpha = 1, duration=SimulationClock.step) {
@@ -93,7 +95,7 @@ export async function createWolfView(scene: Scene, shadows: ShadowGenerator, ui:
         }
         const before = previous.get(wolf.id);
         const display = before && wolf.life === 'active'
-          ? sampleMotionPath(before, wolf.position, alpha, routeMotion(wolf.navigation)) : wolf.position;
+          ? sampleMotionPath(before, wolf.position, alpha, traces?.[wolf.id]) : wolf.position;
         actor.root.position.x = display.x; actor.root.position.z = display.z;
         if (wolf.life === 'active') actor.root.position.y = surfaceHeight(display.x,display.z);
         if (wolf.life === 'defeated') {

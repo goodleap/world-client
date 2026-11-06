@@ -25,8 +25,8 @@ export function inBounds(point: Point, radius: number, bounds: Bounds): boolean 
 }
 
 /** Local wander targets must be directly reachable; this intentionally needs no navigation library. */
-export function segmentIsClear(from: Point, to: Point, radius: number, bounds: Bounds, obstacles: readonly Obstacle[]): boolean {
-  return inBounds(from, radius, bounds) && inBounds(to, radius, bounds) && !sweepIsBlocked(from, to, radius, obstacles);
+export function segmentIsClear(from: Point, to: Point, radius: number, bounds: Bounds, obstacles: readonly Obstacle[],ignore?:(obstacle:Obstacle)=>boolean): boolean {
+  return inBounds(from, radius, bounds) && inBounds(to, radius, bounds) && !sweepIsBlocked(from, to, radius, obstacles,ignore);
 }
 
 export function createWanderState(spawn: Point, settings: WanderSettings, obstacles: readonly Obstacle[], random: () => number, restored?: Point): WanderState {

@@ -419,7 +419,8 @@ export function createResidents(scene: Scene, p: Palette, shadows: ShadowGenerat
     },
     resetPresentation() { for (const a of actors) a.renderMotion.reset(); },
     beginStep() { for (const a of actors) { a.stepPath = undefined; a.stepFacing = undefined; a.renderMotion.beginStep(); } },
-    endStep() { for (const a of actors) a.renderMotion.endStep(a.stepPath); },
+    endStep(paths?:Record<string,readonly Point[]>) { for (const a of actors) a.renderMotion.endStep(paths?.[a.definition.id]??a.stepPath); },
+    reconcilePresentation() {for(const a of actors)a.renderMotion.reconcile();},
     present(alpha: number, seconds: number, duration=SimulationClock.step) {
       let moving = 0, advanced = 0;
       for (const actor of actors) {

@@ -137,9 +137,10 @@ export async function createNativeNavigation(){
         }
       }
       const seen=new Set<string>();
-      const goals=candidates.filter(p=>{const key=`${p.x.toFixed(3)},${p.z.toFixed(3)}`;if(seen.has(key))return false;seen.add(key);return dist(p,goal)<=MOVE_DESTINATION_RADIUS&&valid(p);})
+      const goals=candidates.filter(p=>{const key=`${p.x.toFixed(3)},${p.z.toFixed(3)}`;if(seen.has(key))return false;seen.add(key);return dist(p,goal)<=MOVE_DESTINATION_RADIUS;})
         .sort((a,b)=>dist(a,goal)-dist(b,goal)||dist(a,q.start)-dist(b,q.start));
-      return api.path(q.start,goals,q.radius,q.bounds,q.obstacles);
+      for(const candidate of goals)if(valid(candidate)){const path=api.path(q.start,[candidate],q.radius,q.bounds,q.obstacles);if(path)return path;}
+      return undefined;
     },
     path(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,solids:readonly Obstacle[]){
       const plugin=profile(radius,bounds,solids),begin=performance.now();stats.queries++;

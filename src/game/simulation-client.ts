@@ -34,7 +34,7 @@ export async function createSimulationClient(economy:Economy,checkpoint:(text:st
     async command(command:SimulationCommand){pending++;try{return await channel.call('command',[command]) as CommandResult;}finally{pending--;}},
     setView:(bounds:Bounds)=>channel.notify('view',[bounds]),
     save:()=>channel.call('save') as Promise<{text:string;encodeMs:number}>,
-    diagnostics:()=>({...diagnostics!,replication:{...diagnostics!.replication,serial},backlogMs}),get pending(){return pending;},
+    diagnostics:()=>({...diagnostics!,replication:{...diagnostics!.replication,serial},backlogMs,communication:channel.snapshot()}),get pending(){return pending;},
     async dispose(){if(closed)return;closed=true;try{await channel.call('dispose',[],[],5000);}finally{channel.close();worker.terminate();}},
   };
 }

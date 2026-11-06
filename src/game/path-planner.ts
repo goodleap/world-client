@@ -43,6 +43,8 @@ interface Entry { key:string; group:string; serial:number; query:Omit<PathQuery,
 export function createBackgroundPaths(worker:Transport,now=()=>performance.now()) {
   let serial=0,active:Entry|undefined,failed=false,disposed=false,completed=0,hits=0,workMs=0;
   const geometry=createGeometrySender(),ready:{entry:Entry;result:PathReply}[]=[];
+  const waiters=new Set<()=>void>();
+  const wake=()=>{for(const resolve of waiters)resolve();waiters.clear();};
   const cache=new Map<string,Entry>(),groups=new Map<string,Set<Entry>>(),queue:Entry[]=[];
   const groupOf=(q:PathQuery,version:number)=>JSON.stringify([q.goals.map(p=>[p.x,p.z]),q.radius,
     [q.bounds.minX,q.bounds.maxX,q.bounds.minZ,q.bounds.maxZ],version,q.move,
@@ -99,11 +101,12 @@ export function createBackgroundPaths(worker:Transport,now=()=>performance.now()
     ready.push({entry:active,result:event.data});active=undefined;
     // These requests already own immutable snapshots. Calculation can continue
     // between renders (or while paused); only flush publishes gameplay results.
-    pump();
+    pump();wake();
   };
-  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();};
+  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();wake();};
   return {
     plan,
+    waitForResult:()=>ready.length||failed||disposed?Promise.resolve():new Promise<void>(resolve=>waiters.add(resolve)),
     flush(){
       for(const {entry,result} of ready){
         if(cache.get(entry.key)!==entry)continue;
@@ -113,6 +116,6 @@ export function createBackgroundPaths(worker:Transport,now=()=>performance.now()
       ready.length=0;
     },
     snapshot:()=>({pending:queue.length+Number(!!active)+ready.length,ready:ready.length,cached:cache.size,completed,hits,workMs:Math.round(workMs),geometryUploads:geometry.uploads,failed}),
-    dispose(){disposed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();worker.onmessage=worker.onerror=null;worker.terminate();},
+    dispose(){disposed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();worker.onmessage=worker.onerror=null;worker.terminate();wake();},
   };
 }

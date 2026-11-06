@@ -1,3 +1,7 @@
+import { Octree } from '@babylonjs/core/Culling/Octrees/octree.js';
+import { BoundingBox } from '@babylonjs/core/Culling/boundingBox.js';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { combineObstacles } from './navigation-geometry.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { navigationRuntime } from './navigation-runtime.ts';
 import { surfaceHeight } from './terrain-height.ts';
@@ -83,10 +87,15 @@ export class Combat {
   private residentPosition?: (id: string) => Point;
   private units: Map<string, Fighter>;
   private threats: readonly Fighter[] = [];
-  private statCache = new Map<string, { level: number; rank: number; value: ReturnType<typeof fighterStats> }>();
+  private statCache = new Map<string, { level: number; rank: number; role:CombatRole;team:'home'|'enemy'; value: ReturnType<typeof fighterStats> }>();
   private motion = new Map<string, { position: Point; velocity: Point }>();
   private motionStep = .05;
-  private frameTargets?: { all:CombatTarget[]; home:CombatTarget[]; enemy:CombatTarget[]; byId:Map<string,CombatTarget>; cells:Map<string,CombatTarget[]>; padding:number };
+  private frameTargets?: { all:CombatTarget[]; home:CombatTarget[]; enemy:CombatTarget[]; byId:Map<string,CombatTarget>; padding:number };
+  private targetPoint=new Vector3();
+  private targetIndex=new Octree<CombatTarget>((t,block)=>{
+    this.targetPoint.set(t.position.x,1/3,t.position.z);
+    if(BoundingBox.IntersectsSphere(block.minPoint,block.maxPoint,this.targetPoint,.001))block.entries.push(t);
+  },16,4);
   private frameNeighbours = new Map<string,Neighbour[]>();
   private planning = new Map<string,{intent:string;start:Point;points:Point[];nearby?:Point;solids:readonly Obstacle[];neighbours:ReturnType<Combat['reservations']>}>();
   private targetViews = new WeakMap<Fighter,CombatTarget>();
@@ -104,9 +113,9 @@ export class Combat {
   private stats(u: Fighter) {
     const level = u.team === 'home' ? this.economy.state.upgrades.arms : 0, cached = this.statCache.get(u.id);
     const rank = soldierLevel(u.experience);
-    if (cached?.level === level && cached.rank === rank) return cached.value;
+    if (cached?.level === level && cached.rank === rank && cached.role===u.role && cached.team===u.team) return cached.value;
     const value = effectiveFighterStats(u, level);
-    this.statCache.set(u.id, { level, rank, value }); return value;
+    this.statCache.set(u.id, { level, rank, role:u.role,team:u.team,value }); return value;
   }
   private reach(u:Fighter,target:CombatTarget){return occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:reach(u,target);}
   canTarget(u:Pick<Fighter,'role'>,target:CombatTarget){return u.role==='archer'||(target.elevation??0)<.5;}
@@ -115,8 +124,8 @@ export class Combat {
     const ignored=state.towers.filter(t=>t.hp>0&&(t.id===targetId||t.phase==='occupied'&&(t.unit===sourceId||t.unit===targetId)
       ||((from as {y?:number}).y??0)>2&&Math.hypot(from.x-t.x,from.z-t.z)<1.2));
     const building=targetId?buildingInfo(state,targetId):undefined;
-    return segmentIsClear(from,to,.05,WORLD_BOUNDS,this.solids().filter(o=>!ignored.some(t=>o.kind==='box'&&o.x===t.x&&o.z===t.z)
-      &&!(building?.built&&o.kind!=='polygon'&&o.x===building.x&&o.z===building.z)));
+    return segmentIsClear(from,to,.05,WORLD_BOUNDS,this.solids(),ignored.length||building?.built?o=>ignored.some(t=>o.kind==='box'&&o.x===t.x&&o.z===t.z)
+      ||!!(building?.built&&o.kind!=='polygon'&&o.x===building.x&&o.z===building.z):undefined);
   }
   syncUnits() { this.units=new Map(this.state.units.map(u=>[u.id,u]));for(const u of this.threats)this.units.set(u.id,u); }
   unit(id: string) { return this.units.get(id) ?? this.state.units.find(u=>u.id===id); }
@@ -148,25 +157,24 @@ export class Combat {
     return this.collectTargets().filter(t=>t.team!==opponentsOf);
   }
   private beginFrame(dt:number) {
-    const all=this.collectTargets(), cells=new Map<string,CombatTarget[]>();
+    const all=this.collectTargets();
     let padding=0;
     for(const t of all){
-      const key=`${Math.floor(t.position.x/8)},${Math.floor(t.position.z/8)}`;
-      const cell=cells.get(key);if(cell)cell.push(t);else cells.set(key,[t]);
       const u=this.unit(t.id);if(u)padding=Math.max(padding,this.stats(u).speed*dt);
     }
-    this.frameTargets={all,home:all.filter(t=>t.team==='home'),enemy:all.filter(t=>t.team==='enemy'),byId:new Map(all.map(t=>[t.id,t])),cells,padding};
+    this.targetIndex.update(new Vector3(WORLD_BOUNDS.minX,0,WORLD_BOUNDS.minZ),new Vector3(WORLD_BOUNDS.maxX,1,WORLD_BOUNDS.maxZ),all);
+    this.frameTargets={all,home:all.filter(t=>t.team==='home'),enemy:all.filter(t=>t.team==='enemy'),byId:new Map(all.map(t=>[t.id,t])),padding};
   }
   nearbyTargets(u:Pick<Fighter,'position'|'team'>,radius:number) {
     const frame=this.frameTargets;if(!frame)return this.targets(u.team);
-    // Earlier units may already have moved this step. Expand the cell query by
+    // Earlier units may already have moved this step. Expand the native index query by
     // the largest possible step; final targeting checks read live positions.
-    const range=radius+frame.padding, result:CombatTarget[]=[];
-    for(let z=Math.floor((u.position.z-range)/8);z<=Math.floor((u.position.z+range)/8);z++)
-      for(let x=Math.floor((u.position.x-range)/8);x<=Math.floor((u.position.x+range)/8);x++)
-        for(const t of frame.cells.get(`${x},${z}`)??[])if(t.team!==u.team)result.push(t);
-    return result;
+    const range=radius+frame.padding;
+    this.targetPoint.set(u.position.x,1/3,u.position.z);
+    const found=this.targetIndex.intersects(this.targetPoint,range,false);
+    return found.data.slice(0,found.length).filter(t=>t.team!==u.team);
   }
+
   target(id: string) { const cached=this.frameTargets?.byId.get(id);if(cached)return cached;const unit=this.unit(id);return unit?(unit.departed?undefined:this.unitTarget(unit)):this.targets('enemy').find(t=>t.id===id); }
   setThreats(threats: readonly Fighter[]) {
     this.threats = threats;
@@ -191,12 +199,14 @@ export class Combat {
     if(u.life==='active'&&soldierLevel(u.experience)>previousLevel)this.levelFeedback?.(u.id,soldierLevel(u.experience));
     this.economy.revision++;
   }
+  canAssist(id:string){
+    const u=this.unit(id),vital=this.economy.state.vitals[id];
+    return !!u&&u.team==='home'&&u.life==='active'&&!u.target&&!u.attack&&!u.goal
+      &&['guard','hold'].includes(u.order)&&!vital.rest&&vital.manualUntil<=this.economy.state.seconds&&!this.economy.active(id);
+  }
   assist(id: string, target: string) {
     const u = this.unit(id), foe = this.unit(target);
-    if (!u || !foe || u.team !== 'home' || u.life !== 'active' || foe.life !== 'active' || u.target || u.attack || u.goal
-      || u.defendFrom && (distance(foe.position, u.defendFrom) > C.chase || distance(u.position, u.defendFrom) > C.chase)
-      || !['guard', 'hold'].includes(u.order) || this.economy.state.vitals[id].rest
-      || this.economy.state.vitals[id].manualUntil > this.economy.state.seconds || this.economy.active(id)) return false;
+    if(!this.canAssist(id)||!u||!foe||foe.life!=='active'||u.defendFrom&&(distance(foe.position,u.defendFrom)>C.chase||distance(u.position,u.defendFrom)>C.chase))return false;
     u.target = target; u.order = 'guard'; u.defendFrom ??= { ...u.position }; this.stop(u); return true;
   }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
@@ -392,12 +402,13 @@ export class Combat {
     target.order = 'hold'; target.planIn = 0;
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
   }
+  movementRoute(u:Fighter):readonly Point[]{return u.attackApproach?u.route.slice(0,-1):u.route;}
   private travel(u: Fighter, dt: number, speed: number) {
     // One route includes the target anchor, but its occupied feet are not a
     // walking destination. Replan/yield along the same reachable prefix, then
     // restore the anchor before rendering. Range/LOS can stop movement earlier.
     const anchor = u.attackApproach ? u.route.pop() : undefined;
-    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), navigationRuntime()?[]:this.neighbours(u));
+    const step = stepRoute(u.id, u.position, u.route, u.navigation, dt, speed, fighterRadius(u), WORLD_BOUNDS, this.solids(), navigationRuntime()?.batched?[]:this.neighbours(u));
     if (anchor) u.route.push(anchor);
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
@@ -479,7 +490,7 @@ export class Combat {
     // Refresh a clear direct approach every simulation step; no A* is needed
     // to follow an opponent running through open ground. Keep detours when
     // crowds or solids obstruct it, and retain the shared swept collision check.
-    const obstacles=[...this.solids(),...neighbours.map(n=>bodyObstacle(n.position,n.radius))];
+    const obstacles=combineObstacles(this.solids(),neighbours.map(n=>bodyObstacle(n.position,n.radius)));
     const directClear=segmentIsClear(u.position,direct,fighterRadius(u),WORLD_BOUNDS,obstacles);
     if (u.attackApproach && distance(u.attackApproach,target.position)<=range && !this.visible(u.attackApproach, target.position, u.id, target.id)) u.planIn = 0;
     if (this.visible(direct, target.position, u.id, target.id) && !occupiedApproach(direct, fighterRadius(u), neighbours) && directClear) {
@@ -668,7 +679,15 @@ export class Combat {
     // planned. Keep the shared terminal anchor at this step's target position.
     for (const u of this.state.units) if (u.attackApproach && u.route.length && u.target) {
       const target = this.target(u.target);
-      if (target?.life === 'active') u.route[u.route.length - 1] = { x: target.position.x, z: target.position.z };
+      if (target?.life === 'active') {
+        const previous=u.route.at(-1)!;
+        // Keep a direct approach relative to the same target snapshot as its
+        // visible anchor. The next shared Crowd step must not steer toward a
+        // point one tick behind an opponent that moved later in this step.
+        if(u.route.length===2){const next={x:u.route[0].x+target.position.x-previous.x,z:u.route[0].z+target.position.z-previous.z};
+          if(segmentIsClear(u.position,next,fighterRadius(u),WORLD_BOUNDS,this.solids())){u.route[0]=next;u.attackApproach=next;}}
+        u.route[u.route.length-1]={x:target.position.x,z:target.position.z};
+      }
     }
     for (const camp of this.state.camps) {
       if(MAP_DEVELOPMENT)continue;

@@ -1,4 +1,3 @@
-import { bodyObstacle } from './body-shape.ts';
 import { isBlocked } from './movement.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
 import { planPaths, planMoveInBackground } from './path-planner.ts';
@@ -6,10 +5,13 @@ import { inBounds, segmentIsClear } from './wander.ts';
 
 export interface WorkNeighbour { position: Point; radius: number; destination?: Point }
 export function occupiedApproach(point: Point, radius: number, neighbours: readonly WorkNeighbour[]) {
-  return neighbours.some(n => isBlocked(point, radius + .08, [
-    bodyObstacle(n.position, n.radius),
-    ...(n.destination ? [bodyObstacle(n.destination, n.radius)] : []),
-  ]));
+  // Destination reservations are a spacing rule; no temporary colliders or
+  // spatial-index query is needed for each individual pair of circular bodies.
+  return neighbours.some(n=>{
+    const clearance=radius+n.radius+.08;
+    return Math.hypot(point.x-n.position.x,point.z-n.position.z)<clearance
+      ||!!n.destination&&Math.hypot(point.x-n.destination.x,point.z-n.destination.z)<clearance;
+  });
 }
 
 /** Reserve an approach by the live route's endpoint, without another mutable

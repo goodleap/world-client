@@ -4,6 +4,7 @@ import type { RouteState, Neighbour } from './route-following.ts';
 
 export interface MotionStep { position:Point; velocity:Point; distance:number; path:Point[]; unreachable:boolean; facing:number|undefined }
 export interface NavigationRuntime {
+  readonly batched?:boolean;
   plan(query:PathQuery):PlannedPath;
   step(id:string,position:Point,route:Point[],state:RouteState,seconds:number,speed:number,radius:number,bounds:Bounds,solids:readonly Obstacle[],neighbours:readonly Neighbour[]):MotionStep;
 }

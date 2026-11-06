@@ -51,3 +51,15 @@ test('paused steps preserve position and navigation state',()=>{
     assert.deepEqual(result.position,position);assert.deepEqual(state,before);assert.equal(route.length,1);
   }finally{motion.dispose();}
 });
+
+test('a building placed across an accepted route triggers one native replan and preserves its destination',()=>{
+  let solids:readonly Obstacle[]=[];
+  const a=actor('builder',{x:-7,z:0},[{x:7,z:0}]),motion=createNativeMotion(testNavigation,bounds,()=>solids);
+  try{for(let tick=0;tick<300&&a.route.length;tick++){
+    if(tick===8)solids=[{kind:'box',x:0,z:0,halfWidth:1,halfDepth:2}];
+    motion.prepare([{...a,solids}],.05);
+    const next=motion.runtime.step(a.id,a.position,a.route,a.state,.05,a.speed,a.radius,bounds,solids,[]);
+    assert(!next.unreachable);assert(segmentIsClear(a.position,next.position,a.radius,bounds,solids));a.position=next.position;
+  }assert.equal(a.route.length,0);assert(d(a.position,{x:7,z:0})<.03);assert.equal(a.state.replans,1);
+  }finally{motion.dispose();}
+});

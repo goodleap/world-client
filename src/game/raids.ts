@@ -64,7 +64,7 @@ export class Raids {
   get wolves() { return allWolves(this.state); }
   private syncThreats() { this.combat.setThreats(this.wolves.filter(w => w.mode !== 'gone')); }
   private position(id: string) { return this.combat.target(id)?.position ?? this.people.status(id).position; }
-  private fireClear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids().filter(o => !(o.kind === 'circle' && distance(o, b) < .01))); }
+  private fireClear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids(),o => o.kind === 'circle' && distance(o, b) < .01); }
   private clear(a: Point, b: Point) { return segmentIsClear(a, b, .05, WORLD_BOUNDS, this.solids()); }
   neighbours(): Neighbour[] {
     return this.wolves.filter(w => w.life === 'active' && w.mode !== 'gone').map(w => ({ id: w.id, position: w.position,
@@ -106,7 +106,7 @@ export class Raids {
     w.route=path?validateNavigation({start:w.position,goal:path.at(-1)!,radius,bounds:WORLD_BOUNDS,solids,neighbours:reservations},path)??[]:[];
   }
   private travel(w: Wolf, dt: number) {
-    const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), navigationRuntime()?[]:this.neighboursFor(w));
+    const result = stepRoute(w.id, w.position, w.route, w.navigation, dt, COMBAT_CONFIG.wolf.speed, fighterRadius(w), WORLD_BOUNDS, this.solids(), navigationRuntime()?.batched?[]:this.neighboursFor(w));
     w.position = result.position;
     const moved = result.distance; w.speed = moved / dt; w.gait = (w.gait + moved / 1.26) % 1;
     if (result.facing !== undefined) w.facing = result.facing;
@@ -195,17 +195,20 @@ export class Raids {
       else if(task.threat.safeSince===undefined)task.threat.safeSince=now;
       else if(now-task.threat.safeSince>=3){task.threat=undefined;task.retryAt=0;task.reason='';this.economy.revision++;}
     }
-    for (const r of homeResidents(this.economy.state)) {
+    const people=homeResidents(this.economy.state),living=people.filter(r=>health(this.economy.state,r.id)>0).map(r=>({id:r.id,position:this.position(r.id)}));
+    const threatened=new Set(threats.filter(w=>living.some(n=>distance(n.position,w.position)<8)).map(w=>w.id));
+    for (const r of people) {
       if (health(this.economy.state, r.id) <= 0) { delete this.state.evading[r.id];this.escapePlans.delete(r.id); continue; }
       const position = this.position(r.id), vital = this.economy.state.vitals[r.id];
-      const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire));
       if (this.combat.unit(r.id)) {
+        if(!this.combat.canAssist(r.id))continue;
         for (const w of threats) if (distance(position, w.position) <= C.aidRadius
-          && homeResidents(this.economy.state).some(n => health(this.economy.state, n.id) > 0 && distance(this.position(n.id), w.position) < 8) && this.clear(position, w.position)) {
+          && threatened.has(w.id) && this.clear(position, w.position)) {
           if (this.combat.assist(r.id, w.id)) break;
         }
         continue;
       }
+      const nearby = threats.filter(w => distance(position, w.position) < (this.combat.unit(w.id)?.role==='wolf'?C.acquire:COMBAT_CONFIG.acquire));
       const evasion = this.state.evading[r.id],hit=vital.lastAttack;
       const source=threats.find(t=>t.id===(hit?.source??evasion?.attacker));
       const attacked=!!source&&!!hit&&now-hit.at<=3;

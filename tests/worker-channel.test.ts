@@ -20,3 +20,16 @@ test('worker channel transfers ownership, relays callbacks and propagates errors
     const pending=client.call('stalled');client.close();await assert.rejects(pending,/disposed/);
   }finally{client.close();worker.close();port1.close();port2.close();}
 });
+
+test('replacing selection callbacks releases old closures after the browser acknowledges the UI',async()=>{
+  const {port1,port2}=new MessageChannel(),render=createWorkerChannel(port1),browser=createWorkerChannel(port2);
+  let click:(()=>Promise<unknown>)|undefined;
+  browser.handle((method,args)=>{assert.equal(method,'ui');for(const call of args[0] as {method:string;args:unknown[]}[])click=call.args[0] as typeof click;});
+  try{
+    for(let i=0;i<100;i++){
+      await render.call('ui',[[{method:'setSelection',args:[()=>i]}]]);
+      assert.equal(await click?.(),i);assert.equal(render.snapshot().callbacks,1);
+    }
+    await render.call('ui',[[{method:'setSelection',args:[]}]]);assert.equal(render.snapshot().callbacks,0);
+  }finally{render.close();browser.close();port1.close();port2.close();}
+});
