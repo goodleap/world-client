@@ -11,6 +11,9 @@ type SaveStatus = 'ready' | 'empty' | 'invalid' | 'unavailable';
 export function createLauncher() {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const screen = get('loading');
+  const footer = screen.querySelector<HTMLElement>('.launch-footer');
+  const version = import.meta.env.VITE_APP_VERSION || 'dev';
+  if (footer) footer.textContent = typeof version === 'string' ? version.trim() || 'dev' : 'dev';
   const panel = get('loading-panel');
   const menu = get('menu-panel');
   const exit = get('exit-panel');
