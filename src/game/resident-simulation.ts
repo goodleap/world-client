@@ -81,7 +81,7 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
     combatNeighbours:()=>actors.filter(a=>!combatPoses.has(a.definition.id)&&!dead(a.definition.id)).map(a=>({id:a.definition.id,position:a.state.position,radius:a.definition.bodyRadius,heading:a.facing,
       moving:a.movementSpeed>.08,purposeful:!!a.route.length||works.has(a.definition.id)||resting.has(a.definition.id),waiting:a.navigation.waiting,destination:a.route.at(-1)})),
     occupancy:()=>actors.filter(a=>!dead(a.definition.id)&&!combatPoses.get(a.definition.id)?.departed).map(a=>bodyObstacle(a.state.position,a.definition.bodyRadius)),
-    frame:()=>actors.map(a=>({id:a.definition.id,position:{...a.state.position},facing:a.facing,speed:a.movementSpeed,motion:a.motion,playbackSpeed:a.playbackSpeed,
+    frame:(civiliansOnly=false)=>actors.filter(a=>!civiliansOnly||!combatPoses.has(a.definition.id)).map(a=>({id:a.definition.id,position:{...a.state.position},facing:a.facing,speed:a.movementSpeed,motion:a.motion,playbackSpeed:a.playbackSpeed,
       route:a.route,path:a.stepPath,navigation:{...a.navigation},work:works.get(a.definition.id),working:works.get(a.definition.id)?.status==='working',feeding:!!vitals[a.definition.id]?.meal})),
     farmerIds: () => actors.filter(a => a.definition.role === 'farmer').map(a => a.definition.id),
     setResting(id: string, yes: boolean) { if (yes) resting.add(id); else resting.delete(id); },

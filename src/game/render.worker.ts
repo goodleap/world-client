@@ -50,7 +50,7 @@ channel.handle(async(method,args)=>{
       if(name==='canvas')return surface;if(name==='minimapCanvas')return minimap;
       if(Object.hasOwn(uiState,name))return uiState[name as keyof UIState];
       if(name==='addResidentLabel')return (id:string,label:string,leader:boolean)=>{
-        callUI(name,id,label,leader);let hidden=false;return {get hidden(){return hidden;},set hidden(value:boolean){if(hidden===value)return;hidden=value;callUI('$labelVisibility',id,hidden);}};
+        callUI(name,id,label,leader);let hidden=true;return {get hidden(){return hidden;},set hidden(value:boolean){if(hidden===value)return;hidden=value;callUI('$labelVisibility',id,hidden);}};
       };
       return (...values:unknown[])=>callUI(name,...values);
     }});

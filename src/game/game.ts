@@ -210,9 +210,9 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     if(tower){
       const availability=garrisonAvailability(economy,combat,tower.id,residents.selectedIds()),candidate=availability.candidate,id=tower.unit??candidate?.id,name=homeResidents(economy.state).find(r=>r.id===id)?.name??'弓兵';
       ui.setSelection(buildingSelection(economy,object.id,{name:'哨塔',kind:'建筑',showHint:true,hint:`${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
-        actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:availability.reason,disabled:!candidate}]}));return;
+        actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:availability.reason,disabled:!candidate}]}),object.id);return;
     }
-    if(object.id==='home-center'){ui.setSelection(buildingSelection(economy,object.id,{name:'家园中心',kind:'建筑',hint:'点击空地设置集合点',actions:[{id:'recruit',label:'招募',disabled:!buildingOperational(economy.state,object.id)}]}));return;}
+    if(object.id==='home-center'){ui.setSelection(buildingSelection(economy,object.id,{name:'家园中心',kind:'建筑',hint:'点击空地设置集合点',actions:[{id:'recruit',label:'招募',disabled:!buildingOperational(economy.state,object.id)}]}),object.id);return;}
     const details = buildingSelection(economy,object.id,economySelection(economy, object)), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
     if (!economy.campfire(object.id) && unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
@@ -221,7 +221,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       details.hint = '此作业需要农民'; details.showHint = true;
       details.actions = (details.actions ?? []).map(action => ({ ...action, disabled: action.id !== 'cancel' && action.id !== 'demolish' }));
     }
-    ui.setSelection(details);
+    ui.setSelection(details,object.id);
   };
   const selectWorld = (object: WorldObject) => {
     clearWorld();
@@ -576,6 +576,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     scene.animationTimeScale=ui.paused||resuming?0:1;
     scene.animationsEnabled=!ui.paused&&!resuming;
     if(!scene.animationsEnabled)scene.resetLastAnimationTimeFrame();
+    simulation.present();
     const motion = residents.present(simulationClock.alpha, economy.state.seconds,simulation.duration);
     // These are visual-only tracks; transactions and fuel stay in fixed steps.
     world.doors.update(dt);
@@ -634,7 +635,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
     levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,levelPosition,projectDamage);
-    const sceneStart = performance.now(); scene.render();platform.flush(); frameWork.sceneMs += performance.now() - sceneStart;
+    const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
     residents.updateLabels(camera); wolves?.updateLabels(camera);
     ui.setInspectedUnits([...residents.selectedIds(),...(selectedEnemy?[selectedEnemy]:[])]);
     damageNumbers.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,projectDamage);
@@ -643,15 +644,16 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       const anchor=selectedWorld.labelAnchor??selectedWorld.anchor;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
         scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
-      ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
-      const action=projectDamage(selectedWorld.anchor);ui.positionObjectActions(action.x,action.y,action.visible);
+      ui.positionSelection(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight,selectedWorld.id);
+      const action=projectDamage(selectedWorld.anchor);ui.positionObjectActions(action.x,action.y,action.visible,selectedWorld.id);
     }
     if (ui.hintAnchor) {
       const anchor = ui.hintAnchor;
       const projected = Vector3.Project(new Vector3(anchor.x, anchor.y, anchor.z), projectionIdentity,
         scene.getTransformMatrix(), camera.viewport.toGlobal(ui.canvas.clientWidth, ui.canvas.clientHeight));
-      ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight);
+      ui.positionHint(projected.x, projected.y, projected.z >= 0 && projected.z <= 1 && projected.x >= 0 && projected.x <= ui.canvas.clientWidth && projected.y >= 0 && projected.y <= ui.canvas.clientHeight,anchor.revision);
     }
+    platform.flush();
     renderedFrames++;
       // Babylon unprojects the actual orthographic viewport; no guessed zoom box.
       const width = engine.getRenderWidth() * engine.getHardwareScalingLevel(), height = engine.getRenderHeight() * engine.getHardwareScalingLevel();

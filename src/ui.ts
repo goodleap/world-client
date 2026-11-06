@@ -215,7 +215,8 @@ export function createUI(app: HTMLElement) {
   let toastTimer: ReturnType<typeof setTimeout>;
   let hintTimer: ReturnType<typeof setTimeout> | undefined;
   let hintPersistent = false;
-  let hintAnchor: { x: number; y: number; z: number } | undefined;
+  let hintRevision=0;
+  let hintAnchor: { x: number; y: number; z: number; revision:number } | undefined;
   function focusGame() { if (!dialogs.some(dialog => dialog.open)) canvas.focus({ preventScroll: true }); }
   let onPauseChange = () => {};
   let onLeave: (destination: 'menu' | 'exit') => void = () => {};
@@ -309,6 +310,7 @@ export function createUI(app: HTMLElement) {
   const syncSelection=()=>{unitCard.hidden=!card.hidden||!residentName||!residentInfo;infoCard.hidden=card.hidden&&unitCard.hidden;get('clear-selection').hidden=infoCard.hidden;};
   const infoObserver=new ResizeObserver(entries=>{for(const entry of entries)app.style.setProperty('--selection-height',`${Math.ceil(entry.borderBoxSize?.[0]?.blockSize??entry.contentRect.height)}px`);});
   infoObserver.observe(infoCard);
+  let selectionKey='';
   const objectLabel=document.createElement('span');objectLabel.className='resident-label selected-object-label';objectLabel.hidden=true;
   const objectName=document.createElement('span'),objectBars=document.createElement('span'),objectBar=document.createElement('span'),objectFill=document.createElement('span');
   objectBars.className='resident-health-bars';objectBar.className='resident-health';objectBar.setAttribute('role','meter');objectBar.setAttribute('aria-label','选中建筑生命');
@@ -345,6 +347,7 @@ export function createUI(app: HTMLElement) {
     },
     addResidentLabel(id: string, name: string, leader = false) {
       const label = document.createElement('span');
+      label.hidden=true;label.style.visibility='hidden';
       label.className = 'resident-label'; label.dataset.resident = id; label.textContent = name;
       label.classList.toggle('enemy-label', id.startsWith('enemy-') || id.startsWith('wolf-'));
       if (leader) { label.classList.add('resident-leader'); label.title = '领头 · 参与作业并指挥同职业居民'; }
@@ -483,6 +486,7 @@ export function createUI(app: HTMLElement) {
       const label = residentLabels.get(id); if (!label) return;
       const transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) translate(-50%, -100%)`;
       if (label.style.transform !== transform) label.style.transform = transform;
+      label.style.visibility='visible';
     },
     setResources(values: { name: string; amount: number; capacity: number; reserved: number; ground?: number; transit?: number }[]) {
       const key = JSON.stringify(values); if (key === inventoryKey) return; inventoryKey = key;
@@ -518,7 +522,8 @@ export function createUI(app: HTMLElement) {
         const button = item.querySelector('button')!; button.hidden = !row.cancellable; button.disabled = !row.cancellable;
       }
     },
-    setSelection(details?: SelectionDetails) {
+    setSelection(details?: SelectionDetails, id=details?.name??'') {
+      if(id!==selectionKey||!details){objectLabel.style.visibility='hidden';actionsPanel.style.visibility='hidden';}selectionKey=id;
       card.hidden=!details;objectLabel.hidden=!details;actionsPanel.hidden=!details?.actions?.length;syncSelection();
       if(!details)return;
       card.setAttribute('aria-label', `${details.name}的信息`);
@@ -537,8 +542,8 @@ export function createUI(app: HTMLElement) {
       }
 
     },
-    positionSelection: (x: number, y: number, visible: boolean) => positionOverlay(objectLabel, x, y, visible),
-    positionObjectActions:(x:number,y:number,visible:boolean)=>positionOverlay(actionsPanel,x,y,visible),
+    positionSelection: (x: number, y: number, visible: boolean,id=selectionKey) => {if(id===selectionKey)positionOverlay(objectLabel,x,y,visible);},
+    positionObjectActions:(x:number,y:number,visible:boolean,id=selectionKey)=>{if(id===selectionKey)positionOverlay(actionsPanel,x,y,visible);},
     setResident(name?: string, canWork = false, leadership?: boolean) {
       residentName=name??'';if(!name)residentInfo=undefined;syncSelection();
       get('resident-name').textContent = name === '农民·领头' ? '领头' : name ?? '';
@@ -583,9 +588,9 @@ export function createUI(app: HTMLElement) {
       toastTimer = setTimeout(() => get('toast').classList.remove('visible'), 2200);
     },
     targetHint(message: string, anchor: { x: number; y: number; z: number }, persistent = false) {
-      clearTimeout(hintTimer); hintAnchor = { ...anchor }; hintPersistent = persistent;
+      clearTimeout(hintTimer); hintAnchor = { ...anchor,revision:++hintRevision }; hintPersistent = persistent;
       if (hint.textContent !== message || hint.hidden) hint.textContent = message;
-      if (hint.hidden) hint.style.visibility = 'hidden';
+      hint.style.visibility = 'hidden';
       hint.hidden = false;
       if (!persistent) hintTimer = setTimeout(() => { hint.hidden = true; hintAnchor = undefined; }, 2200);
     },
@@ -594,7 +599,7 @@ export function createUI(app: HTMLElement) {
       clearTimeout(hintTimer); hint.hidden = true; hintAnchor = undefined;
     },
     get hintAnchor() { return hintAnchor; },
-    positionHint: (x: number, y: number, visible: boolean) => positionOverlay(hint, x, y-(actionsPanel.hidden?0:residentSize(actionsPanel).height+8), visible),
+    positionHint: (x: number, y: number, visible: boolean,revision=hintAnchor?.revision) => {if(revision===hintAnchor?.revision)positionOverlay(hint,x,y-(actionsPanel.hidden?0:residentSize(actionsPanel).height+8),visible);},
     dispose() { abort.abort(); infoObserver.disconnect();residentSizeObserver.disconnect();mapGestures.dispose(); clearTimeout(toastTimer); clearTimeout(hintTimer); for (const dialog of dialogs) dialog.close(); },
   };
 }

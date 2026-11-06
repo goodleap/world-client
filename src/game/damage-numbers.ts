@@ -5,29 +5,29 @@ export interface DamageNumber { target:string; amount:number; team:'home'|'enemy
  * textures or independent timer; the caller supplies the paused visual clock. */
 export function createDamageNumbers(host:OverlayHost) {
   const limit=32,duration=.7;
-  const slots:{node:OverlayLabel;hit:DamageNumber;start:number;lift:number;width:number;x:number;y:number;placed:boolean}[]=[];
+  const slots:{node:OverlayLabel;hit:DamageNumber;start:number;lift:number;width:number;x:number;y:number;placed:boolean;active:boolean}[]=[];
   let shown=0;
   return {
     add(hit:DamageNumber,time:number,visible:boolean){
       if(!visible||!Number.isFinite(hit.amount)||hit.amount<=0)return;
-      let slot=slots.find(s=>s.node.hidden);
+      let slot=slots.find(s=>!s.active);
       if(!slot&&slots.length<limit){
         const node=host.create('damage-number');
-        slot={node,hit,start:time,lift:0,width:0,x:0,y:0,placed:false};slots.push(slot);
+        slot={node,hit,start:time,lift:0,width:0,x:0,y:0,placed:false,active:false};slots.push(slot);
       }
       slot??=slots.reduce((a,b)=>a.start<b.start?a:b);
-      slot.hit=hit;slot.start=time;slot.lift=0;slot.placed=false;shown++;
+      slot.active=true;slot.hit=hit;slot.start=time;slot.lift=0;slot.placed=false;shown++;
       const rounded=Math.round(hit.amount);
       slot.node.textContent=String(rounded);slot.width=slot.node.textContent.length*11+4;
-      slot.node.classList.toggle('home-damage',hit.team==='home');slot.node.hidden=false;
+      slot.node.classList.toggle('home-damage',hit.team==='home');slot.node.hidden=true;slot.node.style.opacity='0';
     },
     update(time:number,project:(point:DamageNumber['point'])=>{x:number;y:number;visible:boolean}){
       for(const s of slots){
-        if(s.node.hidden)continue;
+        if(!s.active)continue;
         const elapsed=Math.max(0,time-s.start);
-        if(elapsed>=duration){s.node.hidden=true;continue;}
+        if(elapsed>=duration){s.active=false;s.node.hidden=true;continue;}
         const p=project(s.hit.point);
-        if(!p.visible){s.node.hidden=true;continue;}
+        if(!p.visible){s.active=false;s.node.hidden=true;continue;}
         if(!s.placed){
           // Choose a vertical offset once, so simultaneous nearby hits remain
           // legible without jumping when another number expires. The bound is
@@ -39,7 +39,7 @@ export function createDamageNumbers(host:OverlayHost) {
         }
         s.x=p.x;s.y=p.y-30-s.lift-elapsed*44;
         s.node.style.transform=`translate(${s.x.toFixed(1)}px,${s.y.toFixed(1)}px) translate(-50%,-100%)`;
-        s.node.style.opacity=String(Math.min(1,(duration-elapsed)/.25));
+        s.node.style.opacity=String(Math.min(1,(duration-elapsed)/.25));s.node.hidden=false;
       }
     },
     snapshot:()=>({shown,active:slots.filter(s=>!s.node.hidden).length,allocated:slots.length}),

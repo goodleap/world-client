@@ -10,6 +10,7 @@ import type { Bounds, Point } from './movement.ts';
 const channel=createWorkerChannel(self as unknown as ChannelTransport);
 let sim:Simulation|undefined,publisher:ReturnType<typeof createSimulationPublisher>|undefined;
 let paused=true,closed=false,previous=performance.now(),serial=0,diagnosticAt=0,checkpointAt=0;
+let timelineOrigin=0;
 let timer:ReturnType<typeof setTimeout>|undefined,inflight:Promise<unknown>|undefined;
 const clock=new SimulationClock(),events:SimulationEvent[]=[];
 let commands:Promise<unknown>=Promise.resolve();
@@ -17,7 +18,7 @@ let traces:Record<string,Point[]>={},resetMotion=false;
 const positions=new Map<string,Point>();
 function captureMotion(){
   if(!sim)return;
-  const poses=[...sim.residents.frame().filter(p=>!sim!.combat.unit(p.id)),...sim.combat.state.units,...sim.raids.wolves],ids=new Set(poses.map(p=>p.id));
+  const poses=[...sim.residents.frame(true),...sim.combat.state.units,...sim.raids.wolves],ids=new Set(poses.map(p=>p.id));
   for(const id of positions.keys())if(!ids.has(id))positions.delete(id);
   for(const pose of poses){const previous=positions.get(pose.id),next={x:pose.position.x,z:pose.position.z};
     if(previous&&(previous.x!==next.x||previous.z!==next.z)){
@@ -29,13 +30,13 @@ function captureMotion(){
 function publish(){
   if(inflight||!sim||!publisher||closed)return inflight;
   const now=performance.now(),diagnostics=now-diagnosticAt>=500?{...sim.diagnostics(),replication:publisher.snapshot()}:undefined;if(diagnostics)diagnosticAt=now;
-  const packet:SimulationPacket={serial:++serial,stamp:performance.timeOrigin+now,seconds:sim.economy.state.seconds,
+  const packet:SimulationPacket={serial:++serial,stamp:timelineOrigin+sim.economy.state.seconds*1000,seconds:sim.economy.state.seconds,
     patch:publisher.diff(simulationView(sim)),events:events.splice(0),paths:traces,resetMotion,diagnostics,backlogMs:clock.pendingSeconds*1000};
   // At most one publication can be waiting on rendering. On a slow frame the
   // next diff covers all changes since the acknowledgement, without a backlog
   // of stale whole-world snapshots or queued geometry uploads.
   traces={};resetMotion=false;
-  inflight=channel.call('frame',[packet]).then(value=>{inflight=undefined;return value;},error=>{
+  inflight=channel.call('frame',[packet],[packet.patch.motion.values.buffer as ArrayBuffer]).then(value=>{inflight=undefined;return value;},error=>{
     inflight=undefined;if(!closed){paused=true;channel.notify('error',[String(error)]);}throw error;
   });
   void inflight.catch(()=>{});
@@ -58,7 +59,7 @@ channel.handle(async(method,args)=>{
   }
   if(!sim)throw new Error('Simulation is not ready');
   switch(method){
-    case 'pause':paused=!!args[0];previous=performance.now();if(paused){await commands;await inflight;await publish();}return;
+    case 'pause':paused=!!args[0];previous=performance.now();if(!paused)timelineOrigin=performance.timeOrigin+previous-(sim.economy.state.seconds+clock.pendingSeconds)*1000;if(paused){await commands;await inflight;await publish();}return;
     case 'command':{const work=commands.then(()=>sim!.command(args[0] as SimulationCommand));commands=work.catch(()=>{});
       const result=await work;await inflight;await publish();return result;}
     case 'view':sim.setView(args[0] as Bounds);return;

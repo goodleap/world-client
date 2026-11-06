@@ -48,7 +48,7 @@ export function createLevelFeedback(scene:Scene,host:OverlayHost){
       slot.group.stop();slot.id=id;slot.start=time;slot.active=true;shown++;
       slot.frame=-1;slot.root.position.set(point.x,point.y+.06,point.z);slot.root.setEnabled(true);
       slot.ring.scaling.setAll(.6);slot.sparks.position.y=.2;slot.material.alpha=0;
-      slot.label.textContent=`Lv. ${level}`;slot.label.hidden=false;
+      slot.label.textContent=`Lv. ${level}`;slot.label.hidden=true;slot.label.style.opacity='0';
       slot.group.start(false,1,0,60);slot.group.pause();
     },
     update(time:number,position:(id:string)=>Position|undefined,project:(point:Position)=>{x:number;y:number;visible:boolean}){
@@ -59,12 +59,12 @@ export function createLevelFeedback(scene:Scene,host:OverlayHost){
         if(elapsed>=1||!point){s.group.stop();s.root.setEnabled(false);s.label.hidden=true;s.active=false;continue;}
         const frame=elapsed*60;if(frame!==s.frame){s.group.goToFrame(frame);s.frame=frame;}
         s.root.position.set(point.x,point.y+.06,point.z);
-        const p=project({...point,y:point.y+3});s.label.hidden=!p.visible;
+        const p=project({...point,y:point.y+3});
         let y=p.y-40-elapsed*22;
         for(const other of labels.filter(o=>Math.abs(o.x-p.x)<100).sort((a,b)=>b.y-a.y))if(Math.abs(y-other.y)<23)y=other.y-23;
         if(p.visible)labels.push({x:p.x,y});
         s.label.style.transform=`translate(${p.x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`;
-        s.label.style.opacity=String(Math.min(1,(1-elapsed)/.3));
+        s.label.style.opacity=String(Math.min(1,(1-elapsed)/.3));s.label.hidden=!p.visible;
       }
     },
     snapshot:()=>({shown,active:slots.filter(s=>s.active).length,allocated:slots.length}),
