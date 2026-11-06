@@ -13,7 +13,7 @@ const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
  * separation. The adapter supplies already planned role-specific routes and
  * consumes one shared crowd update per simulation step, never per actor. */
 export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[],plan:NavigationRuntime['plan']=q=>nav.plan(q)){
-  const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode;goal?:Point;destination?:Point;constrained?:boolean;solids?:readonly Obstacle[];speed?:number}>();
+  const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode;goal?:Point;destination?:Point;constrained?:boolean;arriving?:boolean;solids?:readonly Obstacle[];speed?:number}>();
   const results=new Map<string,{position:Point;target?:Point}>();let tickMs=0,steps=0,rejected=0,requests=0;
   function prepare(bodies:readonly CrowdBody[],dt:number){
     const started=performance.now();nav.profile(0,bounds,solids());results.clear();
@@ -29,7 +29,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
         entry={index,node};agents.set(b.id,entry);
       }
       const agent=crowd.recastCrowd.getAgent(entry.index)!;
-      if(distance(agent.position(),b.position)>.002){agent.teleport({x:b.position.x,y:.2,z:b.position.z});agent.resetMoveTarget();entry.goal=undefined;}
+      if(distance(agent.position(),b.position)>.002){agent.teleport({x:b.position.x,y:.2,z:b.position.z});agent.resetMoveTarget();entry.goal=undefined;entry.arriving=false;}
       if(entry.speed!==b.speed){agent.updateParameters({radius:b.radius,maxSpeed:b.speed});entry.speed=b.speed;}
       let index=b.route.findIndex(p=>distance(p,b.position)>.015);
       // Crowd may take us around or past a shared intermediate point. Feed it
@@ -45,14 +45,25 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
       // exclusions/clearance absent from the shared mesh need a legal subgoal.
       const goal=entry.constrained?target:destination;
       if(goal){
-        if(!entry.goal||distance(entry.goal,goal)>.005){crowd.agentGoto(entry.index,{x:goal.x,y:.2,z:goal.z});entry.goal={...goal};requests++;}
-      }else if(entry.goal){agent.resetMoveTarget();entry.goal=undefined;}
+        const remaining=distance(b.position,goal);
+        // Detour's target mode always brakes inside radius * 2, with no public
+        // slowdown setting. Use its native velocity request only for the clear
+        // final approach. Crowd still handles neighbours, avoidance and NavMesh
+        // confinement; cap the last step so arrival does not overshoot.
+        if(dt>0&&b.speed>0&&remaining<=b.radius*2+b.speed*dt&&segmentIsClear(b.position,goal,b.radius,bounds,b.solids)){
+          const scale=remaining>0?Math.min(b.speed,remaining/dt)/remaining:0;
+          agent.requestMoveVelocity({x:(goal.x-b.position.x)*scale,y:0,z:(goal.z-b.position.z)*scale});
+          entry.goal={...goal};entry.arriving=true;
+        }else if(entry.arriving||!entry.goal||distance(entry.goal,goal)>.005){
+          crowd.agentGoto(entry.index,{x:goal.x,y:.2,z:goal.z});entry.goal={...goal};entry.arriving=false;requests++;
+        }
+      }else if(entry.goal){agent.resetMoveTarget();entry.goal=undefined;entry.arriving=false;}
 
     }
     crowd.update(dt);
     for(const b of bodies){
       const entry=agents.get(b.id)!,p=crowd.getAgentPosition(entry.index),next={x:p.x,z:p.z};
-      if(!entry.constrained&&b.route.length){
+      if(!entry.constrained&&!entry.arriving&&b.route.length){
         const corners=crowd.getCorners(entry.index);
         if(corners.some((p,i)=>!segmentIsClear(i?corners[i-1]:b.position,p,b.radius,bounds,b.solids))){entry.constrained=true;entry.goal=undefined;}
       }

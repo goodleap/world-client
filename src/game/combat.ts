@@ -130,6 +130,7 @@ export class Combat {
     this.statCache.set(u.id, { level, rank, role:u.role,team:u.team,value }); return value;
   }
   private reach(u:Fighter,target:CombatTarget){return occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:reach(u,target);}
+  private alertRange(u:Fighter){return occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:u.team==='home'?C.homeAcquire:C.acquire;}
   canTarget(u:Pick<Fighter,'role'>,target:CombatTarget){return u.role==='archer'||(target.elevation??0)<.5;}
   visible(from:Point,to:Point,sourceId?:string,targetId?:string){
     const state=this.economy.state;
@@ -340,7 +341,7 @@ export class Combat {
    * Keep an attackable opponent and finish a committed action before switching. */
   nearbyOpponent(u: Fighter, current: CombatTarget | undefined) {
     if (!current && !u.provoked || u.attack || current?.life === 'active' && ((u.targetSwitchIn ?? 0) > 0 || this.canStrike(u, current))) return;
-    const radius=occupiedTower(this.economy.state,u.id)?TOWER_CONFIG.range:C.acquire;
+    const radius=this.alertRange(u);
     return chooseTarget(u, this.nearbyTargets(u,radius), radius,
       t => t.id !== current?.id && t.canAttack && t.kind !== 'building' && this.canTarget(u, t) && this.canStrike(u, t));
   }
@@ -630,7 +631,8 @@ export class Combat {
         // Existing opponents were evaluated above using actual attack reach,
         // not just alert range. Acquire normally only when no target remains.
         if (!target) {
-          const candidate = chooseTarget(u, this.nearbyTargets(u,stationary?TOWER_CONFIG.range:C.acquire), stationary?TOWER_CONFIG.range:C.acquire, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
+          const radius=this.alertRange(u);
+          const candidate = chooseTarget(u, this.nearbyTargets(u,radius), radius, t => this.canTarget(u,t) && distance(t.position, anchor) <= leash
             && this.visible(u.position,t.position,u.id,t.id));
           if (candidate) target = candidate;
         }

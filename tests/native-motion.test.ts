@@ -16,6 +16,58 @@ const roles=['infantry','archer','cavalry'] as const;
 const movers=[...(['home','enemy'] as const).flatMap(team=>roles.map(role=>({id:`${team}-${role}`,radius:BODY_RADIUS[role],speed:fighterStats({team,role}).speed}))),
   ...(['farmer','dog'] as const).map(role=>({id:role,radius:BODY_RADIUS[role],speed:destinationSpeed(wanderSettings(RESIDENTS.find(r=>r.role===role)!).speed,role!=='dog')}))];
 
+test('all movers keep cruising speed through a clear final approach and stop at the destination',async()=>{
+  const nav=await createNativeNavigation(),solids:Obstacle[]=[];
+  try{for(const config of movers){
+    const motion=createNativeMotion(nav,bounds,()=>solids),state=createRouteState(),goal={x:0,z:5};
+    const actor:CrowdBody&{route:Point[]}={...config,position:{x:0,z:0},route:[goal],solids};
+    let ticks=0;
+    try{
+      while(actor.route.length&&ticks<100){
+        motion.prepare([actor],dt);
+        const step=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,solids,[]);
+        assert(step.position.z<=goal.z+.001,`${actor.id} must not overshoot`);
+        if(actor.route.length)assert(step.distance/dt>actor.speed*.95,`${actor.id} must not crawl towards a clear destination`);
+        actor.position=step.position;ticks++;
+      }
+      assert.equal(actor.route.length,0);
+      assert(distance(actor.position,goal)<.001);
+      assert(ticks<=Math.ceil(5/actor.speed/dt)+1,`${actor.id} arrives without an extra braking tail`);
+      actor.moveIdle=(p:Point)=>{actor.position=p;};
+      for(let i=0;i<6;i++)motion.prepare([actor],dt);
+      assert(distance(actor.position,goal)<.001,'arrival also clears native velocity');
+    }finally{motion.dispose();}
+  }}finally{nav.dispose();}
+});
+
+test('the final approach retains native body separation at an occupied destination',async()=>{
+  const nav=await createNativeNavigation(),solids:Obstacle[]=[],motion=createNativeMotion(nav,bounds,()=>solids),state=createRouteState();
+  const actor={id:'farmer',position:{x:0,z:-2},radius:.29,speed:5,route:[{x:0,z:0}],solids};
+  const blocker:CrowdBody={id:'idle',position:{x:0,z:0},radius:.4,speed:0,route:[],solids};
+  blocker.moveIdle=p=>{blocker.position=p;};
+  try{for(let i=0;i<80&&actor.route.length;i++){
+    motion.prepare([actor,blocker],dt);
+    actor.position=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,solids,[]).position;
+    assert(distance(actor.position,blocker.position)>=actor.radius+blocker.radius-.03,'no arrival snap through a neighbour');
+  }}finally{motion.dispose();nav.dispose();}
+});
+
+test('retargeting during the final approach restores a native corridor around obstacles',async()=>{
+  const nav=await createNativeNavigation(),solids:Obstacle[]=[{kind:'box',x:3,z:0,halfWidth:1,halfDepth:1}],motion=createNativeMotion(nav,bounds,()=>solids),state=createRouteState();
+  const actor={id:'farmer',position:{x:0,z:-.5},radius:.29,speed:5,route:[{x:0,z:0}],solids};
+  try{
+    motion.prepare([actor],dt);actor.position=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,solids,[]).position;
+    const goal={x:6,z:0};actor.route=nav.path(actor.position,[goal],actor.radius,bounds,solids)!;
+    assert(actor.route.length>1);
+    for(let i=0;i<150&&actor.route.length;i++){
+      motion.prepare([actor],dt);
+      const step=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,solids,[]);
+      assert(segmentIsClear(actor.position,step.position,actor.radius,bounds,solids));actor.position=step.position;
+    }
+    assert.equal(actor.route.length,0);assert(distance(actor.position,goal)<.001);
+  }finally{motion.dispose();nav.dispose();}
+});
+
 test('both factions, farmers and dogs pass an occupied intermediate waypoint and regain cruising speed',async()=>{
   const nav=await createNativeNavigation(),solids:Obstacle[]=[];
   try{for(const config of movers){
