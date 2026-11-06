@@ -44,8 +44,9 @@ export function createWorkerChannel(port:ChannelTransport){
       const cancel=(error:Error)=>finish(error),timer=setTimeout(()=>finish(new Error(`Worker timeout: ${method}`)),timeout);pending.add(cancel);
       const retired=new Set<number>();
       const encoded=method==='ui'?[((args[0]??[]) as {method:string;args:unknown[]}[]).map(call=>{
-        const ids=new Set<number>(),values=encode(call.args,ids),old=scopes.get(call.method);
-        if(old)for(const id of old)if(!ids.has(id))retired.add(id);scopes.set(call.method,ids);
+        const scope=call.method==='bind'?`bind:${String(call.args[0])}`:call.method;
+        const ids=new Set<number>(),values=encode(call.args,ids),old=scopes.get(scope);
+        if(old)for(const id of old)if(!ids.has(id))retired.add(id);scopes.set(scope,ids);
         return {method:call.method,args:values};
       })]:args;
       const release=()=>{for(const id of retired)if(![...scopes.values()].some(ids=>ids.has(id)))callbacks.delete(id);};

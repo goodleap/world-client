@@ -82,7 +82,9 @@ channel.handle(async(method,args)=>{
     if(!game)throw new Error('Game is not ready');
     const [name]=args as [keyof Game];
     if(!['save','snapshot','diagnosticReport','markPerformance','dispose'].includes(name))throw new Error('Unknown game method');
-    const result=await game[name]();flush();return result;
+    const result=await game[name]();flush();
+    if(name==='diagnosticReport'&&result&&typeof result==='object')return {...result,communication:channel.snapshot()};
+    return result;
   }
   throw new Error(`Unknown render request: ${method}`);
 });

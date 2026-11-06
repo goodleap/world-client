@@ -43,3 +43,15 @@ test('replacing selection callbacks releases old closures after the browser ackn
     await render.call('ui',[[{method:'setSelection',args:[]}]]);assert.equal(render.snapshot().callbacks,0);
   }finally{render.close();browser.close();port1.close();port2.close();}
 });
+
+test('binding one button does not release another buttons callback',async()=>{
+  const {port1,port2}=new MessageChannel(),render=createWorkerChannel(port1),browser=createWorkerChannel(port2);
+  const clicks=new Map<string,()=>Promise<unknown>>();
+  browser.handle((_method,args)=>{for(const call of args[0] as {args:[string,()=>Promise<unknown>]}[])clicks.set(...call.args);});
+  try{
+    await render.call('ui',[[{method:'bind',args:['clear-selection',()=>1]},{method:'bind',args:['raid-notice',()=>2]}]]);
+    await render.call('ui',[[{method:'bind',args:['reset',()=>3]}]]);
+    for(const [id,value]of [['clear-selection',1],['raid-notice',2],['reset',3]] as const)assert.equal(await clicks.get(id)?.(),value);
+    assert.equal(render.snapshot().callbacks,3);
+  }finally{render.close();browser.close();port1.close();port2.close();}
+});
