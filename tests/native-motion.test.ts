@@ -54,3 +54,21 @@ test('route continuation keeps body clearance around a building and still stops 
     }finally{motion.dispose();}
   }}finally{nav.dispose();}
 });
+
+test('Crowd keeps automatic danger exclusions and accepts retargeting after a reposition',async()=>{
+  const nav=await createNativeNavigation(),world:Obstacle[]=[],danger:Obstacle[]=[{kind:'circle',x:0,z:0,radius:3}];
+  const motion=createNativeMotion(nav,bounds,()=>world),state=createRouteState();
+  const actor={id:'farmer',position:{x:-7,z:0},radius:.29,speed:5,route:nav.path({x:-7,z:0},[{x:7,z:0}],.29,bounds,danger)!,solids:danger};
+  try{
+    for(let i=0;i<180&&actor.route.length;i++){
+      motion.prepare([actor],dt);const step=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,danger,[]);
+      assert(segmentIsClear(actor.position,step.position,actor.radius,bounds,danger));actor.position=step.position;
+    }
+    assert(distance(actor.position,{x:7,z:0})<.03,'use the legal route around a role-specific excluded area');
+    actor.position={x:8,z:8};actor.route=[{x:8,z:-8}];
+    for(let i=0;i<4;i++){motion.prepare([actor],dt);actor.position=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,danger,[]).position;}
+    actor.route=[{x:12,z:8}];
+    for(let i=0;i<120&&actor.route.length;i++){motion.prepare([actor],dt);actor.position=motion.runtime.step(actor.id,actor.position,actor.route,state,dt,actor.speed,actor.radius,bounds,danger,[]).position;}
+    assert(distance(actor.position,{x:12,z:8})<.03,'a new destination replaces the native corridor');
+  }finally{motion.dispose();nav.dispose();}
+});

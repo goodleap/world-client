@@ -84,6 +84,17 @@ test('garrison shoots at twelve units from the deck, checks cover and never chas
   enemy.position.x=s.site.x+10;const health=enemy.hp;
   for(let i=0;i<30;i++)blocked.update(.05);assert.equal(enemy.hp,health);
 });
+test('a garrison damages an enemy beyond an adjacent tower without changing range or armor',()=>{
+  const s=setup();s.enter();
+  const adjacent=buildingAt('tower',{x:s.site.x+3,z:s.site.z},'site-1');s.e.state.sites.push(adjacent);s.e.state.buildings.push(adjacent.id);s.e.state.towers.push(newTower(adjacent));
+  const obstacles=s.e.state.sites.map(t=>({kind:'box' as const,x:t.x,z:t.z,halfWidth:t.width/2+.12,halfDepth:t.depth/2+.12}));
+  const c=new Combat(s.e.state.combat,s.e,()=>obstacles),enemy=c.unit('enemy-grove-0')!;
+  enemy.position={x:s.site.x+10,z:s.site.z};enemy.order='rest';enemy.goal=undefined;enemy.route=[];
+  const hp=enemy.hp;
+  for(let i=0;i<45;i++){s.e.state.seconds+=.05;c.update(.05);}
+  assert(enemy.hp<hp,'walking occupancy of the neighboring tower must not block elevated arrows');
+  assert.deepEqual(s.archer.position,towerPlatform(s.tower));
+});
 test('melee attacks the tower rather than its protected archer; destruction evacuates and damages once',()=>{
   const s=setup();s.enter();const enemy=s.c.unit('enemy-grove-0')!;
   enemy.position={x:s.site.x,z:s.site.z-2.7};enemy.defendFrom={...enemy.position};enemy.provoked={from:{...enemy.position},leash:14};enemy.target=s.archer.id;enemy.order='guard';

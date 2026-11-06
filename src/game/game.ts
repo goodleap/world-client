@@ -611,7 +611,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       else selectionFeedback.inspectEnemy(residents.displayPosition(enemy.id) ?? wolves?.displayPosition(enemy.id) ?? enemy.position, fighterRadius(enemy) + .25);
     }
     const selectedId = residents.selectedId(), selectedFighter = combatIds().map(id=>combat.unit(id)).find(u=>u?.target)??(selectedId ? combat.unit(selectedId) : undefined);
-    const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
+    const pulse=commandGuidance.sample(economy.state.seconds-(1-simulationClock.alpha)*simulation.duration,id=>({token:economy.active(id)?.id??(assignedTower(economy.state,id)?.phase==='approach'?`tower:${assignedTower(economy.state,id)!.id}`:undefined),alive:health(economy.state,id)>0,route:(combat.unit(id)?.route??residents.routeFor(id)).length>0}),selectedId);
     let routeId=selectedId??pulse?.id;
     const order=selectedGroup===undefined?undefined:economy.state.groupMoves[selectedGroup];
     if(order)routeId=order.members.find(id=>health(economy.state,id)>0&&(combat.unit(id)?.route??residents.routeFor(id)).length>0);
@@ -628,17 +628,17 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       }
     } else if (shownRally) { shownRally = undefined; rallyGuidance.update(undefined); }
     const attackTarget = selectedFighter?.target;
-    ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
+    ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*simulation.duration);
     if (attackPulse) {
       const target = combat.target(attackPulse.target);
       if (residents.selectedIds().includes(attackPulse.attacker) && attackTarget === attackPulse.target && target?.life === 'active' && attackFeedback.snapshot().visible) attackFeedback.follow(residents.displayPosition(target.id)??wolves?.displayPosition(target.id)??target.position);
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
-    levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,levelPosition,projectDamage);
+    levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*simulation.duration,levelPosition,projectDamage);
     const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
     residents.updateLabels(camera); wolves?.updateLabels(camera);
     ui.setInspectedUnits([...residents.selectedIds(),...(selectedEnemy?[selectedEnemy]:[])]);
-    damageNumbers.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,projectDamage);
+    damageNumbers.update(economy.state.seconds-(1-simulationClock.alpha)*simulation.duration,projectDamage);
     renderElapsed=0;
     if (selectedWorld) {
       const anchor=selectedWorld.labelAnchor??selectedWorld.anchor;

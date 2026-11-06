@@ -126,7 +126,7 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
     const begin=performance.now();world.sync();paths.flush();
     metrics.run('crowd',()=>motion.prepare([...residents.crowdBodies(),...[...combat.state.units,...raids.wolves].filter(u=>u.life==='active'&&!u.departed&&!occupiedTower(state,u.id)).map(u=>({
       id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterMovementSpeed(u),
-      route:combat.movementRoute(u),solids:world.obstacles(true),moveIdle:(p:Point)=>{u.position=p;},
+      route:combat.movementRoute(u),destination:combat.movementDestination(u),solids:world.obstacles(true),moveIdle:(p:Point)=>{u.position=p;},
     }))],dt));
     metrics.run('economy',()=>controller.update(dt));metrics.run('raids',()=>raids.update(dt));
     const recruited=metrics.run('recruitment',()=>advanceRecruitment(economy,dt,occupancy()));

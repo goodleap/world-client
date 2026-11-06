@@ -8,18 +8,21 @@ import type { SimulationPacket, SimulationView } from './simulation-state.ts';
 
 export async function createSimulationClient(economy:Economy,checkpoint:(text:string)=>void,onError:(message:string)=>void){
   const worker=new Worker(new URL('./simulation.worker.ts',import.meta.url),{type:'module'}),channel=createWorkerChannel(worker);
-  let view:SimulationView|undefined,diagnostics:SimulationPacket['diagnostics'],serial=0,closed=false;
+  let view:SimulationView|undefined,diagnostics:SimulationPacket['diagnostics'],serial=0,appliedSerial=0,closed=false;
   let paused=true,seconds=economy.state.seconds,duration=.05,backlogMs=0,pending=0;
+  const waiting=new Set<{serial:number;resolve:()=>void;reject:(error:Error)=>void}>();
+  const rejectWaiting=(message:string)=>{for(const waiter of waiting)waiter.reject(new Error(message));waiting.clear();};
   let consume:(packet:SimulationPacket,view:SimulationView)=>void=()=>{};
   const apply=(packet:SimulationPacket)=>{
     applySimulationPatch(view!,packet.patch);updateEconomyReplica(economy,view!);
     if(packet.seconds>seconds){duration=packet.seconds-seconds;seconds=packet.seconds;}
-    backlogMs=packet.backlogMs;diagnostics=packet.diagnostics??diagnostics;consume(packet,view!);
+    backlogMs=packet.backlogMs;diagnostics=packet.diagnostics??diagnostics;consume(packet,view!);appliedSerial=packet.serial;
+    for(const waiter of waiting)if(waiter.serial<=appliedSerial){waiting.delete(waiter);waiter.resolve();}
   };
   const presentation=new PresentationBuffer<SimulationPacket>(seconds,apply);
   channel.handle((method,args)=>{
     if(method==='checkpoint'){checkpoint(args[0] as string);return;}
-    if(method==='error'){onError(args[0] as string);return;}
+    if(method==='error'){rejectWaiting(String(args[0]));onError(args[0] as string);return;}
     if(method==='frame'){
       const packet=args[0] as SimulationPacket;
       if(!view||packet.serial!==serial+1)throw new Error('Simulation state sequence mismatch');
@@ -29,7 +32,7 @@ export async function createSimulationClient(economy:Economy,checkpoint:(text:st
     }
     throw new Error(`Unknown simulation event: ${method}`);
   });
-  worker.addEventListener('error',event=>{if(!closed){onError(event.message||'模拟线程异常');channel.close('Simulation worker failed');}});
+  worker.addEventListener('error',event=>{if(!closed){rejectWaiting(event.message||'模拟线程异常');onError(event.message||'模拟线程异常');channel.close('Simulation worker failed');}});
   try{
     const initial=await channel.call('init',[economy.state],[],120_000) as {view:SimulationView;diagnostics:NonNullable<typeof diagnostics>};
     view=initial.view;diagnostics=initial.diagnostics;updateEconomyReplica(economy,view);
@@ -39,11 +42,18 @@ export async function createSimulationClient(economy:Economy,checkpoint:(text:st
     present:()=>presentation.advance(),
     subscribe(callback:typeof consume){consume=callback;},
     async pause(value:boolean){paused=value;if(value)presentation.drain();await channel.call('pause',[value]);if(value)presentation.drain();},
-    async command(command:SimulationCommand){pending++;try{return await channel.call('command',[command]) as CommandResult;}finally{pending--;}},
+    async command(command:SimulationCommand){pending++;try{
+      const result=await channel.call('command',[command]) as CommandResult;
+      // Callers inspect the replica to show task/garrison/order feedback. Wait
+      // for the acknowledged patch to be presented instead of reading stale
+      // state or jumping every actor forward when a command is received.
+      if(appliedSerial<serial)await new Promise<void>((resolve,reject)=>waiting.add({serial,resolve,reject}));
+      return result;
+    }finally{pending--;}},
     setView:(bounds:Bounds)=>channel.notify('view',[bounds]),
     save:()=>channel.call('save') as Promise<{text:string;encodeMs:number}>,
     diagnostics:()=>({...diagnostics!,replication:{...diagnostics!.replication,serial},backlogMs,communication:channel.snapshot(),presentation:presentation.snapshot()}),get pending(){return pending;},
-    async dispose(){if(closed)return;closed=true;try{await channel.call('dispose',[],[],5000);}finally{channel.close();worker.terminate();}},
+    async dispose(){if(closed)return;closed=true;rejectWaiting('Simulation disposed');try{await channel.call('dispose',[],[],5000);}finally{channel.close();worker.terminate();}},
   };
 }
 export type SimulationClient=Awaited<ReturnType<typeof createSimulationClient>>;

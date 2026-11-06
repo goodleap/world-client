@@ -31,7 +31,7 @@ export function withCrowdStep(e:Economy,c:Combat,solids:()=>readonly Obstacle[],
   let m=battleCrowds.get(c);if(!m){m=createNativeMotion(testNavigation,WORLD_BOUNDS,solids);battleCrowds.set(c,m);}
   const bodies=c.targets().flatMap(t=>{const u=c.unit(t.id);return u&&u.life==='active'&&!u.departed&&!occupiedTower(e.state,u.id)?[{
     id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterMovementSpeed(u),
-    route:c.movementRoute(u),solids:solids(),moveIdle:(p:{x:number;z:number})=>{u.position=p;},
+    route:c.movementRoute(u),destination:c.movementDestination(u),solids:solids(),moveIdle:(p:{x:number;z:number})=>{u.position=p;},
   }]:[];});
   const release=installNavigationRuntime(m.runtime);
   try{m.prepare([...bodies,...extra],dt);advance();}finally{release();}

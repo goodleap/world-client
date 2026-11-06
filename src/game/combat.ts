@@ -1,3 +1,4 @@
+import { createProjectileSight } from './projectile-sight.ts';
 import { Octree } from '@babylonjs/core/Culling/Octrees/octree.js';
 import { BoundingBox } from '@babylonjs/core/Culling/boundingBox.js';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
@@ -96,13 +97,17 @@ export class Combat {
   private statCache = new Map<string, { level: number; rank: number; role:CombatRole;team:'home'|'enemy'; value: ReturnType<typeof fighterStats> }>();
   private motion = new Map<string, { position: Point; velocity: Point }>();
   private motionStep = .05;
+  private projectileSight:ReturnType<typeof createProjectileSight>;
   private frameTargets?: { all:CombatTarget[]; home:CombatTarget[]; enemy:CombatTarget[]; byId:Map<string,CombatTarget>; padding:number };
   private targetPoint=new Vector3();
-  private targetIndex=new Octree<CombatTarget>((t,block)=>{
+  private frameDestinations=new Map<string,Point>();
+  private targetIndex=new Octree<{id:string;position:Point}>((t,block)=>{
     this.targetPoint.set(t.position.x,1/3,t.position.z);
-    if(BoundingBox.IntersectsSphere(block.minPoint,block.maxPoint,this.targetPoint,.001))block.entries.push(t);
+    if(BoundingBox.IntersectsSphere(block.minPoint,block.maxPoint,this.targetPoint,.001)){block.entries.push(t);return;}
+    const destination=this.frameDestinations.get(t.id);
+    if(destination){this.targetPoint.set(destination.x,1/3,destination.z);if(BoundingBox.IntersectsSphere(block.minPoint,block.maxPoint,this.targetPoint,.001))block.entries.push(t);}
   },16,4);
-  private frameNeighbours = new Map<string,Neighbour[]>();
+  private frameNeighbours = new Map<string,Map<string,Neighbour>>();
   private planning = new Map<string,{intent:string;start:Point;points:Point[];nearby?:Point;solids:readonly Obstacle[];neighbours:ReturnType<Combat['reservations']>}>();
   private targetViews = new WeakMap<Fighter,CombatTarget>();
   private neighbourViews = new WeakMap<Fighter,Map<string,Neighbour>>();
@@ -111,6 +116,7 @@ export class Combat {
   private damageFeedback?: (hit:import('./damage-numbers.ts').DamageNumber)=>void;
   setDamageFeedback(callback:(hit:import('./damage-numbers.ts').DamageNumber)=>void){this.damageFeedback=callback;}
   constructor(state: CombatState, economy: Economy, solids: () => readonly Obstacle[], civilians: () => Neighbour[] = () => []) {
+    this.projectileSight=createProjectileSight(economy.state);
     this.state = state; this.economy = economy; this.solids = solids; this.civilians = civilians;
     this.units = new Map(state.units.map(unit => [unit.id, unit]));
   }
@@ -130,6 +136,11 @@ export class Combat {
     const ignored=state.towers.filter(t=>t.hp>0&&(t.id===targetId||t.phase==='occupied'&&(t.unit===sourceId||t.unit===targetId)
       ||((from as {y?:number}).y??0)>2&&Math.hypot(from.x-t.x,from.z-t.z)<1.2));
     const building=targetId?buildingInfo(state,targetId):undefined;
+    if(this.unit(sourceId??'')?.role==='archer'||'y'in from){
+      const start={...from,y:(from as Point&{y?:number}).y??surfaceHeight(from.x,from.z)+towerHeight(state,sourceId??'')+1.25};
+      const end={...to,y:(to as Point&{y?:number}).y??surfaceHeight(to.x,to.z)+towerHeight(state,targetId??'')+1.25};
+      return this.projectileSight.clear(start,end,this.solids(),new Set([...ignored.map(t=>t.id),...(building?.built?[building.id]:[])]));
+    }
     return segmentIsClear(from,to,.05,WORLD_BOUNDS,this.solids(),ignored.length||building?.built?o=>ignored.some(t=>o.kind==='box'&&o.x===t.x&&o.z===t.z)
       ||!!(building?.built&&o.kind!=='polygon'&&o.x===building.x&&o.z===building.z):undefined);
   }
@@ -168,7 +179,11 @@ export class Combat {
     for(const t of all){
       const u=this.unit(t.id);if(u)padding=Math.max(padding,this.stats(u).speed*dt);
     }
-    this.targetIndex.update(new Vector3(WORLD_BOUNDS.minX,0,WORLD_BOUNDS.minZ),new Vector3(WORLD_BOUNDS.maxX,1,WORLD_BOUNDS.maxZ),all);
+    this.frameDestinations.clear();
+    for(const u of [...this.state.units,...this.threats]){const goal=fighterDestination(u);if(goal)this.frameDestinations.set(u.id,goal);}
+    const civilians=this.civilians(),ids=new Set(all.map(t=>t.id));
+    for(const n of civilians){const goal=(n as Neighbour&{destination?:Point}).destination;if(goal)this.frameDestinations.set(n.id,goal);}
+    this.targetIndex.update(new Vector3(WORLD_BOUNDS.minX,0,WORLD_BOUNDS.minZ),new Vector3(WORLD_BOUNDS.maxX,1,WORLD_BOUNDS.maxZ),[...all,...civilians.filter(n=>!ids.has(n.id))]);
     this.frameTargets={all,home:all.filter(t=>t.team==='home'),enemy:all.filter(t=>t.team==='enemy'),byId:new Map(all.map(t=>[t.id,t])),padding};
   }
   nearbyTargets(u:Pick<Fighter,'position'|'team'>,radius:number) {
@@ -178,7 +193,7 @@ export class Combat {
     const range=radius+frame.padding;
     this.targetPoint.set(u.position.x,1/3,u.position.z);
     const found=this.targetIndex.intersects(this.targetPoint,range,false);
-    return found.data.slice(0,found.length).filter(t=>t.team!==u.team);
+    return found.data.slice(0,found.length).flatMap(n=>{const t=frame.byId.get(n.id);return t&&t.team!==u.team?[t]:[];});
   }
 
   target(id: string) { const cached=this.frameTargets?.byId.get(id);if(cached)return cached;const unit=this.unit(id);return unit?(unit.departed?undefined:this.unitTarget(unit)):this.targets('enemy').find(t=>t.id===id); }
@@ -216,10 +231,10 @@ export class Combat {
     u.target = target; u.order = 'guard'; u.defendFrom ??= { ...u.position }; this.stop(u); return true;
   }
   controllable(ids: readonly string[]) { return this.state.units.filter(u => ids.includes(u.id) && u.team === 'home' && u.life === 'active'); }
-  private neighbours(u: Fighter) {
+  private neighbours(u: Fighter,area?:{point:Point;radius:number}) {
     let list=this.frameTargets?this.frameNeighbours.get(u.team):undefined;
     if(!list){
-      list=[...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units,...this.threats].map(n=>{
+      const neighbours=[...this.civilians().map(n=>({...n,yield:u.team==='home'?n.yield:undefined})), ...[...this.state.units,...this.threats].map(n=>{
         let views=this.neighbourViews.get(n);if(!views){views=new Map();this.neighbourViews.set(n,views);}
         let view=views.get(u.team);if(view)return view;
         const team=u.team;
@@ -228,17 +243,24 @@ export class Combat {
           get moving(){return n.speed>.08;},get purposeful(){return !!n.route.length;},get waiting(){return n.navigation.waiting;}};
         views.set(team,view);return view;
       })];
+      list=new Map(neighbours.map(n=>[n.id,n]));
       if(this.frameTargets)this.frameNeighbours.set(u.team,list);
     }
-    return list.filter(n=>{const other=this.unit(n.id);return n.id!==u.id&&(!other||other.life!=='defeated'&&!other.departed&&!occupiedTower(this.economy.state,n.id));});
+    let candidates:Neighbour[];
+    if(area&&this.frameTargets){
+      this.targetPoint.set(area.point.x,1/3,area.point.z);
+      const found=this.targetIndex.intersects(this.targetPoint,area.radius+this.frameTargets.padding+1.5,false);
+      candidates=found.data.slice(0,found.length).flatMap(t=>{const n=list!.get(t.id);return n?[n]:[];});
+    }else candidates=[...list.values()];
+    return candidates.filter(n=>{const other=this.unit(n.id);return n.id!==u.id&&(!other||other.life!=='defeated'&&!other.departed&&!occupiedTower(this.economy.state,n.id));});
   }
 
   private face(u:Fighter,point:Point,dt:number){
     u.facing = turnTowards(u.facing, Math.atan2(point.x-u.position.x, point.z-u.position.z), dt, u.role === 'cavalry' ? 7 : 14);
   }
 
-  private reservations(u: Fighter) {
-    return this.neighbours(u).map(n => ({ position:n.position, radius:n.radius,
+  private reservations(u: Fighter,area?:{point:Point;radius:number}) {
+    return this.neighbours(u,area).map(n => ({ position:n.position, radius:n.radius,
       destination: fighterDestination(this.unit(n.id)) ?? (n as {destination?:Point}).destination }));
   }
   private stop(u: Fighter) { this.planning.delete(u.id);u.attackApproach = undefined; u.route.length = 0; u.speed = 0; resetRouteState(u.navigation); }
@@ -409,6 +431,14 @@ export class Combat {
     if(target.id.startsWith('enemy-raid-'))this.economy.dropReward(target.position,{food:2,wood:1},false);
   }
   movementRoute(u:Fighter):readonly Point[]{return u.attackApproach?u.route.slice(0,-1):u.route;}
+  movementDestination(u:Fighter):Point|undefined{
+    if(!u.attackApproach||!u.target)return;
+    const target=this.target(u.target);
+    // Detour decelerates near its goal. Chase the opponent's feet when that
+    // final segment is walkable; combat still stops at the unchanged reach.
+    // Elevated/blocked targets retain their validated approach destination.
+    if(target?.life==='active'&&!target.elevation&&segmentIsClear(u.attackApproach,target.position,fighterRadius(u),WORLD_BOUNDS,this.solids()))return target.position;
+  }
   private travel(u: Fighter, dt: number) {
     // One route includes the target anchor, but its occupied feet are not a
     // walking destination. Replan/yield along the same reachable prefix, then
@@ -433,7 +463,7 @@ export class Combat {
     // The tower already reserves its sole garrison. A transient person at the
     // ladder is handled by the normal collision/yield follower, not a failed
     // endpoint reservation. Static obstacles still participate in every sweep.
-    const solids=this.solids(),neighbours=assignedTower(this.economy.state,u.id)?.phase==='approach'?[]:this.reservations(u),radius=fighterRadius(u);
+    const solids=this.solids(),neighbours=assignedTower(this.economy.state,u.id)?.phase==='approach'?[]:this.reservations(u,points.length?{point:points[0],radius:Math.max(12,...points.map(p=>distance(p,points[0])))}:undefined),radius=fighterRadius(u);
     let pending=this.planning.get(u.id);
     if(!pending||pending.intent!==intent)pending={intent,start:{...u.position},points,nearby:nearby&&{...nearby},solids,
       neighbours:neighbours.map(n=>({position:{x:n.position.x,z:n.position.z},radius:n.radius,destination:n.destination&&{...n.destination}}))};
@@ -494,7 +524,7 @@ export class Combat {
     const length = distance(u.position, target.position) || 1;
     const direct = { x: target.position.x + (u.position.x - target.position.x) * radius / length,
       z: target.position.z + (u.position.z - target.position.z) * radius / length };
-    const neighbours = this.reservations(u);
+    const neighbours = this.reservations(u,{point:{x:(u.position.x+target.position.x)/2,z:(u.position.z+target.position.z)/2},radius:length/2+range});
     // Refresh a clear direct approach every simulation step; no A* is needed
     // to follow an opponent running through open ground. Keep detours when
     // crowds or solids obstruct it, and retain the shared swept collision check.

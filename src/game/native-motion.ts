@@ -5,7 +5,7 @@ import type { Bounds, Obstacle, Point } from './movement.ts';
 import { segmentIsClear } from './wander.ts';
 
 export interface CrowdBody {
-  id:string;position:Point;radius:number;speed:number;route:readonly Point[];
+  id:string;position:Point;radius:number;speed:number;route:readonly Point[];destination?:Point;
   solids:readonly Obstacle[];moveIdle?(point:Point):void;
 }
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -13,8 +13,8 @@ const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
  * separation. The adapter supplies already planned role-specific routes and
  * consumes one shared crowd update per simulation step, never per actor. */
 export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=>readonly Obstacle[],plan:NavigationRuntime['plan']=q=>nav.plan(q)){
-  const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode}>();
-  const results=new Map<string,{position:Point;target?:Point}>();let tickMs=0,steps=0,rejected=0;
+  const crowd=nav.createCrowd(bounds,solids()),agents=new Map<string,{index:number;node:TransformNode;goal?:Point;destination?:Point;constrained?:boolean;solids?:readonly Obstacle[];speed?:number}>();
+  const results=new Map<string,{position:Point;target?:Point}>();let tickMs=0,steps=0,rejected=0,requests=0;
   function prepare(bodies:readonly CrowdBody[],dt:number){
     const started=performance.now();nav.profile(0,bounds,solids());results.clear();
     const ids=new Set(bodies.map(b=>b.id));
@@ -29,22 +29,33 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
         entry={index,node};agents.set(b.id,entry);
       }
       const agent=crowd.recastCrowd.getAgent(entry.index)!;
-      if(distance(agent.position(),b.position)>.002)agent.teleport({x:b.position.x,y:.2,z:b.position.z});
-      agent.updateParameters({radius:b.radius,maxSpeed:b.speed});
+      if(distance(agent.position(),b.position)>.002){agent.teleport({x:b.position.x,y:.2,z:b.position.z});agent.resetMoveTarget();entry.goal=undefined;}
+      if(entry.speed!==b.speed){agent.updateParameters({radius:b.radius,maxSpeed:b.speed});entry.speed=b.speed;}
       let index=b.route.findIndex(p=>distance(p,b.position)>.015);
       // Crowd may take us around or past a shared intermediate point. Feed it
       // the next reachable leg instead of asking every body to touch that
       // exact point. Reuse the game's radius/terrain validation; Detour still
       // owns all neighbour avoidance and velocity selection.
       while(index>=0&&index+1<b.route.length&&segmentIsClear(b.position,b.route[index+1],b.radius,bounds,b.solids))index++;
-      const target=b.route[index],d=target?distance(target,b.position):0;
+      const target=b.route[index],destination=b.route.length?(b.destination??b.route.at(-1)):undefined;
       if(target)targets.set(b.id,target);
-      const speed=Math.min(b.speed,d/dt);
-      agent.requestMoveVelocity(target&&d>0?{x:(target.x-b.position.x)*speed/d,y:0,z:(target.z-b.position.z)*speed/d}:{x:0,y:0,z:0});
+      if(entry.solids!==b.solids||!!entry.destination!==!!destination||destination&&entry.destination&&distance(destination,entry.destination)>.3)entry.constrained=false;
+      entry.solids=b.solids;entry.destination=destination&&{...destination};
+      // V2 owns the path corridor, turning and speed. Only role-specific
+      // exclusions/clearance absent from the shared mesh need a legal subgoal.
+      const goal=entry.constrained?target:destination;
+      if(goal){
+        if(!entry.goal||distance(entry.goal,goal)>.005){crowd.agentGoto(entry.index,{x:goal.x,y:.2,z:goal.z});entry.goal={...goal};requests++;}
+      }else if(entry.goal){agent.resetMoveTarget();entry.goal=undefined;}
+
     }
     crowd.update(dt);
     for(const b of bodies){
-      const p=crowd.getAgentPosition(agents.get(b.id)!.index),next={x:p.x,z:p.z};
+      const entry=agents.get(b.id)!,p=crowd.getAgentPosition(entry.index),next={x:p.x,z:p.z};
+      if(!entry.constrained&&b.route.length){
+        const corners=crowd.getCorners(entry.index);
+        if(corners.some((p,i)=>!segmentIsClear(i?corners[i-1]:b.position,p,b.radius,bounds,b.solids))){entry.constrained=true;entry.goal=undefined;}
+      }
       if(!segmentIsClear(b.position,next,b.radius,bounds,b.solids)){rejected++;continue;}
       results.set(b.id,{position:next,target:targets.get(b.id)});
       if(!b.route.length&&distance(b.position,next)>.00001)b.moveIdle?.(next);
@@ -82,7 +93,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
         path:[{...position},{...next}],unreachable:false,facing:moved>.00001?Math.atan2(next.x-position.x,next.z-position.z):undefined};
     },
   };
-  return {runtime,prepare,snapshot:()=>({backend:'Babylon Navigation Plugin V2 Crowd',agents:agents.size,steps,lastMs:tickMs,rejected}),
+  return {runtime,prepare,snapshot:()=>({backend:'Babylon Navigation Plugin V2 Crowd',agents:agents.size,steps,lastMs:tickMs,rejected,requests,constrained:[...agents.values()].filter(a=>a.constrained).length}),
     // This adapter creates the public V2 Crowd directly, so the registry is its
     // single owner; both explicit release and plugin teardown are idempotent.
     dispose(){nav.releaseCrowd(crowd);for(const a of agents.values())a.node.dispose();agents.clear();results.clear();}};
