@@ -9,6 +9,7 @@ export default defineConfig({
   base: './',
   define: { __BUILD_ID__: JSON.stringify(buildId), __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf', 'dog/dog']
     .map(path => [path.split('/').pop(), statSync(new URL(`./studies/${path}.glb`, import.meta.url)).size]))) },
+  worker:{format:'es'},
   server: { port: 5173, strictPort: true },
   build: {
     target: 'es2022',

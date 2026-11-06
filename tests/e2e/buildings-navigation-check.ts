@@ -24,12 +24,12 @@ export async function checkBuildingsNavigation(page:Page,info:TestInfo,touch:boo
   await row.getByRole('button',{name:'维修仓库',exact:true}).click();await expect(row.getByRole('button',{name:'取消维修仓库'})).toBeEnabled();
   const queued=await snapshot(page);expect(queued.economy.inventory.wood).toBe(80);expect(queued.economy.tasks.find(t=>t.kind==='repair')!.repair!.hp).toBe(250);
   await page.getByRole('button',{name:'关闭家园面板'}).click();
-  await page.waitForFunction(()=>{const s=window.__DEMO__!.snapshot();if(!s.economy.tasks.some(t=>t.kind==='repair'&&t.status==='working'&&t.progress>1))return false;document.getElementById('settings')!.click();return true;},undefined,{timeout:60000});
+  await page.waitForFunction(async ()=>{const s=(await window.__DEMO__!.snapshot());if(!s.economy.tasks.some(t=>t.kind==='repair'&&t.status==='working'&&t.progress>1))return false;document.getElementById('settings')!.click();return true;},undefined,{timeout:60000});
   const held=await snapshot(page);expect(held.farmerWork?.status).toBe('working');expect(held.economy.buildingHealth.warehouse).toBe(750);
   await page.waitForTimeout(250);expect((await snapshot(page)).economy.tasks.find(t=>t.kind==='repair')!.progress).toBe(held.economy.tasks.find(t=>t.kind==='repair')!.progress);
   await page.screenshot({path:info.outputPath('repair-paused.png'),scale:'css'});
   await page.reload();await expect(page.locator('#loading')).toHaveAttribute('data-phase','menu');await page.locator('#continue-save').click();await expect(page.locator('#loading')).toHaveClass(/loaded/,{timeout:60000});
-  await page.waitForFunction(()=>{const s=window.__DEMO__!.snapshot();if(s.economy.buildingHealth.warehouse!==undefined)return false;document.getElementById('settings')!.click();return true;},undefined,{timeout:90000});
+  await page.waitForFunction(async ()=>{const s=(await window.__DEMO__!.snapshot());if(s.economy.buildingHealth.warehouse!==undefined)return false;document.getElementById('settings')!.click();return true;},undefined,{timeout:90000});
   const fixed=await snapshot(page);expect(fixed.economy.inventory.wood).toBe(77);expect(fixed.economy.inventory.stone).toBe(58);
   expect(fixed.economy.buildingHealth.cottage).toBe(540);expect(fixed.economy.tasks.filter(t=>t.kind==='repair'&&t.status==='done')).toHaveLength(1);
   await page.getByRole('button',{name:'继续游戏',exact:true}).click();await page.locator('[data-group="0"]').click();
@@ -38,11 +38,11 @@ export async function checkBuildingsNavigation(page:Page,info:TestInfo,touch:boo
   const goal={x:46,z:57};await panTo(page,goal,touch);
   await page.evaluate(()=>{
     const canvas=document.querySelector('canvas')!;
-    canvas.addEventListener('click',()=>{
-      const started=performance.now(),s=window.__DEMO__!.snapshot();
+    canvas.addEventListener('click',async ()=>{
+      const started=performance.now(),s=(await window.__DEMO__!.snapshot());
       const data={initial:s.moveFeedback,pending:s.navigation.pending,frames:0,firstRouteMs:0,completedMs:0};
       (window as unknown as {navCheck:typeof data}).navCheck=data;
-      const sample=()=>{const v=window.__DEMO__!.snapshot();data.frames++;
+      const sample=async ()=>{const v=(await window.__DEMO__!.snapshot());data.frames++;
         if(v.pathGuidance.visible&&!data.firstRouteMs)data.firstRouteMs=performance.now()-started;
         if(!v.navigation.pending){data.completedMs=performance.now()-started;return;}requestAnimationFrame(sample);};requestAnimationFrame(sample);
     },{once:true});

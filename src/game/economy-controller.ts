@@ -4,14 +4,14 @@ import {economyObstacles} from './economy-config.ts';
 import {WORLD_BOUNDS} from './world-data.ts';
 import { Economy } from './economy.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
-import type { createResidents } from './residents.ts';
+import type { createResidentSimulation } from './resident-simulation.ts';
 import type { createEconomyWorld } from './economy-world.ts';
 import type { CropKind, WorkKind, WorkTask } from './economy.ts';
 import type { Obstacle, Point } from './movement.ts';
 import { createSteward, stewardStatus } from './steward.ts';
 
 export type UnitCommand = { kind: 'move'; point: Point; path?:readonly Point[] } | { kind: 'work'; work: WorkKind; target: string; crop?: CropKind };
-type Residents = Pick<ReturnType<typeof createResidents>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
+type Residents = Pick<ReturnType<typeof createResidentSimulation>, 'command' | 'canWork' | 'hasMoveCommand' | 'farmerWorkState' |
   'releaseFarmerWork' | 'beginFarmerWork' | 'planFarmerWork' | 'startFarmerWork' | 'farmerIds'> & { farmerPosition: (id?: string) => Point };
 type World = Pick<ReturnType<typeof createEconomyWorld>, 'sync' | 'workPoints'>;
 

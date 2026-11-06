@@ -2,6 +2,9 @@ import type { Obstacle, Point } from './movement.ts';
 import type { PolygonArea } from './polygon.ts';
 
 const immutable = new WeakSet<readonly Obstacle[]>();
+const components=new WeakMap<readonly Obstacle[],readonly (readonly Obstacle[])[]>();
+export const obstacleComponents=(value:readonly Obstacle[])=>components.get(value);
+export const isImmutableObstacles=(value:readonly Obstacle[])=>immutable.has(value);
 const contents = new WeakMap<readonly Obstacle[], string>();
 const combinations = new WeakMap<readonly Obstacle[], WeakMap<readonly Obstacle[], readonly Obstacle[]>>();
 const point = (p: Point) => Object.freeze({ x: p.x, z: p.z });
@@ -31,11 +34,11 @@ export function immutableObstacles(obstacles: readonly Obstacle[], previous?: re
 export function combineObstacles(base: readonly Obstacle[], overlay: readonly Obstacle[]): readonly Obstacle[] {
   if (!overlay.length) return base;
   if (!base.length) return overlay;
-  if (!immutable.has(base) || !immutable.has(overlay)) return [...base, ...overlay];
+  if (!immutable.has(base) || !immutable.has(overlay)){const result=[...base,...overlay];components.set(result,[base,overlay]);return result;}
   let variants = combinations.get(base);
   if (!variants) { variants = new WeakMap(); combinations.set(base, variants); }
   let result = variants.get(overlay);
-  if (!result) { result = Object.freeze([...base, ...overlay]); immutable.add(result); variants.set(overlay, result); }
+  if (!result) { result = Object.freeze([...base, ...overlay]); immutable.add(result); components.set(result,[base,overlay]); variants.set(overlay, result); }
   return result;
 }
 
@@ -80,7 +83,7 @@ export function createGeometrySender() {
 export function createGeometryReceiver() {
   const cache = new Map<number, readonly Obstacle[]>();
   return (message: GeometryMessage): readonly Obstacle[] => {
-    const obstacles = message.obstacles ?? cache.get(message.id);
+    const obstacles = message.obstacles ? immutableObstacles(message.obstacles) : cache.get(message.id);
     if (!obstacles) throw new Error('Missing navigation geometry');
     remember(cache, message.id, obstacles); return obstacles;
   };

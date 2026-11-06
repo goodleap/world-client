@@ -1,16 +1,17 @@
-import { bodyObstacle } from './body-shape.ts';
 import { isBlocked } from './movement.ts';
 import type { Bounds, Obstacle, Point } from './movement.ts';
-import { PATH_CELL_SIZE } from './pathfinding.ts';
 import { planPaths, planMoveInBackground } from './path-planner.ts';
 import { inBounds, segmentIsClear } from './wander.ts';
 
 export interface WorkNeighbour { position: Point; radius: number; destination?: Point }
 export function occupiedApproach(point: Point, radius: number, neighbours: readonly WorkNeighbour[]) {
-  return neighbours.some(n => isBlocked(point, radius + .08, [
-    bodyObstacle(n.position, n.radius),
-    ...(n.destination ? [bodyObstacle(n.destination, n.radius)] : []),
-  ]));
+  // Destination reservations are a spacing rule; no temporary colliders or
+  // spatial-index query is needed for each individual pair of circular bodies.
+  return neighbours.some(n=>{
+    const clearance=radius+n.radius+.08;
+    return Math.hypot(point.x-n.position.x,point.z-n.position.z)<clearance
+      ||!!n.destination&&Math.hypot(point.x-n.destination.x,point.z-n.destination.z)<clearance;
+  });
 }
 
 /** Reserve an approach by the live route's endpoint, without another mutable
@@ -34,33 +35,5 @@ export function planMoveDestination(start: Point, point: Point, radius: number, 
   if (valid(point) && segmentIsClear(start, point, radius, bounds, solids)) return [{x:point.x,z:point.z}];
   const deferred=planMoveInBackground(start,point,radius,bounds,solids,neighbours);
   if(deferred!==false)return deferred;
-  const distance = (p: Point) => Math.hypot(p.x-point.x,p.z-point.z);
-  const candidates: Point[] = [];
-  const cell = PATH_CELL_SIZE, range = MOVE_DESTINATION_RADIUS;
-  const minX = Math.max(0,Math.ceil((point.x-range-bounds.minX)/cell)), maxX = Math.floor((Math.min(point.x+range,bounds.maxX)-bounds.minX)/cell);
-  const minZ = Math.max(0,Math.ceil((point.z-range-bounds.minZ)/cell)), maxZ = Math.floor((Math.min(point.z+range,bounds.maxZ)-bounds.minZ)/cell);
-  for (let z=minZ;z<=maxZ;z++) for (let x=minX;x<=maxX;x++) {
-    const p = { x:bounds.minX+x*cell, z:bounds.minZ+z*cell };
-    if (distance(p)<=range && valid(p)) candidates.push(p);
-  }
-  candidates.sort((a,b)=>distance(a)-distance(b) || Math.hypot(a.x-start.x,a.z-start.z)-Math.hypot(b.x-start.x,b.z-start.z));
-  // Copy explicitly: engine picking vectors expose x/z through accessors.
-  if (valid(point)) candidates.unshift({x:point.x,z:point.z});
-  const path = planPaths(start, candidates, radius, bounds, solids);
-  if (!path) return path;
-  const end = path.at(-1)!;
-  if (distance(end)<1e-6) return path;
-  // Refine the grid endpoint towards the click while keeping a clear swept
-  // segment. This leaves feet close to the shore/wall, not half a cell away.
-  const from = path.at(-2) ?? start;
-  let low=0,high=1;
-  for(let i=0;i<10;i++) {
-    const t=(low+high)/2, p={x:end.x+(point.x-end.x)*t,z:end.z+(point.z-end.z)*t};
-    if (valid(p) && segmentIsClear(end,p,radius,bounds,solids)) low=t;
-    else high=t;
-  }
-  const refined={x:end.x+(point.x-end.x)*low,z:end.z+(point.z-end.z)*low};
-  if (segmentIsClear(from,refined,radius,bounds,solids)) path[path.length-1]=refined;
-  else if (low>0) path.push(refined); // Keep the approach corner when cutting it would clip the obstacle.
-  return path;
+  return undefined;
 }

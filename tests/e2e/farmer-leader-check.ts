@@ -15,8 +15,8 @@ async function setup(page: Page, automatic: boolean) {
 async function freezeWorkingLeader(page: Page) {
   // Observe real work and pause through the settings control before a short job
   // can finish between Playwright calls on the cloud software renderer.
-  await page.waitForFunction(id => {
-    const state = window.__DEMO__!.snapshot();
+  await page.waitForFunction(async id => {
+    const state = (await window.__DEMO__!.snapshot());
     if (!state.residents.find(r => r.id === id)?.working
       || !state.economy.tasks.some(t => t.worker === id && t.status === 'working' && t.progress > .1)) return false;
     document.getElementById('settings')!.click(); return true;

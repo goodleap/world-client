@@ -94,8 +94,8 @@ export function checkLandExpansion(touch = false) {
     // Leadership is off in this fixture: ground goods need an explicit order.
     expect(e.request('haul', 'goods-99').ok).toBe(true);
     const errors = await setup(page, e.state);
-    await page.waitForFunction(door => {
-      const s = window.__DEMO__!.snapshot(), haul = s.economy.tasks.find(t => t.kind === 'haul' && t.status === 'delivering');
+    await page.waitForFunction(async door => {
+      const s = (await window.__DEMO__!.snapshot()), haul = s.economy.tasks.find(t => t.kind === 'haul' && t.status === 'delivering');
       const actor = s.residents.find(r => r.id === haul?.worker);
       if (!actor?.destination || Math.hypot(actor.destination.x - door.x, actor.destination.z - door.z) > 1) return false;
       document.getElementById('settings')!.click(); return true;

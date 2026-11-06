@@ -10,9 +10,14 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 export function createSceneCandidates(scene: Scene) {
   const tree = scene.createOrUpdateSelectionOctree(32, 4);
   let reconcile = true, staticDirty = true, dynamicDirty = true, candidates = 0, rebuilds = 0;
+  let lastRebuildMs=0,maxRebuildMs=0,totalRebuildMs=0;
+  let incrementalAdds=0,incrementalRemoves=0;
+  let worldMin=Vector3.Zero(),worldMax=Vector3.Zero();
+  const reasons={initial:0,explicit:0,staticAdded:0,staticRemoved:0,imported:0};
+  let explicit=false;
   const known = new Set<AbstractMesh>(), fixed = new Set<AbstractMesh>(), moving = new Set<AbstractMesh>();
   const pending = new Set<AbstractMesh>(), imported = new Set<AbstractMesh>();
-  const changed = () => { reconcile = true; staticDirty = true; };
+  const changed = () => { reconcile = true; staticDirty = true; explicit=true; };
   const added = scene.onNewMeshAddedObservable.add(mesh => pending.add(mesh));
   // Babylon inserts imported meshes into its tree automatically. Reclassify
   // those entries as well, so animated imports never retain static bounds.
@@ -20,7 +25,7 @@ export function createSceneCandidates(scene: Scene) {
   const removed = scene.onMeshRemovedObservable.add(mesh => {
     known.delete(mesh); pending.delete(mesh);
     if (imported.delete(mesh)) tree.removeMesh(mesh);
-    if (fixed.delete(mesh)) staticDirty = true;
+    if (fixed.delete(mesh)){tree.removeMesh(mesh);incrementalRemoves++;reasons.staticRemoved++;}
     if (moving.delete(mesh)) dynamicDirty = true;
   });
   const nativeCandidates = scene.getActiveMeshCandidates.bind(scene);
@@ -35,22 +40,37 @@ export function createSceneCandidates(scene: Scene) {
       reconcile = false;
     }
     for (const mesh of pending) {
-      if (imported.has(mesh)) { tree.removeMesh(mesh); if (fixed.has(mesh)) staticDirty = true; }
+      if (imported.has(mesh)) { tree.removeMesh(mesh); if (fixed.delete(mesh)) reasons.imported++; }
       if (!known.has(mesh)) continue; // A deferred add can arrive after removal.
       const eligible = !mesh.isBlocked && !mesh.isDisposed();
       // Hidden templates must remain available to Babylon's instance batches.
       const immutable = eligible && mesh.isWorldMatrixFrozen && !mesh.skeleton && !mesh.morphTargetManager
         && mesh.isVisible && !mesh.alwaysSelectAsActiveMesh && !(mesh as Mesh).hasThinInstances;
-      if (immutable !== fixed.has(mesh)) { if (immutable) fixed.add(mesh); else fixed.delete(mesh); staticDirty = true; }
+      if (immutable !== fixed.has(mesh)) {
+        if (immutable) {
+          fixed.add(mesh);reasons.staticAdded++;
+          const box=mesh.getBoundingInfo().boundingBox;
+          // Loot, crops and construction normally fit the existing world.
+          // Babylon can insert them directly; only expanding the world bounds
+          // or explicit reclassification requires rebuilding the whole tree.
+          if (box.minimumWorld.x<worldMin.x||box.minimumWorld.y<worldMin.y||box.minimumWorld.z<worldMin.z
+            ||box.maximumWorld.x>worldMax.x||box.maximumWorld.y>worldMax.y||box.maximumWorld.z>worldMax.z) staticDirty=true;
+          else if (!staticDirty) { tree.addMesh(mesh);incrementalAdds++; }
+        } else {
+          fixed.delete(mesh);tree.removeMesh(mesh);incrementalRemoves++;reasons.staticRemoved++;
+        }
+      }
       const dynamic = eligible && !immutable;
       if (dynamic !== moving.has(mesh)) { if (dynamic) moving.add(mesh); else moving.delete(mesh); dynamicDirty = true; }
     }
     pending.clear(); imported.clear();
     if (staticDirty) {
+      const started=performance.now();if(!rebuilds)reasons.initial++;if(explicit){reasons.explicit++;explicit=false;}
       const entries = [...fixed];
       const bounds = entries.length ? Mesh.MinMax(entries) : { min:Vector3.Zero(), max:Vector3.Zero() };
-      tree.update(bounds.min.subtractFromFloats(1, 1, 1), bounds.max.subtractFromFloats(-1, -1, -1), entries);
-      rebuilds++; staticDirty = false;
+      worldMin=bounds.min.subtractFromFloats(1,1,1);worldMax=bounds.max.subtractFromFloats(-1,-1,-1);
+      tree.update(worldMin,worldMax,entries);
+      rebuilds++; staticDirty = false;lastRebuildMs=performance.now()-started;totalRebuildMs+=lastRebuildMs;maxRebuildMs=Math.max(maxRebuildMs,lastRebuildMs);
     }
     if (dynamicDirty) { tree.dynamicContent = [...moving]; dynamicDirty = false; }
   }
@@ -58,7 +78,7 @@ export function createSceneCandidates(scene: Scene) {
   refresh();
   return {
     refresh: changed,
-    snapshot: () => ({ candidates, static: fixed.size, dynamic: tree.dynamicContent.length, rebuilds }),
+    snapshot: () => ({ candidates, static: fixed.size, dynamic: tree.dynamicContent.length, rebuilds, incrementalAdds, incrementalRemoves, lastRebuildMs, maxRebuildMs, totalRebuildMs, reasons:{...reasons} }),
     dispose() {
       scene.onNewMeshAddedObservable.remove(added); scene.onMeshRemovedObservable.remove(removed);
       scene.onMeshImportedObservable.remove(loaded);

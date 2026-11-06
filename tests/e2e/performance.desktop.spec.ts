@@ -21,9 +21,9 @@ test('frame metrics render at the upper right and restart after backgrounding', 
   const frozen = await snapshot(page);
   await page.waitForTimeout(600);
   expect((await snapshot(page)).performance).toEqual(frozen.performance);
-  const first = await page.evaluate(() => {
+  const first = await page.evaluate(async () => {
     window.dispatchEvent(new Event('focus'));
-    return window.__DEMO__!.snapshot().performance;
+    return (await window.__DEMO__!.snapshot()).performance;
   });
   expect(first.fps).toBeUndefined();
   expect(first.cpuMs).toBeUndefined();

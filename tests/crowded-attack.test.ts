@@ -4,6 +4,7 @@ import { Economy } from '../src/game/economy.ts';
 import { Combat, fighterRadius } from '../src/game/combat.ts';
 import { usePathPlanner,type PathQuery } from '../src/game/path-planner.ts';
 import type { Neighbour } from '../src/game/route-following.ts';
+import { withCrowdStep } from './native-test-runtime.ts';
 
 test('a rear attacker advances to a nearby free point when every contact slot is occupied, then joins combat',()=>{
   const e=new Economy();e.setLeadership(false);
@@ -27,7 +28,8 @@ test('a movement order replans to a nearby reachable endpoint after its slot bec
   for(const u of c.state.units)if(u!==actor)u.position={x:80,z:80};
   actor.position={x:0,z:-10};assert.equal(c.move([actor.id],{x:0,z:0}),1);
   crowd.push({id:'new-occupant',position:{x:0,z:0},radius:1,moving:false,purposeful:false,waiting:false});
-  for(let i=0;i<240;i++){e.state.seconds+=.05;c.update(.05);}
+  for(let i=0;i<240&&actor.goal;i++){e.state.seconds+=.05;withCrowdStep(e,c,()=>[],.05,()=>c.update(.05),
+    crowd.map(n=>({...n,solids:[],speed:0,route:[]})));}
   assert(Math.hypot(actor.position.x,actor.position.z)<3);assert.equal(actor.order,'guard');assert(!actor.goal);
 });
 

@@ -12,6 +12,7 @@ export class LoadingProgress {
   readonly items = new Map<string, LoadItem>();
   private listeners = new Set<() => void>();
   subscribe(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
+  notify() {this.changed();}
   private changed() { for (const listener of this.listeners) listener(); }
   plan(id: string, name: string, weight: number, kind: LoadItem['kind'] = 'stage', expectedBytes?: number) {
     this.register(id, name, kind); Object.assign(this.items.get(id)!, { weight, expectedBytes }); this.changed();

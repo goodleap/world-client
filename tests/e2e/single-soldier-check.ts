@@ -14,8 +14,8 @@ export async function checkSingleSoldierMovement(page: Page, info: TestInfo, tou
   const soldier = async (id: string) => (await snapshot(page)).combat.units.find(u => u.id === id)!;
   const distance = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
   const running = async (id: string, reference: number, topSpeed: number) => {
-    const result = await page.waitForFunction(id => {
-      const r = window.__DEMO__!.snapshot().residents.find(r => r.id === id)!;
+    const result = await page.waitForFunction(async id => {
+      const r = (await window.__DEMO__!.snapshot()).residents.find(r => r.id === id)!;
       return r.running && r.movementSpeed > .5 ? r : undefined;
     }, id);
     const r = await result.jsonValue();

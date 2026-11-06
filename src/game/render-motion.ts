@@ -36,6 +36,9 @@ export class RenderMotion {
   reset() {
     this.path = undefined; this.read(); this.beginStep(); this.position.copyFrom(this.current.position); this.rotation.copyFrom(this.current.rotation);
   }
+  reconcile() {
+    if(!this.current.position.equalsWithEpsilon(this.root.position,1e-7))this.reset();
+  }
   sample(alpha: number) {
     const x = this.position.x, y = this.position.y, z = this.position.z;
     Vector3.LerpToRef(this.previous.position, this.current.position, alpha, this.position);

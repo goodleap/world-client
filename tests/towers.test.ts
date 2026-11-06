@@ -1,3 +1,4 @@
+import { withCrowdStep } from './native-test-runtime.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy,encodeEconomy,decodeEconomy } from '../src/game/economy.ts';
@@ -20,7 +21,7 @@ function setup(){
   const c=new Combat(e.state.combat,e,()=>tower.hp>0?solids():[]);
   for(const u of c.state.units){u.position={x:u.team==='home'?-50:50,z:50};u.order='hold';}
   const archer=c.unit('archer')!;archer.position={x:site.x,z:site.z-6};
-  const step=(seconds:number)=>{for(let t=0;t<seconds-1e-8;t+=.05){e.state.seconds+=.05;updateTowers(e,c);c.update(.05);}};
+  const step=(seconds:number)=>{for(let t=0;t<seconds-1e-8;t+=.05){e.state.seconds+=.05;withCrowdStep(e,c,()=>tower.hp>0?solids():[],.05,()=>{updateTowers(e,c);c.update(.05);});}};
   const enter=()=>{assert(requestGarrison(e,c,tower.id,archer.id).ok);step(3);assert.equal(tower.phase,'occupied');};
   return {e,c,site,tower,archer,step,enter};
 }
@@ -85,7 +86,7 @@ test('garrison shoots at twelve units from the deck, checks cover and never chas
 });
 test('melee attacks the tower rather than its protected archer; destruction evacuates and damages once',()=>{
   const s=setup();s.enter();const enemy=s.c.unit('enemy-grove-0')!;
-  enemy.position={x:s.site.x,z:s.site.z-2.7};enemy.defendFrom={...enemy.position};enemy.order='guard';
+  enemy.position={x:s.site.x,z:s.site.z-2.7};enemy.defendFrom={...enemy.position};enemy.provoked={from:{...enemy.position},leash:14};enemy.target=s.archer.id;enemy.order='guard';
   const hp=s.archer.hp;s.step(2);assert(s.tower.hp<TOWER_CONFIG.hp);assert.equal(s.archer.hp,hp);
   s.c.hurt(s.tower.id,10000,enemy.id);assert.equal(s.tower.hp,0);assert.equal(s.archer.hp,hp-maxHealth('archer')*.25);
   assert.equal(towerHeight(s.e.state,'archer'),0);assert(!s.e.state.sites.some(t=>t.id===s.tower.id));assert.equal(s.tower.unit,undefined);
@@ -127,7 +128,7 @@ test('tower construction spends its own cost once and validates missing or misma
 
 test('an enemy archer can target a garrison and arrows retain their elevated endpoint',()=>{
   const s=setup();s.enter();const enemy=s.c.unit('enemy-grove-0')!;enemy.role='archer';
-  enemy.position={x:s.site.x,z:s.site.z-5};enemy.defendFrom={...enemy.position};enemy.order='guard';enemy.cooldown=0;
+  enemy.position={x:s.site.x,z:s.site.z-5};enemy.defendFrom={...enemy.position};enemy.provoked={from:{...enemy.position},leash:14};enemy.target=s.archer.id;enemy.order='guard';enemy.goal=undefined;enemy.route=[];enemy.cooldown=0;
   s.archer.cooldown=10;const hp=s.archer.hp;s.step(2);
   assert.equal(enemy.target,'archer');assert(s.archer.hp<hp);
 });

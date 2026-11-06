@@ -58,7 +58,7 @@ test('loading details explain a stalled shared download and complete processing 
   expect(events).toEqual(expect.arrayContaining(['context-lost', 'context-restored']));
   await page.getByRole('button', { name: '设置', exact: true }).click();
   // The game still exposes the real scene after every processing stage.
-  expect(await page.evaluate(() => window.__DEMO__!.snapshot().residents.map(r => r.id).sort())).toEqual([...RESIDENTS, ...ENEMIES].map(r => r.id).sort());
+  expect(await page.evaluate(async () => (await window.__DEMO__!.snapshot()).residents.map(r => r.id).sort())).toEqual([...RESIDENTS, ...ENEMIES].map(r => r.id).sort());
   await page.screenshot({ path: info.outputPath('phone-context-restored.png') });
   expect(errors).toEqual([]);
 });

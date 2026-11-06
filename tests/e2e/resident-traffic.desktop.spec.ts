@@ -14,8 +14,8 @@ test('adjacent farmers resume an old shared destination and both arrive without 
   const trace = await page.evaluate(() => new Promise<{ positions: { x: number; z: number }[]; commands: boolean[]; seconds: number }[]>(resolve => {
     const trace: { positions: { x: number; z: number }[]; commands: boolean[]; seconds: number }[] = [];
     let frame = -1;
-    const check = () => {
-      const s = window.__DEMO__!.snapshot();
+    const check = async () => {
+      const s = (await window.__DEMO__!.snapshot());
       if (s.frames !== frame) {
         frame = s.frames;
         const farmers = s.residents.filter(r => r.role === 'farmer');

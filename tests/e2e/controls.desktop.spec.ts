@@ -8,11 +8,11 @@ test('keyboard speed is fixed across zooms; trackpad scroll pans and pinching zo
   await page.addInitScript(state => localStorage.setItem('world-basic-economy-v1', JSON.stringify(state)), state);
   const errors = await openGame(page);
   for (let i = 0; i < 2; i++) {
-    const movement = await page.evaluate(() => new Promise<{ distance: number; seconds: number }>(resolve => {
-      const canvas = document.getElementById('game')!, before = window.__DEMO__!.snapshot();
+    const movement = await page.evaluate(() => new Promise<{ distance: number; seconds: number }>(async resolve => {
+      const canvas = document.getElementById('game')!, before = (await window.__DEMO__!.snapshot());
       canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD', bubbles: true }));
-      const check = () => {
-        const after = window.__DEMO__!.snapshot();
+      const check = async () => {
+        const after = (await window.__DEMO__!.snapshot());
         if (after.simulationSeconds > before.simulationSeconds) {
           canvas.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD', bubbles: true }));
           resolve({ distance: after.camera.x - before.camera.x, seconds: Math.min(.25, after.simulationSeconds - before.simulationSeconds) });

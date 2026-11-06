@@ -1,3 +1,4 @@
+import { runtimeContext } from './runtime-context.ts';
 import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Material } from '@babylonjs/core/Materials/material';
@@ -21,7 +22,7 @@ export function createCharacterMaterialSetup(scene: Scene) {
           loadingProgress.begin(studioUrl, '金属环境纹理（studio.env）', 'download');
           metalEnvironment = new CubeTexture(studioUrl, scene, { prefiltered: true,
             onLoad: () => {
-              const entry = performance.getEntriesByName(new URL(studioUrl, location.href).href).at(-1) as PerformanceResourceTiming | undefined;
+              const entry = performance.getEntriesByName(new URL(studioUrl, runtimeContext().baseURI).href).at(-1) as PerformanceResourceTiming | undefined;
               if (entry?.encodedBodySize) loadingProgress.bytes(studioUrl, entry.encodedBodySize, entry.encodedBodySize);
               loadingProgress.done(studioUrl);
             },

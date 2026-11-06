@@ -1,3 +1,4 @@
+import type { PlacementControls } from './placement-controls.ts';
 import { surfaceHeight, terrainRayDistance } from './terrain-height.ts';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -12,9 +13,9 @@ import type { BuildingSite, BuildingKind } from './construction.ts';
 
 /** Both pointer workflows share the same snap, validation and commit operation. */
 export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI, economy: Economy,
-  occupants: () => Obstacle[], blocked: () => boolean, onBegin: () => void, onPlaced: (id: string) => void) {
-  const abort = new AbortController(), options = { signal: abort.signal };
-  const { toggle, palette, choices, cancel: cancelButton } = ui.constructionControls;
+  occupants: () => Obstacle[], blocked: () => boolean, onBegin: () => void, onPlaced: (id: string) => void, controls:PlacementControls,
+  commit?:(kind:BuildingKind,point:{x:number;z:number})=>Promise<{ok:boolean;message:string;id?:string}>) {
+  let paletteShown=false;
   const fillMaterial = new StandardMaterial('placement-fill', scene);
   fillMaterial.disableLighting = true; fillMaterial.alpha = .25;
   const edgeMaterial = new StandardMaterial('placement-edge', scene);
@@ -29,31 +30,22 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
   for (const mesh of meshes) { mesh.isPickable = false; mesh.setEnabled(false); }
   let active = false, candidate: BuildingSite | undefined, reason = '';
   let kind: BuildingKind = 'farm';
-  let pointer: { id: number; x: number; y: number; scrollLeft: number; touch: boolean; mode: 'pending' | 'scroll' | 'place' } | undefined;
-  let cursor: { x: number; y: number } | undefined;
-  let budgetRevision = -1;
-  const costs = choices.map(choice => choice.querySelector<HTMLElement>('.building-cost')!);
-  const labels = costs.map(cost => cost.textContent!);
+  let cursor: { x:number;y:number;overCanvas:boolean } | undefined;
+  let budgetRevision=-1;
   function refreshBudget() {
     if (budgetRevision === economy.revision) return;
     budgetRevision = economy.revision;
     const available = economy.available();
-    choices.forEach((choice, i) => {
-      const shortage = economy.buildingShortage(choice.dataset.building as BuildingKind, available);
-      if (choice.disabled !== !!shortage) choice.disabled = !!shortage;
-      if (choice.title !== shortage) choice.title = shortage;
-      const label = shortage ? shortage.replace('、', '\n') : labels[i];
-      if (costs[i].textContent !== label) costs[i].textContent = label;
-    });
+    controls.budget((Object.keys(BUILDING_TYPES) as BuildingKind[]).map(kind=>({kind,shortage:economy.buildingShortage(kind,available)})));
   }
   refreshBudget();
-  const showPalette = (show: boolean) => { palette.hidden = !show; toggle.setAttribute('aria-expanded', String(show)); };
+  const showPalette=(show:boolean)=>{paletteShown=show;controls.showPalette(show);};
   const hidePreview = () => { for (const m of meshes) m.setEnabled(false); candidate = undefined; ui.clearTargetHint(); };
-  function cancel() { active = false; cursor = undefined; pointer = undefined; hidePreview(); ui.setPlacement(false); showPalette(false); }
+  function cancel() { active = false; cursor = undefined; hidePreview(); ui.setPlacement(false); showPalette(false); }
   function begin(nextKind: BuildingKind) { if (blocked() || economy.buildingShortage(nextKind)) return; onBegin(); kind = nextKind; active = true; ui.setPlacement(true, `${BUILDING_TYPES[kind].name} · 选择位置`); }
-  function preview(x: number, y: number) {
-    cursor = { x, y };
-    if (!active || blocked() || document.elementFromPoint(x, y) !== ui.canvas) { hidePreview(); return; }
+  function preview(x: number, y: number,overCanvas=true) {
+    cursor = { x, y,overCanvas };
+    if (!active || blocked() || !overCanvas) { hidePreview(); return; }
     const rect = ui.canvas.getBoundingClientRect(), ray = scene.createPickingRay(x - rect.left, y - rect.top, null, camera);
     const distance = terrainRayDistance(ray);
     if (distance === null) { hidePreview(); return; }
@@ -83,64 +75,27 @@ export function createBuildingPlacement(scene: Scene, camera: Camera, ui: GameUI
     if (reason || warning) ui.targetHint(reason || warning, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z }, true);
     else ui.clearTargetHint(true);
   }
-  function place(x: number, y: number) {
+  let placing=false;
+  async function place(x: number, y: number,overCanvas=true) {
+    if(placing)return;
     if (!active || blocked()) return;
-    preview(x, y);
+    preview(x, y,overCanvas);
     if (!candidate) return;
     if (reason) return;
-    const result = economy.placeBuilding(kind, candidate, occupants());
+    const selected=candidate;placing=true;
+    let result:Awaited<ReturnType<NonNullable<typeof commit>>>;
+    try{if(commit)result=await commit(kind,selected);else{const local=economy.placeBuilding(kind,selected,occupants());result={ok:local.ok,message:local.warning??local.message,id:local.task?.target};}}
+    finally{placing=false;}
     if (result.ok) {
-      const at = { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z };
-      cancel(); onPlaced(result.task!.target);
-      if (result.warning) ui.targetHint(result.warning, at);
+      cancel(); onPlaced(result.id!);if(result.message)ui.toast(result.message);
     }
-    else ui.targetHint(result.message, { x: candidate.x, y: surfaceHeight(candidate.x,candidate.z)+.2, z: candidate.z });
+    else ui.targetHint(result.message, { x: selected.x, y: surfaceHeight(selected.x,selected.z)+.2, z: selected.z });
   }
-  toggle.addEventListener('click', () => {
-    if (blocked()) return;
-    const show = !!palette.hidden; cancel(); showPalette(show); ui.canvas.focus({ preventScroll: true });
-  }, options);
-  cancelButton.addEventListener('click', cancel, options);
-  for (const choice of choices) {
-    const nextKind = choice.dataset.building as BuildingKind;
-    choice.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || blocked() || choice.disabled) return;
-      // Leave horizontal touch gestures to native scrolling. Vertical dragging
-      // still places a building, and a tap still enters placement mode.
-      if (event.pointerType !== 'touch') event.preventDefault();
-      choice.setPointerCapture(event.pointerId);
-      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, scrollLeft: palette.scrollLeft, touch: event.pointerType === 'touch', mode: 'pending' };
-    }, options);
-    choice.addEventListener('pointermove', event => {
-      if (!pointer || pointer.id !== event.pointerId) return;
-      const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
-      if (pointer.mode === 'pending' && Math.hypot(dx, dy) >= 8) {
-        pointer.mode = (pointer.touch || palette.scrollWidth > palette.clientWidth) && Math.abs(dx) > Math.abs(dy) ? 'scroll' : 'place';
-        if (pointer.mode === 'place') begin(nextKind);
-      }
-      if (pointer.mode === 'scroll' && !pointer.touch) palette.scrollLeft = pointer.scrollLeft - dx;
-      if (pointer.mode === 'place') preview(event.clientX, event.clientY);
-    }, options);
-    choice.addEventListener('pointerup', event => {
-      if (!pointer || pointer.id !== event.pointerId) return;
-      const mode = pointer.mode; pointer = undefined;
-      if (mode === 'scroll') return;
-      if (mode === 'place') place(event.clientX, event.clientY); else begin(nextKind);
-      showPalette(false); ui.canvas.focus({ preventScroll: true });
-    }, options);
-    choice.addEventListener('pointercancel', () => {
-      // The browser cancels the pointer when it owns a native horizontal pan.
-      if (pointer?.mode === 'place') cancel(); else pointer = undefined;
-    }, options);
-    // Native keyboard activation has no pointer sequence.
-    choice.addEventListener('click', event => { if (event.detail === 0) { begin(nextKind); showPalette(false); } }, options);
-  }
-  window.addEventListener('pointermove', event => { if (active && !pointer) preview(event.clientX, event.clientY); }, options);
-  window.addEventListener('blur', cancel, options);
+  controls.bind({begin,cancel,preview,place,toggle(){if(blocked())return;const show=!paletteShown;cancel();showPalette(show);}});
   return {
     get active() { return active; }, place, cancel,
-    update() { refreshBudget(); if (active && cursor) preview(cursor.x, cursor.y); },
+    update() { refreshBudget(); if (active && cursor) preview(cursor.x, cursor.y,cursor.overCanvas); },
     snapshot: () => ({ active, candidate, reason }),
-    dispose() { cancel(); abort.abort(); meshes.forEach(m => m.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); },
+    dispose() { cancel(); controls.dispose(); meshes.forEach(m => m.dispose()); fillMaterial.dispose(); edgeMaterial.dispose(); },
   };
 }

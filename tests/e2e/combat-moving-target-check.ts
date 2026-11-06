@@ -50,8 +50,8 @@ export async function checkReturningTargets(page: Page, info: TestInfo, role: 'i
     localStorage.setItem(key, save);
     const result: NonNullable<Window['__RETURN_COMBAT__']> = { hits: {}, paused: false };
     window.__RETURN_COMBAT__ = result;
-    const observe = () => {
-      const state = window.__DEMO__?.snapshot();
+    const observe = async () => {
+      const state = (await window.__DEMO__?.snapshot());
       if (state) {
         for (const expected of targets) {
           const unit = state.combat.units.find(u => u.id === expected.id)!;

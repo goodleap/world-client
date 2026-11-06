@@ -92,13 +92,13 @@ test('live archer pursuit draws the shared route to its target and stops to shoo
     localStorage.setItem('world-basic-economy-v1', save); localStorage.setItem('world-shadows-enabled', 'false');
     const result: NonNullable<Window['__ATTACK_MOTION__']> = window.__ATTACK_MOTION__ = { samples: [] as MotionSample[], done: false }; let sampled = -1;
     let selected = false, focusedAt = -1;
-    const observe = () => {
+    const observe = async () => {
       if (!window.__DEMO__) { requestAnimationFrame(observe); return; }
       if (!selected) {
         const group = document.querySelector<HTMLButtonElement>('[data-group="0"]');
         if (group) { group.click(); group.click(); selected = true; }
       }
-      const s = window.__DEMO__!.snapshot(), a = s.combat.units.find(u => u.id === 'archer')!, b = s.combat.units.find(u => u.id === id)!;
+      const s = (await window.__DEMO__!.snapshot()), a = s.combat.units.find(u => u.id === 'archer')!, b = s.combat.units.find(u => u.id === id)!;
       // Reuse the normal group recenter button so the recording keeps the moving unit in view.
       if (s.economy.seconds - focusedAt >= .4) { document.querySelector<HTMLButtonElement>('[data-group="0"]')!.click(); focusedAt = s.economy.seconds; }
       if (s.economy.seconds - sampled >= .1) {

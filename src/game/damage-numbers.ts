@@ -1,17 +1,18 @@
+import type { OverlayHost,OverlayLabel } from './overlay-host.ts';
 export interface DamageNumber { target:string; amount:number; team:'home'|'enemy'; point:{x:number;y:number;z:number} }
 
 /** A bounded DOM overlay, projected by Babylon's existing camera. No meshes,
  * textures or independent timer; the caller supplies the paused visual clock. */
-export function createDamageNumbers(host:HTMLElement) {
+export function createDamageNumbers(host:OverlayHost) {
   const limit=32,duration=.7;
-  const slots:{node:HTMLElement;hit:DamageNumber;start:number;lift:number;width:number;x:number;y:number;placed:boolean}[]=[];
+  const slots:{node:OverlayLabel;hit:DamageNumber;start:number;lift:number;width:number;x:number;y:number;placed:boolean}[]=[];
   let shown=0;
   return {
     add(hit:DamageNumber,time:number,visible:boolean){
       if(!visible||!Number.isFinite(hit.amount)||hit.amount<=0)return;
       let slot=slots.find(s=>s.node.hidden);
       if(!slot&&slots.length<limit){
-        const node=document.createElement('span');node.className='damage-number';node.hidden=true;host.append(node);
+        const node=host.create('damage-number');
         slot={node,hit,start:time,lift:0,width:0,x:0,y:0,placed:false};slots.push(slot);
       }
       slot??=slots.reduce((a,b)=>a.start<b.start?a:b);

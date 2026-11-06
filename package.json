@@ -11,14 +11,20 @@
     "typecheck": "tsc --noEmit",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test --test-isolation=none tests/*.test.ts",
+    "test": "node --import ./tests/native-test-runtime.ts --test --test-isolation=none tests/*.test.ts",
+    "test:runtime": "VITE_MAP_DEVELOPMENT=true node --test tests/simulation-runtime.integration.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@babylonjs/addons": "9.32.1",
     "@babylonjs/core": "9.32.1",
     "@babylonjs/loaders": "9.32.1",
+    "@recast-navigation/core": "0.43.0",
+    "@recast-navigation/generators": "0.43.0",
+    "comlink": "4.4.2",
     "earcut": "^3.0.2",
-    "polygon-clipping": "^0.15.7"
+    "polygon-clipping": "^0.15.7",
+    "rfc6902": "5.4.0"
   },
   "devDependencies": {
     "@babylonjs/ktx2decoder": "9.32.1",

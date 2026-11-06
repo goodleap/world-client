@@ -1,3 +1,4 @@
+import { runtimeContext } from './runtime-context.ts';
 const SHADOWS_KEY = 'world-shadows-enabled';
 const LIGHTING_KEY = 'world-lighting';
 
@@ -20,22 +21,22 @@ export function normalizeLighting(value: Partial<LightingSettings>): LightingSet
   };
 }
 export function readLighting(): LightingSettings {
-  try { return normalizeLighting(JSON.parse(localStorage.getItem(LIGHTING_KEY) ?? '{}') ?? {}); }
+  try { return normalizeLighting(JSON.parse(runtimeContext().storage.getItem(LIGHTING_KEY) ?? '{}') ?? {}); }
   catch { return { ...DEFAULT_LIGHTING }; }
 }
 export function saveLighting(settings: LightingSettings) {
-  try { localStorage.setItem(LIGHTING_KEY, JSON.stringify(normalizeLighting(settings))); return true; }
+  try { runtimeContext().storage.setItem(LIGHTING_KEY, JSON.stringify(normalizeLighting(settings))); return true; }
   catch { return false; }
 }
 
 /** Device preference, independent of a saved village or starting a new game. */
 export function readShadowsEnabled() {
-  try { return localStorage.getItem(SHADOWS_KEY) !== 'false'; }
+  try { return runtimeContext().storage.getItem(SHADOWS_KEY) !== 'false'; }
   catch { return true; }
 }
 
 export function saveShadowsEnabled(enabled: boolean) {
-  try { localStorage.setItem(SHADOWS_KEY, String(enabled)); return true; }
+  try { runtimeContext().storage.setItem(SHADOWS_KEY, String(enabled)); return true; }
   catch { return false; }
 }
 
@@ -47,9 +48,9 @@ export const PERFORMANCE_MODES = {
 export type PerformanceMode = keyof typeof PERFORMANCE_MODES;
 const PERFORMANCE_KEY='world-performance-mode';
 export function readPerformanceMode():PerformanceMode {
-  try{const value=localStorage.getItem(PERFORMANCE_KEY);return value&&Object.hasOwn(PERFORMANCE_MODES,value)?value as PerformanceMode:'standard';}
+  try{const value=runtimeContext().storage.getItem(PERFORMANCE_KEY);return value&&Object.hasOwn(PERFORMANCE_MODES,value)?value as PerformanceMode:'standard';}
   catch{return 'standard';}
 }
 export function savePerformanceMode(value:PerformanceMode){
-  try{localStorage.setItem(PERFORMANCE_KEY,value);return true;}catch{return false;}
+  try{runtimeContext().storage.setItem(PERFORMANCE_KEY,value);return true;}catch{return false;}
 }

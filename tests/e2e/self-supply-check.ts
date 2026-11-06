@@ -21,8 +21,8 @@ export async function checkSelfSupply(page: Page, info: TestInfo, id: 'infantry'
   await expect(page.locator('.combat-controls')).toHaveCount(0);
   // Freeze on the same animation frame that first carries paid goods. A slow
   // screenshot or a later locator click could let the whole delivery finish.
-  await page.waitForFunction(({id,fire})=>{
-    if(!window.__DEMO__!.snapshot().economy.goods.some(g=>g.carrier===id&&g.destination===fire))return false;
+  await page.waitForFunction(async ({id,fire})=>{
+    if(!(await window.__DEMO__!.snapshot()).economy.goods.some(g=>g.carrier===id&&g.destination===fire))return false;
     document.querySelector<HTMLButtonElement>('#settings')!.click();return true;
   },{id,fire:fire.id},{timeout:60000});
   await expect(page.locator('#settings-dialog')).toBeVisible();

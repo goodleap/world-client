@@ -22,7 +22,7 @@ test('near, far and near again release scene load and keep one render loop', asy
     }, clicks);
     await expect.poll(async () => Math.abs((await snapshot(page)).camera.zoom - target), { timeout: 45000 }).toBeLessThan(.03);
     const frames = (await snapshot(page)).frames;
-    await page.waitForFunction(frames => window.__DEMO__!.snapshot().frames >= frames + 8, frames, { timeout: 60000 });
+    await page.waitForFunction(async frames => (await window.__DEMO__!.snapshot()).frames >= frames + 8, frames, { timeout: 60000 });
     const state = await snapshot(page);
     readings.push({ label, performance: state.diagnostics, rendering: state.rendering, shadows: state.shadows,
       lod: state.residents.filter(r => r.lod).map(r => ({ id: r.id, ...r.lod })) });

@@ -30,7 +30,12 @@ test('native octree follows camera, moving children, LOD and static object lifec
     const added = MeshBuilder.CreateBox('built-house', {}, scene); added.position.x = 40; added.freezeWorldMatrix();
     assert.ok(compare().includes(added)); added.dispose(); assert.ok(!compare().includes(added));
     camera.target.x = -40; root.position.x = -40; compare();
-    assert.equal(index.snapshot().rebuilds, 3);
+    assert.equal(index.snapshot().rebuilds, 1,'in-bounds construction and removal use native incremental updates');
+    assert.equal(index.snapshot().incrementalAdds,1);
+    assert.equal(index.snapshot().incrementalRemoves,1);
+    const outside=MeshBuilder.CreateBox('outside-original-bounds',{},scene);outside.position.x=camera.target.x=120;outside.freezeWorldMatrix();
+    assert.ok(compare().includes(outside));
+    assert.equal(index.snapshot().rebuilds,2,'expanded bounds still rebuild before rendering');
     index.dispose();
   } finally { scene.dispose(); engine.dispose(); }
 });

@@ -36,9 +36,9 @@ export function createCharacterLibrary(scene: Scene) {
   const lowBatches = new Map<string, { detail: Geometry; far: Geometry }>();
   let templates: Promise<{ high: AssetContainer; low: AssetContainer; far: AssetContainer }> | undefined;
   const prepareMaterials = createCharacterMaterialSetup(scene);
-  let instanceCount = 0;
+  let instanceCount = 0, disposedCount = 0;
   let humanActions: string[] = [];
-  const instances: { role: CharacterRole; meshes: AbstractMesh[]; skeletons: { uniqueId: number; bones: unknown[] }[] }[] = [];
+  const instances: { role: CharacterRole; parent: TransformNode; meshes: AbstractMesh[]; skeletons: { uniqueId: number; bones: unknown[] }[]; animations: number }[] = [];
   scene.onDisposeObservable.add(() => containers.forEach(container => container.dispose()));
 
   const load = () => templates ??= (async () => {
@@ -148,8 +148,19 @@ export function createCharacterLibrary(scene: Scene) {
       // Exclude the rigid string from batching so the authored bow can draw.
       const renderedMeshes = meshes.filter(m => m !== originalString && !heldArrow.includes(m));
       instanceCount++;
-      for(let i=instances.length-1;i>=0;i--)if(instances[i].meshes.every(mesh=>mesh.isDisposed()))instances.splice(i,1);
-      instances.push({ role, meshes, skeletons: instance.skeletons });
+      instances.push({ role, parent, meshes, skeletons: instance.skeletons, animations: instance.animationGroups.length + Number(!!fallPosture) });
+      // Resource ownership follows the actor, including rigs with no remaining
+      // visible mesh after batching. Never scan every scene animation on death.
+      let released=false;
+      const release=()=>{
+        if(released)return;released=true;disposedCount++;
+        for(const group of instance.animationGroups)group.dispose();
+        fallPosture?.dispose();
+        for(const skeleton of instance.skeletons)skeleton.dispose();
+        const index=instances.findIndex(item=>item.meshes===meshes);
+        if(index>=0)instances.splice(index,1);
+      };
+      if(parent.isDisposed()){for(const root of instance.rootNodes)root.dispose();release();}else parent.onDisposeObservable.addOnce(release);
       let bowPhase: number | undefined | false = false;
       return { ...instance, fallPosture, meshes: renderedMeshes, bowPose(phase?: number) {
         if (!bow || !originalString) return;
@@ -195,9 +206,16 @@ export function createCharacterLibrary(scene: Scene) {
       }
       return attached;
     },
+    resources: () => ({ created:instanceCount, disposed:disposedCount, live:instances.length,
+      roles:Object.fromEntries([...new Set(instances.map(i=>i.role))].map(role=>{
+        const owned=instances.filter(i=>i.role===role);
+        return [role,{actors:owned.length,meshes:owned.reduce((n,i)=>n+i.parent.getChildMeshes().filter(m=>!m.isDisposed()).length,0),
+          skeletons:owned.reduce((n,i)=>n+i.skeletons.length,0),animations:owned.reduce((n,i)=>n+i.animations,0)}];
+      })),
+    }),
     summary: () => ({ containers: containers.length, instances: instanceCount,
       humanActions, highBatches: highBatches.size, lowBatches: lowBatches.size,
-      actors: instances.filter(instance=>instance.meshes.some(mesh=>!mesh.isDisposed())).map(instance => ({ role: instance.role,
+      actors: instances.map(instance => ({ role: instance.role,
         skeletons: instance.skeletons.map(skeleton => ({ id: skeleton.uniqueId, bones: skeleton.bones.length })),
         headGeometry: (instance.meshes.find(mesh => mesh.name === 'Head • shaped cranium cheeks and jaw') as Mesh | undefined)?.geometry?.uniqueId,
       })),

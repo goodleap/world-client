@@ -9,7 +9,7 @@ test('touch movement marks the accepted destination and dragging does not move t
   const marker = (await snapshot(page)).moveFeedback;
   expect(marker.visible).toBe(true);
   expect(marker.x).toBeCloseTo(destination.x, 1); expect(marker.z).toBeCloseTo(destination.z, 1);
-  await page.waitForFunction(() => window.__DEMO__!.snapshot().leaderRunning);
+  await page.waitForFunction(async () => (await window.__DEMO__!.snapshot()).leaderRunning);
   await page.screenshot({ path: info.outputPath('phone-move-destination.png') });
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const frozen = (await snapshot(page)).moveFeedback;

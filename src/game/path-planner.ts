@@ -1,6 +1,6 @@
 import type { Bounds, Obstacle, Point } from './movement.ts';
+import { navigationRuntime } from './navigation-runtime.ts';
 import { isBlocked } from './movement.ts';
-import { findPathToGoals } from './pathfinding.ts';
 import { inBounds, segmentIsClear } from './wander.ts';
 import type { WorkNeighbour } from './work-navigation.ts';
 import { createGeometrySender, type GeometryMessage, type GeometrySnapshot } from './navigation-geometry.ts';
@@ -15,21 +15,21 @@ export function usePathPlanner(planner:Planner) {
   return ()=>{if(background===planner)background=undefined;};
 }
 
-/** Cheap direct travel stays immediate. Only the grid search crosses threads.
- * Tests and the navigation worker use the same pure planner without a backend. */
+/** A proven direct segment stays immediate. Native Detour handles all other
+ * queries in its worker, including exclusion-area builds. */
 export function planPaths(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,obstacles:readonly Obstacle[]):PlannedPath {
   const valid=goals.filter(p=>inBounds(p,radius,bounds)&&!isBlocked(p,radius,obstacles));
   if(!valid.length)return;
   if(segmentIsClear(start,valid[0],radius,bounds,obstacles))return [{x:valid[0].x,z:valid[0].z}];
   const query={start,goals:valid,radius,bounds,obstacles};
-  return background?background(query):findPathToGoals(start,valid,radius,bounds,obstacles);
+  return background?background(query):navigationRuntime()?.plan(query);
 }
 export const planPath=(start:Point,goal:Point,radius:number,bounds:Bounds,obstacles:readonly Obstacle[])=>planPaths(start,[goal],radius,bounds,obstacles);
 /** Move-destination enumeration is part of the heavy search too. Keep it in
  * the worker, including nearest-reachable fallback and arrival reservations. */
 export function planMoveInBackground(start:Point,goal:Point,radius:number,bounds:Bounds,obstacles:readonly Obstacle[],neighbours:readonly WorkNeighbour[]):PlannedPath|false {
-  if(!background)return false;
-  return background({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours});
+  const planner=background??navigationRuntime()?.plan;
+  return planner?planner({start,goals:[{x:goal.x,z:goal.z}],radius,bounds,obstacles,move:true,neighbours}):false;
 }
 
 export interface PathReply { serial:number; path?:Point[]; ms:number; error?:boolean }
@@ -43,6 +43,8 @@ interface Entry { key:string; group:string; serial:number; query:Omit<PathQuery,
 export function createBackgroundPaths(worker:Transport,now=()=>performance.now()) {
   let serial=0,active:Entry|undefined,failed=false,disposed=false,completed=0,hits=0,workMs=0;
   const geometry=createGeometrySender(),ready:{entry:Entry;result:PathReply}[]=[];
+  const waiters=new Set<()=>void>();
+  const wake=()=>{for(const resolve of waiters)resolve();waiters.clear();};
   const cache=new Map<string,Entry>(),groups=new Map<string,Set<Entry>>(),queue:Entry[]=[];
   const groupOf=(q:PathQuery,version:number)=>JSON.stringify([q.goals.map(p=>[p.x,p.z]),q.radius,
     [q.bounds.minX,q.bounds.maxX,q.bounds.minZ,q.bounds.maxZ],version,q.move,
@@ -99,11 +101,12 @@ export function createBackgroundPaths(worker:Transport,now=()=>performance.now()
     ready.push({entry:active,result:event.data});active=undefined;
     // These requests already own immutable snapshots. Calculation can continue
     // between renders (or while paused); only flush publishes gameplay results.
-    pump();
+    pump();wake();
   };
-  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();};
+  worker.onerror=()=>{failed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();wake();};
   return {
     plan,
+    waitForResult:()=>ready.length||failed||disposed?Promise.resolve():new Promise<void>(resolve=>waiters.add(resolve)),
     flush(){
       for(const {entry,result} of ready){
         if(cache.get(entry.key)!==entry)continue;
@@ -113,6 +116,6 @@ export function createBackgroundPaths(worker:Transport,now=()=>performance.now()
       ready.length=0;
     },
     snapshot:()=>({pending:queue.length+Number(!!active)+ready.length,ready:ready.length,cached:cache.size,completed,hits,workMs:Math.round(workMs),geometryUploads:geometry.uploads,failed}),
-    dispose(){disposed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();worker.onmessage=worker.onerror=null;worker.terminate();},
+    dispose(){disposed=true;cache.clear();groups.clear();queue.length=ready.length=0;active=undefined;geometry.clear();worker.onmessage=worker.onerror=null;worker.terminate();wake();},
   };
 }
