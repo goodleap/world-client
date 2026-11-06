@@ -64,6 +64,6 @@ test('residents including the base character render and wander safely', async ({
   await page.waitForTimeout(400);
   expect((await snapshot(page)).residents).toEqual(paused);
   await page.keyboard.press('Escape');
-  await page.waitForFunction((before) => window.__DEMO__!.snapshot().residents.some((r, i) => r.travelled > before[i].travelled), paused);
+  await page.waitForFunction(async (before) => (await window.__DEMO__!.snapshot()).residents.some((r, i) => r.travelled > before[i].travelled), paused);
   expect(errors).toEqual([]);
 });

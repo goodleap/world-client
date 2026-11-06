@@ -34,9 +34,9 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     await expect(screen).toHaveAttribute('data-phase', 'playing', { timeout: 90_000 });
     await expect(page.locator('#loading-percent')).toHaveText('100%');
     await expect(page.locator('#game')).toBeVisible();
-    await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 1);
+    await page.waitForFunction(async () => ((await window.__DEMO__?.snapshot())?.frames ?? 0) > 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    expect((await page.evaluate(() => window.__DEMO__!.snapshot())).residents).toHaveLength(7);
+    expect((await page.evaluate(async () => (await window.__DEMO__!.snapshot()))).residents).toHaveLength(7);
     // Both shared library downloads are reused after Start and across roles,
     // even with HTTP caching disabled by routing.
     const models = requests.filter(url => /\.glb(?:\?|$)/.test(url));

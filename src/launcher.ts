@@ -151,4 +151,4 @@ export function createLauncher() {
   };
 }
 
-export const nextPaint = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+export const nextPaint = () => new Promise<void>(resolve => typeof document==='undefined'?setTimeout(resolve,0):requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

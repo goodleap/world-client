@@ -28,9 +28,9 @@ export async function checkNearbyGuidance(page: Page, info: TestInfo, touch: boo
   expect(first.moveFeedback).toMatchObject({visible:true,x:goal.x,z:goal.z});
   // Observe inside render frames; screenshot/readback latency must not turn a
   // passing movement check into an assertion against an already-arrived unit.
-  const moving=await page.evaluate(initial=>new Promise<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>(resolve=>{
-    const sample=()=>{
-      const state=window.__DEMO__!.snapshot();
+  const moving=await page.evaluate(initial=>new Promise<Awaited<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>>(resolve=>{
+    const sample=async ()=>{
+      const state=(await window.__DEMO__!.snapshot());
       if(!state.pathGuidance.visible || state.pathGuidance.arrows.some((arrow,i)=>arrow.alpha<initial.arrows[i]?.alpha-.2))resolve(state);
       else requestAnimationFrame(sample);
     };requestAnimationFrame(sample);

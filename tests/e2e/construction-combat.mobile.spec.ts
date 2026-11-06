@@ -65,9 +65,9 @@ test('live enemy stops chasing a distant archer and completes repeated attacks o
     localStorage.setItem('world-basic-economy-v1', save); localStorage.setItem('world-shadows-enabled', 'false');
     const result: NonNullable<Window['__CLOSE_COMBAT__']> = window.__CLOSE_COMBAT__ = { samples: [], done: false };
     let start: number | undefined;
-    const observe = () => {
+    const observe = async () => {
       if (!window.__DEMO__) { requestAnimationFrame(observe); return; }
-      const s = window.__DEMO__!.snapshot(), enemy = s.combat.units.find(u => u.id === 'enemy-guard')!;
+      const s = (await window.__DEMO__!.snapshot()), enemy = s.combat.units.find(u => u.id === 'enemy-guard')!;
       if (start === undefined) {
         start = s.economy.seconds;
         const group = document.querySelector<HTMLButtonElement>('[data-group="0"]')!; group.click(); group.click();

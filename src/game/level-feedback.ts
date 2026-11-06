@@ -1,3 +1,4 @@
+import type { OverlayHost } from './overlay-host.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder.js';
@@ -11,7 +12,7 @@ import { AnimationGroup } from '@babylonjs/core/Animations/animationGroup.js';
 type Position={x:number;y:number;z:number};
 /** Two pooled native meshes. Sample AnimationGroup with the simulation's visual
  * clock so the ring, sparkles and text also agree on slow or paused frames. */
-export function createLevelFeedback(scene:Scene,host:HTMLElement){
+export function createLevelFeedback(scene:Scene,host:OverlayHost){
   const slots:ReturnType<typeof create>[]=[];
   let shown=0;
   function create(){
@@ -35,7 +36,7 @@ export function createLevelFeedback(scene:Scene,host:HTMLElement){
     const fade=new Animation('fade','alpha',60,Animation.ANIMATIONTYPE_FLOAT,Animation.ANIMATIONLOOPMODE_CONSTANT);
     fade.setKeys([{frame:0,value:0},{frame:5,value:1},{frame:32,value:1},{frame:60,value:0}]);
     group.addTargetedAnimation(scale,ring);group.addTargetedAnimation(rise,sparks);group.addTargetedAnimation(fade,material);
-    const label=document.createElement('span');label.className='level-number';label.hidden=true;host.append(label);
+    const label=host.create('level-number');
     root.setEnabled(false);
     return {root,ring,sparks,material,group,label,id:'',start:0,active:false,frame:-1};
   }

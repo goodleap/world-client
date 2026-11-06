@@ -34,8 +34,8 @@ test('phone mixed formation keeps its feedback, arrives without overlap and disp
   await page.evaluate(ids=>{
     const review={done:false,samples:[] as MovementSample[]};window.__MOVEMENT_REVIEW__=review;
     document.querySelector('canvas')!.addEventListener('click',()=>{
-      const observe=()=>{
-        const s=window.__DEMO__!.snapshot(),units=ids.map(id=>s.residents.find(r=>r.id===id)!);
+      const observe=async ()=>{
+        const s=(await window.__DEMO__!.snapshot()),units=ids.map(id=>s.residents.find(r=>r.id===id)!);
         const moving=ids.map(id=>{const u=s.combat.units.find(u=>u.id===id);return u?!!u.route.length:!!s.residents.find(r=>r.id===id)!.routeRemaining;});
         review.samples.push({positions:units.map(u=>({...u.position,radius:u.bodyRadius})),moving,motions:units.map(u=>u.motion)});
         if(s.economy.groupMoves['0']&&!s.navigation.pending&&moving.every(m=>!m)){

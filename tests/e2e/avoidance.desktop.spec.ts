@@ -12,7 +12,7 @@ test('a commanded GLB character runs around an idle farmer and keeps its destina
   const destination = { x: farmer.position.x, z: farmer.position.z + 2.7 };
   expect((await snapshot(page)).selection.resident).toBe('farmer-leader');
   await clickGround(page, destination);
-  await page.waitForFunction(() => window.__DEMO__!.snapshot().residents.find(r => r.id === 'farmer-leader')!.navigation.replans > 0);
+  await page.waitForFunction(async () => (await window.__DEMO__!.snapshot()).residents.find(r => r.id === 'farmer-leader')!.navigation.replans > 0);
   const detouring = (await snapshot(page)).residents.find(r => r.id === 'farmer-leader')!;
   expect(detouring.moveCommand).toBe(true); expect(detouring.motion).toBe('run');
   await page.screenshot({ path: info.outputPath('glb-detour.png') });

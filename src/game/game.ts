@@ -1,3 +1,5 @@
+import type { GamePlatform } from './game-platform.ts';
+import { createBrowserPlatform } from './browser-platform.ts';
 import { SystemMetrics } from './system-metrics.ts';
 import { collisionMetrics } from './obstacle-index.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
@@ -7,7 +9,6 @@ import { towerHeight, assignedTower, garrisonAvailability, garrisonCandidate, up
 import { createTowerRange } from './tower-range.ts';
 import { SimulationClock, RenderCadence } from './simulation-clock.ts';
 import { setCharacterLODQuality } from './character-lod.ts';
-import { createHomeManagement } from './home-management.ts';
 import { advanceRecruitment, homeResidents } from './recruitment.ts';
 import { groupMembers, groupInfo, pruneGroups } from './groups.ts';
 import { groupDestinations } from './group-orders.ts';
@@ -40,7 +41,6 @@ import { refreshFrozenMaterials } from './material-invalidation.ts';
 import { applyDaylight, createDaylight, createMapShadowLOD } from './lighting.ts';
 import { buildWorld } from './world.ts';
 import { createResidents } from './residents.ts';
-import { MovementInput } from './input.ts';
 import { pinchMapCamera } from './pinch-zoom.ts';
 import { WORLD_BOUNDS, GRID_SIZE, MAP_SIZE, HOME_CENTER } from './world-data.ts';
 import { createSelectionFeedback } from './selection-feedback.ts';
@@ -53,7 +53,6 @@ import type { WorldObject } from './world-selection.ts';
 import { ENEMIES, newResident, roleLeader } from './resident-data.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
 import { Economy, encodeEconomy, pending, WORK_NAMES } from './economy.ts';
-import { ECONOMY_SAVE_KEY } from './economy-storage.ts';
 import { buildingSelection, economySelection, updateEconomyUI } from './economy-ui.ts';
 import { buildingOperational } from './building-state.ts';
 import { createEconomyController } from './economy-controller.ts';
@@ -74,8 +73,8 @@ import { createBuildingPlacement } from './building-placement.ts';
 import { PERFORMANCE_MODES, readPerformanceMode, savePerformanceMode, readLighting, saveLighting, readShadowsEnabled, saveShadowsEnabled } from './graphics-settings.ts';
 export { preloadGameAssets } from './model-assets.ts';
 
-export async function createGame(ui: GameUI, economy = new Economy()) {
-  const engine = new Engine(ui.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+export async function createGame(ui: GameUI, economy = new Economy(), platform:GamePlatform=createBrowserPlatform(ui)) {
+  const engine = new Engine(platform.canvas, true, { stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
   const scene = new Scene(engine);
   installMatteMaterials(scene);
   let userShadows=readShadowsEnabled(),performanceMode=readPerformanceMode();
@@ -90,14 +89,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const camera = new ArcRotateCamera('camera', -Math.PI / 2, 0.76, 200, homeCenter.clone(), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
   camera.minZ = 0.1; camera.maxZ = 500;
-  const mobile = window.matchMedia('(pointer: coarse)').matches;
+  const mobile = platform.state.mobile;
   let lighting = readLighting();
   const shadows = createDaylight(scene, mobile, lighting);
   const configureShadowLOD = createMapShadowLOD(scene, shadows, camera);
   configureShadowLOD?.();
   const applyPerformance = () => {
     const config=PERFORMANCE_MODES[performanceMode];
-    engine.setHardwareScalingLevel(1/(Math.min(window.devicePixelRatio||1,1.5)*config.scale));
+    engine.setHardwareScalingLevel(1/(Math.min(platform.state.dpr||1,1.5)*config.scale));
     scene.shadowsEnabled=userShadows&&config.shadows;
     shadows.mapSize=performanceMode==='saving'?(mobile?512:1024):(mobile?1024:2048);
     configureShadowLOD?.();setCharacterLODQuality(scene,config.lodArea);refreshFrozenMaterials(scene);
@@ -114,12 +113,12 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   const systemMetrics=new SystemMetrics();
   const frameWork = { logicMs: 0, worldMs: 0, saveMs: 0, sceneMs: 0 };
   const saves = { count: 0, failures: 0, lastMs: 0, maxMs: 0, totalMs: 0, chars: 0 };
-  const save = () => {
+  const save = async () => {
     if (!canSave) return false;
     const start = performance.now(); autosave.attempted();
     try {
       economy.state.residents = residents.saveResidents(); const text = encodeEconomy(economy);
-      localStorage.setItem(ECONOMY_SAVE_KEY, text); saves.chars = text.length; saves.count++; return true;
+      if(!await platform.persist(text))throw new Error('Storage write failed'); saves.chars = text.length; saves.count++; return true;
     } catch { saves.failures++; if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
     finally { saves.lastMs = performance.now() - start; saves.maxMs = Math.max(saves.maxMs, saves.lastMs); saves.totalMs += saves.lastMs; frameWork.saveMs += saves.lastMs; }
   };
@@ -169,7 +168,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     }
     return true;
   });
-  const damageHost=document.createElement('div');damageHost.className='damage-numbers';damageHost.setAttribute('aria-hidden','true');ui.canvas.parentElement!.append(damageHost);
+  const damageHost=platform.overlay();
   const damageNumbers=createDamageNumbers(damageHost),damagePoint=new Vector3(),damageScreen=new Vector3(),damageIdentity=Matrix.Identity();
   const projectDamage=(p:{x:number;y:number;z:number})=>{
     damagePoint.set(p.x,p.y,p.z);Vector3.ProjectToRef(damagePoint,damageIdentity,scene.getTransformMatrix(),camera.viewport.toGlobal(ui.canvas.clientWidth,ui.canvas.clientHeight),damageScreen);
@@ -360,7 +359,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     if (!enabled && farmerLeader) ui.clearResidentSpeech(farmerLeader.id);
     refreshEconomy(); save();
   };
-  const management=createHomeManagement(economy,ui,{
+  const management=platform.management(economy,ui,{
     leadership:setLeadership,
     save:()=>{refreshEconomy();return save();},demolish:requestDemolition,
     select:index=>{
@@ -393,16 +392,15 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   let currentZoom = zoom;
   let renderedFrames = 0;
   let disposed = false;
-  let focusLost = !document.hasFocus();
-  let pageHidden = false;
-  let suspended = document.hidden || focusLost;
+  let suspended = platform.state.background;
   let freshFrame = true;
   let simulationSeconds = 0;
   const metrics = new FrameMetrics();
   const performanceDiagnostics = createPerformanceDiagnostics(engine, scene, shadows);
   const minimap = createMinimap(ui.minimapCanvas);
   const sceneCandidates = createSceneCandidates(scene);
-  const lifecycle = new AbortController();
+  const cleanup:(()=>void)[]=[];
+  const lifecycle={abort(){cleanup.splice(0).forEach(dispose=>dispose());}};
   const target = new Vector3();
   const mapCenter = homeCenter.clone();
   let mapDestination:Point|undefined;
@@ -421,8 +419,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     mapDestination=undefined;
   });
   const placement = createBuildingPlacement(scene, camera, ui, economy, occupancy, () => ui.paused || suspended,
-    () => { clearWorld(); setPreview(); }, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); });
-  const input = new MovementInput(ui.canvas, zoomBy, (dx, dy, started) => {
+    () => { clearWorld(); setPreview(); }, id => { world.sync(); refreshEconomy(); const object = world.objects.get(id); if (object) selectWorld(object); save(); },platform.placement(ui));
+  const input = platform.input(ui.canvas, zoomBy, (dx, dy, started) => {
     if (ui.paused || suspended || placement.active) return;
     // Take over from the currently visible center, including an unfinished
     // preview/reset transition. Pointer motion is direct manipulation.
@@ -558,17 +556,14 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     camera.orthoLeft = -currentZoom * aspect; camera.orthoRight = currentZoom * aspect;
   };
   const resize = () => {
-    engine.setHardwareScalingLevel(1 / (Math.min(window.devicePixelRatio || 1, 1.5)*PERFORMANCE_MODES[performanceMode].scale));
-    engine.resize(); applyProjection();
+    engine.setHardwareScalingLevel(1 / (Math.min(platform.state.dpr || 1, 1.5)*PERFORMANCE_MODES[performanceMode].scale));
+    engine.setSize(Math.max(1,Math.round(platform.state.width/engine.getHardwareScalingLevel())),Math.max(1,Math.round(platform.state.height/engine.getHardwareScalingLevel()))); applyProjection();
     requestRender();
   };
-  const resizeObserver = new ResizeObserver(resize);
-  resizeObserver.observe(ui.canvas);
+  const resizeObserver={disconnect:platform.subscribe('resize',resize)};
   resize();
   ui.bind('clear-selection',()=>{settingRally=false;commandGuidance.clear();clearSelection();refreshEconomy();});
-  window.addEventListener('keydown', event => {
-    if (event.code === 'Escape' && !ui.paused && !suspended) { placement.cancel(); clearSelection(); }
-  }, { signal: lifecycle.signal });
+  cleanup.push(platform.subscribe('escape',()=>{if(!ui.paused&&!suspended){placement.cancel();clearSelection();}}));
   ui.bindPause(() => {
     if (disposed) return;
     if (ui.paused) { placement.cancel(); save(); }
@@ -606,7 +601,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     mapCenter.copyFrom(homeCenter); setPreview();
     overview = false; zoom = defaultZoom();
   });
-  let uiElapsed = 0;
+  let uiElapsed = 0, checkpointAt=0;
   let keyboardPanning = false;
   const simulationClock=new SimulationClock(),renderCadence=new RenderCadence();
   let renderElapsed=0,cpuSinceFrame=0,fixedSteps=0;
@@ -667,7 +662,8 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
     });
     frameWork.logicMs += performance.now() - logicStart;
     if(uiElapsed>=.25){refreshEconomy();uiElapsed%=.25;}
-    if(autosave.due()) save();
+    if(autosave.due()) void save();
+    if(platform.thread!=='main'&&economy.state.seconds-checkpointAt>=1){checkpointAt=economy.state.seconds;economy.state.residents=residents.saveResidents();platform.checkpoint(encodeEconomy(economy));}
     if(!renderCadence.ready(elapsed,PERFORMANCE_MODES[performanceMode].fps,resuming||ui.paused)){cpuSinceFrame+=performance.now()-cpuStart;return;}
     const cameraRenderDt=ui.paused?0:Math.min(renderElapsed,.25);
     const dt=ui.paused||resuming?0:renderElapsed;
@@ -736,7 +732,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       else { attackFeedback.hide(); attackPulse = undefined; }
     }
     levelFeedback.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,levelPosition,projectDamage);
-    const sceneStart = performance.now(); scene.render(); frameWork.sceneMs += performance.now() - sceneStart;
+    const sceneStart = performance.now(); scene.render();platform.flush(); frameWork.sceneMs += performance.now() - sceneStart;
     residents.updateLabels(camera); wolves?.updateLabels(camera);
     ui.setInspectedUnits([...residents.selectedIds(),...(selectedEnemy?[selectedEnemy]:[])]);
     damageNumbers.update(economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step,projectDamage);
@@ -797,7 +793,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   }
   const contextRestored = engine.onContextRestoredObservable.add(requestRender);
   const reconcileVisibility = () => {
-    const next = document.hidden || pageHidden || focusLost;
+    const next = platform.state.background;
     if (disposed || next === suspended) return;
     suspended = next;
     input.reset();
@@ -813,16 +809,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
       requestRender();
     }
   };
-  const lifecycleOptions = { signal: lifecycle.signal };
-  document.addEventListener('visibilitychange', reconcileVisibility, lifecycleOptions);
-  window.addEventListener('blur', () => { focusLost = true; reconcileVisibility(); }, lifecycleOptions);
-  window.addEventListener('focus', () => { focusLost = false; reconcileVisibility(); }, lifecycleOptions);
-  window.addEventListener('pagehide', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
-  window.addEventListener('pageshow', () => {
-    pageHidden = false; focusLost = !document.hasFocus(); reconcileVisibility();
-  }, lifecycleOptions);
-  document.addEventListener('freeze', () => { pageHidden = true; reconcileVisibility(); }, lifecycleOptions);
-  document.addEventListener('resume', () => { pageHidden = false; reconcileVisibility(); }, lifecycleOptions);
+  cleanup.push(platform.subscribe('visibility',reconcileVisibility));
   if (suspended) ui.pauseForBackground();
   try {
     await loadingProgress.run('shaders', '材质、纹理与着色器就绪', () =>
@@ -844,7 +831,7 @@ export async function createGame(ui: GameUI, economy = new Economy()) {
   return {
     save,
     diagnosticReport: () => roundLog({
-      schema: 3, systems:systemMetrics.snapshot(), collision:collisionMetrics(), actors:residents.resourceCounts(), loading: compactLoadingLog(loadingProgress.snapshot()),
+      schema: 3, threads:{simulation:platform.thread,render:platform.thread,shadows:platform.thread}, systems:systemMetrics.snapshot(), collision:collisionMetrics(), actors:residents.resourceCounts(), loading: compactLoadingLog(loadingProgress.snapshot()),
       lighting: { ...lighting },
       graphics: { mode: performanceMode, ...PERFORMANCE_MODES[performanceMode], userShadows },
       selection: { units: residents.selectedIds(), object: selectedWorld?.id, ...selectionFeedback.snapshot() },

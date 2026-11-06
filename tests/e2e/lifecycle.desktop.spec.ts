@@ -38,14 +38,14 @@ test('background lifecycle freezes simulation and poses, clears input, and prese
     expect(later.leaderModel.pose).toEqual(frozen.leaderModel.pose);
     expect(later.farmerLegPose).toEqual(frozen.farmerLegPose);
 
-    const first = await page.evaluate(reason => new Promise<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>(resolve => {
-      const frames = window.__DEMO__!.snapshot().frames;
+    const first = await page.evaluate(reason => new Promise<Awaited<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>>(async resolve => {
+      const frames = (await window.__DEMO__!.snapshot()).frames;
       if (reason === 'visibility') {
         Reflect.deleteProperty(document, 'hidden'); document.dispatchEvent(new Event('visibilitychange'));
       } else if (reason === 'blur') window.dispatchEvent(new Event('focus'));
       else window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
-      const check = () => {
-        const state = window.__DEMO__!.snapshot();
+      const check = async () => {
+        const state = (await window.__DEMO__!.snapshot());
         if (state.frames > frames) resolve(state); else requestAnimationFrame(check);
       };
       requestAnimationFrame(check);

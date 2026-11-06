@@ -12,10 +12,10 @@ export async function openGame(page: Page, url = '/') {
   await expect(page.locator('#loading')).toHaveClass(/\bloaded\b/, { timeout: 60_000 });
   // Loading already waits for assets and shaders; two further frames establish
   // the live scene without spending ten software-GPU frames before every test.
-  await page.waitForFunction(() => (window.__DEMO__?.snapshot().frames ?? 0) > 2);
+  await page.waitForFunction(async () => ((await window.__DEMO__?.snapshot())?.frames ?? 0) > 2);
   return errors;
 }
-export async function snapshot(page: Page) { return page.evaluate(() => window.__DEMO__!.snapshot()); }
+export async function snapshot(page: Page) { return page.evaluate(async () => (await window.__DEMO__!.snapshot())); }
 
 export async function clickGround(page: Page, point: { x: number; z: number }, touch = false, y = surfaceHeight(point.x,point.z)) {
   const { camera } = await snapshot(page), viewport = page.viewportSize()!;

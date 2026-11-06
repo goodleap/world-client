@@ -24,8 +24,8 @@ test('farmer direct work clears selection, yields to movement, and resumes the s
   // Software WebGL can render less than one frame per job second. Freeze at an
   // observed working frame through the real settings control, then resume and
   // send a map click; partial progress/settlement also has deterministic tests.
-  await page.waitForFunction(() => {
-    if (!window.__DEMO__!.snapshot().economy.tasks.some(t => t.status === 'working')) return false;
+  await page.waitForFunction(async () => {
+    if (!(await window.__DEMO__!.snapshot()).economy.tasks.some(t => t.status === 'working')) return false;
     document.getElementById('settings')!.click(); return true;
   }, undefined, { timeout: 45000 });
   const progress = (await snapshot(page)).economy.tasks[0].progress;
@@ -70,8 +70,8 @@ test('the selected dog runs to the latest destination and finishes its command',
   // Capture and pause on the first rendered running pose. Multiple remote
   // polls can otherwise outlive this short journey on software WebGL.
   await page.evaluate(() => {
-    const observe = () => {
-      const dog = window.__DEMO__!.snapshot().residents.find(r => r.id === 'dog')!;
+    const observe = async () => {
+      const dog = (await window.__DEMO__!.snapshot()).residents.find(r => r.id === 'dog')!;
       if (dog.moveCommand && dog.motion === 'run') {
         document.getElementById('settings')!.click();
         sessionStorage.setItem('test-dog-running', '1');
@@ -95,8 +95,8 @@ test('the selected dog runs to the latest destination and finishes its command',
   const redirectedDog = (await snapshot(page)).residents.find(r => r.id === 'dog')!;
   const redirected = redirectedDog.destination ?? redirectedDog.position;
   expect(redirected.x).toBeCloseTo(destination.x, 1); expect(redirected.z).toBeCloseTo(destination.z, 1);
-  await page.waitForFunction(() => {
-    if (window.__DEMO__!.snapshot().residents.find(r => r.id === 'dog')!.moveCommand) return false;
+  await page.waitForFunction(async () => {
+    if ((await window.__DEMO__!.snapshot()).residents.find(r => r.id === 'dog')!.moveCommand) return false;
     document.getElementById('settings')!.click(); return true;
   }, undefined, { timeout: 45000 });
   const arrived = (await snapshot(page)).residents.find(r => r.id === 'dog')!;

@@ -1,16 +1,19 @@
+import { applyHomeAction } from './home-actions.ts';
+import type { HomeAction } from './home-actions.ts';
 import {effectiveFighterStats} from './combat.ts';
 import type { GameUI } from '../ui.ts';
 import type { Economy } from './economy.ts';
 import { RESOURCE_NAMES } from './economy.ts';
-import { recruit, cancelRecruit, recruitSeconds, RECRUIT_CONFIG, livingResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
-import { GROUP_COUNT, GROUP_SIZE, groupMembers, saveGroup } from './groups.ts';
+import { recruitSeconds, RECRUIT_CONFIG, livingResidents, POPULATION_LIMIT, DOG_LIMIT } from './recruitment.ts';
+import { GROUP_COUNT, GROUP_SIZE, groupMembers } from './groups.ts';
 import { populationInfo } from './unit-info.ts';
 import type { ResidentRole } from './resident-data.ts';
 import { buildingList, buildingOperational, repairQuote } from './building-state.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
-export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void;leadership:(enabled:boolean)=>void}) {
+export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void;leadership:(enabled:boolean)=>void;action?:(action:HomeAction)=>Promise<string>}) {
+  const mutate=(a:HomeAction)=>callbacks.action?callbacks.action(a):Promise.resolve(applyHomeAction(e,a));
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
   let editing=0,filter='all',shortcutKey='',recruitKey='',populationKey='',buildingKey='';
@@ -40,11 +43,11 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       input.type='checkbox';input.value=r.id;input.id=`group-member-${r.id}`;input.checked=r.group===editing;
       input.setAttribute('aria-label',`将${r.name}编入 ${editing+1} 队`);
       label.htmlFor=input.id;label.textContent=r.name;label.title=r.name;
-      input.addEventListener('change',()=>{
+      input.addEventListener('change',async()=>{
         const members=groupMembers(e.state,editing);
         if(input.checked&&members.length>=GROUP_SIZE){input.checked=false;notice('已达人数上限');return;}
         const next=input.checked?[...members,r.id]:members.filter(id=>id!==r.id);
-        if(!saveGroup(e,editing,next)){input.checked=members.includes(r.id);notice('成员状态已变化');return;}
+        const message=await mutate({type:'group',index:editing,members:next});if(message){input.checked=members.includes(r.id);notice(message);return;}
         callbacks.save();refresh(selectedGroup);
       },options);check.append(input);name.append(label);row.append(check,name);
       const value=(kind:string,text:string,low=false)=>{const cell=document.createElement('td');cell.dataset.stat=kind;cell.textContent=text;cell.classList.toggle('low',low);return cell;};
@@ -77,20 +80,18 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       const status=removing?task.status==='working'?`拆除${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.demolish*100)}%`:'待拆除':!b.maxHealth?(e.plot(b.id)?.crop?'种植中':'空地'):!b.built?'建造中':repair?task.status==='working'?`维修${Math.floor(task.progress/ECONOMY_CONFIG.workSeconds.repair*100)}%`:'待维修':b.hp<=0?'已损毁':b.hp<b.maxHealth?'受损':'完好';
       tr.append(name,cell('health',b.maxHealth?b.built?`${Math.ceil(b.hp)}/${b.maxHealth}`:'—':'—'),cell('armor',b.maxHealth?String(b.armor):'—'),cell('status',status));
       tr.classList.toggle('damaged',b.built&&b.hp<b.maxHealth);
-      const action=cell('action',''),control=button(repair?'取消':'维修',()=>{
-        if(repair){e.cancel(task.id);get('building-notice').textContent='维修已取消，预留材料已释放';}
-        else{const result=e.request('repair',b.id);get('building-notice').textContent=result.message;}
+      const action=cell('action',''),control=button(repair?'取消':'维修',async()=>{
+        get('building-notice').textContent=await mutate(repair?{type:'cancel',id:task.id}:{type:'repair',id:b.id});
         callbacks.save();renderBuildings();
       });
       control.disabled=!repair&&!!task;control.setAttribute('aria-label',`${repair?'取消维修':'维修'}${b.name}`);if(!removing&&(repair||q))action.append(control);
-      if(removing){const cancel=button('取消拆除',()=>{e.cancel(task.id);callbacks.save();renderBuildings();});action.append(cancel);}
+      if(removing){const cancel=button('取消拆除',async()=>{await mutate({type:'cancel',id:task.id});callbacks.save();renderBuildings();});action.append(cancel);}
       else if(e.demolition(b.id)){const remove=button('拆除',()=>callbacks.demolish(b.id));remove.setAttribute('aria-label',`拆除${b.name}`);action.append(remove);}
       tr.append(action);return tr;
     }));
   }
-  get('auto-repair').addEventListener('change',()=>{
-    e.setAutoRepair((get('auto-repair') as HTMLInputElement).checked);
-    get('building-notice').textContent=e.state.autoRepair?'自动维修已开启，材料不足或区域危险时等待':'自动维修已关闭，已安排的任务可单独取消';
+  get('auto-repair').addEventListener('change',async()=>{
+    get('building-notice').textContent=await mutate({type:'autoRepair',enabled:(get('auto-repair') as HTMLInputElement).checked});
     callbacks.save();renderBuildings();
   },options);
   get('population-command-enabled').addEventListener('change',()=>{
@@ -107,7 +108,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
     if(tab==='buildings')renderBuildings();
   },options);
   get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();if(!get('buildings-panel').hidden)renderBuildings();},options);
-  get('clear-group').addEventListener('click',()=>{saveGroup(e,editing,[]);callbacks.save();edit();refresh(selectedGroup);},options);
+  get('clear-group').addEventListener('click',async()=>{await mutate({type:'group',index:editing,members:[]});callbacks.save();edit();refresh(selectedGroup);},options);
   get('set-rally').addEventListener('click',()=>{ui.closeRecruitment();callbacks.rally();},options);
   function refresh(selected?:number) {
     selectedGroup=selected;
@@ -135,7 +136,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       stats.textContent=`生命 ${combat?.hp??(role==='dog'?80:100)} · 攻 ${combat?.attack??'—'} · 防 ${combat?.armor??0}`;name.append(title,stats);
       const detail=document.createElement('small');detail.className='recruit-cost';detail.textContent=`${cost} · ${recruitSeconds(e.state,role as ResidentRole)} 秒`;
       const count=document.createElement('span');count.className='recruit-count';count.textContent=`排队 ${queue.filter(q=>q.role===role).length}`;
-      const b=button('招募',()=>{const result=recruit(e,role as ResidentRole);get('recruit-notice').textContent=result.message;callbacks.save();refresh(selected);});
+      const b=button('招募',async()=>{get('recruit-notice').textContent=await mutate({type:'recruit',role:role as ResidentRole});callbacks.save();refresh(selected);});
       b.setAttribute('aria-label',`招募${config.name}`);b.disabled=!centerOpen;
       name.append(detail);row.append(name,count,b);return row;
     }));
@@ -144,7 +145,7 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
       const duration=recruitSeconds(e.state,q.role);
       text.textContent=`${config.name} · ${i?'等待':q.elapsed===duration?'等待出口空位':`${Math.floor(q.elapsed)} / ${duration} 秒`}`;
       progress.max=duration;progress.value=q.elapsed;
-      row.append(text,progress,button('取消',()=>{cancelRecruit(e,q.serial);get('recruit-notice').textContent='已取消招募，材料已退还';callbacks.save();refresh(selected);}));return row;
+      row.append(text,progress,button('取消',async()=>{get('recruit-notice').textContent=await mutate({type:'cancelRecruit',serial:q.serial});callbacks.save();refresh(selected);}));return row;
     }));
   }
   return {refresh,open(){refresh();ui.openRecruitment();},dispose(){abort.abort();}};

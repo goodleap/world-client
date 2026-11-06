@@ -9,8 +9,8 @@ test('settings copy only ten seconds of performance and preserve useful data whi
   });
   const errors = await openGame(page);
   await expect(page.locator('#game-page h1')).toHaveCSS('user-select', 'none');
-  await page.waitForFunction(() => {
-    const history = window.__DEMO__!.snapshot().diagnostics.history;
+  await page.waitForFunction(async () => {
+    const history = (await window.__DEMO__!.snapshot()).diagnostics.history;
     return history.length && history.at(-1)!.timeMs - history[0].timeMs > 12_000;
   });
   await page.getByRole('button', { name: '设置', exact: true }).tap();

@@ -30,7 +30,7 @@ test('pinching magnifies by the finger-distance ratio and keeps the ground ancho
     const held = (await snapshot(page)).camera;
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     const frames = (await snapshot(page)).frames;
-    await page.waitForFunction(frames => window.__DEMO__!.snapshot().frames > frames, frames);
+    await page.waitForFunction(async frames => (await window.__DEMO__!.snapshot()).frames > frames, frames);
     const after = await snapshot(page), projected = after.objects.find(o => o.id === 'plot-0')!.screen;
     expect(after.camera).toEqual(held);
     expect(Math.abs(projected.x - (center.x + (plot.x - previousCenter.x) * to / from))).toBeLessThan(.5);

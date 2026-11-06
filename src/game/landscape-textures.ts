@@ -1,3 +1,4 @@
+import { runtimeContext } from './runtime-context.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { KhronosTextureContainer2 } from '@babylonjs/core/Misc/khronosTextureContainer2.js';
 import type { Scene } from '@babylonjs/core/scene.js';
@@ -7,9 +8,9 @@ import { texturePaintKey } from './texture-paint-key.ts';
 const matchingPaint = manifest.paintKey === texturePaintKey();
 let configured = false;
 export function landscapeTexture(name: string, scene: Scene): Texture | undefined {
-  if (typeof document === 'undefined' || !matchingPaint || !manifest.names.includes(name)
-    || new URLSearchParams(location.search).has('proceduralTextures')) return;
-  const asset = (path: string) => new URL(import.meta.env.BASE_URL + path, document.baseURI).href;
+  if (!matchingPaint || !manifest.names.includes(name)
+    || new URLSearchParams(runtimeContext().search).has('proceduralTextures')) return;
+  const asset = (path: string) => new URL(import.meta.env.BASE_URL + path, runtimeContext().baseURI).href;
   if (!configured) {
     const vendor = 'vendor/ktx2-9.32.1/';
     Object.assign(KhronosTextureContainer2.URLConfig, {

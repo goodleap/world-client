@@ -59,10 +59,10 @@ test('mounted melee and archer keep independent commands, selection, pause and s
   expect(s.combat.units.find(u => u.id === 'cavalry')!.order).not.toBe('move');
   // Compare the cancel event atomically: walking can legitimately finish
   // while Playwright waits for a software-rendered frame after the click.
-  const cancelled = await page.getByRole('button', { name: '取消选中', exact: true }).evaluate(button => {
-    const before = structuredClone(window.__DEMO__!.snapshot().combat);
+  const cancelled = await page.getByRole('button', { name: '取消选中', exact: true }).evaluate(async button => {
+    const before = structuredClone((await window.__DEMO__!.snapshot()).combat);
     (button as HTMLButtonElement).click();
-    const after = window.__DEMO__!.snapshot();
+    const after = (await window.__DEMO__!.snapshot());
     return { before, combat: after.combat, selected: after.selection.resident };
   });
   expect(cancelled.combat).toEqual(cancelled.before);

@@ -20,7 +20,7 @@ test('dead soldiers, enemy and wolf hold, pause, resume saved sinking and disapp
  const errors=await openGame(page);
  // Observe and pause in the same browser turn: the software GPU can otherwise
  // move from hold to sink between a remote poll and Playwright's click checks.
- await page.waitForFunction(()=>{if(window.__DEMO__?.snapshot().residents.find(r=>r.id==='cavalry')?.death.phase!=='hold')return false;document.getElementById('settings')!.click();return true;});
+ await page.waitForFunction(async ()=>{if((await window.__DEMO__?.snapshot())?.residents.find(r=>r.id==='cavalry')?.death.phase!=='hold')return false;document.getElementById('settings')!.click();return true;});
  const held=await snapshot(page);
  await page.waitForTimeout(800);expect((await snapshot(page)).residents.map(r=>r.death)).toEqual(held.residents.map(r=>r.death));
  expect(held.residents.find(r=>r.id==='cavalry')!.death).toMatchObject({rider:{phase:'hold'},mount:{phase:'hold'}});
@@ -28,7 +28,7 @@ test('dead soldiers, enemy and wolf hold, pause, resume saved sinking and disapp
  const food=held.economy.goods.filter(g=>g.resource==='food').reduce((n,g)=>n+g.amount,0);expect(food).toBe(2);
  await page.screenshot({path:info.outputPath('dead-units-hold.png')});
  await page.locator('#continue-game').click();
- await page.waitForFunction(()=>{if(window.__DEMO__?.snapshot().residents.find(r=>r.id==='cavalry')?.death.phase!=='sink')return false;document.getElementById('settings')!.click();return true;});
+ await page.waitForFunction(async ()=>{if((await window.__DEMO__?.snapshot())?.residents.find(r=>r.id==='cavalry')?.death.phase!=='sink')return false;document.getElementById('settings')!.click();return true;});
  const sinking=await snapshot(page);
  const corpse=sinking.residents.find(r=>r.id==='cavalry')!;
  expect(corpse.death.y).toBeLessThan(held.residents.find(r=>r.id==='cavalry')!.death.y);

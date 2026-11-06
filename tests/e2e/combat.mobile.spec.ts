@@ -56,8 +56,8 @@ test('touch commands affect one soldier and dragging keeps the selected soldier'
   // Its live HP and the selected-unit meter must still reflect received damage.
   const hp = (await snapshot(page)).combat.units.find(u => u.id === 'infantry')!.hp;
   expect(hp).toBeLessThan(140);
-  await expect.poll(() => page.evaluate(() => {
-    const current = window.__DEMO__!.snapshot().combat.units.find(u => u.id === 'infantry')!.hp;
+  await expect.poll(() => page.evaluate(async () => {
+    const current = (await window.__DEMO__!.snapshot()).combat.units.find(u => u.id === 'infantry')!.hp;
     return Number(document.querySelector('[data-health="infantry"]')!.getAttribute('aria-valuenow')) - Math.ceil(current);
   })).toBe(0);
   await expect(page.getByRole('region', { name: '当前单位信息' }).getByRole('meter', { name: '生命', exact: true })).toBeVisible();

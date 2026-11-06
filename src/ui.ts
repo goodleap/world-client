@@ -168,11 +168,11 @@ export function createUI(app: HTMLElement) {
   const record = document.createElement('button');
   record.id = 'record-performance'; record.textContent = '记录当前视距';
   copy.before(record);
-  let recordPerformance = () => '请先运行游戏几秒。';
-  record.addEventListener('click', () => { get('settings-notice').textContent = recordPerformance(); });
+  let recordPerformance:()=>string|Promise<string> = () => '请先运行游戏几秒。';
+  record.addEventListener('click', async () => { get('settings-notice').textContent = await recordPerformance(); });
   let diagnostics: () => unknown = diagnosticContext;
   copy.addEventListener('click', async () => {
-    const ok = await copyDiagnostics(JSON.stringify(diagnostics()), settings);
+    const ok = await copyDiagnostics(JSON.stringify(await diagnostics()), settings);
     get('settings-notice').textContent = ok ? '最近 10 秒性能日志已复制，可粘贴反馈。' : '复制失败，请允许浏览器访问剪贴板后重试。';
   });
   const resources = get<HTMLDialogElement>('resources-dialog');
@@ -459,7 +459,7 @@ export function createUI(app: HTMLElement) {
     },
     bindLeave(callback: (destination: 'menu' | 'exit') => void) { onLeave = callback; },
     bindDiagnostics(callback: () => unknown) { diagnostics = callback; },
-    bindPerformanceRecord(callback: () => string) { recordPerformance = callback; },
+    bindPerformanceRecord(callback: () => string|Promise<string>) { recordPerformance = callback; },
     saveFailed() { get('settings-notice').textContent = '未能保存进度，请检查浏览器存储后重试。当前游戏已保留。'; },
     get discoveredCount() { return discovered.size; },
     bind(id: string, callback: () => void) {

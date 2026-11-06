@@ -63,10 +63,10 @@ test('working and crop clocks freeze in background and manual pause; resume does
   expect(frozen.farmerModel.effectiveWorkPlaybackRate).toBeCloseTo(2, 6);
   expect((await snapshot(page)).economy).toEqual(frozen.economy);
   expect((await snapshot(page)).farmerModel).toEqual(frozen.farmerModel);
-  const first = await page.evaluate(() => new Promise<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>(resolve => {
-    const frames = window.__DEMO__!.snapshot().frames;
+  const first = await page.evaluate(() => new Promise<Awaited<ReturnType<NonNullable<Window['__DEMO__']>['snapshot']>>>(async resolve => {
+    const frames = (await window.__DEMO__!.snapshot()).frames;
     window.dispatchEvent(new Event('focus'));
-    const check = () => { const s = window.__DEMO__!.snapshot(); if (s.frames > frames) resolve(s); else requestAnimationFrame(check); }; requestAnimationFrame(check);
+    const check = async () => { const s = (await window.__DEMO__!.snapshot()); if (s.frames > frames) resolve(s); else requestAnimationFrame(check); }; requestAnimationFrame(check);
   }));
   expect(first.economy).toEqual(frozen.economy);
   expect(first.farmerModel.pose).toEqual(frozen.farmerModel.pose);
