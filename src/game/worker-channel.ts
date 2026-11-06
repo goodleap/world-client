@@ -1,9 +1,14 @@
-/** Small bidirectional request/reply channel. All gameplay payloads are data;
- * callback tokens refer only to registered UI/control handlers. */
-export interface ChannelTransport{postMessage(message:unknown,transfer?:Transferable[]):void;addEventListener(type:'message',listener:(event:MessageEvent)=>void):void;removeEventListener(type:'message',listener:(event:MessageEvent)=>void):void}
+import { expose,wrap,transfer,releaseProxy } from 'comlink';
+import type { Endpoint } from 'comlink';
+
+export interface ChannelTransport{postMessage(message:unknown,transfer?:Transferable[]):void;addEventListener(type:'message',listener:(event:MessageEvent)=>void):void;removeEventListener(type:'message',listener:(event:MessageEvent)=>void):void;start?():void}
+/** Comlink owns RPC, error transport and transferable ownership. The adapter
+ * adds game-lifecycle cancellation and callback IDs inside batched UI data. */
 export function createWorkerChannel(port:ChannelTransport){
-  let serial=0,callbackId=0,closed=false;
-  const pending=new Map<number,{resolve:(v:unknown)=>void;reject:(e:Error)=>void;timer:ReturnType<typeof setTimeout>}>();
+  let callbackId=0,closed=false;
+  const pending=new Set<(error:Error)=>void>(),listeners=new Set<(event:MessageEvent)=>void>();
+  const endpoint:ChannelTransport={postMessage:(data,list)=>port.postMessage(data,list),start:()=>port.start?.(),
+    addEventListener(type,listener){listeners.add(listener);port.addEventListener(type,listener);},removeEventListener(type,listener){listeners.delete(listener);port.removeEventListener(type,listener);}};
   const callbacks=new Map<number,(...args:unknown[])=>unknown>(),known=new WeakMap<(...args:never[])=>unknown,number>();
   let handler:(method:string,args:unknown[])=>unknown=()=>{throw new Error('Worker not initialized');};
   const encode=(value:unknown):unknown=>{
@@ -21,33 +26,25 @@ export function createWorkerChannel(port:ChannelTransport){
       return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,decode(v)]));
     }return value;
   };
-  function call(method:string,args:unknown[]=[],transfer:Transferable[]=[],timeout=30_000):Promise<unknown>{
+  interface Service{dispatch(packet:{method:string;args:unknown}):Promise<unknown>}
+  expose({async dispatch(packet:{method:string;args:unknown}){
+    if(closed)throw new Error('Worker channel closed');
+    const args=decode(packet.args) as unknown[];
+    return packet.method==='$callback'?callbacks.get(args[0] as number)?.(...args.slice(1)):handler(packet.method,args);
+  }} satisfies Service,endpoint as Endpoint);
+  const remote=wrap<Service>(endpoint as Endpoint);
+  function call(method:string,args:unknown[]=[],list:Transferable[]=[],timeout=30_000):Promise<unknown>{
     if(closed)return Promise.reject(new Error('Worker channel closed'));
-    const id=++serial;return new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`Worker timeout: ${method}`));},timeout);
-      pending.set(id,{resolve,reject,timer});
-      try{port.postMessage({kind:'request',id,method,args:encode(args)},transfer);}catch(e){clearTimeout(timer);pending.delete(id);reject(e);}
+    return new Promise((resolve,reject)=>{
+      const finish=(error?:Error,value?:unknown)=>{clearTimeout(timer);pending.delete(cancel);if(error)reject(error);else resolve(value);};
+      const cancel=(error:Error)=>finish(error),timer=setTimeout(()=>finish(new Error(`Worker timeout: ${method}`)),timeout);pending.add(cancel);
+      remote.dispatch(transfer({method,args:encode(args)},list)).then(value=>finish(undefined,value),error=>finish(error));
     });
   }
-  const notify=(method:string,args:unknown[]=[],transfer:Transferable[]=[])=>{if(!closed)port.postMessage({kind:'notify',method,args:encode(args)},transfer);};
-  const receive=async(event:MessageEvent)=>{
-    const m=event.data;if(!m||!['request','reply','notify'].includes(m.kind)||closed)return;
-    if(m.kind==='reply'){
-      const entry=pending.get(m.id);if(!entry)return;pending.delete(m.id);clearTimeout(entry.timer);
-      if(m.error)entry.reject(new Error(m.error));else entry.resolve(m.value);return;
-    }
-    try{
-      const args=decode(m.args) as unknown[];
-      const value=await (m.method==='$callback'?callbacks.get(args[0] as number)?.(...args.slice(1)):handler(m.method,args));
-      if(m.kind==='request')port.postMessage({kind:'reply',id:m.id,value});
-    }catch(error){
-      const message=error instanceof Error?error.message:String(error);
-      if(m.kind==='request')port.postMessage({kind:'reply',id:m.id,error:message});else console.error(`Worker notification ${m.method}:`,error);
-    }
-  };
-  port.addEventListener('message',receive);
-  return {call,notify,handle(value:typeof handler){handler=value;},close(reason='Worker disposed'){
-    closed=true;port.removeEventListener('message',receive);for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error(reason));}pending.clear();callbacks.clear();
-  }};
+  return {call,notify(method:string,args:unknown[]=[],list:Transferable[]=[]){if(!closed)void call(method,args,list).catch(error=>{if(!closed)console.error(error);});},
+    handle(value:typeof handler){handler=value;},close(reason='Worker disposed'){
+      if(closed)return;closed=true;for(const cancel of pending)cancel(new Error(reason));callbacks.clear();remote[releaseProxy]();
+      for(const listener of listeners)port.removeEventListener('message',listener);listeners.clear();
+    }};
 }
 export type WorkerChannel=ReturnType<typeof createWorkerChannel>;

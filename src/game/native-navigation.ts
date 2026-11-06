@@ -1,7 +1,8 @@
 import * as core from '@recast-navigation/core';
 import * as generators from '@recast-navigation/generators';
+import { InjectGenerators } from '@babylonjs/addons/navigation/generator/injection.js';
 import { CreateNavigationPluginAsync } from '@babylonjs/addons/navigation/factory/factory.single-thread.js';
-import type { RecastNavigationJSPluginV2 } from '@babylonjs/addons/navigation/plugin/RecastNavigationJSPlugin.js';
+import { RecastNavigationJSPluginV2 } from '@babylonjs/addons/navigation/plugin/RecastNavigationJSPlugin.js';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { Mesh } from '@babylonjs/core/Meshes/mesh.js';
@@ -23,6 +24,8 @@ const dist=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
  * The NullEngine is a build-time mesh adapter; it never renders or owns actors. */
 export async function createNativeNavigation(){
   await initializeNativeNavigation();
+  const injection={...core,...generators};
+  const initial=await CreateNavigationPluginAsync({instance:injection});initial.dispose();
   const engine=new NullEngine(),scene=new Scene(engine);
   const profiles=new Map<string,{plugin:RecastNavigationJSPluginV2;obstacles:Map<string,IObstacle>}>();
   const meshes=new Map<string,Mesh>();
@@ -52,14 +55,15 @@ export async function createNativeNavigation(){
     mesh=new Mesh('navigation-footprint',scene);const data=new VertexData();data.positions=positions;data.indices=indices;data.applyToMesh(mesh);
     meshes.set(key,mesh);return mesh;
   }
-  async function profile(radius:number,bounds:Bounds,solids:readonly Obstacle[]){
+  function profile(radius:number,bounds:Bounds,solids:readonly Obstacle[]){
     const description=describe(solids,bounds),key=`${radius}/${description.terrain}`;
     let record=profiles.get(key);
     if(!record){
-      const started=performance.now(),plugin=await CreateNavigationPluginAsync({instance:{...core,...generators}});
+      const started=performance.now(),plugin=new RecastNavigationJSPluginV2(injection);
+      InjectGenerators(plugin);
       plugin.createNavMesh([ground(description.terrain,bounds,solids)],{cs:CELL,ch:.2,walkableSlopeAngle:45,
-        walkableHeight:10,walkableClimb:1,walkableRadius:Math.ceil((radius+CLEARANCE)/CELL),maxEdgeLen:80,maxSimplificationError:.5,
-        minRegionArea:0,mergeRegionArea:0,maxVertsPerPoly:6,detailSampleDist:6,detailSampleMaxError:1,tileSize:64,maxObstacles:2048});
+        walkableHeight:10,walkableClimb:1,walkableRadius:Math.ceil((radius+CLEARANCE)/CELL),maxEdgeLen:80,maxSimplificationError:1.3,
+        minRegionArea:8,mergeRegionArea:20,maxVertsPerPoly:6,detailSampleDist:6,detailSampleMaxError:1,tileSize:32,maxObstacles:2048});
       record={plugin,obstacles:new Map()};profiles.set(key,record);stats.builds++;stats.buildMs+=performance.now()-started;
     }
     const {plugin,obstacles}=record;
@@ -75,8 +79,8 @@ export async function createNativeNavigation(){
   }
   return {
     profile,
-    async path(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,solids:readonly Obstacle[]){
-      const plugin=await profile(radius,bounds,solids),begin=performance.now();stats.queries++;
+    path(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,solids:readonly Obstacle[]){
+      const plugin=profile(radius,bounds,solids),begin=performance.now();stats.queries++;
       try{
         for(const goal of goals){
           if(isBlocked(goal,radius,solids))continue;
