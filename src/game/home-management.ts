@@ -12,7 +12,7 @@ import { buildingList, buildingOperational, repairQuote } from './building-state
 import { ECONOMY_CONFIG } from './economy-config.ts';
 
 /** DOM-only management. Membership edits and recruitment never advance the simulation. */
-export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;rally:()=>void;demolish:(id:string)=>void;leadership:(enabled:boolean)=>void;action?:(action:HomeAction)=>Promise<string>}) {
+export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>unknown;select:(index:number)=>void;demolish:(id:string)=>void;leadership:(enabled:boolean)=>void;action?:(action:HomeAction)=>Promise<string>}) {
   const mutate=(a:HomeAction)=>callbacks.action?callbacks.action(a):Promise.resolve(applyHomeAction(e,a));
   const get=(id:string)=>document.getElementById(id)!;
   const abort=new AbortController(), options={signal:abort.signal};
@@ -109,7 +109,6 @@ export function createHomeManagement(e:Economy, ui:GameUI, callbacks:{save:()=>u
   },options);
   get('home-resources').addEventListener('click',()=>{if(!get('population-panel').hidden)edit();if(!get('buildings-panel').hidden)renderBuildings();},options);
   get('clear-group').addEventListener('click',async()=>{await mutate({type:'group',index:editing,members:[]});callbacks.save();edit();refresh(selectedGroup);},options);
-  get('set-rally').addEventListener('click',()=>{ui.closeRecruitment();callbacks.rally();},options);
   function refresh(selected?:number) {
     selectedGroup=selected;
     if(!get('population-panel').hidden && get('resources-dialog').hasAttribute('open'))renderPopulation();

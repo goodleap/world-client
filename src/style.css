@@ -1239,7 +1239,6 @@ kbd {
 .recruit-queue-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:12px 0 8px; }
 .recruit-dialog .recruit-queue-heading h3 { margin:0; line-height:1.4; }
 .recruit-queue-heading h3 small { display:block; }
-#set-rally { min-height:36px; padding:5px 8px; font-size:11px; border:1px solid #c6cdb8; border-radius:8px; background:#e8ebdc; white-space:nowrap; }
 .recruit-options small, .recruit-dialog h3 small { font-size:11px; font-weight:normal; }
 #recruit-capacity, #group-notice { font-size:13px; }
 #recruit-queue { padding-left:0; list-style:none; display:grid; gap:8px; }

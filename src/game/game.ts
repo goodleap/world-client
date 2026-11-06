@@ -10,6 +10,7 @@ import { createTowerRange } from './tower-range.ts';
 import { SimulationClock, RenderCadence } from './simulation-clock.ts';
 import { setCharacterLODQuality } from './character-lod.ts';
 import { homeResidents } from './recruitment.ts';
+import { buildingDoor } from './construction.ts';
 import { groupMembers, groupInfo } from './groups.ts';
 import { CommandGuidance } from './command-guidance.ts';
 import type { Point } from './movement.ts';
@@ -191,14 +192,16 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   const attackFeedback = createMoveFeedback(scene, { name: 'attack-target', color: '#f05b4b', arrows:false, diameter:1.4 });
   let attackPulse: { attacker: string; target: string } | undefined;
   const pathGuidance = createPathGuidance(scene);
+  const rallyGuidance = createPathGuidance(scene, surfaceHeight, 'rally-connection');
+  let shownRally: Point | undefined;
   const commandGuidance = new CommandGuidance();
-  let selectedGroup:number|undefined, settingRally=false;
+  let selectedGroup:number|undefined, rallyAttempt=0;
   const selectionFeedback = createSelectionFeedback(scene, shadows);
   const towerRange=createTowerRange(scene);
   let selectedWorld: WorldObject | undefined;
   let selectedEnemy: string | undefined;
   const clearEnemy = () => { if(selectedEnemy)ui.setResident();selectedEnemy = undefined; ui.setInspectedUnits([]); selectionFeedback.inspectEnemy(); };
-  const clearWorld = () => { clearEnemy(); selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
+  const clearWorld = () => { rallyAttempt++; clearEnemy(); selectedWorld = undefined; ui.setSelection(); ui.clearTargetHint(); };
   const combatIds = () => residents.selectedIds().filter(id=>combat.unit(id)?.team==='home');
   const clearResident = () => { clearEnemy(); selectedGroup=undefined; residents.select(); ui.setResident(); ui.setCombatHint(false); attackFeedback.hide(); attackPulse = undefined; };
   const clearSelection = () => { clearWorld(); clearResident(); };
@@ -209,7 +212,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       ui.setSelection(buildingSelection(economy,object.id,{name:'哨塔',kind:'建筑',showHint:true,hint:`${tower.unit?`${name}·${tower.phase==='occupied'?'驻守':tower.phase==='meal'?'休整':'前往中'}`:'空位'} · 射程 ${TOWER_CONFIG.range}`,
         actions:tower.unit?[{id:'tower-select',label:'选中弓兵'},{id:'tower-evict',label:'撤出'}]:[{id:'tower-garrison',label:candidate?`入驻·${name}`:availability.reason,disabled:!candidate}]}));return;
     }
-    if(object.id==='home-center'){ui.setSelection(buildingSelection(economy,object.id,{name:'家园中心',kind:'建筑',hint:'招募居民与士兵',actions:[{id:'recruit',label:'招募',disabled:!buildingOperational(economy.state,object.id)}]}));return;}
+    if(object.id==='home-center'){ui.setSelection(buildingSelection(economy,object.id,{name:'家园中心',kind:'建筑',hint:'点击空地设置集合点',actions:[{id:'recruit',label:'招募',disabled:!buildingOperational(economy.state,object.id)}]}));return;}
     const details = buildingSelection(economy,object.id,economySelection(economy, object)), unit = selectedGroup===undefined?residents.selectedId():residents.selectedIds().find(id=>residents.canWork(id))??residents.selectedId();
     const task = economy.taskFor(object.id);
     if (!economy.campfire(object.id) && unit && residents.canWork(unit) && task?.status === 'waiting') details.actions?.unshift({ id: 'assign', label: '优先执行' });
@@ -221,7 +224,9 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     ui.setSelection(details);
   };
   const selectWorld = (object: WorldObject) => {
-    clearWorld(); selectedWorld = object;
+    clearWorld();
+    if (object.id === 'home-center') clearResident();
+    selectedWorld = object;
     showObjectActions(object);
   };
   const refreshSelected = () => {
@@ -329,7 +334,6 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
         setPreview();overview=false;mapCenter.set(positions.reduce((v,p)=>v+p.x,0)/positions.length,.5,positions.reduce((v,p)=>v+p.z,0)/positions.length);clampCenter();}
       clearWorld();selectedGroup=index;residents.select(members[0],members);refreshEconomy();
     },
-    rally:()=>{clearSelection();settingRally=true;ui.toast('点击空地设置集合点');},
   });
   refreshEconomy();
   const projectionIdentity = Matrix.Identity();
@@ -393,16 +397,6 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     if (ui.paused || suspended) return;
     if (placement.active) { placement.place(clientX, clientY); return; }
     const rect = ui.canvas.getBoundingClientRect(); const x = clientX - rect.left, y = clientY - rect.top;
-    if(settingRally){
-      const ray=scene.createPickingRay(x,y,null,camera),distance=terrainRayDistance(ray);
-      if(distance!==null){
-        const point=ray.origin.add(ray.direction.scale(distance));
-        const result=await simulation.command({type:'rally',point:{x:point.x,z:point.z}});
-        if(!settingRally)return;
-        if(result.ok&&result.point){settingRally=false;moveFeedback.show(result.point);save();ui.toast(result.message);}
-        else ui.targetHint(result.message,{x:point.x,y:surfaceHeight(point.x,point.z)+.2,z:point.z});
-      }return;
-    }
     const hit = scene.pick(x, y, isWorldPickable);
     if (hit?.pickedMesh?.metadata?.selectionKind === 'resident') {
       const id = hit.pickedMesh.metadata.id;
@@ -457,6 +451,14 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     const distance = terrainRayDistance(ray);
     if (distance === null) return;
     const point = ray.origin.add(ray.direction.scale(distance));
+    if (selectedWorld?.id === 'home-center') {
+      const attempt = ++rallyAttempt;
+      const result = await simulation.command({type:'rally',point:{x:point.x,z:point.z}});
+      if (selectedWorld?.id !== 'home-center' || attempt !== rallyAttempt) return;
+      if (result.ok && result.point) { moveFeedback.show(result.point); save(); ui.toast(result.message); }
+      else ui.targetHint(result.message,{x:point.x,y:surfaceHeight(point.x,point.z)+.2,z:point.z});
+      return;
+    }
     if (residents.selectedCanMove()) {
       const ids=residents.selectedIds(),group=selectedGroup;
       commandGuidance.clear();clearWorld();setPreview();moveFeedback.show(point);
@@ -493,7 +495,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   };
   const resizeObserver={disconnect:platform.subscribe('resize',resize)};
   resize();
-  ui.bind('clear-selection',()=>{settingRally=false;commandGuidance.clear();clearSelection();refreshEconomy();});
+  ui.bind('clear-selection',()=>{commandGuidance.clear();clearSelection();refreshEconomy();});
   cleanup.push(platform.subscribe('escape',()=>{if(!ui.paused&&!suspended){placement.cancel();clearSelection();}}));
   ui.bindPause(async () => {
     if (disposed) return;
@@ -617,6 +619,13 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     if(order&&routeId&&guideRoute.length)guideRoute=order.route;
     pathGuidance.update(routeId,routeId?residents.displayPosition(routeId)??routeFighter?.position??residents.needsStatus(routeId).position:undefined,
       guideRoute,selectedId?1:pulse?.alpha??1);
+    if (selectedWorld?.id === 'home-center') {
+      const rally = economy.state.recruitment.rally;
+      if (!shownRally || shownRally.x !== rally.x || shownRally.z !== rally.z) {
+        shownRally = { ...rally };
+        rallyGuidance.update('home-center', buildingDoor(HOME_CENTER), [rally]);
+      }
+    } else if (shownRally) { shownRally = undefined; rallyGuidance.update(undefined); }
     const attackTarget = selectedFighter?.target;
     ui.setAttackTarget(attackTarget && combat.target(attackTarget)?.life === 'active' ? attackTarget : undefined, economy.state.seconds-(1-simulationClock.alpha)*SimulationClock.step);
     if (attackPulse) {
@@ -777,6 +786,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       moveFeedback: moveFeedback.snapshot(),
       attackFeedback: { ...attackFeedback.snapshot(), target: attackPulse?.target },
       pathGuidance: pathGuidance.snapshot(),
+      rallyGuidance: rallyGuidance.snapshot(),
       selectionFeedback: selectionFeedback.snapshot(),
       placement: placement.snapshot(),
       suspended, manualPaused: ui.paused, simulationSeconds,

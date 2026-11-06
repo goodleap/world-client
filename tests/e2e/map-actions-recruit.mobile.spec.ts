@@ -27,7 +27,7 @@ test('map tap previews and commits on close; information and world actions stay 
   await expect(page.locator('[data-recruit="farmer"] .recruit-count')).toHaveText('排队 20');await expect(page.locator('#recruit-queue li')).toHaveCount(20);
   await page.getByRole('button',{name:'招募农民',exact:true}).click();await expect(page.locator('#recruit-notice')).toHaveText('招募队列已满');
   for(const [width,height] of [[320,568],[844,390],[412,915]]){
-    await page.setViewportSize({width,height});await expect(page.locator('#continue-recruit')).toBeInViewport();await expect(page.locator('#set-rally')).toBeInViewport();
+    await page.setViewportSize({width,height});await expect(page.locator('#continue-recruit')).toBeInViewport();await expect(page.locator('#set-rally')).toHaveCount(0);
     expect(await page.locator('#recruit-dialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
     const footer=(await page.locator('#recruit-dialog .panel-footer').boundingBox())!,queue=(await page.locator('#recruit-queue').boundingBox())!;
     expect(footer.y).toBeGreaterThan(queue.y+queue.height);await page.screenshot({path:info.outputPath(`recruit-${width}.png`)});

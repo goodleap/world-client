@@ -24,7 +24,7 @@ export async function checkFeedbackPanels(page:Page,info:TestInfo,touch:boolean)
     if((await page.locator('#recruit-queue li').count())===0)for(let i=0;i<5;i++)await button.click();
     const after=(await page.locator('#recruit-dialog').boundingBox())!,buttonAfter=(await button.boundingBox())!;
     expect(after.height).toBe(before.height);expect(after.y).toBe(before.y);expect(buttonAfter.y).toBe(buttonBefore.y);
-    await expect(page.getByRole('button',{name:'关闭家园中心'})).toBeInViewport();await expect(page.locator('#set-rally')).toBeInViewport();
+    await expect(page.getByRole('button',{name:'关闭家园中心'})).toBeInViewport();await expect(page.locator('#set-rally')).toHaveCount(0);
     await page.screenshot({path:info.outputPath(`recruit-${width}.png`),scale:'css'});
   }
   await page.setViewportSize(original);await page.getByRole('button',{name:'关闭家园中心'}).click();

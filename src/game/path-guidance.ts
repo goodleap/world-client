@@ -10,10 +10,10 @@ import type { Scene } from '@babylonjs/core/scene.js';
 import type { Point } from './movement.ts';
 import { UNIT_SELECTION_COLOR } from './selection-colors.ts';
 
-/** Draw only the authoritative remaining route. No second path search, timer,
+/** Draw a supplied route or connection. No second path search, timer,
  * particles, extra render pass or mesh per waypoint. Idle wandering is omitted. */
-export function createPathGuidance(scene: Scene, heightAt=surfaceHeight) {
-  const mesh = new Mesh('selected-route', scene), material = new StandardMaterial('selected-route-ink', scene);
+export function createPathGuidance(scene: Scene, heightAt=surfaceHeight, name='selected-route') {
+  const mesh = new Mesh(name, scene), material = new StandardMaterial(`${name}-ink`, scene);
   material.disableLighting = true; material.emissiveColor = Color3.White();
   material.backFaceCulling = false; material.disableDepthWrite = true;
   mesh.material = material; mesh.isPickable = false; mesh.setEnabled(false);

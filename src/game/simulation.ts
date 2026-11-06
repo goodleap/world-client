@@ -9,7 +9,7 @@ import { Combat, fighterRadius, fighterStats } from './combat.ts';
 import { Raids } from './raids.ts';
 import { homeResidents, advanceRecruitment } from './recruitment.ts';
 import { ENEMIES, newResident, roleLeader } from './resident-data.ts';
-import { WORLD_BOUNDS } from './world-data.ts';
+import { WORLD_BOUNDS, HOME_CENTER } from './world-data.ts';
 import { ECONOMY_CONFIG } from './economy-config.ts';
 import { occupiedTower, evictTower, updateTowers, requestGarrison, garrisonCandidate } from './towers.ts';
 import { combineObstacles } from './navigation-geometry.ts';
@@ -20,6 +20,7 @@ import { pruneGroups } from './groups.ts';
 import { applyHomeAction } from './home-actions.ts';
 import type { HomeAction } from './home-actions.ts';
 import type { BuildingKind } from './construction.ts';
+import { buildingDoor } from './construction.ts';
 import type { Bounds, Point } from './movement.ts';
 import type { DamageNumber } from './damage-numbers.ts';
 import { createNativeNavigation } from './native-navigation.ts';
@@ -103,7 +104,7 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
       case 'work':{const {instruction:i,id}=c,result=id?controller.command(id,i):economy.request(i.work,i.target,i.crop);
         if(result.ok&&id)manual(id);return {...result,id,token:id?economy.active(id)?.id:undefined};}
       case 'attack':{const count=combat.attack(c.ids,c.target);if(count)c.ids.forEach(id=>manual(id));return {ok:count>0,count,message:count?'攻击':'先选择一名士兵'};}
-      case 'rally':{const query={start:state.recruitment.rally,goals:[c.point],radius:.4,bounds:WORLD_BOUNDS,obstacles:world.obstacles(true),move:true};
+      case 'rally':{const query={start:buildingDoor(HOME_CENTER),goals:[c.point],radius:.4,bounds:WORLD_BOUNDS,obstacles:world.obstacles(true),move:true};
         const path=await resolvePath(()=>paths.plan(query));
         const point=path?.at(-1);if(point){state.recruitment.rally={...point};economy.revision++;}return {ok:!!point,point,message:point?'集合点已更新':'无法到达该位置'};}
       case 'move':{
