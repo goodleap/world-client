@@ -40,7 +40,7 @@ function menu() {
 async function leave(destination: 'menu' | 'exit') {
   if (!game || !ui) return;
   if (!await game.save()) { ui.saveFailed(); return; }
-  game.dispose(); ui.dispose(); game = undefined; ui = undefined; delete window.__DEMO__;
+  await game.dispose(); ui.dispose(); game = undefined; ui = undefined; delete window.__DEMO__;
   const page = document.querySelector<HTMLElement>('#game-page')!;
   page.hidden = true; page.inert = true; page.replaceChildren();
   if (destination === 'exit') launcher.exit(menu);

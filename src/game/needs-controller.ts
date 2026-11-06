@@ -1,7 +1,7 @@
 import { homeResidents } from './recruitment.ts';
 import type { Economy } from './economy.ts';
 import type { Combat } from './combat.ts';
-import type { createResidents } from './residents.ts';
+import type { createResidentSimulation } from './resident-simulation.ts';
 import { canResidentSupply, unitRole } from './resident-data.ts';
 import { CAMPFIRE_CONFIG as F, fireIsLit } from './campfire.ts';
 import { VITAL_CONFIG as V, bodiesFor, alive, health, maxHealth, needsFood, eat } from './vitals.ts';
@@ -10,7 +10,7 @@ import type { Point } from './movement.ts';
 import { GRID_SIZE } from './world-data.ts';
 import { pathInDanger } from './danger-zones.ts';
 
-type Residents = Pick<ReturnType<typeof createResidents>, 'needsStatus' | 'setResting' | 'command' | 'releaseFarmerWork'>;
+type Residents = Pick<ReturnType<typeof createResidentSimulation>, 'needsStatus' | 'setResting' | 'command' | 'releaseFarmerWork'>;
 type Rest = NonNullable<Vital['rest']>;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.z - b.z);
 

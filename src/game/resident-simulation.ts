@@ -173,6 +173,7 @@ export function createResidentSimulation(definitions:readonly ResidentDefinition
       const ticks = Math.max(1, Math.ceil(Math.min(frameElapsed, .5) / .05));
       const seconds = frameSeconds / ticks, activeElapsed = Math.min(frameElapsed, .5) / ticks;
       for (let tick = 0; tick < ticks; tick++) for (const actor of actors) {
+        actor.stepPath=undefined;actor.stepFacing=undefined;
         if (combatPoses.has(actor.definition.id) || dead(actor.definition.id)) continue;
         actor.movementSpeed = 0;
         if (seconds <= 0) continue;

@@ -13,7 +13,7 @@ export function simulationView(sim:Simulation){
     residents:byId(sim.residents.frame().filter(r=>!sim.combat.unit(r.id))),revision:sim.economy.revision};
 }
 export type SimulationView=ReturnType<typeof simulationView>;
-export interface SimulationPacket{serial:number;stamp:number;seconds:number;patch:Operation[];events:SimulationEvent[];diagnostics?:ReturnType<Simulation['diagnostics']>;backlogMs:number}
+export interface SimulationPacket{serial:number;stamp:number;seconds:number;patch:Operation[];events:SimulationEvent[];diagnostics?:ReturnType<Simulation['diagnostics']>&{replication:ReturnType<ReturnType<typeof createSimulationPublisher>['snapshot']>};backlogMs:number}
 export function createSimulationPublisher(initial:SimulationView){
   const previous=structuredClone(initial);let operations=0,lastMs=0,maxMs=0;
   return {diff(next:SimulationView){const start=performance.now();const patch=structuredClone(createPatch(previous,next));
@@ -29,5 +29,7 @@ export function updateEconomyReplica(e:Economy,view:SimulationView){
   Object.assign(e.state,view.economy);
   Object.assign(e.state.combat,view.combat,{units:Object.values(view.combat.units),projectiles:Object.values(view.combat.projectiles)});
   Object.assign(e.state.raids,view.raids,{wolves:Object.values(view.raids.wolves),wildWolves:Object.values(view.raids.wildWolves)});
+  if(!Object.hasOwn(view.raids,'origin'))delete e.state.raids.origin;
+  if(!Object.hasOwn(view.raids,'pendingOrigin'))delete e.state.raids.pendingOrigin;
   e.revision=view.revision;
 }

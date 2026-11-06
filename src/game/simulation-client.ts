@@ -1,13 +1,13 @@
 import { createWorkerChannel } from './worker-channel.ts';
 import type { Economy } from './economy.ts';
 import type { Bounds } from './movement.ts';
-import type { Simulation, SimulationCommand, CommandResult } from './simulation.ts';
+import type { SimulationCommand, CommandResult } from './simulation.ts';
 import { applySimulationPatch, updateEconomyReplica } from './simulation-state.ts';
 import type { SimulationPacket, SimulationView } from './simulation-state.ts';
 
 export async function createSimulationClient(economy:Economy,checkpoint:(text:string)=>void,onError:(message:string)=>void){
   const worker=new Worker(new URL('./simulation.worker.ts',import.meta.url),{type:'module'}),channel=createWorkerChannel(worker);
-  let view:SimulationView|undefined,diagnostics:ReturnType<Simulation['diagnostics']>|undefined,serial=0,closed=false;
+  let view:SimulationView|undefined,diagnostics:SimulationPacket['diagnostics'],serial=0,closed=false;
   let paused=true,stamp=performance.timeOrigin+performance.now(),seconds=economy.state.seconds,duration=.05,backlogMs=0,pending=0;
   let consume:(packet:SimulationPacket,view:SimulationView)=>void=()=>{};
   channel.handle((method,args)=>{
@@ -33,8 +33,8 @@ export async function createSimulationClient(economy:Economy,checkpoint:(text:st
     async pause(value:boolean){paused=value;await channel.call('pause',[value]);},
     async command(command:SimulationCommand){pending++;try{return await channel.call('command',[command]) as CommandResult;}finally{pending--;}},
     setView:(bounds:Bounds)=>channel.notify('view',[bounds]),
-    save:()=>channel.call('save') as Promise<string>,
-    diagnostics:()=>({...diagnostics!,replication:{serial},backlogMs}),get pending(){return pending;},
+    save:()=>channel.call('save') as Promise<{text:string;encodeMs:number}>,
+    diagnostics:()=>({...diagnostics!,replication:{...diagnostics!.replication,serial},backlogMs}),get pending(){return pending;},
     async dispose(){if(closed)return;closed=true;try{await channel.call('dispose',[],[],5000);}finally{channel.close();worker.terminate();}},
   };
 }

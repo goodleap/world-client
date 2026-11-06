@@ -103,15 +103,25 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   let renderReady = false;
   const autosave = new Autosave();
   const frameWork = { logicMs: 0, worldMs: 0, saveMs: 0, sceneMs: 0 };
-  const saves = { count: 0, failures: 0, lastMs: 0, maxMs: 0, totalMs: 0, chars: 0 };
-  const save = async () => {
-    if (!canSave) return false;
-    const start = performance.now(); autosave.attempted();
-    try {
-      const text = await simulation.save();
-      if(!await platform.persist(text))throw new Error('Storage write failed'); saves.chars = text.length; saves.count++; return true;
-    } catch { saves.failures++; if (!saveWarning) { ui.toast('浏览器未能保存进度，本次仍可继续游玩'); saveWarning = true; } return false; }
-    finally { saves.lastMs = performance.now() - start; saves.maxMs = Math.max(saves.maxMs, saves.lastMs); saves.totalMs += saves.lastMs; frameWork.saveMs += saves.lastMs; }
+  const saves = { count: 0, failures: 0, lastMs: 0, maxMs: 0, totalMs: 0, roundTripMs:0, chars: 0 };
+  let saveRequested=false,saveInFlight:Promise<boolean>|undefined;
+  const save = ():Promise<boolean> => {
+    if (!canSave) return Promise.resolve(false);
+    saveRequested=true;if(saveInFlight)return saveInFlight;
+    saveInFlight=(async()=>{
+      let ok=true;
+      while(saveRequested){
+        saveRequested=false;const start=performance.now();autosave.attempted();
+        try{
+          const result=await simulation.save();
+          if(!await platform.persist(result.text))throw new Error('Storage write failed');
+          saves.chars=result.text.length;saves.count++;saves.lastMs=result.encodeMs;saves.maxMs=Math.max(saves.maxMs,result.encodeMs);saves.totalMs+=result.encodeMs;
+        }catch{ok=false;saves.failures++;if(!saveWarning){ui.toast('浏览器未能保存进度，本次仍可继续游玩');saveWarning=true;}}
+        finally{saves.roundTripMs=performance.now()-start;}
+      }
+      return ok;
+    })().finally(()=>{saveInFlight=undefined;});
+    return saveInFlight;
   };
   const simulation=await loadingProgress.run('simulation','导航网格与模拟线程就绪',()=>createSimulationClient(economy,platform.checkpoint,message=>{console.error(message);ui.toast('模拟线程异常，请保存诊断后刷新');}));
   let world: Awaited<ReturnType<typeof buildWorld>>;
@@ -725,7 +735,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     renderReady = true; requestRender();
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {
-    levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();void simulation.dispose();minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
+    levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();await simulation.dispose();minimap.dispose(); performanceDiagnostics.dispose(); lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.dispose(); throw error;
   }
   await nextPaint();
   loadingProgress.done('first-frame');
@@ -817,11 +827,12 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
       },
       size: { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
     }),
-    dispose() {
-      save();
+    async dispose() {
+      if(disposed)return;
+      if(saveInFlight)await saveInFlight;
       disposed = true; lifecycle.abort(); input.dispose(); resizeObserver.disconnect(); engine.stopRenderLoop(render);
       engine.onContextRestoredObservable.remove(contextRestored);
-      levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();void simulation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); minimap.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
+      levelFeedback.dispose();damageNumbers.dispose();damageHost.remove();await simulation.dispose();management.dispose(); placement.dispose(); selectionFeedback.dispose(); sceneCandidates.dispose(); minimap.dispose(); performanceDiagnostics.dispose(); scene.dispose(); engine.dispose();
     },
   };
 }

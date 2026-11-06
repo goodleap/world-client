@@ -60,7 +60,7 @@ export function createNativeMotion(nav:NativeNavigation,bounds:Bounds,solids:()=
     },
   };
   return {runtime,prepare,snapshot:()=>({backend:'Babylon Navigation Plugin V2 Crowd',agents:agents.size,steps,lastMs:tickMs,rejected}),
-    // The V2 plugin owns and disposes its Crowd. Release our transform bindings
-    // here; calling Crowd.dispose as well would free the same WASM memory twice.
-    dispose(){for(const a of agents.values()){crowd.removeAgent(a.index);a.node.dispose();}agents.clear();results.clear();}};
+    // This adapter creates the public V2 Crowd directly, so the registry is its
+    // single owner; both explicit release and plugin teardown are idempotent.
+    dispose(){nav.releaseCrowd(crowd);for(const a of agents.values())a.node.dispose();agents.clear();results.clear();}};
 }

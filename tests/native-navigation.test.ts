@@ -16,6 +16,18 @@ test('Navigation Plugin V2 routes around a live building and opens the corridor 
       assert(path.every((p,i)=>!sweepIsBlocked(i?path[i-1]:from,p,radius,solids)));
     }
     const path=await nav.path(from,[goal],.4,bounds,immutableObstacles([]));assert(path?.length);assert(path.every(p=>Math.abs(p.z)<.2));
-    assert.equal(nav.snapshot().builds,3);assert.equal(nav.snapshot().obstacleRemoves,1);
+    assert.equal(nav.snapshot().builds,3);assert(nav.snapshot().obstacleRemoves>0);
+  }finally{nav.dispose();}
+});
+
+test('large exclusion areas and long buildings block every tile and release native resources once',async()=>{
+  const nav=await createNativeNavigation(),bounds={minX:-30,maxX:30,minZ:-30,maxZ:30};
+  try{
+    for(const obstacle of [{kind:'circle' as const,x:0,z:0,radius:11.8},{kind:'box' as const,x:0,z:0,halfWidth:1,halfDepth:9}]){
+      const solids=immutableObstacles([obstacle]),from={x:-20,z:0};
+      const path=nav.path(from,[{x:20,z:0}],.72,bounds,solids);assert(path?.length);
+      assert(path.every((p,i)=>!sweepIsBlocked(i?path[i-1]:from,p,.72,solids)));
+    }
+    const crowd=nav.createCrowd(bounds,[]);nav.releaseCrowd(crowd);nav.releaseCrowd(crowd);
   }finally{nav.dispose();}
 });

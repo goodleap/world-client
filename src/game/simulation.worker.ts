@@ -14,7 +14,7 @@ let timer:ReturnType<typeof setTimeout>|undefined,inflight:Promise<unknown>|unde
 const clock=new SimulationClock(),events:SimulationEvent[]=[];
 function publish(){
   if(inflight||!sim||!publisher||closed)return inflight;
-  const now=performance.now(),diagnostics=now-diagnosticAt>=500?sim.diagnostics():undefined;if(diagnostics)diagnosticAt=now;
+  const now=performance.now(),diagnostics=now-diagnosticAt>=500?{...sim.diagnostics(),replication:publisher.snapshot()}:undefined;if(diagnostics)diagnosticAt=now;
   const packet:SimulationPacket={serial:++serial,stamp:performance.timeOrigin+now,seconds:sim.economy.state.seconds,
     patch:publisher.diff(simulationView(sim)),events:events.splice(0),diagnostics,backlogMs:clock.pendingSeconds*1000};
   // At most one publication can be waiting on rendering. On a slow frame the
@@ -39,14 +39,14 @@ channel.handle(async(method,args)=>{
     if(sim)throw new Error('Simulation already initialized');
     sim=await createSimulation(args[0] as EconomyState,event=>events.push(event));
     const view=simulationView(sim);publisher=createSimulationPublisher(view);previous=performance.now();tick();
-    return {view,diagnostics:sim.diagnostics()};
+    return {view,diagnostics:{...sim.diagnostics(),replication:publisher.snapshot()}};
   }
   if(!sim)throw new Error('Simulation is not ready');
   switch(method){
     case 'pause':paused=!!args[0];previous=performance.now();if(paused){await inflight;await publish();}return;
     case 'command':{const result=sim.command(args[0] as SimulationCommand);await inflight;await publish();return result;}
     case 'view':sim.setView(args[0] as Bounds);return;
-    case 'save':return sim.save();
+    case 'save':{const start=performance.now(),text=sim.save();return {text,encodeMs:performance.now()-start};}
     case 'diagnostics':return {...sim.diagnostics(),replication:publisher?.snapshot(),backlogMs:clock.pendingSeconds*1000};
     case 'dispose':paused=true;closed=true;clearTimeout(timer);sim.dispose();sim=undefined;return;
   }

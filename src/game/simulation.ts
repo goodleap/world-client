@@ -22,10 +22,12 @@ import type { HomeAction } from './home-actions.ts';
 import type { BuildingKind } from './construction.ts';
 import type { Bounds, Point } from './movement.ts';
 import type { DamageNumber } from './damage-numbers.ts';
-import { createNativeNavigation } from './native-navigation.ts';
+import { createNativeNavigation, requiresAreaBuild } from './native-navigation.ts';
+import { createNativeAreaPlanner } from './native-area-planner.ts';
 import { createNativeMotion } from './native-motion.ts';
 import { installNavigationRuntime } from './navigation-runtime.ts';
 import { SystemMetrics } from './system-metrics.ts';
+import { collisionMetrics } from './obstacle-index.ts';
 
 export type SimulationEvent={type:'damage';hit:DamageNumber}|{type:'level';id:string;level:number}|{type:'speech';id:string;text:string}
   |{type:'warehouse';point?:Point}|{type:'door';id:string};
@@ -42,7 +44,8 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
   const economy=new Economy(state),world=createEconomyNavigation(economy),metrics=new SystemMetrics();
   const nav=await createNativeNavigation();
   const motion=createNativeMotion(nav,WORLD_BOUNDS,()=>world.obstacles());
-  const releaseNavigation=installNavigationRuntime(motion.runtime);
+  const areaPaths=createNativeAreaPlanner(nav);
+  const releaseNavigation=installNavigationRuntime({...motion.runtime,plan:q=>requiresAreaBuild(q.obstacles)?areaPaths.plan(q):nav.plan(q)});
   // First movement must not pay for a new Recast build during combat.
   for(const radius of [.29,.4,.54,.6,.72])nav.profile(radius,WORLD_BOUNDS,world.obstacles(radius!==.29));
   const definitions=()=>[...homeResidents(state),...ENEMIES,...state.combat.units.filter(u=>u.id.startsWith('enemy-raid-'))
@@ -115,7 +118,7 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
   }
   let steps=0,lastMs=0,maxMs=0,definitionKey=definitions().map(d=>d.id).join(',');
   function step(dt:number){
-    const begin=performance.now();world.sync();
+    const begin=performance.now();world.sync();areaPaths.flush();
     metrics.run('crowd',()=>motion.prepare([...residents.crowdBodies(),...[...combat.state.units,...raids.wolves].filter(u=>u.life==='active'&&!u.departed&&!occupiedTower(state,u.id)).map(u=>({
       id:u.id,position:u.position,radius:fighterRadius(u),speed:fighterStats(u).speed*(u.order==='guard'&&!u.target?.length? .65:1),
       route:u.attackApproach?u.route.slice(0,-1):u.route,solids:world.obstacles(true),moveIdle:(p:Point)=>{u.position=p;},
@@ -130,10 +133,10 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
     pruneGroups(economy);steps++;lastMs=performance.now()-begin;maxMs=Math.max(maxMs,lastMs);
   }
   return {economy,residents,combat,raids,step,command,setView:(bounds:Bounds)=>{visible=bounds;},
-    save(){state.residents=residents.saveResidents();return encodeEconomy(economy);},
-    diagnostics:()=>({thread:'simulation-worker',steps,lastMs,maxMs,systems:metrics.snapshot(),navigation:nav.snapshot(),crowd:motion.snapshot(),
+    save(){return metrics.run('save',()=>{state.residents=residents.saveResidents();return encodeEconomy(economy);});},
+    diagnostics:()=>({thread:'simulation-worker',steps,lastMs,maxMs,systems:metrics.snapshot(),collision:collisionMetrics(),navigation:{...nav.snapshot(),areas:areaPaths.snapshot()},crowd:motion.snapshot(),
       population:{residents:definitions().length,fighters:state.combat.units.length,wolves:raids.wolves.length,projectiles:state.combat.projectiles.length,tasks:state.tasks.filter(pending).length,solids:world.obstacles(true).length}}),
-    dispose(){releaseNavigation();motion.dispose();nav.dispose();},
+    dispose(){releaseNavigation();areaPaths.dispose();motion.dispose();nav.dispose();},
   };
 }
 export type Simulation=Awaited<ReturnType<typeof createSimulation>>;

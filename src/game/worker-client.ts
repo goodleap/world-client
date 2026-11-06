@@ -104,8 +104,8 @@ export async function createGame(ui:GameUI,economy:Economy){
   return {
     save:()=>invoke('save'),diagnosticReport:()=>invoke('diagnosticReport'),markPerformance:()=>invoke('markPerformance'),snapshot:()=>invoke('snapshot'),
     frameSnapshot:()=>runtime.frame!,
-    dispose(){abort.abort();observer.disconnect();input?.dispose();placement.dispose();management?.dispose();overlay.remove();
-      ui.addResidentLabel=add;ui.removeResidentLabel=remove;runtime.preserve();void invoke('dispose').catch(()=>{}).finally(()=>runtime.close());},
+    async dispose(){abort.abort();observer.disconnect();input?.dispose();placement.dispose();management?.dispose();overlay.remove();
+      ui.addResidentLabel=add;ui.removeResidentLabel=remove;runtime.preserve();try{await invoke('dispose');}finally{runtime.close();}},
   };
 }
 export type WorkerGame=Awaited<ReturnType<typeof createGame>>;
