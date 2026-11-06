@@ -413,9 +413,11 @@ export class Combat {
     u.position = step.position; u.speed = step.distance / dt;
     if (step.facing !== undefined) u.facing = turnTowards(u.facing, step.facing, dt, u.role === 'cavalry' ? 7 : 14);
     if (step.unreachable) { this.stop(u); u.planIn = 1; }
-    // A newly occupied formation slot must not wait forever for an immovable
-    // unit. Keep the movement intent and let the planner choose a nearby stop.
-    if(u.order==='move'&&u.goal&&!assignedTower(this.economy.state,u.id)&&u.navigation.waited>=.6
+    // Crowd avoidance may keep circling an occupied endpoint instead of fully
+    // stopping. Recheck its reservation on approach, not just after zero speed.
+    // Keep the movement intent and let Detour choose a nearby stop.
+    if(u.order==='move'&&u.goal&&!u.planIn&&!assignedTower(this.economy.state,u.id)
+      &&(u.navigation.waited>=.6||distance(u.position,u.goal)<2.5)
       &&this.neighbours(u).some(n=>!n.moving&&distance(u.goal!,n.position)<fighterRadius(u)+n.radius+.08)){
       this.stop(u);u.planIn=0;
     }

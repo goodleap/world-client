@@ -23,7 +23,6 @@ export async function initializeNativeNavigation(){await (initialization??=core.
 const CELL=.1, CLEARANCE=CELL;
 const xyz=(p:Point)=>({x:p.x,y:.2,z:p.z});
 const dist=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
-export const requiresAreaBuild=(solids:readonly Obstacle[])=>solids.some(o=>o.kind==='circle'&&o.radius>2.5);
 
 /** Navigation Plugin V2 owns Recast generation, Detour queries and tile updates.
  * Only walkable footprint geometry and game-specific endpoint rules live here.

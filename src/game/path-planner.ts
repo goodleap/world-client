@@ -15,8 +15,8 @@ export function usePathPlanner(planner:Planner) {
   return ()=>{if(background===planner)background=undefined;};
 }
 
-/** A proven direct segment stays immediate. Native Detour handles other
- * routes, with pending results only for exclusion-area builds. */
+/** A proven direct segment stays immediate. Native Detour handles all other
+ * queries in its worker, including exclusion-area builds. */
 export function planPaths(start:Point,goals:readonly Point[],radius:number,bounds:Bounds,obstacles:readonly Obstacle[]):PlannedPath {
   const valid=goals.filter(p=>inBounds(p,radius,bounds)&&!isBlocked(p,radius,obstacles));
   if(!valid.length)return;
