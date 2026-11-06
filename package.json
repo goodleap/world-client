@@ -15,8 +15,11 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@babylonjs/addons": "9.32.1",
     "@babylonjs/core": "9.32.1",
     "@babylonjs/loaders": "9.32.1",
+    "@recast-navigation/core": "0.43.0",
+    "@recast-navigation/generators": "0.43.0",
     "earcut": "^3.0.2",
     "polygon-clipping": "^0.15.7"
   },
