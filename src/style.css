@@ -1471,9 +1471,9 @@ kbd {
 .story-footer { padding-top: 12px; }
 .story-footer .story-actions { margin-top: 0; }
 .story-footer .story-actions + .story-actions:not(:empty) { margin-top: 8px; }
-.story-footer .primary-button { min-height: 44px; padding: 10px 14px; }
+.story-footer .primary-button { min-height: 44px; padding: 10px 14px; justify-content: center; text-align: center; }
 .story-footer #story-close { margin-top: 8px; }
-.story-dialog[data-mode=conversation] { margin: auto auto 18px; width: min(520px, calc(100% - 24px)); max-height: 62dvh; }
+.story-dialog[data-mode=conversation] { inset: 0; margin: auto; width: min(520px, calc(100% - 24px)); max-height: 62dvh; }
 .story-dialog[data-mode=conversation]::backdrop { background: #25391e20; -webkit-backdrop-filter: none; backdrop-filter: none; }
 #game-page:has(#story-dialog[open][data-mode=conversation]) > :is(.topbar, .map-button, .settings-button, .minimap-panel, .status-stack, .selection-info) { opacity: 0; }
 .story-dialog h2 { margin-bottom: 8px; }
@@ -1492,4 +1492,4 @@ kbd {
 .story-receipt p { margin: 8px 0 12px; }
 .story-actions:not(:has(button:not([hidden]))) { display: none; }
 @media (max-width: 400px) { .story-dialog { padding: 16px; } .story-dialog[data-mode=conversation] { max-height: 66dvh; } .story-dialog h2 { margin-top: 0; font-size: 20px; } }
-@media (max-height: 450px) { .story-dialog[data-mode=conversation] { max-height: calc(100dvh - 24px); margin-bottom: 12px; } }
+@media (max-height: 450px) { .story-dialog[data-mode=conversation] { max-height: calc(100dvh - 24px); } }

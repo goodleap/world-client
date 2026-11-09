@@ -546,7 +546,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     if (!npc) return;
     const point = residents.displayPosition(npc.id) ?? residents.needsStatus(npc.id).position;
     setPreview(); overview = false; mapCenter.set(point.x, surfaceHeight(point.x, point.z) + 1, point.z);
-    // Keep the speaker above the bottom dialogue; paused camera interpolation
+    // Keep the speaker toward the top while talking; paused camera interpolation
     // cannot complete a focus request, so apply the target immediately.
     if (conversation) mapCenter.z -= zoom * .55 / Math.max(.2, Math.cos(camera.beta));
     else if (ui.canvas.clientWidth < 520) mapCenter.x -= zoom * .4 * engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
