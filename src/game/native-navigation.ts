@@ -89,7 +89,10 @@ export async function createNativeNavigation(){
     const {plugin,obstacles}=record;
     let queued=0;
     const flush=()=>{if(queued){WaitForFullTileCacheUpdate(plugin.navMesh!,plugin.tileCache!);queued=0;}};
-    const queuedChange=()=>{if(++queued>=48)flush();};
+    // Detour has 64 pending tile updates as well as 64 obstacle requests.
+    // One obstacle can touch up to eight tiles: drain before either queue can
+    // overflow, or scattered trees can be registered without carving their tile.
+    const queuedChange=()=>{if(++queued>=8)flush();};
     for(const [id,parts]of obstacles)if(!description.dynamic.has(id)){for(const part of parts){plugin.removeObstacle(part,true);queuedChange();stats.obstacleRemoves++;}obstacles.delete(id);}
     for(const [id,o]of description.dynamic)if(!obstacles.has(id)){
       // TileCache obstacles carve after erosion: include the body's clearance.

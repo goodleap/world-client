@@ -62,7 +62,9 @@ test('debug query grants new-game stock and leaves Continue stock intact', async
   const errors = await openGame(page, '/?debug');
   expect((await snapshot(page)).economy.inventory.wood).toBe(23);
   await page.locator('#settings').tap(); await page.getByRole('button', { name: '回到主菜单', exact: true }).tap();
-  await page.locator('#start-game').tap(); await page.getByRole('button', { name: '开始新游戏', exact: true }).tap();
+  await page.locator('#start-game').tap();
+  await expect(page.locator('#preparation-panel')).toBeVisible();
+  await page.locator('#enter-world').tap(); await page.getByRole('button', { name: '开始新游戏', exact: true }).tap();
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 60000 });
   const fresh = (await snapshot(page)).economy;
   expect(fresh.debug).toBe(true); expect(Object.values(fresh.inventory)).toEqual([100000, 100000, 100000, 100000]);

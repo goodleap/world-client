@@ -5,6 +5,7 @@ import type { WorkerGame as Game } from './game/worker-client.ts';
 import { Economy, initialEconomy, debugRequested } from './game/economy.ts';
 import { readSavedGame } from './game/economy-storage.ts';
 import type { StartMode } from './launcher.ts';
+import type { GameSetup } from './game/game-setup.ts';
 import { diagnosticContext } from './diagnostics.ts';
 import { loadingProgress } from './loading-progress.ts';
 import { trackModuleLoading } from './module-loading.ts';
@@ -31,7 +32,8 @@ function prepareGame() {
     .catch(error => { gameModule = undefined; throw error; });
 }
 function menu() {
-  launcher.menu(mode => { void start(makeUI, mode); }, readSavedGame().status);
+  const saved = readSavedGame();
+  launcher.menu((mode, setup) => { void start(makeUI, mode, setup); }, saved.status, saved.status === 'ready' ? saved.economy.state.setup : undefined);
   // Load code and GLBs after the menu is visible; no engine, scene or simulation
   // runs until Start. Entry shares these promises even while downloads continue.
   void nextPaint().then(() => disposed ? undefined : prepareGame().then(module => module.preloadGameAssets())).catch(() => {});
@@ -63,12 +65,12 @@ async function boot() {
     launcher.error(error);
   }
 }
-async function start(createUI: typeof import('./ui.ts')['createUI'], mode: StartMode) {
+async function start(createUI: typeof import('./ui.ts')['createUI'], mode: StartMode, setup?: GameSetup) {
   try {
     // Re-read when Continue is clicked, in case another tab changed the save.
     const saved = mode === 'continue' ? readSavedGame() : undefined;
     if (saved && saved.status !== 'ready') { menu(); return; }
-    const economy = saved?.status === 'ready' ? saved.economy : new Economy(initialEconomy(Math.floor(Math.random() * 0xffffffff) + 1, debugRequested(location.search)));
+    const economy = saved?.status === 'ready' ? saved.economy : new Economy(initialEconomy(Math.floor(Math.random() * 0xffffffff) + 1, debugRequested(location.search), setup));
     launcher.beginGame(mode);
     await nextPaint();
     const { createGame } = await prepareGame();

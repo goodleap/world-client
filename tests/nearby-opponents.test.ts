@@ -37,11 +37,14 @@ for (const id of ['enemy-guard', 'enemy-archer', ENEMIES.find(r => r.role === 'c
   });
 }
 
-test('home automatic combat follows the same rule, while a player attack or move is authoritative', () => {
+test('home soldiers retain the requested target while reacting nearby, and manual movement takes priority', () => {
   const { c, actor, distant, near, step } = fight('enemy-guard', true);
   c.attack([actor.id], distant.id); c.hurt(actor.id, 1, near.id); step();
-  assert.equal(actor.target, distant.id); assert.equal(actor.order, 'attack');
-  c.guard([actor.id]); actor.target = distant.id; step(); assert.equal(actor.target, near.id);
+  assert.equal(actor.target, near.id); assert.equal(actor.commandTarget,distant.id); assert.equal(actor.order, 'attack');
+  c.guard([actor.id]); actor.target = distant.id;
+  const start={...actor.position};
+  for(let i=0;i<=Math.ceil(C.targetSwitchSeconds/.05);i++){actor.position={...start};step();}
+  assert.equal(actor.target, near.id);
   assert.equal(c.move([actor.id], { x: -5, z: -20 }), 1); step(); assert.equal(actor.target, undefined);
 });
 
@@ -95,7 +98,13 @@ test('a melee soldier chasing a tower attacker engages a nearby soldier first', 
   const site = buildingAt('tower', distant.position, 'site-0'), tower = newTower(site);
   e.state.sites.push(site); e.state.buildings.push(site.id); tower.unit = distant.id; tower.phase = 'occupied'; e.state.towers.push(tower);
   actor.target = undefined; c.hurt(actor.id, 1, distant.id); assert.equal(actor.target, tower.id);
-  step(); assert.equal(actor.target, near.id);
+  const start={...actor.position};
+  for(let i=0;i<=Math.ceil(C.targetSwitchSeconds/.05);i++){
+    // Isolate target-switch timing from approach movement and crowd avoidance.
+    actor.position={...start};step();
+    if(i<Math.floor(C.targetSwitchSeconds/.05)-1)assert.equal(actor.target,tower.id);
+  }
+  assert.equal(actor.target, near.id);
 });
 
 test('wolves also engage nearby soldiers, but fear and low-health retreat remain higher priority', () => {

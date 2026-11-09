@@ -1,4 +1,6 @@
 import { createSimulationClient } from './simulation-client.ts';
+import { storyView } from './story.ts';
+import type { StoryAction } from './story.ts';
 import { allWolves } from './raid-state.ts';
 import type { SimulationEvent } from './simulation.ts';
 import type { GamePlatform } from './game-platform.ts';
@@ -251,6 +253,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     refreshSelected();
     management.refresh(selectedGroup);
     updateEconomyUI(ui, economy);
+    ui.setStory(storyView(economy));
     ui.setHomeStatus(livingPopulation(economy.state), formatGameTime(economy.state.seconds));
     for (const id of Object.keys(economy.state.vitals)) {
       ui.setUnitHealth(id, health(economy.state, id), maxHealth(id, economy.state), economy.state.seconds, id === 'horse' ? 'cavalry' : id.startsWith('horse:') ? id.slice(6) : id);
@@ -524,6 +527,18 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     lighting = value; applyDaylight(scene, lighting);
     if (!saveLighting(lighting)) ui.settingsNotice('光照已生效，浏览器未能保存此偏好');
     freshFrame = true; requestRender();
+  });
+  ui.setGameSetup(economy.state.setup);
+  ui.bind('story-focus', () => {
+    const view = storyView(economy);
+    if (view && 'target' in view) { setPreview(); overview = false; mapCenter.set(view.target.x, .5, view.target.z); clampCenter(); freshFrame = true; requestRender(); }
+  });
+  let storyBusy = false;
+  for (const action of ['invite', 'tools', 'supplies'] as StoryAction[]) ui.bind(`story-${action}`, async () => {
+    if (storyBusy) return;
+    storyBusy = true;
+    try { const result = await simulation.command({ type: 'story', action }); ui.storyFeedback(result.message); refreshEconomy(); if (result.ok) await save(); }
+    finally { storyBusy = false; }
   });
   ui.bind('raid-notice', () => {
     if (ui.paused || suspended) return;

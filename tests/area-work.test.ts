@@ -38,14 +38,19 @@ test('area memory survives moving enemies, return visits and save/reload; only t
 
 test('guard area memory persists behind cover and clears after guards leave and ten safe seconds pass',()=>{
   const e=new Economy(),c=new Combat(e.state.combat,e,()=>[]);
+  // This is an area-memory fixture, independent of authored camp coordinates.
+  const guard=c.state.units.find(u=>u.id.startsWith('enemy-road-'))!;
+  for(const u of c.state.units)if(u!==guard){u.life='defeated';u.hp=0;}
+  for(const w of e.state.raids.wildWolves){w.life='defeated';w.hp=0;}
+  guard.position={x:0,z:0};
   const r=new Raids(e,c,{status:()=>({position:{x:0,z:0},moving:false}),command:()=>false,release:()=>{},resting:()=>{},neighbours:()=>[]},
-    ()=>[{kind:'box',x:-25,z:4,halfWidth:10,halfDepth:.5}],()=>false);
-  const point={x:-25,z:9};assert(r.unsafePath([point]));
+    ()=>[{kind:'box',x:0,z:2,halfWidth:10,halfDepth:.5}],()=>false);
+  const point={x:0,z:4};assert(r.unsafePath([point]));
   assert(!r.unsafePath([{x:-10,z:-10}]),'a safe home fire is outside the ore guards\' acquisition area; chase leash is not a hazard radius');
-  for(const u of c.state.units.filter(u=>u.id.startsWith('enemy-road-')))u.position={x:-35,z:9};
+  guard.position={x:10,z:0};
   e.state.seconds=15;assert(r.unsafePath([point]));
-  assert(r.unsafePath([{x:-45,z:9},{x:-5,z:9}]));
-  for(const u of c.state.units.filter(u=>u.id.startsWith('enemy-road-')))u.position={x:-50,z:9};
+  assert(r.unsafePath([{x:-10,z:4},{x:15,z:4}]));
+  guard.position={x:24,z:0};
   e.state.seconds=16;r.unsafePath([]);
   e.state.seconds=26;assert(!r.unsafePath([point]));
 });

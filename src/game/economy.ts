@@ -1,4 +1,8 @@
 import { MAP_DEVELOPMENT, OPENING_PROFILE } from './opening-profile.ts';
+import { DIFFICULTIES, FREE_GAME_SETUP, decodeGameSetup } from './game-setup.ts';
+import type { GameSetup } from './game-setup.ts';
+import { initialStory, decodeStory } from './story.ts';
+import type { StoryState } from './story.ts';
 import { pathInDanger, decodeDangerZones } from './danger-zones.ts';
 import type { DangerZone } from './danger-zones.ts';
 import { TOWER_CONFIG, newTower, validateTowers } from './towers.ts';
@@ -44,13 +48,14 @@ export interface WorkTask {
 export interface Goods extends Point { id: string; resource: Resource; amount: number; crop?: CropKind; state: 'ground' | 'transit'; carrier?: string; destination?: string }
 export interface SavedResident { position: Point; manualGoal?: Point }
 export interface EconomyState {
+  setup: GameSetup; story: StoryState | null;
   recruitment: RecruitmentState; groups: string[][]; groupMoves:Record<string,{members:string[];center:Point;route:Point[]}>; towers:TowerState[];
   residents: Record<string, SavedResident>;
   steward: { enabled: boolean; nextDecision: number; reason: string };
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
   buildingHealth:Record<string,number>; autoRepair: boolean; dangerZones: DangerZone[];
-  version: 31; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 32; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -72,9 +77,17 @@ function matchesTarget(kind: WorkKind, target: string, sites: BuildingSite[], pl
 
 export const DEBUG_RESOURCES = 100_000;
 export const debugRequested = (search: string) => new URLSearchParams(search).has('debug');
-export function initialEconomy(seed?: number, debug = false): EconomyState {
+export function startingInventory(setup: GameSetup = FREE_GAME_SETUP, debug = false): Inventory {
+  if (debug) return { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES };
+  const base = MAP_DEVELOPMENT ? { wood: 120, stone: 80, food: 120, iron: 40 } : C.initialInventory;
+  return Object.fromEntries(resources.map(key => [key, Math.ceil(base[key] * DIFFICULTIES[setup.difficulty].supplies)])) as Inventory;
+}
+export function initialEconomy(seed?: number, debug = false, setup: GameSetup = FREE_GAME_SETUP): EconomyState {
+  setup = decodeGameSetup(setup);
+  const raids = initialRaids(0, seed, debug);
+  if (!debug) raids.nextAt *= DIFFICULTIES[setup.difficulty].protection;
   return {
-    towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids: initialRaids(0, seed, debug), vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 31, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: debug ? { wood: DEBUG_RESOURCES, stone: DEBUG_RESOURCES, food: DEBUG_RESOURCES, iron: DEBUG_RESOURCES } : MAP_DEVELOPMENT?{wood:120,stone:80,food:120,iron:40}:{ ...C.initialInventory },
+    setup, story: setup.mode === 'story' ? initialStory() : null, towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids, vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 32, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: startingInventory(setup, debug),
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -579,18 +592,21 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 31) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 32) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   if(raw.opening!==OPENING_PROFILE)throw new Error('存档开局配置不匹配，请开始新游戏');
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
   if (typeof raw.debug !== 'boolean') throw new Error('调试存档无效');
   state.debug = raw.debug;
+  state.setup = decodeGameSetup(raw.setup);
+  state.story = decodeStory(raw.story, state.setup.mode, raw.seconds);
   if (!raw.inventory || !resources.every(k => number(raw.inventory[k], C.capacity[k] * 101 + (raw.debug ? DEBUG_RESOURCES : 0)) && Number.isInteger(raw.inventory[k]))) throw new Error('库存存档无效');
   if (!Array.isArray(raw.plots) || raw.plots.length > 10000 || new Set(raw.plots.map(p => p.id)).size !== raw.plots.length || !Array.isArray(raw.tasks) || raw.tasks.length > C.queueLimit + 12 + 10000) throw new Error('作业存档无效');
   // Explicitly taking over held work may briefly exceed the new-order limit.
   if (raw.tasks.filter(t => !pending(t)).length > 12) throw new Error('作业队列超出上限');
   if (!number(raw.seconds, 1e12)) throw new Error('游戏时间无效');
   state.recruitment=decodeRecruitment(raw.recruitment,state.debug);
+  if (state.story?.craftsmanId && !state.recruitment.roster.some(r => r.id === state.story!.craftsmanId && r.role === 'farmer')) throw new Error('故事居民存档无效');
   const residents=homeResidents(state),residentIds=new Set(residents.map(r=>r.id));
   if(!Array.isArray(raw.groups)||raw.groups.length!==GROUP_COUNT||raw.groups.some(g=>!Array.isArray(g)||g.length>GROUP_SIZE||g.some(id=>!residentIds.has(id)))
     ||new Set(raw.groups.flat()).size!==raw.groups.flat().length)throw new Error('编队存档无效');

@@ -24,6 +24,7 @@ export async function checkLaunch(page: Page, info: TestInfo) {
     expect(await page.locator('#game').count()).toBe(0);
     await page.screenshot({ path: info.outputPath('menu.png') });
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: '进入世界', exact: true }).click();
     await expect(screen).toHaveAttribute('data-phase', 'game-loading');
     await expect(screen).toHaveClass(/game-loading/);
     await expect(page.getByRole('progressbar', { name: '游戏资源加载进度' })).toBeVisible();

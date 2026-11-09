@@ -105,7 +105,9 @@ test('a routed dog can return from behind cover without crossing cover or a dang
       return stepRoute('dog',state.position,route,navigation,dt,speed,config.bodyRadius,config.bounds,obstacles,[]);
     });
     assert(segmentIsClear(before,state.position,config.bodyRadius,config.bounds,obstacles));
-    assert(Math.hypot(state.position.x-before.x,state.position.z-before.z)<=config.speed*.05+1e-8);
+    // Detour publishes Float32 positions; allow their rounding error, not an
+    // extra movement step or an arrival teleport.
+    assert(Math.hypot(state.position.x-before.x,state.position.z-before.z)<=config.speed*.05+1e-6);
   }
   assert(state.destinationsReached>0);assert(state.distanceTravelled>6);assert(plans<=2);
 });

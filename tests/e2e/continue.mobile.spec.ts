@@ -15,9 +15,12 @@ test('the phone menu separates continue and new game, preserving progress when r
   await expect(page.locator('#start-game')).toHaveText('开始游戏');
   await page.screenshot({ path: info.outputPath('phone-continue-menu.png') });
   await page.locator('#start-game').tap();
+  await expect(page.locator('#preparation-panel')).toBeVisible();
+  await page.locator('#enter-world').tap();
   await expect(page.locator('#new-game-dialog')).toBeVisible();
   await page.getByRole('button', { name: '取消', exact: true }).tap();
   expect(await page.evaluate(key => localStorage.getItem(key), ECONOMY_SAVE_KEY)).toBe(saved);
+  await page.locator('#preparation-back').tap();
   await page.locator('#continue-save').tap();
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 60_000 });
   expect((await snapshot(page)).economy.inventory.wood).toBe(23);
@@ -25,6 +28,8 @@ test('the phone menu separates continue and new game, preserving progress when r
   await page.getByRole('button', { name: '回到主菜单', exact: true }).tap();
   await expect(page.locator('#continue-save')).toBeEnabled();
   await page.locator('#start-game').tap();
+  await expect(page.locator('#preparation-panel')).toBeVisible();
+  await page.locator('#enter-world').tap();
   await page.screenshot({ path: info.outputPath('phone-new-game-confirm.png') });
   await page.getByRole('button', { name: '开始新游戏', exact: true }).tap();
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 60_000 });
@@ -46,6 +51,8 @@ test('missing and corrupt saves disable Continue; cancelling new game preserves 
   await expect(page.locator('#menu-save-status')).toContainText('原数据已保留');
   await expect(page.locator('#continue-save')).toBeDisabled();
   await page.locator('#start-game').tap();
+  await expect(page.locator('#preparation-panel')).toBeVisible();
+  await page.locator('#enter-world').tap();
   await page.getByRole('button', { name: '取消', exact: true }).tap();
   expect(await page.evaluate(key => localStorage.getItem(key), ECONOMY_SAVE_KEY)).toBe('broken-save');
 });
@@ -54,10 +61,15 @@ test('a failed new-game load does not overwrite the previous save', async ({ pag
   const economy = new Economy(); economy.state.inventory.wood = 29;
   const saved = encodeEconomy(economy);
   await page.addInitScript(({ key, saved }) => localStorage.setItem(key, saved), { key: ECONOMY_SAVE_KEY, saved });
-  await page.route(/\/assets\/characters-(?!lod-)[^/]+\.glb$/, route => route.abort('failed'));
+  let blocked = 0;
+  // Model requests originate in the render worker; intercept the whole context.
+  await page.context().route(/\/assets\/characters-(?!lod-)[^/]+\.glb$/, route => { blocked++; return route.abort('failed'); });
   await page.goto('/');
   await page.locator('#start-game').tap();
+  await expect(page.locator('#preparation-panel')).toBeVisible();
+  await page.locator('#enter-world').tap();
   await page.getByRole('button', { name: '开始新游戏', exact: true }).tap();
-  await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'error');
+  await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'error', { timeout: 60_000 });
+  expect(blocked).toBeGreaterThan(0);
   expect(await page.evaluate(key => localStorage.getItem(key), ECONOMY_SAVE_KEY)).toBe(saved);
 });

@@ -31,8 +31,8 @@
   touch-action:pan-x pan-y;
 }
 
-/* Native scrolling and map pointer gestures remain enabled. Only the temporary
-   copy buffer needs selection; it is never an interactive page element. */
+/* Native scrolling and map pointer gestures remain enabled. Editable fields
+   and the temporary copy buffer opt into text selection. */
 .clipboard-buffer { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; font-size:16px; -webkit-user-select:text; user-select:text; }
 
 html, body {
@@ -1410,3 +1410,49 @@ kbd {
   .recruit-dialog #recruit-queue { height:76px; }
   .recruit-dialog #recruit-notice { height:auto; max-height:28px; }
 }
+
+/* Native form controls keep the preparation screen usable with touch and keyboards. */
+.preparation-screen { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.preparation-screen .launch-content { width: min(100%, 520px); height: min(720px, calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.preparation-screen .launch-emblem, .preparation-screen .launch-eyebrow, .preparation-screen .launch-footer { display: none; }
+#preparation-panel { display: flex; flex-direction: column; min-height: 0; max-height: 100%; text-align: left; }
+.preparation-heading { flex-shrink: 0; }
+.preparation-heading h1 { font-size: 27px; letter-spacing: 1px; margin: 0 0 20px; }
+.preparation-heading .eyebrow { margin: 0 0 4px; }
+#game-setup-form { display: flex; flex-direction: column; min-height: 0; }
+.preparation-scroll { overflow: auto; min-height: 0; padding: 2px 2px 12px; touch-action: pan-y; overscroll-behavior: contain; }
+#game-setup-form fieldset { margin: 0; padding: 0; border: 0; }
+#game-setup-form legend, .home-name-label { font-size: 13px; font-weight: 650; margin-bottom: 8px; }
+.mode-options { display: grid; gap: 9px; }
+.setup-choice { display: flex; gap: 10px; align-items: center; border: 1px solid #cbd5be; border-radius: 13px; background: #fffaf299; padding: 12px; min-height: 48px; cursor: pointer; }
+.setup-choice:has(input:checked) { border-color: #6b8659; background: #e2ebd5; box-shadow: inset 0 0 0 1px #6b8659; }
+.setup-choice:focus-within { outline: 2px solid #40543f; outline-offset: 2px; }
+.setup-choice input { accent-color: #587543; width: 18px; height: 18px; margin: 0; flex-shrink: 0; }
+.setup-choice strong { display: block; font-size: 15px; }
+.setup-choice small { display: block; font-size: 12px; color: #617257; line-height: 1.6; margin-top: 3px; }
+#game-setup-form .difficulty-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.difficulty-options .setup-choice { justify-content: center; padding: 8px 4px; font-size: 13px; gap: 6px; }
+#difficulty-description { margin: 7px 0 16px; font-size: 12px; }
+.home-name-label { display: block; }
+#home-name { display: block; width: 100%; min-height: 46px; margin-top: 8px; padding: 10px 12px; border: 1px solid #b9c7a9; border-radius: 10px; background: #fffdf7; color: #40543f; font: inherit; font-size: 16px; -webkit-user-select: text; user-select: text; }
+.setup-summary { padding: 12px 14px; background: #e8e5d640; border-left: 3px solid #c6aa67; margin-top: 16px; border-radius: 0 10px 10px 0; }
+.setup-summary strong { font-size: 13px; }
+.setup-summary p { margin: 5px 0 0; font-size: 12px; }
+.preparation-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; flex-shrink: 0; padding-top: 12px; }
+.preparation-actions button { min-height: 48px; justify-content: center; }
+.preparation-actions button:focus-visible, #home-name:focus-visible { outline: 2px solid #40543f; outline-offset: 2px; }
+.preparation-actions .secondary-button { background: #e0e7d5; color: #40543f; }
+@media (max-height: 550px) { .preparation-heading h1 { font-size: 22px; margin-bottom: 8px; } .preparation-heading .eyebrow { display: none; } }
+
+.status-stack .story-notice { pointer-events: auto; width: 160px; padding: 9px 10px; text-align: left; border: 1px solid #b8c6a5; border-radius: 12px; background: #f5f2e7ef; color: #40543f; line-height: 1.5; box-shadow: 0 2px 8px #35462616; }
+.story-notice small { display: block; font-size: 10px; color: #738267; }
+.story-notice strong { display: block; font-size: 12px; margin-top: 3px; }
+.story-dialog { width: min(440px, calc(100% - 28px)); }
+.story-dialog .story-objective { padding: 12px; border-radius: 10px; background: #e6ecd9; font-size: 14px; color: #40543f; }
+#story-progress { width: 100%; height: 7px; accent-color: #6b8659; }
+.story-actions { display: grid; gap: 10px; margin-top: 20px; }
+.story-actions button { justify-content: center; min-height: 48px; white-space: normal; }
+.story-actions button:disabled { opacity: .5; cursor: default; }
+#story-feedback { font-size: 13px; }
+#story-feedback:empty { display: none; }
+#story-close { margin-top: 16px; min-height: 44px; }

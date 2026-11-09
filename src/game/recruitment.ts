@@ -23,7 +23,8 @@ export interface RecruitOrder { serial: number; role: ResidentRole; elapsed: num
 export interface RecruitmentState { nextId: number; roster: ResidentDefinition[]; queue: RecruitOrder[]; rally: Point }
 export const initialRecruitment = (): RecruitmentState => ({ nextId: 1, roster: [], queue: [],
   rally: { x: HOME_CENTER.x, z: HOME_CENTER.z - HOME_CENTER.depth / 2 - 3.5 } });
-export const homeResidents = (state: Pick<EconomyState, 'recruitment'>) => [...RESIDENTS, ...state.recruitment.roster];
+export const homeResidents = (state: Pick<EconomyState, 'recruitment'> & Partial<Pick<EconomyState, 'story'>>) => [...RESIDENTS, ...state.recruitment.roster]
+  .map(r => r.id === state.story?.craftsmanId ? { ...r, name: '木匠·阿榆' } : r);
 export const livingResidents = (state: EconomyState) => homeResidents(state).filter(r => health(state, r.id) > 0);
 export function decodeRecruitment(raw:RecruitmentState, debug=false):RecruitmentState {
   const point=(p:Point)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&inBounds(p,0,WORLD_BOUNDS);
@@ -75,15 +76,30 @@ export function advanceRecruitment(e: Economy, seconds: number, occupants: reado
   const duration=recruitSeconds(state,order.role);
   order.elapsed=Math.min(duration,order.elapsed+seconds);
   if(order.elapsed<duration)return;
-  const id=`recruit-${order.role}-${order.serial}`, radius=STANDARD_RESIDENTS.find(r=>r.role===order.role)!.bodyRadius;
-  const solids=[...economyObstacles(state.depleted,state.sites,state.buildings),...occupants];
-  const door={x:HOME_CENTER.x-.35,z:HOME_CENTER.z-HOME_CENTER.depth/2-1.25};
-  const candidates=Array.from({length:4},(_,row)=>[-1,0,1].map(col=>({x:door.x+col*(radius*2+.2),z:door.z-row*.7}))).flat();
-  const point=candidates.find(p=>inBounds(p,radius,WORLD_BOUNDS)&&!isBlocked(p,radius,solids));if(!point)return;
-  const definition=newResident(order.role,id,point);
-  state.recruitment.roster.push(definition);state.recruitment.queue.shift();
-  for(const body of bodiesFor(id))state.vitals[body]=initialVital(body);
-  state.residents[id]={position:{...point},manualGoal:{...state.recruitment.rally}};
-  if(!['farmer','dog'].includes(order.role))state.combat.units.push(createFighter(definition));
-  e.revision++;return definition;
+  const point = recruitPosition(e, order.role, occupants); if (!point) return;
+  state.recruitment.queue.shift();
+  return settleResident(e, order.role, order.serial, point);
+}
+
+function recruitPosition(e: Economy, role: ResidentRole, occupants: readonly Obstacle[]) {
+  const state = e.state, radius = STANDARD_RESIDENTS.find(r => r.role === role)!.bodyRadius;
+  const solids = [...economyObstacles(state.depleted, state.sites, state.buildings), ...occupants];
+  const door = { x: HOME_CENTER.x - .35, z: HOME_CENTER.z - HOME_CENTER.depth / 2 - 1.25 };
+  const candidates = Array.from({ length: 4 }, (_, row) => [-1, 0, 1].map(col => ({ x: door.x + col * (radius * 2 + .2), z: door.z - row * .7 }))).flat();
+  return candidates.find(p => inBounds(p, radius, WORLD_BOUNDS) && !isBlocked(p, radius, solids));
+}
+function settleResident(e: Economy, role: ResidentRole, serial: number, point: Point) {
+  const state = e.state, id = `recruit-${role}-${serial}`, definition = newResident(role, id, point);
+  state.recruitment.roster.push(definition);
+  for (const body of bodiesFor(id)) state.vitals[body] = initialVital(body);
+  state.residents[id] = { position: { ...point }, manualGoal: { ...state.recruitment.rally } };
+  if (!['farmer', 'dog'].includes(role)) state.combat.units.push(createFighter(definition));
+  e.revision++; return definition;
+}
+/** Story guests share recruitment's population, door clearance and resident initialization. */
+export function admitGuest(e: Economy, occupants: readonly Obstacle[] = []) {
+  if (!buildingOperational(e.state, 'home-center') || livingResidents(e.state).filter(r => r.role !== 'dog').length
+    + e.state.recruitment.queue.filter(q => q.role !== 'dog').length >= POPULATION_LIMIT) return;
+  const point = recruitPosition(e, 'farmer', occupants); if (!point) return;
+  return settleResident(e, 'farmer', e.state.recruitment.nextId++, point);
 }

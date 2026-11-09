@@ -11,6 +11,9 @@ import { createMapGestures } from './game/map-gestures.ts';
 import type { Landmark } from './game/world-data.ts';
 import type { FrameSample } from './game/frame-metrics.ts';
 import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
+import type { StoryView } from './game/story.ts';
+import { GAME_MODES, DIFFICULTIES } from './game/game-setup.ts';
+import type { GameSetup } from './game/game-setup.ts';
 
 export interface SelectionAction { id: string; label: string; disabled?: boolean }
 export interface SelectionDetails { showHint?: boolean; name: string; kind: string; hint: string; actions?: SelectionAction[]; health?:{value:number;maximum:number} }
@@ -60,6 +63,7 @@ export function createUI(app: HTMLElement) {
       <button id="queue-toggle" aria-expanded="false" aria-controls="queue-panel">作业 <b id="queue-count">0</b></button>
     </aside>
     <button id="raid-notice" class="raid-notice" aria-live="polite" hidden></button>
+    <button id="story-open" class="story-notice" aria-label="查看故事目标" hidden><small>第一章 · 迎接第一支商队</small><strong id="story-current"></strong></button>
     <section id="queue-panel" class="queue-panel" aria-label="作业队列" hidden>
       <div class="queue-heading"><h2>作业队列</h2><button id="queue-close" aria-label="收起作业队列">${icon('close')}</button></div>
       <ol id="queue-list"></ol>
@@ -111,6 +115,19 @@ export function createUI(app: HTMLElement) {
     <div id="target-hint" class="target-hint floating-hint" role="status" hidden></div>
 
     <nav id="group-shortcuts" class="group-shortcuts" aria-label="快速选择编队"></nav>
+    <dialog id="story-dialog" class="paper-dialog story-dialog" aria-labelledby="story-title">
+      <button class="dialog-close" aria-label="关闭故事目标">${icon('close')}</button>
+      <p class="eyebrow">第一章 · 迎接第一支商队</p><h2 id="story-title"></h2>
+      <p id="story-text" class="dialog-intro"></p><p id="story-objective" class="story-objective"></p>
+      <progress id="story-progress" max="5" value="0" aria-label="第一章进度"></progress>
+      <div class="story-actions">
+        <button id="story-focus" class="primary-button" hidden>查看目标位置</button>
+        <button id="story-invite" class="primary-button" hidden>准备粮食并邀请商队 · 粮食 20</button>
+        <button id="story-tools" class="primary-button" hidden>工坊补给 · 工具升一级、木材 12、铁矿 8</button>
+        <button id="story-supplies" class="primary-button" hidden>安家物资 · 粮食 24、石材 16</button>
+      </div><p id="story-feedback" role="status"></p>
+      <button id="story-close" class="primary-button secondary-button">返回家园</button>
+    </dialog>
     <dialog id="resources-dialog" class="paper-dialog resources-dialog" aria-labelledby="resources-title">
       <button class="dialog-close" aria-label="关闭家园面板">${icon('close')}</button><h2 id="resources-title">家园</h2>
       <div class="home-tabs" role="tablist" aria-label="家园信息">
@@ -179,7 +196,8 @@ export function createUI(app: HTMLElement) {
   const recruitment = get<HTMLDialogElement>('recruit-dialog');
   const demolition=get<HTMLDialogElement>('demolish-dialog');
   const fullMap=get<HTMLDialogElement>('map-dialog');
-  const dialogs = [settings, graphics, help, detail, resources, recruitment, demolition, fullMap];
+  const storyDialog = get<HTMLDialogElement>('story-dialog');
+  const dialogs = [settings, graphics, help, detail, resources, recruitment, demolition, fullMap, storyDialog];
   let confirmDemolition: (()=>void)|undefined;
   const speech = new ResidentSpeech();
   const bubbles = new Map<string, HTMLElement>();
@@ -221,6 +239,9 @@ export function createUI(app: HTMLElement) {
   let onPauseChange = () => {};
   let onLeave: (destination: 'menu' | 'exit') => void = () => {};
   const showDialog = (dialog: HTMLDialogElement) => { if (!dialog.open) dialog.showModal(); onPauseChange(); };
+  get('story-open').addEventListener('click', () => { get('story-feedback').textContent = ''; showDialog(storyDialog); }, options);
+  get('story-close').addEventListener('click', () => storyDialog.close(), options);
+  get('story-focus').addEventListener('click', () => storyDialog.close(), options);
   // Open the destination first so the game stays paused throughout the swap.
   // Closing the source also removes its native backdrop from the top layer.
   const switchDialog = (from: HTMLDialogElement, to: HTMLDialogElement) => { showDialog(to); from.close(); };
@@ -363,6 +384,24 @@ export function createUI(app: HTMLElement) {
       const notice = get('raid-notice'); notice.hidden = !text;
       if (notice.textContent !== text) notice.textContent = text;
     },
+    setGameSetup(setup: GameSetup) {
+      get('resources-title').textContent = setup.homeName;
+      get('home-resources').title = `${setup.homeName} · ${GAME_MODES[setup.mode].name} · ${DIFFICULTIES[setup.difficulty].name}`;
+    },
+    setStory(view: StoryView) {
+      get('story-open').hidden = !view;
+      if (!view) return;
+      for (const [id, text] of [['story-current', view.title], ['story-title', view.title], ['story-text', view.text], ['story-objective', view.objective]]) {
+        if (get(id).textContent !== text) get(id).textContent = text;
+      }
+      get<HTMLProgressElement>('story-progress').value = view.progress;
+      get('story-focus').hidden = !('target' in view);
+      get('story-invite').hidden = !view.invite; get<HTMLButtonElement>('story-invite').disabled = !view.canInvite;
+      get('story-tools').hidden = !view.trade; get<HTMLButtonElement>('story-tools').disabled = !view.canTools;
+      get('story-supplies').hidden = !view.trade;
+      storyDialog.dataset.stage = view.stage;
+    },
+    storyFeedback(text: string) { get('story-feedback').textContent = text; },
     flashAttackTarget(id: string, seconds: number) { attackPulseId = id; attackPulseAt = seconds; },
     setAttackTarget(id: string | undefined, seconds: number) {
       const label = id ? residentLabels.get(id) : undefined;

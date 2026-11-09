@@ -1,3 +1,4 @@
+import { DIFFICULTIES } from './game-setup.ts';
 import { MAP_DEVELOPMENT } from './opening-profile.ts';
 import { navigationRuntime } from './navigation-runtime.ts';
 import { Combat, fighterRadius, fighterDestination, createFighter } from './combat.ts';
@@ -143,7 +144,7 @@ export class Raids {
     }
     const defenders=this.combat.state.units.filter(u=>u.team==='home'&&u.life==='active'&&u.hp>COMBAT_CONFIG[u.role].hp*.35).length;
     const base=defenders<2?1:state.wave===0?2:Math.min(C.maxWolves,2+Math.floor(defenders/3)+this.economy.state.upgrades.arms);
-    const count=state.wave%2 ? Math.min(C.maxSoldiers,base*2) : base;
+    const count=Math.max(1,Math.min(state.wave%2?C.maxSoldiers:C.maxWolves,Math.round((state.wave%2?base*2:base)*DIFFICULTIES[this.economy.state.setup.difficulty].raiders)));
     const candidates=LANDSCAPE.regions.filter(r=>r.id!=='home'&&!('camp' in r)&&distance(r,home)>32);
     const start=Math.floor(raidRandom(state)*candidates.length);
     // Prefer off-screen entrances. An overview of the entire map must not
@@ -274,7 +275,7 @@ export class Raids {
     const dt = Math.min(seconds, .25), now = this.economy.state.seconds;
     if(this.economy.state.debug)this.debug.update();
     this.updateAreas();
-    if(!this.economy.state.debug&&this.state.phase==='peace'){
+    if(!this.economy.state.debug&&this.state.phase==='peace'&&(!this.economy.state.story||this.economy.state.story.stage==='complete')){
       if(!this.state.pendingOrigin&&now>=this.state.nextAt-C.warning)this.warn();
       if(this.state.pendingOrigin&&now>=this.state.nextAt)this.spawn();
     }
@@ -292,7 +293,7 @@ export class Raids {
     while (remaining > 1e-8) { const step = Math.min(.05, remaining); for (const w of this.wolves) this.tick(w, step); remaining -= step; }
     if (!this.economy.state.debug && this.state.phase === 'raid' && this.state.wolves.every(w => w.life === 'defeated' || w.mode === 'gone')
       && this.state.soldiers.every(id=>{const u=this.combat.unit(id);return !u||u.life==='defeated'||u.departed;})) {
-      this.state.phase = 'peace'; this.state.nextAt = now + C.intervalMin + raidRandom(this.state) * (C.intervalMax - C.intervalMin);
+      this.state.phase = 'peace'; this.state.nextAt = now + (C.intervalMin + raidRandom(this.state) * (C.intervalMax - C.intervalMin)) * DIFFICULTIES[this.economy.state.setup.difficulty].interval;
       const stolen = this.state.wolves.filter(w => w.mode === 'gone').reduce((n, w) => n + w.carried, 0);
       this.state.notice = stolen ? `狼群离开了 · 带走${stolen}份熟食` : this.state.soldiers.length?'敌袭已结束':'狼群已被赶走'; this.state.noticeUntil = now + 10;
     }

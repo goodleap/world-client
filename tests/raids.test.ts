@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Economy, initialEconomy, encodeEconomy, decodeEconomy } from '../src/game/economy.ts';
-import { Combat } from '../src/game/combat.ts';
+import { Combat, fighterRadius } from '../src/game/combat.ts';
+import { COMBAT_CONFIG } from '../src/game/combat-config.ts';
+import { withCrowdStep } from './native-test-runtime.ts';
 import { Raids } from '../src/game/raids.ts';
 import { newWolf, RAID_CONFIG, initialRaids } from '../src/game/raid-state.ts';
 import { RESIDENTS } from '../src/game/resident-data.ts';
@@ -64,14 +66,15 @@ test('bite has windup, exactly one contact per attack, stable target and persist
 
 test('wolf path respects cover and crowd, and cannot bite through a wall', () => {
   const wall: Obstacle = { kind: 'box', x: 0, z: .7, halfWidth: 4, halfDepth: .1 };
-  const s = setup(undefined, [wall]), wolves = s.wave([{ x: -1.5, z: -2 }, { x: 1.5, z: -2 }]);
+  const solids=[wall],s = setup(undefined, solids), wolves = s.wave([{ x: -1.5, z: -2 }, { x: 1.5, z: -2 }]);
   s.positions.farmer = { x: 0, z: 2 }; s.e.state.vitals.farmer.manualUntil = 100;
   wolves.forEach(w => { w.target = 'farmer'; w.mode = 'hunt'; });
-  s.advance(8, () => {
+  for(let i=0;i<160;i++)withCrowdStep(s.e,s.c,()=>solids,.05,()=>s.advance(.05,() => {
     for (const w of wolves) assert(!isBlocked(w.position, .72, [wall]));
     assert(Math.hypot(wolves[0].position.x - wolves[1].position.x, wolves[0].position.z - wolves[1].position.z) >= 1.43);
-  });
-  assert(s.e.state.vitals.farmer.hp! < 100, 'wolves approach around cover and land a bite');
+  }),s.r.wolves.filter(w=>w.life==='active').map(w=>({id:w.id,position:w.position,radius:fighterRadius(w),speed:COMBAT_CONFIG.wolf.speed,
+    route:s.c.movementRoute(w),destination:s.c.movementDestination(w),solids,moveIdle:p=>{w.position=p;}})));
+  assert(s.e.state.vitals.farmer.hp! < 100, 'wolves approach around cover and land a bite: '+JSON.stringify(wolves.map(w=>({position:w.position,target:w.target,mode:w.mode,route:w.route,attack:w.attack}))));
 });
 
 test('idle defenders aid neighbours; moving soldiers and manual civilian orders retain priority', () => {

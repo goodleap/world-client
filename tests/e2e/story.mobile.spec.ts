@@ -1,0 +1,34 @@
+import { test, expect } from '@playwright/test';
+import { encodeEconomy } from '../../src/game/economy.ts';
+import { ECONOMY_SAVE_KEY } from '../../src/game/economy-storage.ts';
+import { tradeFixture } from '../story-fixture.ts';
+import { openGame, snapshot } from './helpers.ts';
+
+test('the caravan choice settles once, adds a visible resident, and persists through Continue', async ({ page }, info) => {
+  test.setTimeout(180_000);
+  const saved = encodeEconomy(tradeFixture());
+  await page.addInitScript(({ key, saved }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, saved); }, { key: ECONOMY_SAVE_KEY, saved });
+  const errors = await openGame(page);
+  await page.locator('#story-open').click();
+  await expect(page.locator('#story-title')).toHaveText('第一支商队抵达了');
+  const before = (await snapshot(page)).economy.goods.map(g => g.id);
+  await page.locator('#story-tools').click();
+  await expect(page.locator('#story-dialog')).toHaveAttribute('data-stage', 'complete');
+  const finished = (await snapshot(page)).economy;
+  expect(finished.upgrades.tools).toBe(1);
+  expect(finished.recruitment.roster).toHaveLength(1);
+  expect(finished.goods.filter(g => !before.includes(g.id)).map(g => [g.resource, g.amount])).toEqual([['wood', 12], ['iron', 8]]);
+  await page.screenshot({ path: info.outputPath('first-caravan-complete.png') });
+  await page.locator('#story-close').click();
+  await expect(page.locator(`[data-resident="${finished.story!.craftsmanId}"]`)).toHaveText('木匠·阿榆');
+  await page.locator('#settings').click(); await page.locator('#return-menu').click();
+  await page.locator('#continue-save').click();
+  await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 90_000 });
+  const resumed = (await snapshot(page)).economy;
+  expect(resumed.story).toEqual(finished.story);
+  expect(resumed.recruitment.roster).toHaveLength(1);
+  expect(resumed.upgrades.tools).toBe(1);
+  await page.locator('#story-open').click();
+  await expect(page.locator('#story-tools')).not.toBeVisible();
+  expect(errors).toEqual([]);
+});

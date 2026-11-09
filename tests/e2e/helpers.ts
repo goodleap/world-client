@@ -8,7 +8,11 @@ export async function openGame(page: Page, url = '/') {
   await page.goto(url);
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
   if (await page.locator('#continue-save').isEnabled()) await page.locator('#continue-save').click();
-  else await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+  else {
+    await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.locator('input[name=mode][value=free]').check();
+    await page.getByRole('button', { name: '进入世界', exact: true }).click();
+  }
   await expect(page.locator('#loading')).toHaveClass(/\bloaded\b/, { timeout: 60_000 });
   // Loading already waits for assets and shaders; two further frames establish
   // the live scene without spending ten software-GPU frames before every test.

@@ -13,6 +13,7 @@ test('loading details explain a stalled shared download and complete processing 
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
   await expect.poll(() => libraryRequests).toBe(1);
   await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+  await page.getByRole('button', { name: '进入世界', exact: true }).click();
   try {
     await expect(page.locator('#loading-progress')).toBeVisible();
     await expect(page.locator('#loading-status')).toBeHidden();
@@ -35,6 +36,7 @@ test('loading details explain a stalled shared download and complete processing 
     await page.locator('#loading-details summary').click();
     await expect(page.locator('#previous-loading')).toContainText('上次加载未完成');
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: '进入世界', exact: true }).click();
     const history = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), LOADING_HISTORY_KEY);
     expect(history.previous.id).toBe(interrupted.id);
     expect(history.previous.events.some((event: { name: string }) => event.name === 'pagehide')).toBe(true);

@@ -9,6 +9,8 @@ import { COMBAT_CONFIG as C, OUTPOST, ENCOUNTERS } from '../src/game/combat-conf
 import { economyObstacles } from '../src/game/economy-config.ts';
 import { isBlocked } from '../src/game/movement.ts';
 import type { Obstacle } from '../src/game/movement.ts';
+import { MOVE_DESTINATION_RADIUS } from '../src/game/work-navigation.ts';
+import { withCrowdStep } from './native-test-runtime.ts';
 function setup(solids: Obstacle[] = []) {
   const e = new Economy(), c = new Combat(e.state.combat, e, () => solids);
   // Isolate the duel; other guards still retain their real autonomous AI.
@@ -54,6 +56,11 @@ test('projectiles release once, persist through reload, and cannot hit through c
   const { e, c, a, archer, b } = setup(); a.position = { x: 0, z: 0 }; archer.position = { x: OUTPOST.x + 2, z: OUTPOST.z }; c.attack([archer.id], b.id); advance(c, .05 + C.archer.windup);
   c.move([archer.id], { x: OUTPOST.x + 20, z: OUTPOST.z }); b.cooldown = 8;
   assert.equal(c.state.projectiles.length, 1); const hp = b.hp;
+  assert(c.state.projectiles[0].from.y!<0,'arrows above the quarry floor have negative world height');
+  for(const height of [-6,36,null,'0']){
+    const invalid=JSON.parse(encodeEconomy(e));invalid.combat.projectiles[0].from.y=height;
+    assert.throws(()=>decodeEconomy(JSON.stringify(invalid)),/投射物/);
+  }
   const restored = decodeEconomy(encodeEconomy(e)), next = new Combat(restored.state.combat, restored, () => []);
   advance(next, .45); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack * 20 / (20 + C.enemyMelee.armor));
   advance(next, .3); assert.equal(next.unit(b.id)!.hp, hp - C.archer.attack * 20 / (20 + C.enemyMelee.armor));
@@ -79,11 +86,12 @@ test('actual map paths and shared crowd follower keep soldiers out of solids and
   const e = new Economy(), solids = economyObstacles([], []), c = new Combat(e.state.combat, e, () => solids);
   const allies = c.state.units.filter(u => u.team === 'home');
   assert.equal(c.attack(allies.map(u => u.id), 'enemy-guard'), 3);
-  advance(c, 20, () => {
+  for(let step=0;step<400;step++){
+    withCrowdStep(e,c,()=>solids,.05,()=>{e.state.seconds+=.05;c.update(.05);});
     for (const u of c.state.units) assert(!isBlocked(u.position,fighterRadius(u)-.001,solids), `${u.id} crossed terrain`);
     const live = c.state.units.filter(u => u.life !== 'defeated');
     for (let i = 0; i < live.length; i++) for (const v of live.slice(i + 1)) assert(!isBlocked(live[i].position,fighterRadius(live[i])-.005,[bodyObstacle(v.position,fighterRadius(v))]),`${live[i].id}/${v.id} overlap`);
-  });
+  }
   assert(c.unit('enemy-guard')!.hp < C.enemyMelee.hp);
 });
 test('death holds position without automatic home recovery or warehouse food charges', () => {
@@ -140,7 +148,10 @@ test('a nearby fallback goal survives reload and an unreachable click preserves 
   const solids: Obstacle[] = [{kind:'circle',x:0,z:0,radius:.8}, {kind:'circle',x:10,z:0,radius:7}];
   const { e, c, a }=setup(solids); a.position={x:-4,z:0};
   assert.equal(c.move([a.id],new Vector3(0,0,0)),1);
-  const goal={...a.goal!}; assert(Math.hypot(goal.x,goal.z)<1.21);
+  // Detour projects onto its clearance-eroded mesh; the contract is a safe
+  // reachable point within the configured click radius, not a grid coordinate.
+  const goal={...a.goal!}; assert(Math.hypot(goal.x,goal.z)<=MOVE_DESTINATION_RADIUS);
+  assert(Math.hypot(goal.x,goal.z)<4,'the fallback approaches the clicked obstacle');
   assert(!isBlocked(goal,fighterRadius(a),solids)); assert.deepEqual(a.route.at(-1),goal);
   const state=encodeEconomy(e);
   assert.equal(c.move([a.id],{x:10,z:0}),0); assert.equal(encodeEconomy(e),state);

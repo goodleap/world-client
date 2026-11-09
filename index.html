@@ -39,6 +39,26 @@
             <p id="menu-save-status" class="menu-save-status" role="status"></p>
             <p class="menu-hint">点击探索 · 拖动地图 · 自由漫游</p>
           </section>
+          <section id="preparation-panel" aria-labelledby="preparation-title" hidden>
+            <div class="preparation-heading"><p class="eyebrow">一段新的旅程</p><h1 id="preparation-title" tabindex="-1">准备你的家园</h1></div>
+            <form id="game-setup-form">
+              <div class="preparation-scroll">
+                <fieldset class="mode-options"><legend>游戏模式</legend>
+                  <label class="setup-choice"><input type="radio" name="mode" value="story" checked><span><strong>故事模式</strong><small>跟随章节发展家园，遇见旅人，打通商路。</small></span></label>
+                  <label class="setup-choice"><input type="radio" name="mode" value="free"><span><strong>自由模式</strong><small>自由建设、探索与战斗，自己决定下一步。</small></span></label>
+                </fieldset>
+                <fieldset class="difficulty-options"><legend>游戏难度</legend>
+                  <label class="setup-choice"><input type="radio" name="difficulty" value="relaxed"><span>轻松</span></label>
+                  <label class="setup-choice"><input type="radio" name="difficulty" value="standard" checked><span>标准</span></label>
+                  <label class="setup-choice"><input type="radio" name="difficulty" value="challenging"><span>挑战</span></label>
+                </fieldset>
+                <p id="difficulty-description"></p>
+                <label class="home-name-label" for="home-name">家园名称<input id="home-name" name="homeName" type="text" maxlength="24" placeholder="溪谷家园" autocomplete="off" value="溪谷家园"></label>
+                <div class="setup-summary" aria-live="polite"><strong id="setup-goal"></strong><p id="setup-summary"></p></div>
+              </div>
+              <div class="preparation-actions"><button id="preparation-back" type="button" class="primary-button secondary-button">返回</button><button id="enter-world" type="submit" class="primary-button">进入世界</button></div>
+            </form>
+          </section>
           <section id="exit-panel" aria-labelledby="exit-title" hidden>
             <h1 id="exit-title">已退出游戏</h1>
             <p>进度已保存，可以关闭此页面。</p>

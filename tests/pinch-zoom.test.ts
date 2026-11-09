@@ -5,8 +5,8 @@ import { Scene } from '@babylonjs/core/scene.js';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera.js';
 import { Camera } from '@babylonjs/core/Cameras/camera.js';
 import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
-import { Plane } from '@babylonjs/core/Maths/math.plane.js';
 import { pinchMapCamera } from '../src/game/pinch-zoom.ts';
+import { terrainRayDistance } from '../src/game/terrain-height.ts';
 
 const limits = { min: 4, max: 169 };
 type Pixel = { x: number; y: number };
@@ -25,7 +25,8 @@ function cameraFixture(width = 393, height = 754, scale = 1) {
   };
   const groundAt = (p: Pixel) => {
     const ray = scene.createPickingRay(p.x - canvas.left, p.y - canvas.top, null, camera);
-    return ray.origin.add(ray.direction.scale(ray.intersectsPlane(new Plane(0, 1, 0, 0))!));
+    const distance=terrainRayDistance(ray);assert.notEqual(distance,null);
+    return ray.origin.add(ray.direction.scale(distance!));
   };
   const project = (p: Vector3) => {
     const screen = Vector3.Project(p, Matrix.IdentityReadOnly, camera.getViewMatrix().multiply(camera.getProjectionMatrix()),

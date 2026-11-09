@@ -37,10 +37,17 @@ test('buffer pursuit waits three quiet seconds, preserves the timer on pause/rel
   assert(guard.pursuitQuiet!>1);assert.equal(guard.order,'guard');
   const saved=encodeEconomy(e),restored=decodeEconomy(saved),c=new Combat(restored.state.combat,restored,()=>[]);
   const u=c.unit(guard.id)!;assert.equal(u.pursuitQuiet,guard.pursuitQuiet);
+  const target=c.unit('infantry')!;
+  const resumedStep=()=>{
+    // Restore the same stationary-opponent fixture after loading, so the
+    // player's automatic AI cannot approach and restart close combat.
+    target.order='move';target.goal=undefined;target.route=[];target.target=undefined;target.attack=undefined;
+    restored.state.seconds+=.05;c.update(.05);
+  };
   const frozen=encodeEconomy(restored);c.update(0);assert.equal(encodeEconomy(restored),frozen);
-  for(let i=0;i<36;i++){restored.state.seconds+=.05;c.update(.05);}
+  for(let i=0;i<36;i++)resumedStep();
   assert.equal(u.order,'guard');
-  for(let i=0;i<3;i++){restored.state.seconds+=.05;c.update(.05);}
+  for(let i=0;i<3;i++)resumedStep();
   assert.equal(u.order,'hold');assert.deepEqual(u.goal,u.home);assert.equal(u.target,undefined);
   const bad=JSON.parse(saved);bad.combat.units.find((u:{id:string})=>u.id===guard.id).pursuitQuiet=4;
   assert.throws(()=>decodeEconomy(JSON.stringify(bad)),/战斗人物/);

@@ -4,6 +4,23 @@ import { createNativeNavigation } from '../src/game/native-navigation.ts';
 import { immutableObstacles } from '../src/game/navigation-geometry.ts';
 import { sweepIsBlocked } from '../src/game/movement.ts';
 
+test('scattered obstacles carve every touched tile across native update batches',async()=>{
+  const nav=await createNativeNavigation(),bounds={minX:-52,maxX:52,minZ:-52,maxZ:52};
+  const solids=immutableObstacles(Array.from({length:144},(_,i)=>({kind:'circle' as const,x:-44+i%12*8,z:-44+Math.floor(i/12)*8,radius:.65})));
+  try{
+    // More than 64 distinct tiles are touched. Batching only by the obstacle
+    // request count used to leave rows 3, 7 and 11 partially uncarved.
+    for(let row=0;row<12;row++){
+      const start={x:-49,z:-44+row*8},goal={x:49,z:start.z};
+      const path=nav.path(start,[goal],.4,bounds,solids);assert(path?.length,`row ${row}`);
+      assert(path.every((p,i)=>!sweepIsBlocked(i?path[i-1]:start,p,.4,solids)));
+    }
+    const clear=nav.path({x:-49,z:-44},[{x:49,z:-44}],.4,bounds,immutableObstacles([]));
+    assert(clear?.every(p=>Math.abs(p.z+44)<.001),'removing the batch opens the straight route');
+    assert.equal(nav.snapshot().obstacleRemoves,solids.length);
+  }finally{nav.dispose();}
+});
+
 test('Navigation Plugin V2 routes around a live building and opens the corridor after demolition',async()=>{
   const nav=await createNativeNavigation(),bounds={minX:-12,maxX:12,minZ:-12,maxZ:12};
   try{

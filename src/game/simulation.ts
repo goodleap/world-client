@@ -1,3 +1,5 @@
+import { advanceStory, storyAction } from './story.ts';
+import type { StoryAction } from './story.ts';
 import { Economy, encodeEconomy, pending, WORK_NAMES } from './economy.ts';
 import type { EconomyState } from './economy.ts';
 import { createEconomyNavigation } from './economy-navigation.ts';
@@ -36,7 +38,7 @@ export type SimulationCommand={type:'move';ids:string[];point:Point;group?:numbe
   |{type:'work';id?:string;instruction:Extract<UnitCommand,{kind:'work'}>}|{type:'cancel';id:number}
   |{type:'fire';id:string;action:'fire-toggle'|'cook-toggle'}|{type:'leadership';enabled:boolean}
   |{type:'demolish';id:string}|{type:'garrison';tower:string;selected:string[]}|{type:'evict';tower:string}
-  |{type:'rally';point:Point}|{type:'place';kind:BuildingKind;point:Point}|{type:'home';action:HomeAction};
+  |{type:'story';action:StoryAction}|{type:'rally';point:Point}|{type:'place';kind:BuildingKind;point:Point}|{type:'home';action:HomeAction};
 export interface CommandResult{ok:boolean;message:string;count?:number;point?:Point;id?:string;token?:number|string}
 
 /** All authoritative gameplay state lives here. Rendering reads a replica and
@@ -90,6 +92,13 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
   }
   async function command(c:SimulationCommand):Promise<CommandResult>{
     switch(c.type){
+      case 'story':{
+        const before=state.story?.craftsmanId,result=storyAction(economy,c.action,occupancy()),guest=state.story?.craftsmanId;
+        // Commands can admit a guest while the world is paused. Register the actor
+        // before raids/needs inspect the new roster on the first resumed tick.
+        if(result.ok&&guest&&guest!==before){syncDefinitions();rallyRecruit(guest);emit({type:'door',id:'home-center'});}
+        return result;
+      }
       case 'home':return {ok:true,message:applyHomeAction(economy,c.action)};
       case 'leadership':economy.setLeadership(c.enabled);return {ok:true,message:''};
       case 'cancel':return {ok:economy.cancel(c.id),message:''};
@@ -122,6 +131,11 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
     }
   }
   let steps=0,lastMs=0,maxMs=0,definitionKey=definitions().map(d=>d.id).join(',');
+  function syncDefinitions(){
+    const defs=definitions(),key=defs.map(d=>d.id).join(',');
+    if(key!==definitionKey){definitionKey=key;residents.syncDefinitions(defs);combat.syncUnits();}
+  }
+  function rallyRecruit(id:string){const p=input(id,state.recruitment.rally);if(p)recruitOrders.set(id,p);}
   function step(dt:number){
     const begin=performance.now();world.sync();paths.flush();
     metrics.run('crowd',()=>motion.prepare([...residents.crowdBodies(),...[...combat.state.units,...raids.wolves].filter(u=>u.life==='active'&&!u.departed&&!occupiedTower(state,u.id)).map(u=>({
@@ -130,13 +144,12 @@ export async function createSimulation(state:EconomyState,emit:(event:Simulation
     }))],dt));
     metrics.run('economy',()=>controller.update(dt));metrics.run('raids',()=>raids.update(dt));
     const recruited=metrics.run('recruitment',()=>advanceRecruitment(economy,dt,occupancy()));
-    const defs=definitions(),key=defs.map(d=>d.id).join(',');
-    if(key!==definitionKey){definitionKey=key;residents.syncDefinitions(defs);combat.syncUnits();}
-    if(recruited){emit({type:'door',id:'home-center'});const p=input(recruited.id,state.recruitment.rally);if(p)recruitOrders.set(recruited.id,p);}
+    syncDefinitions();
+    if(recruited){emit({type:'door',id:'home-center'});rallyRecruit(recruited.id);}
     for(const [id,p]of recruitOrders){const route=planNavigation(p);if(route===null)continue;recruitOrders.delete(id);if(route)move(id,p.goal,route);}
     metrics.run('towers',()=>updateTowers(economy,combat));metrics.run('combat',()=>combat.update(dt));
     residents.syncCombat(combat.state.units);metrics.run('residents',()=>residents.update(dt));metrics.run('needs',()=>needs.update(dt));
-    pruneGroups(economy);steps++;lastMs=performance.now()-begin;maxMs=Math.max(maxMs,lastMs);
+    advanceStory(economy);pruneGroups(economy);steps++;lastMs=performance.now()-begin;maxMs=Math.max(maxMs,lastMs);
   }
   return {economy,residents,combat,raids,step,command,setView:(bounds:Bounds)=>{visible=bounds;},
     save(){return metrics.run('save',()=>{state.residents=residents.saveResidents();return encodeEconomy(economy);});},

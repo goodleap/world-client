@@ -771,6 +771,7 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
   const initial = initialCombat([...residents,...ENEMIES,...raiders.map(u=>newResident(u.role as 'infantry'|'archer'|'cavalry',u.id,u.home))]);
   const opponents = [...initial.units, ...threats, ...(Array.isArray(towers)?towers:[]).map(t=>({id:t.id,team:'home' as const})), ...residents.filter(r => !initial.units.some(u => u.id === r.id)).map(r => ({ id: r.id, team: 'home' as const }))];
   const num = (x: number, max = 1e9) => Number.isFinite(x) && x >= 0 && x <= max;
+  const height = (y: unknown) => typeof y === 'number' && num(y + 5, 40);
   const point = (p: Point) => p && Number.isFinite(p.x) && Number.isFinite(p.z) && Math.abs(p.x) <= WORLD_BOUNDS.maxX && Math.abs(p.z) <= WORLD_BOUNDS.maxZ;
   // A 200-person army may have more than 96 arrows in flight. Bound saves by
   // roster size and the validated three-second lifetime / attack cadence.
@@ -810,7 +811,9 @@ export function decodeCombat(raw: CombatState, threats: readonly Fighter[] = [],
   for (const p of raw.projectiles) {
     const source = raw.units.find(u => u.id === p.source), target = opponents.find(u => u.id === p.target);
     if (!source || !target || source.team === target.team || !point(p.from) || !point(p.to) || !num(p.elapsed, 3) || !num(p.duration, 3)
-      || p.from.y!==undefined&&!num(p.from.y,10)||p.to.y!==undefined&&!num(p.to.y,10)
+      // Projectile endpoints use world height, including negative basins and
+      // elevated terrain/towers; they are not heights above a flat ground plane.
+      || p.from.y!==undefined&&!height(p.from.y)||p.to.y!==undefined&&!height(p.to.y)
       || p.duration <= 0 || p.elapsed >= p.duration || !num(p.damage, 100) || !Number.isSafeInteger(p.id) || p.id < 1 || p.id >= raw.nextAttack || ids.has(p.id)) throw new Error('投射物存档无效');
     ids.add(p.id);
   }

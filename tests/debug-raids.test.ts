@@ -17,8 +17,8 @@ import { buildingInfo } from '../src/game/building-state.ts';
 import { usePathPlanner } from '../src/game/path-planner.ts';
 
 if(!MAP_DEVELOPMENT){
-  test('debug assault checks with the production map opening',()=>{
-    execFileSync(process.execPath,['--test','--test-isolation=none',import.meta.filename],{
+  test('debug assault checks with the map-development opening and native navigation',()=>{
+    execFileSync(process.execPath,['--import',new URL('./native-test-runtime.ts',import.meta.url).href,'--test','--test-isolation=none',import.meta.filename],{
       env:{...process.env,VITE_MAP_DEVELOPMENT:'true'},timeout:60000,stdio:'pipe',
     });
   });

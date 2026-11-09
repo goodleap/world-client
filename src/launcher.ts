@@ -3,6 +3,10 @@ import { copyDiagnostics, diagnosticContext } from './diagnostics.ts';
 import { compactLoadingLog } from './loading-log.ts';
 import { loadingHistory } from './loading-history.ts';
 import { readJSHeapMB } from './game/heap-memory.ts';
+import { DEFAULT_GAME_SETUP, GAME_MODES, DIFFICULTIES, homeName } from './game/game-setup.ts';
+import type { GameSetup } from './game/game-setup.ts';
+import { startingInventory, debugRequested } from './game/economy.ts';
+import { readSavedGame } from './game/economy-storage.ts';
 export type ReportProgress = (percent: number, description: string) => void;
 export type StartMode = 'new' | 'continue';
 type SaveStatus = 'ready' | 'empty' | 'invalid' | 'unavailable';
@@ -16,6 +20,9 @@ export function createLauncher() {
   if (footer) footer.textContent = typeof version === 'string' ? version.trim() || 'dev' : 'dev';
   const panel = get('loading-panel');
   const menu = get('menu-panel');
+  const preparation = get('preparation-panel');
+  const form = get<HTMLFormElement>('game-setup-form');
+  const enterWorld = get<HTMLButtonElement>('enter-world');
   const exit = get('exit-panel');
   const progress = get<HTMLProgressElement>('loading-progress');
   const start = get<HTMLButtonElement>('start-game');
@@ -66,8 +73,28 @@ export function createLauncher() {
     const ok = await copyDiagnostics(JSON.stringify({ ...diagnosticContext(), schema: 2, phase: screen.dataset.phase, loading: compactLoadingLog(loadingProgress.snapshot()) }), details);
     get('copy-loading-status').textContent = ok ? '加载诊断已复制' : '复制失败，请允许剪贴板访问后重试';
   }, { signal: abort.signal });
-  let onStart: (mode: StartMode) => void = () => {};
-  let confirmNew = false;
+  let onStart: (mode: StartMode, setup?: GameSetup) => void = () => {};
+  let pendingSetup: GameSetup | undefined;
+  const selectedSetup = (): GameSetup => {
+    const data = new FormData(form);
+    return { mode: data.get('mode') as GameSetup['mode'], difficulty: data.get('difficulty') as GameSetup['difficulty'], homeName: homeName(String(data.get('homeName') ?? '')) };
+  };
+  const describeSetup = () => {
+    const setup = selectedSetup(), stock = startingInventory(setup, debugRequested(location.search));
+    get('difficulty-description').textContent = DIFFICULTIES[setup.difficulty].description;
+    get('setup-goal').textContent = GAME_MODES[setup.mode].goal;
+    get('setup-summary').textContent = `开局补给：木材 ${stock.wood} · 石材 ${stock.stone} · 粮食 ${stock.food} · 铁矿 ${stock.iron}。${setup.mode === 'story' ? '先建立补给、打通商路；第一章结束后开启常规来袭。' : '探索周边据点，经营家园并应对周期性来袭。'}`;
+  };
+  const backToMenu = () => {
+    preparation.hidden = true; menu.hidden = false; details.hidden = false;
+    screen.className = 'loading menu-screen'; screen.dataset.phase = 'menu';
+    start.focus({ preventScroll: true });
+  };
+  form.addEventListener('change', describeSetup, { signal: abort.signal });
+  get('preparation-back').addEventListener('click', backToMenu, { signal: abort.signal });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && screen.dataset.phase === 'preparation' && !confirmation.open) { event.preventDefault(); backToMenu(); }
+  }, { signal: abort.signal });
   let percent = 0;
   const report: ReportProgress = (value, description) => {
     percent = Math.max(percent, Math.min(100, Math.round(value * 10) / 10));
@@ -89,34 +116,44 @@ export function createLauncher() {
   get('retry-loading').addEventListener('click', () => { loadingHistory.event('manual-retry'); location.reload(); }, { signal: abort.signal });
   const enter = (mode: StartMode) => {
     if (start.disabled || mode === 'continue' && resume.disabled) return;
-    start.disabled = true; resume.disabled = true; onStart(mode);
+    start.disabled = true; resume.disabled = true; enterWorld.disabled = true; onStart(mode, mode === 'new' ? pendingSetup : undefined);
   };
   start.addEventListener('click', () => {
-    if (confirmNew) { confirmation.returnValue = ''; confirmation.showModal(); }
+    if (start.disabled) return;
+    menu.hidden = true; preparation.hidden = false; details.hidden = true;
+    screen.className = 'loading preparation-screen'; screen.dataset.phase = 'preparation';
+    describeSetup(); get('preparation-title').focus({ preventScroll: true });
+  }, { signal: abort.signal });
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (screen.dataset.phase !== 'preparation' || enterWorld.disabled || confirmation.open) return;
+    pendingSetup = selectedSetup();
+    if (readSavedGame().status !== 'empty') { confirmation.returnValue = ''; confirmation.showModal(); }
     else enter('new');
   }, { signal: abort.signal });
   resume.addEventListener('click', () => enter('continue'), { signal: abort.signal });
   confirmation.addEventListener('close', () => {
-    if (confirmation.returnValue === 'new') enter('new');
+    if (confirmation.returnValue === 'new' && screen.dataset.phase === 'preparation') enter('new');
   }, { signal: abort.signal });
   return {
     report,
-    menu(startGame: (mode: StartMode) => void, saveStatus: SaveStatus) {
+    menu(startGame: (mode: StartMode, setup?: GameSetup) => void, saveStatus: SaveStatus, savedSetup?: GameSetup) {
       details.open = false; renderDetails();
       screen.className = 'loading menu-screen'; screen.dataset.phase = 'menu';
-      panel.hidden = true; exit.hidden = true; menu.hidden = false;
-      onStart = startGame; confirmNew = saveStatus !== 'empty';
+      panel.hidden = true; exit.hidden = true; preparation.hidden = true; menu.hidden = false; details.hidden = false;
+      onStart = startGame; pendingSetup = undefined; enterWorld.disabled = false;
+      form.reset(); get<HTMLInputElement>('home-name').value = DEFAULT_GAME_SETUP.homeName;
       start.disabled = false; resume.disabled = saveStatus !== 'ready';
       start.classList.toggle('secondary-button', saveStatus === 'ready');
       get('menu-save-status').textContent = {
-        ready: '已有进度，继续照料你的家园。', empty: '暂无存档，开始建立你的家园。',
+        ready: savedSetup ? `${savedSetup.homeName} · ${GAME_MODES[savedSetup.mode].name} · ${DIFFICULTIES[savedSetup.difficulty].name}` : '已有进度，继续照料你的家园。', empty: '暂无存档，开始建立你的家园。',
         invalid: '现有存档无法读取，原数据已保留。', unavailable: '浏览器暂时无法读取进度。',
       }[saveStatus];
 
     },
     exit(onMenu: () => void) {
       screen.className = 'loading menu-screen'; screen.dataset.phase = 'exited';
-      panel.hidden = true; menu.hidden = true; exit.hidden = false;
+      panel.hidden = true; menu.hidden = true; preparation.hidden = true; exit.hidden = false;
       const button = get('exit-to-menu');
       button.addEventListener('click', onMenu, { once: true, signal: abort.signal });
       button.focus({ preventScroll: true });
@@ -126,7 +163,7 @@ export function createLauncher() {
       details.open = false;
       percent = 0; loadingProgress.resetGame();
       screen.className = 'loading game-loading'; screen.dataset.phase = 'game-loading';
-      menu.hidden = true; exit.hidden = true; panel.hidden = false;
+      menu.hidden = true; preparation.hidden = true; details.hidden = false; exit.hidden = true; panel.hidden = false;
       get('loading-meter').hidden = false; get('retry-loading').hidden = true;
       get('loading-title').textContent = '正在走进家园';
       get('loading-stage').textContent = '游戏资源加载';
@@ -141,7 +178,7 @@ export function createLauncher() {
     error(error: unknown) {
       loadingHistory.fail(error);
       for (const item of loadingProgress.items.values()) if (item.kind === 'stage' && item.state === 'working') loadingProgress.fail(item.id, error);
-      screen.dataset.phase = 'error'; panel.hidden = false; menu.hidden = true;
+      screen.dataset.phase = 'error'; panel.hidden = false; menu.hidden = true; preparation.hidden = true; details.hidden = false;
       get('loading-title').textContent = '暂时无法打开家园';
       get('loading-description').textContent = error instanceof Error ? error.message : String(error);
       loadingProgress.begin('failure', '游戏启动'); loadingProgress.fail('failure', error);

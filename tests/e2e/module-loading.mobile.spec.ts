@@ -19,6 +19,7 @@ test('pending engine code is named, can be diagnosed or reloaded, and is shared 
     await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
     await expect.poll(() => engineRequests).toBe(1);
     await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+    await page.getByRole('button', { name: '进入世界', exact: true }).click();
     await expect(page.locator('#loading-status')).toBeHidden();
     await page.locator('#loading-details summary').click();
     await expect(page.locator('#loading-status')).toContainText('engine-', { timeout: 20000 });
@@ -60,6 +61,7 @@ test('engine HTTP errors identify the file and retain reload', async ({ page }) 
   await page.route(/\/assets\/engine-[^/]+\.js$/, route => route.fulfill({ status: 503, contentType: 'text/javascript', body: '' }));
   await page.goto('/');
   await page.getByRole('button', { name: '开始游戏', exact: true }).click();
+  await page.getByRole('button', { name: '进入世界', exact: true }).click();
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'error');
   await expect(page.locator('#loading-items')).toContainText('HTTP 503');
   await expect(page.getByRole('button', { name: '重新加载' })).toBeVisible();

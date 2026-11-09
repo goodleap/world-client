@@ -10,7 +10,7 @@ export function suppressBrowserGestures() {
     document.addEventListener(type, prevent, options);
   }
   document.addEventListener('selectstart', event => {
-    if (!(event.target instanceof Element && event.target.closest('.clipboard-buffer'))) prevent(event);
+    if (!(event.target instanceof Element && event.target.closest('input, textarea, [contenteditable="true"], .clipboard-buffer'))) prevent(event);
   }, options);
   document.addEventListener('wheel', event => { if (event.ctrlKey) prevent(event); }, options);
   document.addEventListener('keydown', event => {
