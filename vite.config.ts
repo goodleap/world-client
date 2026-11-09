@@ -9,7 +9,13 @@ export default defineConfig({
   base: './',
   define: { __BUILD_ID__: JSON.stringify(buildId), __MODEL_BYTES__: JSON.stringify(Object.fromEntries(['characters/characters', 'characters/characters-lod', 'characters/characters-far-lod', 'wolf/wolf', 'dog/dog']
     .map(path => [path.split('/').pop(), statSync(new URL(`./studies/${path}.glb`, import.meta.url)).size]))) },
-  worker:{format:'es'},
+  worker:{format:'es',plugins:()=>[{
+    name:'worker-entry-facade',
+    // WebKit can evaluate a module worker entry again when a lazy chunk imports
+    // it. Keep shared state out of the entry so prepare() and the game use the
+    // same runtime context, loading progress and channel without restarting it.
+    options(options){return {...options,preserveEntrySignatures:'strict'};},
+  }]},
   server: { port: 5173, strictPort: true },
   build: {
     target: 'es2022',
