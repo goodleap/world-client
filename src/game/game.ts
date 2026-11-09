@@ -1,6 +1,5 @@
 import { createSimulationClient } from './simulation-client.ts';
 import { storyView } from './story.ts';
-import type { StoryAction } from './story.ts';
 import { allWolves } from './raid-state.ts';
 import type { SimulationEvent } from './simulation.ts';
 import type { GamePlatform } from './game-platform.ts';
@@ -249,11 +248,18 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     const id = residents.selectedId();
     ui.setResidentInfo(selectedUnitInfo(economy, id, id ? residents.needsStatus(id) : undefined));
   };
+  let storyNotice = '';
   const refreshEconomy = () => {
     refreshSelected();
     management.refresh(selectedGroup);
     updateEconomyUI(ui, economy);
-    ui.setStory(storyView(economy));
+    const story = storyView(economy);
+    ui.setStory(story);
+    const notice = story ? `${story.stage}:${story.status}:${story.npc?.id}` : '';
+    if (notice !== storyNotice) {
+      storyNotice = notice;
+      if (story?.npc && story.bark) { ui.clearResidentSpeech(story.npc.id); ui.sayResident(story.npc.id, story.bark, 6); }
+    }
     ui.setHomeStatus(livingPopulation(economy.state), formatGameTime(economy.state.seconds));
     for (const id of Object.keys(economy.state.vitals)) {
       ui.setUnitHealth(id, health(economy.state, id), maxHealth(id, economy.state), economy.state.seconds, id === 'horse' ? 'cavalry' : id.startsWith('horse:') ? id.slice(6) : id);
@@ -430,6 +436,8 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
         residents.selectedId() === farmerLeader?.id ? economy.state.steward.enabled : undefined);
       ui.setCombatHint(!!combat.unit(residents.selectedId() ?? ''));
       refreshSelected();
+      const quest = storyView(economy);
+      if (name && quest && quest.npc?.id === id && quest.status !== 'active') talkToStoryNPC(id);
       return;
     }
     if (hit?.pickedMesh?.metadata?.worldFaceRanges || hit?.pickedMesh?.metadata?.worldObjectId) {
@@ -531,13 +539,45 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
   ui.setGameSetup(economy.state.setup);
   ui.bind('story-focus', () => {
     const view = storyView(economy);
-    if (view && 'target' in view) { setPreview(); overview = false; mapCenter.set(view.target.x, .5, view.target.z); clampCenter(); freshFrame = true; requestRender(); }
+    if (view?.target) { setPreview(); overview = false; mapCenter.set(view.target.x, .5, view.target.z); clampCenter(); freshFrame = true; requestRender(); }
   });
+  const findStoryNPC = (conversation = false) => {
+    const npc = storyView(economy)?.npc;
+    if (!npc) return;
+    const point = residents.displayPosition(npc.id) ?? residents.needsStatus(npc.id).position;
+    setPreview(); overview = false; mapCenter.set(point.x, surfaceHeight(point.x, point.z) + 1, point.z);
+    // Keep the speaker above the bottom dialogue; paused camera interpolation
+    // cannot complete a focus request, so apply the target immediately.
+    if (conversation) mapCenter.z -= zoom * .55 / Math.max(.2, Math.cos(camera.beta));
+    else if (ui.canvas.clientWidth < 520) mapCenter.x -= zoom * .4 * engine.getRenderWidth() / Math.max(1, engine.getRenderHeight());
+    clampCenter(); camera.target.copyFrom(mapCenter);
+    freshFrame = true; requestRender();
+  };
+  function talkToStoryNPC(id: string) {
+    const view = storyView(economy);
+    if (view?.npc?.id !== id || suspended) return;
+    findStoryNPC(true); ui.clearResidentSpeech(id);
+    ui.sayResident(id, view.status === 'reward' ? '报酬已经备好了。' : view.status === 'ready' ? '辛苦了，和我说说吧。' : '我们聊聊这件事吧。', 8);
+    ui.openStoryDialogue(id);
+  }
+  ui.bind('story-find-npc', () => findStoryNPC());
+  ui.bindStoryTalk(talkToStoryNPC);
+  ui.bindStoryClose(() => findStoryNPC());
   let storyBusy = false;
-  for (const action of ['invite', 'tools', 'supplies'] as StoryAction[]) ui.bind(`story-${action}`, async () => {
+  ui.bindStoryAction(async request => {
     if (storyBusy) return;
     storyBusy = true;
-    try { const result = await simulation.command({ type: 'story', action }); ui.storyFeedback(result.message); refreshEconomy(); if (result.ok) await save(); }
+    try {
+      const result = await simulation.command({ type: 'story', ...request });
+      refreshEconomy(); ui.storyFeedback(result.ok ? '' : result.message);
+      if (result.ok) {
+        await save(); ui.clearResidentSpeech(request.npc);
+        ui.sayResident(request.npc, request.action === 'accept' ? '那就拜托你了。' : request.action === 'invite' ? '阿榆正在赶来。'
+          : request.action === 'report' ? '多谢，报酬为你备好了。' : '报酬已放在旁边。', 7);
+        if (['claim', 'tools', 'supplies'].includes(request.action)) ui.showStoryReceipt(result.message);
+        else if (request.action === 'accept' || request.action === 'invite') ui.closeStoryDialogue();
+      }
+    }
     finally { storyBusy = false; }
   });
   ui.bind('raid-notice', () => {
@@ -760,6 +800,7 @@ export async function createGame(ui: GameUI, economy = new Economy(), platform:G
     const failed = loadingProgress.snapshot().find(item => item.state === 'failed' && item.kind === 'download');
     if (failed) throw new Error(`${failed.name}：${failed.error}`);
     loadingProgress.begin('first-frame', '首帧显示');
+    if (economy.state.story && economy.state.story.status !== 'claimed') findStoryNPC();
     renderReady = true; requestRender();
     if (!renderedFrames) await new Promise<void>(resolve => scene.onAfterRenderObservable.addOnce(() => resolve()));
   } catch (error) {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { snapshot } from './helpers.ts';
 
-test('the default story opening is keyboard accessible and exposes a real chapter objective', async ({ page }, info) => {
+test('the default story opening is keyboard accessible and introduces the NPC quest journal', async ({ page }, info) => {
   test.setTimeout(150_000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/'); await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'menu');
@@ -13,8 +13,13 @@ test('the default story opening is keyboard accessible and exposes a real chapte
   await page.keyboard.press('Enter'); await page.locator('#enter-world').focus(); await page.keyboard.press('Enter');
   await expect(page.locator('#loading')).toHaveAttribute('data-phase', 'playing', { timeout: 90_000 });
   expect((await snapshot(page)).economy.setup).toEqual({ mode: 'story', difficulty: 'standard', homeName: '溪谷家园' });
+  await expect(page.locator('[data-quest-npc="farmer-leader"]')).toBeInViewport();
   await page.locator('#story-open').click();
   await expect(page.locator('#story-dialog')).toBeVisible();
+  await expect(page.locator('#story-dialog')).toHaveAttribute('data-mode', 'journal');
+  await expect(page.locator('#story-status')).toHaveText('可接任务');
+  await expect(page.locator('#story-accept')).not.toBeVisible();
+  await expect(page.locator('#story-find-npc')).toContainText('领头');
   await expect(page.locator('#story-objective')).not.toBeEmpty();
   const before = (await snapshot(page)).economy;
   await page.waitForTimeout(400);

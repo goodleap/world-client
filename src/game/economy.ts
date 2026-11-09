@@ -55,7 +55,7 @@ export interface EconomyState {
   combat: CombatState; raids: RaidState;
   vitals: Vitals; campfires: Campfire[];
   buildingHealth:Record<string,number>; autoRepair: boolean; dangerZones: DangerZone[];
-  version: 32; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
+  version: 33; opening: typeof OPENING_PROFILE; debug: boolean; upgrades: { tools: number; arms: number }; regrowth: Record<string, number>; sites: BuildingSite[]; nextSiteId: number; nextPlotId: number; goods: Goods[]; nextId: number; seconds: number; inventory: Inventory;
   plots: FarmPlot[]; depleted: string[]; buildings: string[]; tasks: WorkTask[];
 }
 export const RESOURCE_NAMES: Record<Resource, string> = { wood: '木材', stone: '石材', food: '粮食', iron: '铁矿' };
@@ -87,7 +87,7 @@ export function initialEconomy(seed?: number, debug = false, setup: GameSetup = 
   const raids = initialRaids(0, seed, debug);
   if (!debug) raids.nextAt *= DIFFICULTIES[setup.difficulty].protection;
   return {
-    setup, story: setup.mode === 'story' ? initialStory() : null, towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids, vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 32, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: startingInventory(setup, debug),
+    setup, story: setup.mode === 'story' ? initialStory() : null, towers: [], recruitment: initialRecruitment(), groups: initialGroups(), groupMoves:{}, combat: initialCombat(), raids, vitals: initialVitals(), campfires: [], buildingHealth:{}, autoRepair:true, dangerZones:[], version: 33, opening: OPENING_PROFILE, debug, upgrades: { tools: 0, arms: 0 }, regrowth: {}, sites: [], nextSiteId: 0, nextPlotId: FARM_PLOTS.length, goods: [], residents: {}, steward: { enabled: true, nextDecision: 0, reason: '正在安排作业' }, nextId: 1, seconds: 0, inventory: startingInventory(setup, debug),
     plots: FARM_PLOTS.map((p, i) => ({ ...p, tilled: true, crop: i === 0 ? 'carrot' : i === 1 ? 'wheat' : undefined,
       growth: i === 0 ? C.crops.carrot.growthSeconds : 0 })),
     depleted: [], buildings: [], tasks: [],
@@ -592,7 +592,7 @@ export function encodeEconomy(economy: Economy): string {
 }
 export function decodeEconomy(text: string): Economy {
   const saved: unknown = JSON.parse(text);
-  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 32) throw new Error('不支持的存档版本');
+  if (!saved || typeof saved !== 'object' || !('version' in saved) || saved.version !== 33) throw new Error('不支持的存档版本');
   const raw = saved as EconomyState, state = initialEconomy();
   if(raw.opening!==OPENING_PROFILE)throw new Error('存档开局配置不匹配，请开始新游戏');
   const number = (n: unknown, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max;
